@@ -1,6 +1,7 @@
 ### Tandem Repeat Explorer
 
-An online portal for exploring genome-wide tandem repeat (TR) catalogs. It is publicly available at 
+An online portal for exploring genome-wide tandem repeat (TR) catalogs. <br />
+It is publicly available at 
 [trexplorer.broadinstitute.org](https://trexplorer.broadinstitute.org/)
 
 <br />
