@@ -1,0 +1,6 @@
+flask
+flask-cors
+flask-limiter
+google-cloud-bigquery
+google-cloud-storage
+functions-framework
