@@ -585,9 +585,34 @@
     </div>
 </div>
 
+<!-- modal dialog for selecting results table columns -->
+<div class="ui modal" id="results-table-column-settings-dialog">
+    <i class="close icon"></i>
+    <div class="header">
+        Results Table Settings
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important">
+                <tr><th style="padding-bottom: 10px"><b>Columns to display:</b></th></tr>
+            </table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">
+            Cancel
+        </div>
+        <div id="results-table-column-settings-apply-button" class="ui positive right labeled icon button">
+            Apply
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
+
 <div class="ui stackable grid">
     <div class="ui row" id="header-stripe">
-        <div class="three wide column" style="padding: 0px !important;"></div>
+        <div class="three wide column" style="padding: 0px !important"></div>
         <div class="three wide column" id="header-title">
             <a href="/">
                 <img src="tandem-repeat-explorer-logo-white.png" alt="TR Explorer Logo" style="height: 40px; margin-left: 10px;">
@@ -598,7 +623,7 @@
             <a href="#" id="about-link">About</a>
             <a href="https://github.com/bw2/tandem-repeat-explorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
         </div>
-        <div class="three wide column" style="padding: 0px !important;"></div>
+        <div class="three wide column" style="padding: 0px !important"></div>
     </div>
 
     <div class="ui row" id="igv-row">
@@ -755,7 +780,7 @@
 
             <!-- Results Area -->
             <div id="results-area">
-                <div id="loading-container" style="display: none;">
+                <div id="loading-container" style="display: none">
                     <div id="loading-indicator" class="loading-indicator">
                         <div class="ui small active inline loader"></div>
                         <span>Loading...</span>
@@ -764,7 +789,7 @@
                 <div class="pagination-container top-pagination"></div>
                 <div id="results-table"></div>
                 <div class="pagination-container bottom-pagination"></div>
-                <div id="error-message" class="ui negative message" style="display: none;">
+                <div id="error-message" class="ui negative message" style="display: none">
                     <i class="close icon"></i>
                     <div class="header">Error</div>
                     <p id="error-text"></p>
@@ -849,6 +874,19 @@
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
 
+    const RESULTS_TABLE_COLUMN_NAMES = [
+        'interval',
+        'motif',
+        'geneRegion',
+        'geneName',
+        'isPolymorphic',
+        'variationCluster',
+        'trsInRegion',
+        'mappability',
+    ]
+
+    const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
+
     // persistent page state (added to the URL)
     let DEFAULT_GLOBAL_PAGE_STATE = {
         currentPage: 1,
@@ -886,6 +924,8 @@
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
+
+        showColumns: Object.keys(RESULTS_TABLE_COLUMN_NAMES.slice(0, 8)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -948,11 +988,13 @@
     const TABLE_COLUMNS = {
         interval: {
             displayName: 'Interval (hg38)',
+            helpText: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
             getValue: (row) => row.ReferenceRegion.replace(/^chr/i, ''),
             getSortColumns: () => [DEFAULT_SORT_COLUMN]
         },
         motif: {
             displayName: 'Motif',
+            helpText: 'The repeat motif and motif size. <b>Examples:</b> CAG (3), GGCCCC (6)',
             getValue: (row) => {
                 const motif = row.ReferenceMotif
                 const truncatedMotif = motif.length > 12 ? motif.substring(0, 12) + '...' : motif
@@ -962,13 +1004,14 @@
         },
         geneRegion: {
             displayName: 'Region',
+            helpText: 'TR locus gene region. <b>Examples:</b> 5\'UTR, coding, etc.',
             getValue: (row) => {
-                if (!row.GencodeGeneRegion) return '';
+                if (!row.GencodeGeneRegion) return ''
                 const regionRename = {
                     'CDS': 'coding',
                     'exon': 'exon (non-coding gene)'
-                };
-                return regionRename[row.GencodeGeneRegion] || row.GencodeGeneRegion;
+                }
+                return regionRename[row.GencodeGeneRegion] || row.GencodeGeneRegion
             },
             getSortColumns: () => ['GencodeGeneRegion']
         },
@@ -979,10 +1022,11 @@
         },
         isPolymorphic: {
             displayName: 'Polymorphic',
+            helpText: 'Summary of available sources of polymorphism data for the TR locus',
             getValue: (row) => {
                 const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 === null, row.StdevFromIllumina174k === null, row.StdevFromT2TAssemblies === null].filter(Boolean).length
                 const polymorphismDetails = `
-                        <div class="content" style="text-align: center;">
+                        <div class="content" style="text-align: center">
                             <div><span class="cell-popup-details-label">Locus Info</span></div>
                             <div style="margin-top: 5px">
                                 <div style="font-size: 1.05em; padding-bottom: 5px;">${row.ReferenceRegion}</div>
@@ -1075,6 +1119,7 @@
         },
         variationCluster: {
             displayName: 'VC',
+            helpText: 'Summarizes whether the TR locus resides within a variation cluster',
             getValue: (row) => {
                 const hasCluster = row.VariationCluster && row.VariationCluster.trim() !== ''
                 if (hasCluster) {
@@ -1097,16 +1142,21 @@
         },
         trsInRegion: {
             displayName: 'Nearby TRs',
+            helpText: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
             getValue: (row) => (row.TRsInRegion ? (parseInt(row.TRsInRegion) - 1) : ''),
             getSortColumns: () => ['TRsInRegion']
         },
         mappability: {
             displayName: 'Mappability',
+            helpText: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
             getValue: (row) => row.FlanksAndLocusMappability,
             getSortColumns: () => ['FlanksAndLocusMappability']
         },
     }
 
+    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
+        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
+    }
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
@@ -1117,11 +1167,14 @@
         const params = new URLSearchParams(hash)
         
         for (const [key, value] of params.entries()) {
-            if (key in DEFAULT_GLOBAL_PAGE_STATE && value) {
+            if (key in DEFAULT_GLOBAL_PAGE_STATE && value !== null) {
                 // Convert string values to appropriate types
                 GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
+                if (key === 'showColumns') {
+                    GLOBAL_PAGE_STATE['showColumns'] = `${value}` // convert to string
+                }
             }
         }
         console.log("Starting to initialize page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)
@@ -1304,7 +1357,7 @@
             $('.igv-navbar-left-container').after(
                 `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-radius:5px; color:#06359d !important; background-color: white !important">
                    Select IGV Tracks
-                   <i class="setting icon" style="margin-left:10px;" />
+                   <i class="setting icon" style="margin-left:10px" />
                 </button>`
             )
 
@@ -1622,7 +1675,7 @@
             onChange: async (value) => {
                 if (!value) return
 
-                $('.export-dropdown').dropdown('clear');
+                $('.export-dropdown').dropdown('clear')
 
                 const searchQuerySuffix = window.lastSearchQuerySuffix
 
@@ -1633,7 +1686,7 @@
 
 
                 // Format data based on export type
-                let fileFormat;
+                let fileFormat
                 if (value === 'expansion_hunter' || value == 'json') {
                     fileFormat = 'JSON'
                 } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'bed') {
@@ -1644,8 +1697,8 @@
                     throw new Error(`Invalid export-dropdown value: ${value}`)
                 }
 
-                let toolName;
-                let selectClause;
+                let toolName
+                let selectClause
                 if (value === 'expansion_hunter') {
                     toolName = 'ExpansionHunter'
                     selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
@@ -1753,13 +1806,13 @@
                     }
                                                         
                 } catch (error) {
-                    console.error('Error exporting data:', error);
-                    alert('Error exporting data: ' + error.message);
+                    console.error('Error exporting data:', error)
+                    alert('Error exporting data: ' + error.message)
                 } finally {
                     $('body').css('cursor', 'default')
                 }
             }
-        });
+        })
     }
 
     const displayError = (message) => {
@@ -1773,7 +1826,8 @@
         const results = window.searchResults
         const sortColumn = GLOBAL_PAGE_STATE['sc']
         const sortDirection = GLOBAL_PAGE_STATE['sd']
-        
+        const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+
         const resultsTableElement = $('#results-table')
 
         resultsTableElement.removeClass('loading')
@@ -1784,15 +1838,23 @@
         }
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
-        tableHtml += '<th></th>'
+        tableHtml += `<th>
+            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column settings">
+                <i class="setting icon"></i>
+            </button>
+        </th>`
 
-        Object.entries(TABLE_COLUMNS).forEach(([columnId, column]) => {
+        Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+            if (!visibleColumns.includes(columnId)) {
+                return
+            }
+            const columnObject = TABLE_COLUMNS[columnName]
             const isSorted = columnId === sortColumn
             let icon = '<i class="sort icon"></i>'
             if (isSorted) {
                 icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
             }
-            tableHtml += `<th class="${isSorted ? 'sorted' : ''}" data-column="${columnId}">${column.displayName} ${icon}</th>`
+            tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnId}">${columnObject.displayName} ${icon}</th>`
         })
 
         tableHtml += '</tr></thead><tbody>'
@@ -1832,13 +1894,26 @@
                 diseaseAssociatedIcon += `<i style="margin-left: 10px;" class="disease-associated-icon user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
             }
             tableHtml += `<tr ${isDiseaseAssociated ? 'class="disease-associated-row"' : ''}>`
-            tableHtml += `<td>
+            tableHtml += `<td style="text-align: center;">
                 <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
                 ${diseaseAssociatedIcon}
             </td>`
-            Object.entries(TABLE_COLUMNS).forEach(([columnId, column]) => {
-                const value = column.getValue(row)
-                tableHtml += `<td>${value !== null ? value : ''}</td>`
+            
+            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+                if (visibleColumns.includes(columnId)) {
+                    const columnObject = TABLE_COLUMNS[columnName]
+                    let value
+                    if (!columnObject || !columnObject.getValue) {
+                        const label = columnObject ? 'columnObject' : 'columnObject.getValue'
+                        console.log('WARNING: ', label, 'is undefined for columnId:', columnId, 'columnName:', columnName)
+                        value = row[columnName]
+                    } else {
+                        value = columnObject.getValue(row)
+                    }
+                    
+                    tableHtml += `<td>${value !== null ? value : ''}</td>`
+                }
             })
             tableHtml += '</tr>'
         })
@@ -1846,7 +1921,7 @@
         resultsTableElement.html(tableHtml)
 
         // Add click handlers for sortable headers
-        resultsTableElement.find('th').click(function() {
+        resultsTableElement.find('.results-table-sortable-header').click(function() {
             const column = $(this).data('column')
             if (column === sortColumn) {
                 if (sortDirection === 'ASC') {
@@ -1914,12 +1989,12 @@
             }
         })
 
-                // Initialize popups for variation cluster cells
+        // Initialize popups for variation cluster cells
         $('.cell-in-variation-cluster-column').popup({
             position: 'right center',
             on: 'click',
             hoverable: true,
-        });
+        })
 
         // Initialize popups for polymorphism cells
         $('.cell-in-polymorphism-column').popup({
@@ -1931,24 +2006,24 @@
             onShow: function(popup) {
                 // Destroy any existing charts before creating new ones
                 Chart.helpers.each(Chart.instances, function(instance) {
-                    instance.destroy();
-                });
+                    instance.destroy()
+                })
                 
                 $('.polymorphism-allele-frequency-chart').each(function() {
-                    const frequencies = $(this).data('frequencies');
-                    const refAlleleSize = $(this).data('ref-allele-size');
-                    if (!frequencies) return;  // Skip if no data
+                    const frequencies = $(this).data('frequencies')
+                    const refAlleleSize = $(this).data('ref-allele-size')
+                    if (!frequencies) return   // Skip if no data
                     
-                    const data = frequencies.split(',').map(item => {
-                        const [size, count] = item.split(':');
+                    const data = frequencies.split(SHOW_COLUMNS_VALUE_DELIMITER).map(item => {
+                        const [size, count] = item.split(':')
                         return {
                             size: parseInt(size.replace('x', '')),
                             count: parseInt(count)
-                        };
-                    });
+                        }
+                    })
 
                     // Sort by size
-                    data.sort((a, b) => a.size - b.size);
+                    data.sort((a, b) => a.size - b.size)
 
 
                     const yLookup = {}
@@ -2001,14 +2076,14 @@
                                                 lineWidth: 1,
                                                 hidden: false,
                                                 index: 0
-                                            }];
+                                            }]
                                         }
                                     }
                                 },
                                 tooltip: {
                                     callbacks: {
                                         label: function(context) {
-                                            return `Count: ${context.raw}`;
+                                            return `Count: ${context.raw}`
                                         }
                                     }
                                 }
@@ -2032,30 +2107,80 @@
                                     ticks: {
                                         callback: function(value) {
                                             if (Math.floor(value) === value) {
-                                                return parseInt(value);
+                                                return parseInt(value)
                                             }
                                         }
                                     },
                                     afterBuildTicks: (axis) => {
-                                        const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000];
-                                        axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}));
+                                        const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
+                                        axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
                                     }
                                 }
                             }
                         }
-                    });
-                    this.style.minWidth = '500px';
-                    this.style.height = '200px';
-                    this.style.minHeight = '200px';
-                    this.style.maxHeight = '200px';
-                });
+                    })
+                    this.style.minWidth = '500px'
+                    this.style.height = '200px'
+                    this.style.minHeight = '200px'
+                    this.style.maxHeight = '200px'
+                })
 
                 $('.question').popup({ on: 'click' })
             }
-        });
+        })
 
 
         $('.disease-associated-icon').popup({ on: 'click' })
+
+        // populate the sort order dropdown with the column names
+        $('#sort-order-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sc'])
+
+        // "Column settings" modal
+        $('#results-table-settings-button').click((e) => {
+            e.preventDefault()
+            
+            // Clear existing checkboxes
+            $('.results-table-column-settings-checkboxes tr:not(:first-child)').remove()
+            
+            // Add checkboxes for each column
+            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+                const isChecked = visibleColumns.includes(columnId)
+                $('.results-table-column-settings-checkboxes').append(`
+                    <tr>
+                        <td style="border: 0px !important; padding: 5px 0px">
+                            <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
+                                <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
+                                <label>${TABLE_COLUMNS[columnName].displayName}</label>
+                            </div>
+                            ${TABLE_COLUMNS[columnName].helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
+                        </td>
+                    </tr>
+                `)
+            })
+            
+            // Initialize checkboxes
+            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox()
+            $('#results-table-column-settings-dialog').modal('show')
+            $('.question').popup({ on: 'click' })
+        })
+
+        // Handle Apply button click in column settings dialog
+        $('#results-table-column-settings-apply-button').click(() => {
+            const selectedColumns = []
+            $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {
+                if ($(this).prop('checked')) {
+                    const columnId = $(this).attr('name').replace('show_column_', '')
+                    selectedColumns.push(columnId)
+                }
+            })
+            
+            GLOBAL_PAGE_STATE['showColumns'] = selectedColumns.join(SHOW_COLUMNS_VALUE_DELIMITER) 
+            writePersistentPageStateToUrl()
+            performSearch(true)
+            
+            $('#results-table-column-settings-dialog').modal('hide')
+        })
 
         GLOBAL_PAGE_STATE['showRs'] = 1
         writePersistentPageStateToUrl()
@@ -2465,10 +2590,10 @@
     })
     
     $('#known-disease-motifs-link').click((e) => {
-        e.preventDefault();
+        e.preventDefault()
 
-        $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI);
-    });
+        $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI)
+    })
 
     // handle browser forward & back buttons
     window.addEventListener('popstate', readAndApplyPersistentPageStateFromUrl)
