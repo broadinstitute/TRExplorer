@@ -47,135 +47,271 @@ import tqdm
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.misc_utils import parse_interval
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-n", type=int, default=None, help="Number of lines to process")
-parser.add_argument("--tenk10k-tsv", default="tenk10k_str_mt_rows.tsv.bgz")
-parser.add_argument("--trexplorer-catalog", default="~/code/tandem-repeat-catalogs/results__2024-10-01/release_draft_2024-10-01/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.json.gz")
-parser.add_argument("--output-tsv", default="tenk10k_str_mt_rows.reformatted.tsv.gz")
-args = parser.parse_args()
+
+SAME_AS_IN_CATALOG_LABEL = "the same as"
+ALMOST_SAME_AS_IN_CATALOG_LABEL = "almost the same as"
+OVERLAP_CATALOG_LABEL = "overlaps"
+
+
+def write_to_output(output_row_data, output_tsv, counters):
+    fout = gzip.open(output_tsv, "wt")
+    fout.write("\t".join([
+        "chrom", 
+        "start_0based", 
+        "end_1based", 
+        "catalog_locus_id", 
+        "tenk10k_locus_id",
+        "tenk10k_interval",
+        "motif", 
+        "stdev",
+        "allele_size_histogram", 
+        "mode_allele",
+        "tenk_10k_vs_catalog_overlap_size",
+        "tenk_10k_vs_catalog_size_diff",
+    ]) + "\n")
+
+    total = 0
+
+    sorted_output_data = sorted(output_row_data.items(), key=lambda x: (x[1]['chrom'], x[1]['start_0based'], x[1]['end_1based']))
+    for catalog_locus_id, output_row in tqdm.tqdm(sorted_output_data, unit=" output rows", unit_scale=True):
+        chrom = output_row["chrom"]
+        start_0based = output_row["start_0based"]
+        end_1based = output_row["end_1based"]
+        tenk10k_locus_id = output_row["tenk10k_locus_id"]
+        tenk10k_interval = output_row["tenk10k_interval"]
+        motif = output_row["motif"]
+        found_in_catalog = output_row["found_in_catalog"]
+
+        allele_array_counts = [x for x in output_row["allele_array_counts"] if x["key"] is not None]
+        allele_array_counts = sorted(allele_array_counts, key=lambda x: x["key"])
+
+        all_alleles = [d["key"] for d in allele_array_counts for _ in range(d["value"])]
+
+        mode_allele = output_row["mode_allele"]
+        tenk_10k_vs_catalog_overlap_size = output_row["found_interval_overlap_size"]
+        tenk_10k_vs_catalog_size_diff = output_row["found_interval_size_diff"]
+
+        recomputed_mode_allele = collections.Counter(all_alleles).most_common(1)[0][0]
+        if mode_allele is not None and recomputed_mode_allele != mode_allele:
+            print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {mode_allele} for {tenk10k_locus_id}")
+
+        stdev = ""
+        allele_size_histogram = ""
+        if found_in_catalog is None:
+            counters["tenk10k rows not found in catalog"] += 1
+        else:
+            counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1
+            try:
+                stdev = np.std(all_alleles)
+                stdev = f"{stdev:.3f}"
+            except Exception as e:
+                print(f"WARNING: Error computing stdev for {tenk10k_locus_id}: {e}")
+                print(f"found_in_catalog: {found_in_catalog}")
+                print(f"allele_array_counts: {allele_array_counts}")
+                stdev = ""
+            try:
+                if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
+                    allele_size_histogram = ",".join([f"{d['key']}x:{d['value']}" for d in allele_array_counts])
+            except Exception as e:
+                print(f"WARNING: Error computing allele_size_histogram for {tenk10k_locus_id}: {e}")
+                print(f"found_in_catalog: {found_in_catalog}")
+                print(f"allele_array_counts: {allele_array_counts}")
+                allele_size_histogram = ""
+
+        output_row = [chrom, start_0based, end_1based, catalog_locus_id, tenk10k_locus_id, tenk10k_interval, motif, stdev, allele_size_histogram, recomputed_mode_allele, tenk_10k_vs_catalog_overlap_size, tenk_10k_vs_catalog_size_diff]
+        fout.write("\t".join(map(str, output_row)) + "\n")
+        total += 1
+
+    fout.close()
+
+    print(f"Wrote {total:9,d} lines to {output_tsv}")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=None, help="Number of lines to process")
+    parser.add_argument("--tenk10k-tsv", default="tenk10k_str_mt_rows.tsv.bgz")
+    parser.add_argument("--trexplorer-catalog", default="~/code/tandem-repeat-catalogs/results__2024-10-01/release_draft_2024-10-01/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.json.gz")
+    parser.add_argument("--output-tsv", default="tenk10k_str_mt_rows.reformatted.tsv.gz")
+    args = parser.parse_args()
 
 
 
-N = args.n
-input_tsv = args.tenk10k_tsv
-output_tsv = args.output_tsv
-catalog_path = os.path.expanduser(args.trexplorer_catalog)
+    N = args.n
+    input_tsv = args.tenk10k_tsv
+    output_tsv = args.output_tsv
+    catalog_path = os.path.expanduser(args.trexplorer_catalog)
 
-f = gzip.open(input_tsv, "rt")
-header_line = f.readline().strip().split("\t")
 
-fout = gzip.open(output_tsv, "wt")
-fout.write("\t".join([
-    "chrom", 
-    "start_0based", 
-    "end_1based", 
-    "locus_id", 
-    "motif", 
-    "stdev",
-    "allele_size_histogram", 
-    "mode_allele",
-]) + "\n")
+    # parse catalog
+    """
+    {
+        "LocusId": "1-14069-14081-CCTC",
+        "VariantType": "Repeat",
+        "ReferenceRegion": "chr1:14069-14081",
+        "LocusStructure": "(CCTC)*"
+    }
+    """
 
-# parse catalog
-"""
-{
-    "LocusId": "1-14069-14081-CCTC",
-    "VariantType": "Repeat",
-    "ReferenceRegion": "chr1:14069-14081",
-    "LocusStructure": "(CCTC)*"
-}
-"""
+    counters = collections.defaultdict(int)
+    catalog_locus_ids = set()
+    catalog_intervals = collections.defaultdict(intervaltree.IntervalTree)
 
-counters = collections.defaultdict(int)
-catalog_locus_ids = set()
-catalog_intervals = collections.defaultdict(intervaltree.IntervalTree)
+    print(f"Parsing catalog: {os.path.basename(catalog_path)}")
+    with gzip.open(catalog_path, "rt") as f_catalog:
+        catalog_records = json.load(f_catalog)
+        for item in tqdm.tqdm(catalog_records, unit=" items", unit_scale=True):
+            catalog_locus_id = item["LocusId"]
+            catalog_locus_ids.add(catalog_locus_id)
 
-print(f"Parsing catalog: {os.path.basename(catalog_path)}")
-with gzip.open(catalog_path, "rt") as f_catalog:
-    catalog_records = json.load(f_catalog)
-    for item in tqdm.tqdm(catalog_records, unit=" items", unit_scale=True):
-        catalog_locus_id = item["LocusId"]
-        catalog_locus_ids.add(catalog_locus_id)
+            counters["catalog entries"] += 1
+            reference_region = item["ReferenceRegion"]
+            if not isinstance(reference_region, str):
+                print(f"WARNING: Skipping {catalog_locus_id} in {os.path.basename(catalog_path)} because reference_region is not a string: {reference_region}")
+                continue
 
-        counters["catalog entries"] += 1
-        reference_region = item["ReferenceRegion"]
-        if not isinstance(reference_region, str):
-            print(f"WARNING: Skipping {catalog_locus_id} in {os.path.basename(catalog_path)} because reference_region is not a string: {reference_region}")
+            catalog_chrom, catalog_start_0based, catalog_end_1based = parse_interval(reference_region)
+            catalog_chrom = catalog_chrom.replace("chr", "")
+            catalog_motif = item["LocusStructure"].strip("()*+")
+
+            catalog_intervals[catalog_chrom].addi(catalog_start_0based, catalog_end_1based, data=(catalog_locus_id, catalog_motif))
+
+    print(f"Parsed {counters['catalog entries']:9,d} entries from {os.path.basename(catalog_path)}")
+
+    f = gzip.open(input_tsv, "rt")
+    header_line = f.readline().strip().split("\t")
+
+    #fout_bed = open(output_tsv.replace(".tsv.gz", ".bed"), "wt")
+
+    print(f"Processing {os.path.basename(input_tsv)}")
+    processed_locus_ids = set()
+    output_row_data = {} 
+    for i, line in tqdm.tqdm(enumerate(f), unit=" lines", unit_scale=True):
+        if N is not None and i > N:
+            break
+
+        counters["total tenk10k rows"] += 1
+        fields = line.strip().split("\t")
+        # zip(header_fields, fields)
+        if len(fields) != 18:
+            print(f"WARNING: Skipping line #{i+1} because it has {len(fields)} fields")
+            continue
+        
+        chrom, start_0based = fields[0].split(":")
+        chrom = chrom.replace("chr", "")
+        start_0based = int(start_0based)
+
+        info_field = fields[5]
+        info_json = json.loads(info_field)
+        end_1based = int(info_json["END"])
+        motif = info_json["RU"]
+        
+        locus_id = f"{chrom}-{start_0based}-{end_1based}-{motif}"
+        if locus_id in processed_locus_ids:
+            counters["tenk10k rows skipped because the same locus id was already processed"] += 1
             continue
 
-        catalog_chrom, catalog_start_0based, catalog_end_1based = parse_interval(reference_region)
-        catalog_motif = item["LocusStructure"].strip("()*+")
+        processed_locus_ids.add(locus_id)
 
-        catalog_intervals[catalog_chrom].addi(catalog_start_0based, catalog_end_1based, data=catalog_motif)
+        #fout_bed.write(f"{chrom}\t{start_0based}\t{end_1based}\t{motif}\t.\t.\n")
 
-print(f"Parsed {counters['catalog entries']:9,d} entries from {os.path.basename(catalog_path)}")
+        aggregated_info = fields[11]
+        aggregated_info_json = json.loads(aggregated_info)
 
-for i, line in tqdm.tqdm(enumerate(f), unit=" lines", unit_scale=True):
-    if N is not None and i > N:
-        break
-    fields = line.strip().split("\t")
-    # zip(header_fields, fields)
-    if len(fields) != 18:
-        print(f"WARNING: Skipping line #{i+1} because it has {len(fields)} fields")
-        continue
-    
-    chrom, start_0based = fields[0].split(":")
-    start_0based = int(start_0based)
-
-    info_field = fields[5]
-    info_json = json.loads(info_field)
-    end_1based = int(info_json["END"])
-    motif = info_json["RU"]
-
-    locus_id = f"{chrom}-{start_0based}-{end_1based}-{motif}"
-    aggregated_info = fields[11]
-    aggregated_info_json = json.loads(aggregated_info)
-    allele_array_counts = aggregated_info_json["allele_array_counts"]
-    mode_allele = aggregated_info_json["mode_allele"]
-
-    found_in_catalog = None
-    if locus_id in catalog_locus_ids:
-        found_in_catalog = "same"
-    else:
-        # if it exists, retrieve the largest overlapping interval in the catalog with the same canonical motif
-        canonical_motif = compute_canonical_motif(motif)
-        found_interval = None
-        for interval in catalog_intervals[chrom].overlap(start_0based, end_1based):
-            catalog_canonical_motif = compute_canonical_motif(interval.data)
-            if catalog_canonical_motif == canonical_motif and (
-                found_interval is None or found_interval.length() < interval.length()):
-                found_interval = interval
-
-        if found_interval is not None:
-            size_diff = abs((end_1based - start_0based) - found_interval.length())
-            if size_diff < len(canonical_motif):
-                found_in_catalog = "same"
-            else:
-                found_in_catalog = "overlaps"
-
-    stdev = ""
-    allele_array_counts = ""
-    if found_in_catalog is None:
-        counters["not_found_in_catalog"] += 1
-    else:
-        stdev = np.std([d["key"] for d in allele_array_counts for _ in range(d["value"])])
-        stdev = f"{stdev:.3f}"
-        if found_in_catalog == "same":
-            counters["same"] += 1
-            allele_array_counts = [f"{d['key']}x:{d['value']}" for d in allele_array_counts]
-            allele_array_counts = ",".join(allele_array_counts)
-        elif found_in_catalog == "overlaps":
-            counters["overlaps"] += 1
+        found_in_catalog = None
+        catalog_locus_id = None
+        found_interval_size_diff = None
+        found_interval_overlap_size = None
+        if locus_id in catalog_locus_ids:
+            found_in_catalog = SAME_AS_IN_CATALOG_LABEL
+            catalog_locus_id = locus_id
+            found_interval_size_diff = 0
+            found_interval_overlap_size = end_1based - start_0based
         else:
-            raise ValueError(f"Unexpected value for found_in_catalog: {found_in_catalog}")
+            # if it exists, retrieve the largest overlapping interval in the catalog with the same canonical motif
+            found_interval = None
+            canonical_motif = None
+            overlapping_intervals = catalog_intervals[chrom].overlap(start_0based, end_1based)
+            if len(overlapping_intervals) > 0:
+                canonical_motif = compute_canonical_motif(motif)
+            for interval in overlapping_intervals:
+                # make sure the overlap size is at least one repeat unit
+                overlap_length = min(end_1based, interval.end) - max(start_0based, interval.begin)
+                if overlap_length <= 0:
+                    raise ValueError(f"overlap_length is not positive: {overlap_length}")
+                    
+                if overlap_length < len(canonical_motif):
+                    continue
 
-    counters["total"] += 1
+                size_diff = abs((end_1based - start_0based) - interval.length())
+                if (found_interval is None 
+                    or size_diff < found_interval_size_diff
+                    or (
+                        size_diff == found_interval_size_diff 
+                        and overlap_length > found_interval_overlap_size
+                    )
+                ):
+                    _, catalog_motif = interval.data
+                    catalog_canonical_motif = compute_canonical_motif(catalog_motif)
+                    if catalog_canonical_motif == canonical_motif:
+                        found_interval = interval
+                        found_interval_overlap_size = overlap_length
+                        found_interval_size_diff = size_diff
 
-    output_row = [chrom, start_0based, end_1based, locus_id, motif, stdev, allele_array_counts, mode_allele]
-    fout.write("\t".join(map(str, output_row)) + "\n")
+            if found_interval is not None:
+                catalog_locus_id, _ = found_interval.data
+                if found_interval_size_diff == 0:
+                    found_in_catalog = SAME_AS_IN_CATALOG_LABEL
+                elif found_interval_size_diff < len(canonical_motif):
+                    found_in_catalog = ALMOST_SAME_AS_IN_CATALOG_LABEL
+                else:
+                    found_in_catalog = OVERLAP_CATALOG_LABEL
 
-print(f"Wrote {counters['total']:9,d} lines to {output_tsv}")
+        if not found_in_catalog:
+            counters["tenk10k rows were not found in catalog"] += 1
+            continue
 
-# print counters
-for key, count in sorted(counters.items(), key=lambda x: x[0]):
-    print(f"{count:10,d} {key}")
+        output_row = {
+            "chrom": chrom,
+            "start_0based": start_0based,
+            "end_1based": end_1based,
+            "locus_id": locus_id,
+            "motif": motif,
+            "catalog_locus_id": catalog_locus_id,
+            "tenk10k_locus_id": info_json["REPID"],
+            "tenk10k_interval": f"{chrom}:{start_0based}-{end_1based}",
+            "allele_array_counts": aggregated_info_json["allele_array_counts"],
+            "mode_allele": aggregated_info_json["mode_allele"],
+
+            "found_in_catalog": found_in_catalog,
+            "found_interval_overlap_size": found_interval_overlap_size,
+            "found_interval_size_diff": found_interval_size_diff,
+        }
+
+        if catalog_locus_id not in output_row_data:
+            output_row_data[catalog_locus_id] = output_row
+        else:
+            prev_found_interval_overlap_size = output_row_data[catalog_locus_id]["found_interval_overlap_size"]
+            prev_found_interval_size_diff = output_row_data[catalog_locus_id]["found_interval_size_diff"]
+            if found_interval_size_diff < prev_found_interval_size_diff or (
+                found_interval_size_diff == prev_found_interval_size_diff
+                and found_interval_overlap_size > prev_found_interval_overlap_size
+            ):
+                output_row_data[catalog_locus_id] = output_row
+
+    # fout_bed.close()
+
+    filtered_output_row_data = {}
+    for catalog_locus_id, output_row in output_row_data.items():
+        if output_row["found_interval_size_diff"] < 3 * len(output_row["motif"]):
+            filtered_output_row_data[catalog_locus_id] = output_row
+    print(f"Filtered out {len(output_row_data) - len(filtered_output_row_data):,d} out of {len(output_row_data):,d} ({100 * (len(output_row_data) - len(filtered_output_row_data)) / len(output_row_data):.1f}%) catalog entries because the interval size difference 3 repeat units or more")
+
+    print(f"Writing tenk10k data for {len(filtered_output_row_data):,d} catalog entries to {output_tsv}")
+    write_to_output(filtered_output_row_data, output_tsv, counters)
+
+    # print counters
+    for key, count in sorted(counters.items(), key=lambda x: -x[1]):
+        print(f"{count:10,d} {key}")
+
+if __name__ == "__main__":
+    main()
