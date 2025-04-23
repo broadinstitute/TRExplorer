@@ -24,7 +24,7 @@ and outputs a table with columns:
 
 chrom                 (example: "1")
 start_0based          (example: 100004721)
-end_0based            (example: 100004741)
+end_1based            (example: 100004741)
 locus_id              (example: "1-100004721-100004741-T")
 motif                 (example: "T")
 stdev                 (example: 1.2023e-02)
@@ -52,79 +52,72 @@ SAME_AS_IN_CATALOG_LABEL = "the same as"
 ALMOST_SAME_AS_IN_CATALOG_LABEL = "almost the same as"
 OVERLAP_CATALOG_LABEL = "overlaps"
 
+OUTPUT_HEADER_FIELDS = [
+    "chrom", 
+    "start_0based", 
+    "end_1based", 
+    "catalog_locus_id", 
+    "tenk10k_locus_id", 
+    "tenk10k_interval",
+    "motif", 
+    "allele_size_histogram", 
+    "mode_allele",
+    "stdev",
+    "median",
+    "99th_percentile",
+    "tenk_10k_vs_catalog_overlap_size",
+    "tenk_10k_vs_catalog_size_diff",
+]
 
 def write_to_output(output_row_data, output_tsv, counters):
     fout = gzip.open(output_tsv, "wt")
-    fout.write("\t".join([
-        "chrom", 
-        "start_0based", 
-        "end_1based", 
-        "catalog_locus_id", 
-        "tenk10k_locus_id",
-        "tenk10k_interval",
-        "motif", 
-        "stdev",
-        "allele_size_histogram", 
-        "mode_allele",
-        "tenk_10k_vs_catalog_overlap_size",
-        "tenk_10k_vs_catalog_size_diff",
-    ]) + "\n")
+    fout.write("\t".join(OUTPUT_HEADER_FIELDS) + "\n")
 
     total = 0
 
-    sorted_output_data = sorted(output_row_data.items(), key=lambda x: (x[1]['chrom'], x[1]['start_0based'], x[1]['end_1based']))
-    for catalog_locus_id, output_row in tqdm.tqdm(sorted_output_data, unit=" output rows", unit_scale=True):
-        chrom = output_row["chrom"]
-        start_0based = output_row["start_0based"]
-        end_1based = output_row["end_1based"]
-        tenk10k_locus_id = output_row["tenk10k_locus_id"]
-        tenk10k_interval = output_row["tenk10k_interval"]
-        motif = output_row["motif"]
+    sorted_output_rows = sorted(output_row_data.values(), key=lambda x: (x['chrom'], x['start_0based'], x['end_1based']))
+    for output_row in tqdm.tqdm(sorted_output_rows, unit=" output rows", unit_scale=True):
         found_in_catalog = output_row["found_in_catalog"]
+        tenk10k_locus_id = output_row["tenk10k_locus_id"]
 
         allele_array_counts = [x for x in output_row["allele_array_counts"] if x["key"] is not None]
-        allele_array_counts = sorted(allele_array_counts, key=lambda x: x["key"])
+        allele_array_counts = list(sorted(allele_array_counts, key=lambda x: x["key"]))
 
         all_alleles = [d["key"] for d in allele_array_counts for _ in range(d["value"])]
+        allele_counts = collections.Counter(all_alleles)
 
-        mode_allele = output_row["mode_allele"]
-        tenk_10k_vs_catalog_overlap_size = output_row["found_interval_overlap_size"]
-        tenk_10k_vs_catalog_size_diff = output_row["found_interval_size_diff"]
+        output_row["median"] = np.median(all_alleles)
+        output_row["99th_percentile"] = np.percentile(all_alleles, 99)
+        
+        output_row["tenk_10k_vs_catalog_overlap_size"] = output_row["found_interval_overlap_size"]
+        output_row["tenk_10k_vs_catalog_size_diff"] = output_row["found_interval_size_diff"]
 
-        recomputed_mode_allele = collections.Counter(all_alleles).most_common(1)[0][0]
-        if mode_allele is not None and recomputed_mode_allele != mode_allele:
-            print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {mode_allele} for {tenk10k_locus_id}")
+        recomputed_mode_allele, _ = allele_counts.most_common(1)[0]
+        if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
+            print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
 
-        stdev = ""
-        allele_size_histogram = ""
+        output_row["mode_allele"] = recomputed_mode_allele
+
+        output_row["stdev"] = ""
+        output_row["allele_size_histogram"] = ""
         if found_in_catalog is None:
             counters["tenk10k rows not found in catalog"] += 1
         else:
-            counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1
-            try:
-                stdev = np.std(all_alleles)
-                stdev = f"{stdev:.3f}"
-            except Exception as e:
-                print(f"WARNING: Error computing stdev for {tenk10k_locus_id}: {e}")
-                print(f"found_in_catalog: {found_in_catalog}")
-                print(f"allele_array_counts: {allele_array_counts}")
-                stdev = ""
-            try:
-                if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
-                    allele_size_histogram = ",".join([f"{d['key']}x:{d['value']}" for d in allele_array_counts])
-            except Exception as e:
-                print(f"WARNING: Error computing allele_size_histogram for {tenk10k_locus_id}: {e}")
-                print(f"found_in_catalog: {found_in_catalog}")
-                print(f"allele_array_counts: {allele_array_counts}")
-                allele_size_histogram = ""
+            counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1        
+            output_row["stdev"] = f"{np.std(all_alleles):.3f}"
 
-        output_row = [chrom, start_0based, end_1based, catalog_locus_id, tenk10k_locus_id, tenk10k_interval, motif, stdev, allele_size_histogram, recomputed_mode_allele, tenk_10k_vs_catalog_overlap_size, tenk_10k_vs_catalog_size_diff]
-        fout.write("\t".join(map(str, output_row)) + "\n")
+            if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
+                output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in allele_counts.items()])
+            
+
+        output_fields = [output_row[field] for field in OUTPUT_HEADER_FIELDS]
+        fout.write("\t".join(map(str, output_fields)) + "\n")
         total += 1
 
     fout.close()
 
     print(f"Wrote {total:9,d} lines to {output_tsv}")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -182,10 +175,10 @@ def main():
 
     #fout_bed = open(output_tsv.replace(".tsv.gz", ".bed"), "wt")
 
-    print(f"Processing {os.path.basename(input_tsv)}")
+    print(f"Parsing {os.path.basename(input_tsv)}")
     processed_locus_ids = set()
     output_row_data = {} 
-    for i, line in tqdm.tqdm(enumerate(f), unit=" lines", unit_scale=True):
+    for i, line in tqdm.tqdm(enumerate(f), unit=" lines", unit_scale=True, total=3_669_907):
         if N is not None and i > N:
             break
 
