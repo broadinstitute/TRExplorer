@@ -83,32 +83,39 @@ def write_to_output(output_row_data, output_tsv, counters):
         allele_array_counts = [x for x in output_row["allele_array_counts"] if x["key"] is not None]
         allele_array_counts = list(sorted(allele_array_counts, key=lambda x: x["key"]))
 
-        all_alleles = [d["key"] for d in allele_array_counts for _ in range(d["value"])]
-        allele_counts = collections.Counter(all_alleles)
+        # Extract values and weights for numpy operations
+        values = np.array([d["key"] for d in allele_array_counts])
+        weights = np.array([d["value"] for d in allele_array_counts])
 
-        output_row["median"] = np.median(all_alleles)
-        output_row["99th_percentile"] = np.percentile(all_alleles, 99)
+        # Compute mode (most common value)
+        mode_idx = np.argmax(weights)
+        recomputed_mode_allele = values[mode_idx]
+
+        if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
+            print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
+        output_row["mode_allele"] = recomputed_mode_allele
         
+        # Compute median using weighted statistics
+        output_row["median"] = np.median(np.repeat(values, weights))
+
+        # Compute 99th percentile using weighted statistics
+        output_row["99th_percentile"] = np.percentile(np.repeat(values, weights), 99)
+
+        # Compute standard deviation
+        mean = np.average(values, weights=weights)
+        variance = np.average((values - mean) ** 2, weights=weights)
+        output_row["stdev"] = f"{np.sqrt(variance):.3f}"
+
         output_row["tenk_10k_vs_catalog_overlap_size"] = output_row["found_interval_overlap_size"]
         output_row["tenk_10k_vs_catalog_size_diff"] = output_row["found_interval_size_diff"]
 
-        recomputed_mode_allele, _ = allele_counts.most_common(1)[0]
-        if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
-            print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
-
-        output_row["mode_allele"] = recomputed_mode_allele
-
-        output_row["stdev"] = ""
         output_row["allele_size_histogram"] = ""
         if found_in_catalog is None:
             counters["tenk10k rows not found in catalog"] += 1
         else:
             counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1        
-            output_row["stdev"] = f"{np.std(all_alleles):.3f}"
-
             if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
-                output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in allele_counts.items()])
-            
+                output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in zip(values, weights)])
 
         output_fields = [output_row[field] for field in OUTPUT_HEADER_FIELDS]
         fout.write("\t".join(map(str, output_fields)) + "\n")
