@@ -94,13 +94,13 @@ def write_to_output(output_row_data, output_tsv, counters):
 
         if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
             print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
-        output_row["mode_allele"] = recomputed_mode_allele
+        output_row["mode_allele"] = int(recomputed_mode_allele)
 
         # Compute median using weighted statistics
-        output_row["median"] = np.median(np.repeat(values, weights))
+        output_row["median"] = int(np.median(np.repeat(values, weights)))
 
         # Compute 99th percentile using weighted statistics
-        output_row["99th_percentile"] = np.percentile(np.repeat(values, weights), 99)
+        output_row["99th_percentile"] = int(np.percentile(np.repeat(values, weights), 99))
 
         # Compute standard deviation
         mean = np.average(values, weights=weights)

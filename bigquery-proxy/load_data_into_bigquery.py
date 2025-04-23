@@ -30,6 +30,9 @@ parser.add_argument("-n", type=int, help="Number of records to read from the cat
 parser.add_argument("-d", "--known-disease-associated-loci",
                     help="ExpansionHunter catalog with the latest known disease-associated loci",
                     default="https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json")
+parser.add_argument("--tenk10k-tsv", default="../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz")
+parser.add_argument("--hprc100-tsv", default="../data-prep/runs_in_hprc.2025_04.grouped_by_locus_and_motif.tsv.gz")
+
 args = parser.parse_args()
 
 def get_json_iterator(content, is_gzipped=False):
@@ -41,6 +44,36 @@ def get_json_iterator(content, is_gzipped=False):
             content = gzip.open(content, 'rb')
 
     return ijson.items(content, "item", use_float=True)
+
+def parse_allele_histograms_from_tsv(tsv_path):
+    """Parse the tenk10k TSV file line by line and create a lookup dictionary."""
+    
+    lookup = {}
+    with gzip.open(tsv_path, 'rt') as f:
+        header = f.readline().strip().split('\t')
+        col_indices = {col: i for i, col in enumerate(header)}
+        for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
+            fields = line.strip().split('\t')
+            locus_id = fields[col_indices['locus_id']]
+            lookup[locus_id] = {
+                'allele_size_histogram': fields[col_indices['allele_size_histogram']],
+                'mode_allele': int(fields[col_indices['mode_allele']]),
+                'stdev': float(fields[col_indices['stdev']]),
+                #'mean': float(fields[col_indices['mean']]),
+                'median': float(fields[col_indices['median']]),
+                '99th_percentile': float(fields[col_indices['99th_percentile']]),
+            }
+    
+    return lookup
+
+print(f"Parsing tenk10k data from {args.tenk10k_tsv}")
+tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
+print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
+
+print(f"Parsing hprc100 data from {args.hprc100_tsv}")
+hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
+print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
+
 
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
@@ -165,6 +198,19 @@ schema = [
     bigquery.SchemaField("StdevFromIllumina174k", "FLOAT"),
     bigquery.SchemaField("AlleleFrequenciesFromT2TAssemblies", "STRING"),
     bigquery.SchemaField("StdevFromT2TAssemblies", "FLOAT"),
+
+    bigquery.SchemaField("Tenk10k_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("Tenk10k_ModeAllele", "INTEGER"),
+    bigquery.SchemaField("Tenk10k_Stdev", "FLOAT"),
+    bigquery.SchemaField("Tenk10k_Median", "INTEGER"),
+    bigquery.SchemaField("Tenk10k_99thPercentile", "INTEGER"),
+
+    bigquery.SchemaField("Hprc100_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("Hprc100_ModeAllele", "INTEGER"),
+    bigquery.SchemaField("Hprc100_Stdev", "FLOAT"),
+    bigquery.SchemaField("Hprc100_Median", "INTEGER"),
+    bigquery.SchemaField("Hprc100_99thPercentile", "INTEGER"),
+
 ]
 
 field_names = {field.name for field in schema}
@@ -235,9 +281,6 @@ elif os.path.isfile(args.catalog_path):
 else:
     parser.error(f"Invalid catalog path: {args.catalog_path}")
 
-# sleep for many minutes to make sure the table is present on all BigQuery nodes and avoid "table doesn't exist" errors
-#print("Sleeping for 10 minutes to make sure the table is created")
-#time.sleep(600)
 
 chrom_indices = {str(i): i for i in range(1, 23)}
 chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
@@ -246,6 +289,8 @@ chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
 rows_to_insert = []
 batch_size = 1000
 locus_ids_with_added_disease_info = set()
+
+counters = collections.Counter()
 for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True):
     if args.n and i >= args.n:
         break
@@ -257,6 +302,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     record["end_1based"] = end_1based
     record["MotifSize"] = len(record["CanonicalMotif"])
     if record.get("LPSMotifFractionFromHPRC100"):
+        counters["rows_with_original_LPS_data_from_hprc100"] += 1
         tokens = record["LPSMotifFractionFromHPRC100"].split(": ")  # example value: "AACCCT: 112/187"
         record["LPSMotifFromHPRC100"] = tokens[0]
         numerator, denominator = map(int, tokens[1].split("/"))
@@ -300,6 +346,23 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     # Add id field
     record["id"] = i + 1
 
+    if record["LocusId"] in tenk10k_lookup:
+        counters["rows_with_tenk10k_data"] += 1
+        record["Tenk10k_AlleleHistogram"] = tenk10k_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["Tenk10k_ModeAllele"] = tenk10k_lookup[record["LocusId"]]["mode_allele"]
+        record["Tenk10k_Stdev"] = tenk10k_lookup[record["LocusId"]]["stdev"]
+        record["Tenk10k_Median"] = tenk10k_lookup[record["LocusId"]]["median"]
+        record["Tenk10k_99thPercentile"] = tenk10k_lookup[record["LocusId"]]["99th_percentile"]
+
+    if record["LocusId"] in hprc100_lookup:
+        counters["rows_with_hprc100_data"] += 1
+        record["Hprc100_AlleleHistogram"] = hprc100_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["Hprc100_ModeAllele"] = hprc100_lookup[record["LocusId"]]["mode_allele"]
+        record["Hprc100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
+        record["Hprc100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
+        record["Hprc100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
+
+    counters["total_rows"] += 1
     # Convert any None values to None (BigQuery will handle NULL)
     row = {k: v for k, v in record.items() if k in field_names}
     rows_to_insert.append(row)
@@ -326,3 +389,7 @@ with open("../index.html", "wt") as f:
     f.write(html_content)
 
 print("Done!")
+
+print("\nCounters:")
+for key, count in sorted(counters.items(), key=lambda x: x[1], reverse=True):
+    print(f"{count:10,d} {key}")
