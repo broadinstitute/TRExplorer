@@ -56,12 +56,13 @@ OUTPUT_HEADER_FIELDS = [
     "chrom", 
     "start_0based", 
     "end_1based", 
-    "catalog_locus_id", 
+    "locus_id", 
     "tenk10k_locus_id", 
     "tenk10k_interval",
     "motif", 
     "allele_size_histogram", 
     "mode_allele",
+    "mean",
     "stdev",
     "median",
     "99th_percentile",
@@ -94,7 +95,7 @@ def write_to_output(output_row_data, output_tsv, counters):
         if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
             print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
         output_row["mode_allele"] = recomputed_mode_allele
-        
+
         # Compute median using weighted statistics
         output_row["median"] = np.median(np.repeat(values, weights))
 
@@ -105,6 +106,7 @@ def write_to_output(output_row_data, output_tsv, counters):
         mean = np.average(values, weights=weights)
         variance = np.average((values - mean) ** 2, weights=weights)
         output_row["stdev"] = f"{np.sqrt(variance):.3f}"
+        output_row["mean"] = f"{mean:.3f}"
 
         output_row["tenk_10k_vs_catalog_overlap_size"] = output_row["found_interval_overlap_size"]
         output_row["tenk_10k_vs_catalog_size_diff"] = output_row["found_interval_size_diff"]
@@ -276,7 +278,7 @@ def main():
             "end_1based": end_1based,
             "locus_id": locus_id,
             "motif": motif,
-            "catalog_locus_id": catalog_locus_id,
+            "locus_id": catalog_locus_id,
             "tenk10k_locus_id": info_json["REPID"],
             "tenk10k_interval": f"{chrom}:{start_0based}-{end_1based}",
             "allele_array_counts": aggregated_info_json["allele_array_counts"],

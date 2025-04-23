@@ -50,9 +50,6 @@ def process_group(locus_id, motif, allele_sizes, output_file):
     allele_counts = collections.Counter(allele_sizes)
     mode_allele, _ = allele_counts.most_common(1)[0]
 
-    stdev = np.std(allele_sizes)
-    median = np.median(allele_sizes)
-    percentile_99 = np.percentile(allele_sizes, 99)
     allele_size_histogram = ",".join(f"{allele_size}x:{count}" for allele_size, count in allele_counts.items())
     
     # Write to output file
@@ -61,9 +58,10 @@ def process_group(locus_id, motif, allele_sizes, output_file):
         motif, 
         allele_size_histogram, 
         mode_allele, 
-        f"{stdev:.3f}", 
-        int(median), 
-        int(percentile_99), 
+        f"{np.mean(allele_sizes):.3f}",
+        f"{np.std(allele_sizes):.3f}", 
+        int(np.median(allele_sizes)), 
+        int(np.percentile(allele_sizes, 99)), 
     ])) + "\n")
 
 def main():
@@ -78,6 +76,7 @@ def main():
         "motif", 
         "allele_size_histogram", 
         "mode_allele", 
+        "mean",
         "stdev", 
         "median", 
         "99th_percentile",
