@@ -910,12 +910,23 @@
         'trsInRegion',
         'mappability',
         'gencodeGeneId',
+        'gencodeTranscriptId',
         'refSeqGeneRegion',
         'refSeqGeneId',
         'refSeqGeneName',
         'maneGeneRegion',
         'maneGeneId',
         'maneGeneName',
+
+        'stdevFromHPRC100',
+        'stdevFromIllumina174k',
+        'stdevFromT2TAssemblies',
+        'stdevFromTenK10k',
+        'alleleHistogramFromHPRC100',
+        'alleleHistogramFromTenK10k',
+        'alleleHistogramFromIllumina174k',
+        'alleleHistogramFromT2TAssemblies',
+        
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -1145,6 +1156,13 @@
             getSortColumns: () => ['GencodeGeneId'],
             getRequiredColumns: () => ['GencodeGeneId']
         },
+        gencodeTranscriptId: {
+            displayName: 'Gencode Transcript Id',
+            helpText: 'Gencode transcript ID',
+            getValue: (row) => row.GencodeTranscriptId,
+            getSortColumns: () => ['GencodeTranscriptId'],
+            getRequiredColumns: () => ['GencodeTranscriptId']
+        },
         refSeqGeneRegion: {
             displayName: 'RefSeq Region',
             helpText: 'RefSeq gene region',
@@ -1187,6 +1205,64 @@
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
         },
+
+        stdevFromHPRC100: {
+            displayName: 'σ<sub>HPRC100</sub>',
+            helpText: 'Standard deviation from HPRC100',
+            getValue: (row) => row.HPRC100_Stdev,
+            getSortColumns: () => ['HPRC100_Stdev'],
+            getRequiredColumns: () => ['HPRC100_Stdev']
+        },
+        stdevFromTenK10k: {
+            displayName: 'σ<sub>10k</sub>',
+            helpText: 'Standard deviation from TenK10k',
+            getValue: (row) => row.TenK10K_Stdev,
+            getSortColumns: () => ['TenK10K_Stdev'],
+            getRequiredColumns: () => ['TenK10K_Stdev']
+        },
+        stdevFromIllumina174k: {
+            displayName: 'σ<sub>1kGP</sub>',
+            helpText: 'Standard deviation from Illumina174k',
+            getValue: (row) => row.StdevFromIllumina174k,
+            getSortColumns: () => ['StdevFromIllumina174k'],
+            getRequiredColumns: () => ['StdevFromIllumina174k']
+        },
+        stdevFromT2TAssemblies: {
+            displayName: 'σ<sub>T2T</sub>',
+            helpText: 'Standard deviation from T2T Assemblies',
+            getValue: (row) => row.StdevFromT2TAssemblies,
+            getSortColumns: () => ['StdevFromT2TAssemblies'],
+            getRequiredColumns: () => ['StdevFromT2TAssemblies']
+        },
+        alleleHistogramFromHPRC100: {
+            displayName: 'Alleles (HPRC100)',
+            helpText: 'Allele histogram from HPRC100',
+            getValue: (row) => row.HPRC100_AlleleHistogram,
+            getSortColumns: () => ['HPRC100_AlleleHistogram'],
+            getRequiredColumns: () => ['HPRC100_AlleleHistogram']
+        },
+        alleleHistogramFromTenK10k: {
+            displayName: 'Alleles (TenK10k)',
+            helpText: 'Allele histogram from TenK10k',
+            getValue: (row) => row.TenK10K_AlleleHistogram,
+            getSortColumns: () => ['TenK10K_AlleleHistogram'],
+            getRequiredColumns: () => ['TenK10K_AlleleHistogram']
+        },
+        alleleHistogramFromIllumina174k: {
+            displayName: 'Alleles (Illumina174k)',
+            helpText: 'Allele histogram from Illumina174k',
+            getValue: (row) => row.AlleleFrequenciesFromIllumina174k,
+            getSortColumns: () => ['AlleleFrequenciesFromIllumina174k'],
+            getRequiredColumns: () => ['AlleleFrequenciesFromIllumina174k']
+        },
+        alleleHistogramFromT2TAssemblies: {
+            displayName: 'Alleles (T2T)',
+            helpText: 'Allele histogram from T2T Assemblies',
+            getValue: (row) => row.AlleleFrequenciesFromT2TAssemblies,
+            getSortColumns: () => ['AlleleFrequenciesFromT2TAssemblies'],
+            getRequiredColumns: () => ['AlleleFrequenciesFromT2TAssemblies']
+        },
+
     }
 
     if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {

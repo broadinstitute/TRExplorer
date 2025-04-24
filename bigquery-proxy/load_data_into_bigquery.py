@@ -309,6 +309,12 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["LPSMotifFractionFromHPRC100"] = numerator/denominator if denominator > 0 else None
         record["LPSMotifDenominatorFromHPRC100"] = denominator
 
+    if record.get("StdevFromT2TAssemblies"):
+        record["StdevFromT2TAssemblies"] = round(record["StdevFromT2TAssemblies"], 3)
+
+    if record.get("StdevFromIllumina174k"):
+        record["StdevFromIllumina174k"] = round(record["StdevFromIllumina174k"], 3)
+
     motif_match = re.match(r"^[(]([A-Z]+)[)][+*]", record["LocusStructure"])
     record["ReferenceMotif"] = motif_match.group(1) if motif_match else None
 
