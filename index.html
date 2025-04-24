@@ -589,13 +589,11 @@
 <div class="ui modal" id="results-table-column-settings-dialog">
     <i class="close icon"></i>
     <div class="header">
-        Results Table Settings
+        Results Table Columns
     </div>
     <div class="content">
         <div class="ui form">
-            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important">
-                <tr><th style="padding-bottom: 10px"><b>Columns to display:</b></th></tr>
-            </table>
+            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important"></table>
         </div>
     </div>
     <div class="actions">
@@ -869,7 +867,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250416_151054'
+    const TABLE_ID = 'catalog_20250423_152155'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -883,6 +881,13 @@
         'variationCluster',
         'trsInRegion',
         'mappability',
+        'gencodeGeneId',
+        'refSeqGeneRegion',
+        'refSeqGeneId',
+        'refSeqGeneName',
+        'maneGeneRegion',
+        'maneGeneId',
+        'maneGeneName',
     ]
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -990,7 +995,8 @@
             displayName: 'Interval (hg38)',
             helpText: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
             getValue: (row) => row.ReferenceRegion.replace(/^chr/i, ''),
-            getSortColumns: () => [DEFAULT_SORT_COLUMN]
+            getSortColumns: () => [DEFAULT_SORT_COLUMN],
+            getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
         },
         motif: {
             displayName: 'Motif',
@@ -1000,7 +1006,8 @@
                 const truncatedMotif = motif.length > 12 ? motif.substring(0, 12) + '...' : motif
                 return `${truncatedMotif} &nbsp (${row.MotifSize})`
             },
-            getSortColumns: () => ['MotifSize', 'ReferenceMotif']
+            getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
+            getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
         },
         geneRegion: {
             displayName: 'Region',
@@ -1013,18 +1020,20 @@
                 }
                 return regionRename[row.GencodeGeneRegion] || row.GencodeGeneRegion
             },
-            getSortColumns: () => ['GencodeGeneRegion']
+            getSortColumns: () => ['GencodeGeneRegion'],
+            getRequiredColumns: () => ['GencodeGeneRegion'],
         },
         geneName: {
             displayName: 'Gene',
-            getValue: (row) => row.ManeGeneName || row.RefseqGeneName || row.GencodeGeneName,
-            getSortColumns: () => ['GencodeGeneName']
+            getValue: (row) => row.GencodeGeneName,
+            getSortColumns: () => ['GencodeGeneName'],
+            getRequiredColumns: () => ['GencodeGeneName'],
         },
         isPolymorphic: {
             displayName: 'Polymorphic',
             helpText: 'Summary of available sources of polymorphism data for the TR locus',
             getValue: (row) => {
-                const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 === null, row.StdevFromIllumina174k === null, row.StdevFromT2TAssemblies === null].filter(Boolean).length
+                const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 === null, row.Hprc100_Stdev === null, row.Tenk10k_Stdev === null, row.StdevFromIllumina174k === null, row.StdevFromT2TAssemblies === null].filter(Boolean).length
                 const polymorphismDetails = `
                         <div class="content" style="text-align: center">
                             <div><span class="cell-popup-details-label">Locus Info</span></div>
@@ -1049,6 +1058,34 @@
                                         </td>
                                     </tr>
                                 ` : ''}
+                                ${row.Hprc100_Stdev !== null ? `
+                                    <tr>
+                                        <td style="text-align: left;">
+                                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">LPS2</sub></span>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            = ${row.Hprc100_Stdev.toFixed(3)}
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the updated standard deviation of the number of repeats in the longest pure segment (LPS) detected at this tandem repeat locus by running TRGT on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC). <br /><br /><b>Range:</b> 0 to 123.0"></i>
+                                        </td>
+                                    </tr>
+                                ` : ''}
+
+                                ${row.Tenk10k_Stdev !== null ? `
+                                    <tr>
+                                        <td style="text-align: left;">
+                                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">10k</sub></span>
+                                        </td>
+                                        <td style="text-align: right;"> 
+                                            = ${row.Tenk10k_Stdev.toFixed(3)}
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the standard deviation of the number of repeats in ExpansionHunter calls from short read genomes in the Tenk10k dataset"></i>
+                                        </td>
+                                    </tr>
+                                ` : ''}
+                                
                                 ${row.StdevFromIllumina174k !== null ? `
                                     <tr>
                                         <td style="text-align: left;">
@@ -1077,12 +1114,24 @@
                                 ` : ''}
                                 </table>
                                 ${nStdevsNotAvailable > 0 ? `
-                                    <br />${[row.LPSLengthStdevFromHPRC100 === null ? 'σ<sub>LPS</sub>' : '', row.StdevFromIllumina174k === null ? 'σ<sub>1kGP</sub>' : '', row.StdevFromT2TAssemblies === null ? 'σ<sub>T2T</sub>' : ''].filter(Boolean).join(' &amp; ')} ${nStdevsNotAvailable > 1 ? 'are' : 'is'} not available<br />for this locus
+                                    <br />${[row.LPSLengthStdevFromHPRC100 === null ? 'σ<sub>LPS</sub>' : '', row.Hprc100_Stdev === null ? 'σ<sub>LPS2</sub>' : '', row.Tenk10k_Stdev === null ? 'σ<sub>10k</sub>' : '', row.StdevFromIllumina174k === null ? 'σ<sub>1kGP</sub>' : '', row.StdevFromT2TAssemblies === null ? 'σ<sub>T2T</sub>' : ''].filter(Boolean).join(' &amp; ')} ${nStdevsNotAvailable > 1 ? 'are' : 'is'} not available<br />for this locus
                                 ` : ''}
                             </div>
-                            ${row.AlleleFrequenciesFromIllumina174k || row.AlleleFrequenciesFromT2TAssemblies ? `
+                            ${row.Hprc100_AlleleHistogram || row.Tenk10k_AlleleHistogram || row.AlleleFrequenciesFromIllumina174k || row.AlleleFrequenciesFromT2TAssemblies ? `
                                 <div style="margin-top: 15px;">
-                                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; height: ${(row.AlleleFrequenciesFromIllumina174k ? 250 : 0) + (row.AlleleFrequenciesFromT2TAssemblies ? 250 : 0)}px; overflow: hidden;">
+                                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; height: ${(row.Hprc100_AlleleHistogram ? 250 : 0) + (row.Tenk10k_AlleleHistogram ? 250 : 0) + (row.AlleleFrequenciesFromIllumina174k ? 250 : 0) + (row.AlleleFrequenciesFromT2TAssemblies ? 250 : 0)}px; overflow: hidden;">
+                                        ${row.Hprc100_AlleleHistogram ? `
+                                            <div>
+                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in HPRC 100</b><br /><span style="color: #686868;">based on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC)</span></div>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.Hprc100_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                            </div>
+                                        ` : ''}
+                                        ${row.Tenk10k_AlleleHistogram ? `
+                                            <div>
+                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in Tenk10k</b><br /><span style="color: #686868;">based on short read genomes in the Tenk10k dataset</span></div>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.Tenk10k_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                            </div>
+                                        ` : ''}
                                         ${row.AlleleFrequenciesFromIllumina174k ? `
                                             <div>
                                                 <div style="margin-bottom: 5px;"><b>Allele Frequencies in Illumina 174k</b><br /><span style="color: #686868;">based on <a href="https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md" target=_blank>2,504 short-read genomes from 1kGP</a></span></div>
@@ -1101,7 +1150,8 @@
                         </div>
                     `.replace(/\s+/g, ' ').trim()
 
-                const maxStdev = Math.max(row.LPSLengthStdevFromHPRC100, row.StdevFromT2TAssemblies, row.StdevFromIllumina174k)
+                //console.log('LPS stdev', row.LPSLengthStdevFromHPRC100, 'LPS2 stdev', row.Hprc100_Stdev, 'Tenk10k stdev', row.Tenk10k_Stdev, '1kGP stdev', row.StdevFromIllumina174k, 'T2T stdev', row.StdevFromT2TAssemblies)
+
                 return `<span class="cell-with-icon-and-popup cell-in-polymorphism-column" data-html='${polymorphismDetails}'>
                             <span class="cell-action-link">
                                 <b>σ<sub>LPS</sub></b>
@@ -1110,12 +1160,26 @@
                                 = ${row.LPSLengthStdevFromHPRC100 !== null ? row.LPSLengthStdevFromHPRC100.toFixed(1) : 'not available'} &nbsp; &nbsp; 
                             </span>
                             <span class="cell-action-link">                                    
-                                ${row.StdevFromIllumina174k !== null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies !== null ? 'σ<sub>T2T</sub>' : ''}
+                                ${row.Hprc100_Stdev !== null ? 'σ<sub>LPS2</sub>' : ''}  ${row.Tenk10k_Stdev !== null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k !== null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies !== null ? 'σ<sub>T2T</sub>' : ''}
                             </span>
                         </span>
                         `
             },
-            getSortColumns: () => ['LPSLengthStdevFromHPRC100']
+            getSortColumns: () => ['LPSLengthStdevFromHPRC100'],
+            getRequiredColumns: () => [
+                'LPSLengthStdevFromHPRC100',
+                'StdevFromIllumina174k', 
+                'AlleleFrequenciesFromIllumina174k',
+                'StdevFromT2TAssemblies',
+                'AlleleFrequenciesFromT2TAssemblies',
+                'ReferenceRegion',
+                'NumRepeatsInReference',
+                'ReferenceMotif',
+                'Tenk10k_AlleleHistogram',
+                'Tenk10k_Stdev',
+                'Hprc100_AlleleHistogram',
+                'Hprc100_Stdev',
+            ],
         },
         variationCluster: {
             displayName: 'VC',
@@ -1138,19 +1202,71 @@
                 }
                 return ''
             },
-            getSortColumns: () => ['VariationClusterSizeDiff']
+            getSortColumns: () => ['VariationClusterSizeDiff'],
+            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
         },
         trsInRegion: {
             displayName: 'Nearby TRs',
             helpText: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
             getValue: (row) => (row.TRsInRegion ? (parseInt(row.TRsInRegion) - 1) : ''),
-            getSortColumns: () => ['TRsInRegion']
+            getSortColumns: () => ['TRsInRegion'],
+            getRequiredColumns: () => ['TRsInRegion']
         },
         mappability: {
             displayName: 'Mappability',
             helpText: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
             getValue: (row) => row.FlanksAndLocusMappability,
-            getSortColumns: () => ['FlanksAndLocusMappability']
+            getSortColumns: () => ['FlanksAndLocusMappability'],
+            getRequiredColumns: () => ['FlanksAndLocusMappability']
+        },
+        gencodeGeneId: {
+            displayName: 'Gencode Id',
+            helpText: 'Gencode gene ID',
+            getValue: (row) => row.GencodeGeneId,
+            getSortColumns: () => ['GencodeGeneId'],
+            getRequiredColumns: () => ['GencodeGeneId']
+        },
+        refSeqGeneRegion: {
+            displayName: 'RefSeq Region',
+            helpText: 'RefSeq gene region',
+            getValue: (row) => row.RefSeqGeneRegion,
+            getSortColumns: () => ['RefSeqGeneRegion'],
+            getRequiredColumns: () => ['RefSeqGeneRegion']
+        },
+        refSeqGeneId: {
+            displayName: 'RefSeq Id',
+            helpText: 'RefSeq gene ID',
+            getValue: (row) => row.RefSeqGeneId,
+            getSortColumns: () => ['RefSeqGeneId'],
+            getRequiredColumns: () => ['RefSeqGeneId']
+        },
+        refSeqGeneName: {
+            displayName: 'RefSeq Gene',
+            helpText: 'RefSeq gene name',
+            getValue: (row) => row.RefSeqGeneName,
+            getSortColumns: () => ['RefSeqGeneName'],
+            getRequiredColumns: () => ['RefSeqGeneName']
+        },
+        maneGeneRegion: {
+            displayName: 'MANE Region',
+            helpText: 'MANE gene region',
+            getValue: (row) => row.MANEGeneRegion,
+            getSortColumns: () => ['MANEGeneRegion'],
+            getRequiredColumns: () => ['MANEGeneRegion']
+        },
+        maneGeneId: {
+            displayName: 'MANE Id',
+            helpText: 'MANE gene ID',
+            getValue: (row) => row.MANEGeneId,
+            getSortColumns: () => ['MANEGeneId'],
+            getRequiredColumns: () => ['MANEGeneId']
+        },
+        maneGeneName: {
+            displayName: 'MANE Gene',
+            helpText: 'MANE gene name',
+            getValue: (row) => row.MANEGeneName,
+            getSortColumns: () => ['MANEGeneName'],
+            getRequiredColumns: () => ['MANEGeneName']
         },
     }
 
@@ -1477,7 +1593,7 @@
     const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
         try {
             const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
-            console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query.split('WHERE')[1] ? `WHERE ${query.split('WHERE')[1]}` : 'no filters applied')
+            console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query)
             const requestBody = {
                 sql: query,
                 export_to_file_format: exportToFileFormat,
@@ -1729,8 +1845,8 @@
                         'NsInFlanks',
                         'TRsInRegion',
                         'Source',
-                        'LeftFlankMappability',
-                        'RightFlankMappability',
+                        //'LeftFlankMappability',
+                        //'RightFlankMappability',
                         'FlanksAndLocusMappability',
                         'VariationCluster',
                         'VariationClusterSizeDiff',
@@ -1752,10 +1868,23 @@
                         'LPSMotifFromHPRC100',
                         'LPSMotifFractionFromHPRC100',
                         'LPSMotifDenominatorFromHPRC100',
+
                         'AlleleFrequenciesFromIllumina174k',
                         'StdevFromIllumina174k',
                         'AlleleFrequenciesFromT2TAssemblies',
-                        'StdevFromT2TAssemblies'
+                        'StdevFromT2TAssemblies',
+
+                        'Tenk10k_AlleleHistogram',
+                        'Tenk10k_ModeAllele',
+                        'Tenk10k_Stdev',
+                        'Tenk10k_Median',
+                        'Tenk10k_99thPercentile',
+
+                        'Hprc100_AlleleHistogram',
+                        'Hprc100_ModeAllele',
+                        'Hprc100_Stdev',
+                        'Hprc100_Median',
+                        'Hprc100_99thPercentile',
                     ]
                     selectClause = tsv_columns.join(', ')
                 } else {
@@ -1838,7 +1967,7 @@
         }
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
-        tableHtml += `<th>
+        tableHtml += `<th style="text-align: center">
             <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column settings">
                 <i class="setting icon"></i>
             </button>
@@ -2014,7 +2143,7 @@
                     const refAlleleSize = $(this).data('ref-allele-size')
                     if (!frequencies) return   // Skip if no data
                     
-                    const data = frequencies.split(SHOW_COLUMNS_VALUE_DELIMITER).map(item => {
+                    const data = frequencies.split(',').map(item => {
                         const [size, count] = item.split(':')
                         return {
                             size: parseInt(size.replace('x', '')),
@@ -2132,15 +2261,12 @@
 
         $('.disease-associated-icon').popup({ on: 'click' })
 
-        // populate the sort order dropdown with the column names
-        $('#sort-order-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sc'])
-
         // "Column settings" modal
         $('#results-table-settings-button').click((e) => {
             e.preventDefault()
             
             // Clear existing checkboxes
-            $('.results-table-column-settings-checkboxes tr:not(:first-child)').remove()
+            $('.results-table-column-settings-checkboxes tr').remove()
             
             // Add checkboxes for each column
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
@@ -2436,6 +2562,26 @@
                 }
             }
 
+            //get all required columns for the visible columns
+            let selectedColumns = [
+                'LocusId',
+                'ReferenceRegion',
+                'DiseaseInfo',
+            ]
+
+            //add the visible columns to the selected columns
+            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+                if (visibleColumns.includes(columnId)) {
+                    const columnObject = TABLE_COLUMNS[columnName]
+                    columnObject.getRequiredColumns().forEach(column => {
+                        if (!selectedColumns.includes(column)) {
+                            selectedColumns.push(column)
+                        }
+                    })
+                }
+            })
+
             const sortColumn = GLOBAL_PAGE_STATE['sc']
             const sortDirection = GLOBAL_PAGE_STATE['sd']
 
@@ -2444,37 +2590,7 @@
             const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
 
             const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause} ORDER BY ${sortClause}`
-            const query = `
-                SELECT
-                    ReferenceRegion,
-                    MotifSize,
-                    ReferenceMotif,
-                    NumRepeatsInReference,
-                    FlanksAndLocusMappability,
-                    VariationCluster,
-                    VariationClusterSizeDiff,
-                    TRsInRegion,
-                    KnownDiseaseAssociatedLocus,
-                    DiseaseInfo,
-                    GencodeGeneRegion,
-                    RefseqGeneRegion,
-                    ManeGeneRegion,
-                    GencodeGeneName,
-                    RefseqGeneName,
-                    ManeGeneName,
-                    GencodeGeneId,
-                    ManeGeneId,
-                    RefseqGeneId,
-                    LPSLengthStdevFromHPRC100,
-                    LPSMotifFromHPRC100,
-                    LPSMotifFractionFromHPRC100,
-                    LPSMotifDenominatorFromHPRC100,
-                    AlleleFrequenciesFromIllumina174k,
-                    StdevFromIllumina174k,
-                    AlleleFrequenciesFromT2TAssemblies,
-                    StdevFromT2TAssemblies
-                FROM ${querySuffix}
-            `
+            const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
 
             if (!showTableWhileLoading) {
                 GLOBAL_PAGE_STATE['currentPage'] = 1
