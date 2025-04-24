@@ -453,6 +453,19 @@
         .export-selector .ui.selection.dropdown.disabled + .export-label {
             opacity: 0.5;
         }
+
+        .results-table-column-settings-checkbox-flex-container {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            max-height: calc(8 * 35px);
+            gap: 5px 20px;
+        }
+
+        .results-table-column-settings-checkbox-item {
+            min-width: 200px;
+            padding: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -1025,6 +1038,7 @@
         },
         geneName: {
             displayName: 'Gene',
+            helpText: 'Gencode gene name',
             getValue: (row) => row.GencodeGeneName,
             getSortColumns: () => ['GencodeGeneName'],
             getRequiredColumns: () => ['GencodeGeneName'],
@@ -1968,7 +1982,7 @@
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
         tableHtml += `<th style="text-align: center">
-            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column settings">
+            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column settings and descriptions">
                 <i class="setting icon"></i>
             </button>
         </th>`
@@ -2268,22 +2282,23 @@
             // Clear existing checkboxes
             $('.results-table-column-settings-checkboxes tr').remove()
             
-            // Add checkboxes for each column
+            // Create a flex container div instead of using table rows
+            $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-flex-container"></div>')
+            
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+            const checkboxes = Object.entries(RESULTS_TABLE_COLUMN_NAMES).map(([columnId, columnName]) => {
                 const isChecked = visibleColumns.includes(columnId)
-                $('.results-table-column-settings-checkboxes').append(`
-                    <tr>
-                        <td style="border: 0px !important; padding: 5px 0px">
-                            <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
-                                <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
-                                <label>${TABLE_COLUMNS[columnName].displayName}</label>
-                            </div>
-                            ${TABLE_COLUMNS[columnName].helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
-                        </td>
-                    </tr>
-                `)
-            })
+                return `
+                    <div class="results-table-column-settings-checkbox-item">
+                        <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
+                            <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
+                            <label>${TABLE_COLUMNS[columnName].displayName}</label>
+                        </div>
+                        ${TABLE_COLUMNS[columnName].helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
+                    </div>`
+            }).join('')
+            
+            $('.results-table-column-settings-checkbox-flex-container').append(checkboxes)
             
             // Initialize checkboxes
             $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox()
