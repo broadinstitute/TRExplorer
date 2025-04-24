@@ -83,7 +83,7 @@ def main():
     ]) + "\n")
 
     previous_key = None
-    previously_seen_locus_ids = set()
+    previously_seen_keys = set()
     alleles_for_current_key = []
     sample_ids = set()
     counters = collections.Counter()
@@ -98,18 +98,25 @@ def main():
         sample_ids.add(sample_id)
 
         current_key = (current_locus_id, motif)
-        if current_key != previous_key or previous_key is None:
-            if current_key in previously_seen_locus_ids:
-                parser.error(f"{args.input_tsv} is not sorted by locus id on line #{line_number}: {current_locus_id}") 
-            
-            previously_seen_locus_ids.add(current_key)
+        if previous_key is None:
             previous_key = current_key
 
-            process_group(current_locus_id, motif, alleles_for_current_key, outfile)
+        if current_key != previous_key:
+            # check that the previous key is not a duplicate
+            if previous_key in previously_seen_keys:
+                parser.error(f"{args.input_tsv} is not sorted by locus id on line #{line_number}: {current_locus_id}") 
+            previously_seen_keys.add(previous_key)
+
+            # process the previous group
+            previous_locus_id = previous_key[0]
+            previous_motif = previous_key[1]
+            previous_key = current_key
+
+            process_group(previous_locus_id, previous_motif, alleles_for_current_key, outfile)
+            alleles_for_current_key = []
             counters['output_lines'] += 1
 
-            alleles_for_current_key = []
-            
+        # record the current allele size
         try:
             allele_size = int(allele_size)
             alleles_for_current_key.append(allele_size)
@@ -117,10 +124,13 @@ def main():
             print(f"Warning: Skipping invalid allele at line #{line_number}: {current_locus_id} {motif} {sample_id} {allele_size}")
             continue
                 
-    # Process the final group
+    # process the last group
     if alleles_for_current_key:
         process_group(current_locus_id, motif, alleles_for_current_key, outfile)
         counters['output_lines'] += 1
+        if current_key in previously_seen_keys:
+            parser.error(f"{args.input_tsv} is not sorted by locus id on line #{line_number}: {current_locus_id}") 
+
 
     infile.close()
     outfile.close()

@@ -880,7 +880,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250423_152155'
+    const TABLE_ID = 'catalog_20250424_112716'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -1059,6 +1059,19 @@
                             <div><span class="cell-popup-details-label">Standard Deviations of Allele Frequency Distributions</span></div>
                             <div style="margin-top: 5px">
                                 <table style="margin: 0 auto">
+                                ${row.Hprc100_Stdev !== null ? `
+                                    <tr>
+                                        <td style="text-align: left;">
+                                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">LPS2</sub></span>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            = ${row.Hprc100_Stdev.toFixed(3)}
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the standard deviation of the number of repeats in the longest pure segment (LPS) detected at this tandem repeat locus by running an <b>updated version of TRGT</b> on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC). <br /><br /><b>Range:</b> 0 to 330.7"></i>
+                                        </td>
+                                    </tr>
+                                ` : ''}
                                 ${row.LPSLengthStdevFromHPRC100 !== null ? `
                                     <tr>
                                         <td style="text-align: left;">
@@ -1072,20 +1085,6 @@
                                         </td>
                                     </tr>
                                 ` : ''}
-                                ${row.Hprc100_Stdev !== null ? `
-                                    <tr>
-                                        <td style="text-align: left;">
-                                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">LPS2</sub></span>
-                                        </td>
-                                        <td style="text-align: right;">
-                                            = ${row.Hprc100_Stdev.toFixed(3)}
-                                        </td>
-                                        <td style="text-align: right;">
-                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the updated standard deviation of the number of repeats in the longest pure segment (LPS) detected at this tandem repeat locus by running TRGT on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC). <br /><br /><b>Range:</b> 0 to 123.0"></i>
-                                        </td>
-                                    </tr>
-                                ` : ''}
-
                                 ${row.Tenk10k_Stdev !== null ? `
                                     <tr>
                                         <td style="text-align: left;">
@@ -1095,11 +1094,10 @@
                                             = ${row.Tenk10k_Stdev.toFixed(3)}
                                         </td>
                                         <td style="text-align: right;">
-                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the standard deviation of the number of repeats in ExpansionHunter calls from short read genomes in the Tenk10k dataset"></i>
+                                            <i class="question circle icon link" style="margin-left: 15px;" data-html="This is the standard deviation of the number of repeats in ExpansionHunter calls from the TenK10K dataset which included 2,412 short-read genomes"></i>
                                         </td>
                                     </tr>
                                 ` : ''}
-                                
                                 ${row.StdevFromIllumina174k !== null ? `
                                     <tr>
                                         <td style="text-align: left;">
@@ -1128,7 +1126,7 @@
                                 ` : ''}
                                 </table>
                                 ${nStdevsNotAvailable > 0 ? `
-                                    <br />${[row.LPSLengthStdevFromHPRC100 === null ? 'σ<sub>LPS</sub>' : '', row.Hprc100_Stdev === null ? 'σ<sub>LPS2</sub>' : '', row.Tenk10k_Stdev === null ? 'σ<sub>10k</sub>' : '', row.StdevFromIllumina174k === null ? 'σ<sub>1kGP</sub>' : '', row.StdevFromT2TAssemblies === null ? 'σ<sub>T2T</sub>' : ''].filter(Boolean).join(' &amp; ')} ${nStdevsNotAvailable > 1 ? 'are' : 'is'} not available<br />for this locus
+                                    <br />${[row.LPSLengthStdevFromHPRC100 === null ? 'σ<sub>LPS</sub>' : '', row.Hprc100_Stdev === null ? 'σ<sub>LPS2</sub>' : '', row.Tenk10k_Stdev === null ? 'σ<sub>10k</sub>' : '', row.StdevFromIllumina174k === null ? 'σ<sub>1kGP</sub>' : '', row.StdevFromT2TAssemblies === null ? 'σ<sub>T2T</sub>' : ''].filter(Boolean).join(' &amp; ')} ${nStdevsNotAvailable > 1 ? 'are' : 'is'} not available for this locus
                                 ` : ''}
                             </div>
                             ${row.Hprc100_AlleleHistogram || row.Tenk10k_AlleleHistogram || row.AlleleFrequenciesFromIllumina174k || row.AlleleFrequenciesFromT2TAssemblies ? `
@@ -1136,26 +1134,26 @@
                                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; height: ${(row.Hprc100_AlleleHistogram ? 250 : 0) + (row.Tenk10k_AlleleHistogram ? 250 : 0) + (row.AlleleFrequenciesFromIllumina174k ? 250 : 0) + (row.AlleleFrequenciesFromT2TAssemblies ? 250 : 0)}px; overflow: hidden;">
                                         ${row.Hprc100_AlleleHistogram ? `
                                             <div>
-                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in HPRC 100</b><br /><span style="color: #686868;">based on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC)</span></div>
-                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.Hprc100_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in HPRC 100</b><br /><span style="color: #686868;">based on TRGT calls in 100 PacBio samples from the HPRC</span></div>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-label="HPRC100" data-frequencies="${row.Hprc100_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
                                             </div>
                                         ` : ''}
                                         ${row.Tenk10k_AlleleHistogram ? `
                                             <div>
-                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in Tenk10k</b><br /><span style="color: #686868;">based on short read genomes in the Tenk10k dataset</span></div>
-                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.Tenk10k_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                                <div style="margin-bottom: 5px;"><b>Allele Frequencies in TenK10K</b><br /><span style="color: #686868;">based on ExpansionHunter calls in short-read genomes from the TenK10K dataset</span></div>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-label="TenK10K" data-frequencies="${row.Tenk10k_AlleleHistogram}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
                                             </div>
                                         ` : ''}
                                         ${row.AlleleFrequenciesFromIllumina174k ? `
                                             <div>
                                                 <div style="margin-bottom: 5px;"><b>Allele Frequencies in Illumina 174k</b><br /><span style="color: #686868;">based on <a href="https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md" target=_blank>2,504 short-read genomes from 1kGP</a></span></div>
-                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.AlleleFrequenciesFromIllumina174k}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-label="1kGP" data-frequencies="${row.AlleleFrequenciesFromIllumina174k}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
                                             </div>
                                         ` : ''}
                                         ${row.AlleleFrequenciesFromT2TAssemblies ? `
                                             <div>
                                                 <div style="margin-bottom: 5px;"><b>Allele Frequencies in T2T assemblies</b><br /><span style="color: #686868;">based on assembly-to-hg38 alignments of 78 diploid T2T assemblies</span></div>
-                                                <canvas class="polymorphism-allele-frequency-chart" data-frequencies="${row.AlleleFrequenciesFromT2TAssemblies}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                                <canvas class="polymorphism-allele-frequency-chart" data-label="T2T" data-frequencies="${row.AlleleFrequenciesFromT2TAssemblies}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
                                             </div>
                                         ` : ''}
                                     </div>
@@ -1164,22 +1162,20 @@
                         </div>
                     `.replace(/\s+/g, ' ').trim()
 
-                //console.log('LPS stdev', row.LPSLengthStdevFromHPRC100, 'LPS2 stdev', row.Hprc100_Stdev, 'Tenk10k stdev', row.Tenk10k_Stdev, '1kGP stdev', row.StdevFromIllumina174k, 'T2T stdev', row.StdevFromT2TAssemblies)
-
                 return `<span class="cell-with-icon-and-popup cell-in-polymorphism-column" data-html='${polymorphismDetails}'>
                             <span class="cell-action-link">
-                                <b>σ<sub>LPS</sub></b>
+                                <b>σ<sub>LPS2</sub></b>
                             </span>
                             <span style="color: #333;">
-                                = ${row.LPSLengthStdevFromHPRC100 !== null ? row.LPSLengthStdevFromHPRC100.toFixed(1) : 'not available'} &nbsp; &nbsp; 
+                                = ${row.Hprc100_Stdev !== null ? row.Hprc100_Stdev.toFixed(1) : 'not available'} &nbsp; &nbsp; 
                             </span>
                             <span class="cell-action-link">                                    
-                                ${row.Hprc100_Stdev !== null ? 'σ<sub>LPS2</sub>' : ''}  ${row.Tenk10k_Stdev !== null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k !== null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies !== null ? 'σ<sub>T2T</sub>' : ''}
+                                ${row.Tenk10k_Stdev !== null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k !== null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies !== null ? 'σ<sub>T2T</sub>' : ''}
                             </span>
                         </span>
                         `
             },
-            getSortColumns: () => ['LPSLengthStdevFromHPRC100'],
+            getSortColumns: () => ['Hprc100_Stdev'],
             getRequiredColumns: () => [
                 'LPSLengthStdevFromHPRC100',
                 'StdevFromIllumina174k', 
@@ -1878,6 +1874,7 @@
                         'ManeGeneName',
                         'ManeGeneId',
                         'ManeTranscriptId',
+                        
                         'LPSLengthStdevFromHPRC100',
                         'LPSMotifFromHPRC100',
                         'LPSMotifFractionFromHPRC100',
@@ -2163,7 +2160,9 @@
                             size: parseInt(size.replace('x', '')),
                             count: parseInt(count)
                         }
-                    })
+                    }) 
+                    
+                    console.log($(this).data('label'), ':', data)
 
                     // Sort by size
                     data.sort((a, b) => a.size - b.size)
@@ -2434,22 +2433,22 @@
                 if (polymorphismFilter && polymorphismFilterType) {
                     switch (polymorphismFilterType) {
                         case 'sigma_gt_0.0':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 0.0")
+                            conditions.push("Hprc100_Stdev > 0.0")
                             break
                         case 'sigma_gt_0.3':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 0.3")
+                            conditions.push("Hprc100_Stdev > 0.3")
                             break
                         case 'sigma_gt_0.5':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 0.5")
+                            conditions.push("Hprc100_Stdev > 0.5")
                             break
                         case 'sigma_gt_1.0':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 1.0")
+                            conditions.push("Hprc100_Stdev > 1.0")
                             break
                         case 'sigma_gt_3.0':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 3.0")
+                            conditions.push("Hprc100_Stdev > 3.0")
                             break
                         case 'sigma_gt_5.0':
-                            conditions.push("LPSLengthStdevFromHPRC100 > 5.0")
+                            conditions.push("Hprc100_Stdev > 5.0")
                             break
                     }
                 }
