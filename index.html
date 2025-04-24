@@ -2061,14 +2061,24 @@
             const stdevColumns = ['HPRC100_Stdev', 'LPSLengthStdevFromHPRC100', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
             const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
 
-            const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 === null, row.HPRC100_Stdev === null, row.TenK10K_Stdev === null, row.StdevFromIllumina174k === null, row.StdevFromT2TAssemblies === null].filter(Boolean).length
+            const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 == null, row.HPRC100_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
 
             let polymorphismDialogContent = `
                 <div class="content" style="text-align: center">
-                    <div><span class="cell-popup-details-label">Standard Deviations of Allele Frequency Distributions</span></div>
-                    <div style="margin-top: 5px">
-                        <table style="margin: 0 auto">
             `
+
+            if (nStdevsNotAvailable == stdevColumns.length) {
+                polymorphismDialogContent += `
+                        <span style="color: #686868;">No polymorphism data available.</span>
+                        <br /><br />
+                `
+            } else {
+                polymorphismDialogContent += `
+                    <div><span class="cell-popup-details-label">Allele Frequency Distribution Summary Statistics</span></div>
+                        <div style="margin-top: 5px">
+                            <table style="margin: 0 auto">
+                `
+            }   
 
             const stdevLabels = {
                 'HPRC100_Stdev': 'LPS2',
@@ -2127,10 +2137,10 @@
 
             if (nStdevsNotAvailable > 0) {
                 polymorphismDialogContent += "<br />"
+                let namesOfMissingSigmas = []
                 for (const key of stdevColumns) {
-                    let namesOfMissingSigmas = []
                     if (row[key] == null) {
-                        namesOfMissingSigmas.push(stdevLabels[key])
+                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${stdevLabels[key]}</sub></span>`)
                     }
                 }
                 polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
