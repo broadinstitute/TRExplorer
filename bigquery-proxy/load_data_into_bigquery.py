@@ -199,17 +199,17 @@ schema = [
     bigquery.SchemaField("AlleleFrequenciesFromT2TAssemblies", "STRING"),
     bigquery.SchemaField("StdevFromT2TAssemblies", "FLOAT"),
 
-    bigquery.SchemaField("Tenk10k_AlleleHistogram", "STRING"),
-    bigquery.SchemaField("Tenk10k_ModeAllele", "INTEGER"),
-    bigquery.SchemaField("Tenk10k_Stdev", "FLOAT"),
-    bigquery.SchemaField("Tenk10k_Median", "INTEGER"),
-    bigquery.SchemaField("Tenk10k_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("TenK10K_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("TenK10K_ModeAllele", "INTEGER"),
+    bigquery.SchemaField("TenK10K_Stdev", "FLOAT"),
+    bigquery.SchemaField("TenK10K_Median", "INTEGER"),
+    bigquery.SchemaField("TenK10K_99thPercentile", "INTEGER"),
 
-    bigquery.SchemaField("Hprc100_AlleleHistogram", "STRING"),
-    bigquery.SchemaField("Hprc100_ModeAllele", "INTEGER"),
-    bigquery.SchemaField("Hprc100_Stdev", "FLOAT"),
-    bigquery.SchemaField("Hprc100_Median", "INTEGER"),
-    bigquery.SchemaField("Hprc100_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("HPRC100_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("HPRC100_ModeAllele", "INTEGER"),
+    bigquery.SchemaField("HPRC100_Stdev", "FLOAT"),
+    bigquery.SchemaField("HPRC100_Median", "INTEGER"),
+    bigquery.SchemaField("HPRC100_99thPercentile", "INTEGER"),
 
 ]
 
@@ -348,19 +348,19 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
 
     if record["LocusId"] in tenk10k_lookup:
         counters["rows_with_tenk10k_data"] += 1
-        record["Tenk10k_AlleleHistogram"] = tenk10k_lookup[record["LocusId"]]["allele_size_histogram"]
-        record["Tenk10k_ModeAllele"] = tenk10k_lookup[record["LocusId"]]["mode_allele"]
-        record["Tenk10k_Stdev"] = tenk10k_lookup[record["LocusId"]]["stdev"]
-        record["Tenk10k_Median"] = tenk10k_lookup[record["LocusId"]]["median"]
-        record["Tenk10k_99thPercentile"] = tenk10k_lookup[record["LocusId"]]["99th_percentile"]
+        record["TenK10K_AlleleHistogram"] = tenk10k_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["TenK10K_ModeAllele"] = tenk10k_lookup[record["LocusId"]]["mode_allele"]
+        record["TenK10K_Stdev"] = tenk10k_lookup[record["LocusId"]]["stdev"]
+        record["TenK10K_Median"] = tenk10k_lookup[record["LocusId"]]["median"]
+        record["TenK10K_99thPercentile"] = tenk10k_lookup[record["LocusId"]]["99th_percentile"]
 
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
-        record["Hprc100_AlleleHistogram"] = hprc100_lookup[record["LocusId"]]["allele_size_histogram"]
-        record["Hprc100_ModeAllele"] = hprc100_lookup[record["LocusId"]]["mode_allele"]
-        record["Hprc100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
-        record["Hprc100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
-        record["Hprc100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
+        record["HPRC100_AlleleHistogram"] = hprc100_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["HPRC100_ModeAllele"] = hprc100_lookup[record["LocusId"]]["mode_allele"]
+        record["HPRC100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
+        record["HPRC100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
+        record["HPRC100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
 
     counters["total_rows"] += 1
     # Convert any None values to None (BigQuery will handle NULL)
