@@ -1079,7 +1079,7 @@
             getValue: (row) => {
                 let polymorphismDetails = ``
                     for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-                    if (row[dataColumn] !== null) {
+                    if (row[dataColumn] != null) {
                         polymorphismDetails += `data-${dataColumn}='${row[dataColumn]}' `
                     }
                 }
@@ -1089,10 +1089,10 @@
                                 <b>σ<sub>LPS2</sub></b>
                             </span>
                             <span style="color: #333;">
-                                = ${row.HPRC100_Stdev !== null ? row.HPRC100_Stdev.toFixed(1) : 'not available'} &nbsp; &nbsp; 
+                                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : 'not available'} &nbsp; &nbsp; 
                             </span>
                             <span class="cell-action-link">                                    
-                                ${row.TenK10K_Stdev !== null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k !== null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies !== null ? 'σ<sub>T2T</sub>' : ''}
+                                ${row.TenK10K_Stdev != null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k != null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies != null ? 'σ<sub>T2T</sub>' : ''}
                             </span>
                         </span>
                         `
@@ -1202,7 +1202,7 @@
         const params = new URLSearchParams(hash)
         
         for (const [key, value] of params.entries()) {
-            if (key in DEFAULT_GLOBAL_PAGE_STATE && value !== null) {
+            if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
                 GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
                                         value === 'false' ? false :
@@ -1911,7 +1911,7 @@
         results.rows.forEach((row) => {
             let isDiseaseAssociated = false
             let diseaseAssociatedIcon = ''
-            if (row.DiseaseInfo !== null) {
+            if (row.DiseaseInfo != null) {
                 isDiseaseAssociated = true
                 let diseaseLocusId = ''
                 let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
@@ -1961,7 +1961,7 @@
                         value = columnObject.getValue(row)
                     }
                     
-                    tableHtml += `<td>${value !== null ? value : ''}</td>`
+                    tableHtml += `<td>${value != null ? value : ''}</td>`
                 }
             })
             tableHtml += '</tr>'
@@ -2050,7 +2050,7 @@
             const row = $(this).data()
             for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
                 const lowerCaseKey = key.toLowerCase()
-                if (row[lowerCaseKey] !== null) {
+                if (row[lowerCaseKey] != null) {
                     row[key] = row[lowerCaseKey]
                 }
             }
