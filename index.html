@@ -2624,8 +2624,10 @@
                 
                 // Process each query value and create query conditions
                 const queryClauses = queryValues.map(queryValue => {
+                    queryValue = queryValue.trim()
+
                     // Check if it's a genomic region (chr:start-end)
-                    const regionMatch = queryValue.match(/^(?:chr)?(\w+)[\s]*:[\s]*([\d,]+)[\s]*-[\s]*([\d,]+)$/i)
+                    const regionMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*:[\s]*([\d,]+)[\s]*-[\s]*([\d,]+)[\s]*$/i)
                     if (regionMatch) {
                         let [_, chrom, start, end] = regionMatch
                         start = parseInt(start.replace(/,/g, ''))
