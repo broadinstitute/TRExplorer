@@ -984,7 +984,7 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: [0, 1, 2, 3, 4, 5, 6, 16, ].join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [0, 1, 2, 3, 4, 16, 6].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -1128,7 +1128,7 @@
             getRequiredColumns: () => ['GencodeGeneName'],
         },
         polymorphism: {
-            displayName: 'Polymorphic',
+            displayName: 'Polymorphism',
             helpText: 'Summary of available sources of polymorphism data for the TR locus',
             getValue: (row) => {
                 let polymorphismDetails = ``
@@ -2222,17 +2222,17 @@
             </button>
         </th>`
 
-        Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-            if (!visibleColumns.includes(columnId)) {
-                return
+        visibleColumns.forEach(columnId => {
+            const columnName = RESULTS_TABLE_COLUMN_NAMES[columnId]
+            if (columnName) {   
+                const columnObject = TABLE_COLUMNS[columnName]
+                const isSorted = columnId === sortColumn
+                let icon = '<i class="sort icon"></i>'
+                if (isSorted) {
+                    icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
+                }
+                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnId}">${columnObject.displayName} ${icon}</th>`
             }
-            const columnObject = TABLE_COLUMNS[columnName]
-            const isSorted = columnId === sortColumn
-            let icon = '<i class="sort icon"></i>'
-            if (isSorted) {
-                icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
-            }
-            tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnId}">${columnObject.displayName} ${icon}</th>`
         })
 
         tableHtml += '</tr></thead><tbody>'
@@ -2278,8 +2278,9 @@
             </td>`
             
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-                if (visibleColumns.includes(columnId)) {
+            visibleColumns.forEach(columnId => {
+                const columnName = RESULTS_TABLE_COLUMN_NAMES[columnId]
+                if (columnName) {
                     const columnObject = TABLE_COLUMNS[columnName]
                     let value
                     if (!columnObject || !columnObject.getValue) {
