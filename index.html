@@ -997,6 +997,49 @@
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
+
+    const STDEV_SIGMA_SUBSCRIPTS = {
+        'HPRC100_Stdev': 'LPS2',
+        'LPSLengthStdevFromHPRC100': 'LPS',
+        'TenK10K_Stdev': '10k',
+        'StdevFromIllumina174k': '1kGP',
+        'StdevFromT2TAssemblies': 'T2T',
+    }
+
+    const ALLELE_HISTOGRAM_SHORT_NAMES = {
+        'HPRC100_AlleleHistogram': 'HPRC100',
+        'TenK10K_AlleleHistogram': 'TenK10K',
+        'AlleleFrequenciesFromIllumina174k': '1kGP',
+        'AlleleFrequenciesFromT2TAssemblies': 'T2T',
+    }
+    const ALLELE_FREQUENCY_CHART_TITLES = {
+        'HPRC100_AlleleHistogram': 'Allele Frequencies in HPRC 100',
+        'TenK10K_AlleleHistogram': 'Allele Frequencies in TenK10K',
+        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies in Illumina 174k',
+        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies in T2T assemblies',
+    }
+    const ALLELE_FREQUENCY_CHART_SUBTITLES = {
+        'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 2,412 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
+        'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
+        'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
+    }
+
+    const STDEV_HELP_TEXTS = {
+        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
+        'LPSLengthStdevFromHPRC100': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. This is the same data as σ<sub style=&#39;font-size: 0.7em;&#39;>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub>, but generated in September 2024 using an older version of the TRGT LPS pipeline.<br /><br /><b>Range:</b> 0 to 123.0`,
+        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&#39;static/TenK10K_ancestry_PC1_vs_PC2.png&#39; style=&#39;max-width: 600px&#39;>`,
+        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
+        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
+    }
+
+    const ALLELE_HISTOGRAM_HELP_TEXTS = {
+        'HPRC100_AlleleHistogram': `${ALLELE_FREQUENCY_CHART_TITLES['HPRC100_AlleleHistogram']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
+        'TenK10K_AlleleHistogram': `${ALLELE_FREQUENCY_CHART_TITLES['TenK10K_AlleleHistogram']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
+        'AlleleFrequenciesFromIllumina174k': `${ALLELE_FREQUENCY_CHART_TITLES['AlleleFrequenciesFromIllumina174k']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
+        'AlleleFrequenciesFromT2TAssemblies': `${ALLELE_FREQUENCY_CHART_TITLES['AlleleFrequenciesFromT2TAssemblies']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
+    }
+
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
     const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
         'CAG',
@@ -1097,13 +1140,13 @@
                         
                 return `<span class="cell-in-polymorphism-column" ${polymorphismDetails}>
                             <span class="cell-action-link">
-                                <b>σ<sub>LPS2</sub></b>
+                                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
                             </span>
                             <span style="color: #333;">
                                 = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : 'not available'} &nbsp; &nbsp; 
                             </span>
                             <span class="cell-action-link">                                    
-                                ${row.TenK10K_Stdev != null ? 'σ<sub>10k</sub>' : ''}  ${row.StdevFromIllumina174k != null ? 'σ<sub>1kGP</sub>' : ''}  ${row.StdevFromT2TAssemblies != null ? 'σ<sub>T2T</sub>' : ''}
+                                ${row.TenK10K_Stdev != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
                             </span>
                         </span>
                         `
@@ -1150,15 +1193,15 @@
             getRequiredColumns: () => ['FlanksAndLocusMappability']
         },
         gencodeGeneId: {
-            displayName: 'Gencode Id',
-            helpText: 'Gencode gene ID',
+            displayName: 'Gencode Gene Id',
+            helpText: 'Gencode gene ID (ENSG)',
             getValue: (row) => row.GencodeGeneId,
             getSortColumns: () => ['GencodeGeneId'],
             getRequiredColumns: () => ['GencodeGeneId']
         },
         gencodeTranscriptId: {
             displayName: 'Gencode Transcript Id',
-            helpText: 'Gencode transcript ID',
+            helpText: 'Gencode transcript ID (ENST)',
             getValue: (row) => row.GencodeTranscriptId,
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
@@ -1205,64 +1248,62 @@
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
         },
-
         stdevFromHPRC100: {
-            displayName: 'σ<sub>HPRC100</sub>',
-            helpText: 'Standard deviation from HPRC100',
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub>`,
+            helpText: STDEV_HELP_TEXTS['HPRC100_Stdev'],
             getValue: (row) => row.HPRC100_Stdev,
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => ['HPRC100_Stdev']
         },
         stdevFromTenK10k: {
-            displayName: 'σ<sub>10k</sub>',
-            helpText: 'Standard deviation from TenK10k',
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['TenK10K_Stdev']}</sub>`,
+            helpText: STDEV_HELP_TEXTS['TenK10K_Stdev'],
             getValue: (row) => row.TenK10K_Stdev,
             getSortColumns: () => ['TenK10K_Stdev'],
             getRequiredColumns: () => ['TenK10K_Stdev']
         },
         stdevFromIllumina174k: {
-            displayName: 'σ<sub>1kGP</sub>',
-            helpText: 'Standard deviation from Illumina174k',
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['StdevFromIllumina174k']}</sub>`,
+            helpText: STDEV_HELP_TEXTS['StdevFromIllumina174k'],
             getValue: (row) => row.StdevFromIllumina174k,
             getSortColumns: () => ['StdevFromIllumina174k'],
             getRequiredColumns: () => ['StdevFromIllumina174k']
         },
         stdevFromT2TAssemblies: {
-            displayName: 'σ<sub>T2T</sub>',
-            helpText: 'Standard deviation from T2T Assemblies',
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['StdevFromT2TAssemblies']}</sub>`,
+            helpText: STDEV_HELP_TEXTS['StdevFromT2TAssemblies'],
             getValue: (row) => row.StdevFromT2TAssemblies,
             getSortColumns: () => ['StdevFromT2TAssemblies'],
             getRequiredColumns: () => ['StdevFromT2TAssemblies']
         },
         alleleHistogramFromHPRC100: {
-            displayName: 'Alleles (HPRC100)',
-            helpText: 'Allele histogram from HPRC100',
+            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['HPRC100_AlleleHistogram']})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['HPRC100_AlleleHistogram'],
             getValue: (row) => row.HPRC100_AlleleHistogram,
             getSortColumns: () => ['HPRC100_AlleleHistogram'],
             getRequiredColumns: () => ['HPRC100_AlleleHistogram']
         },
         alleleHistogramFromTenK10k: {
-            displayName: 'Alleles (TenK10k)',
-            helpText: 'Allele histogram from TenK10k',
+            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['TenK10K_AlleleHistogram']})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['TenK10K_AlleleHistogram'],
             getValue: (row) => row.TenK10K_AlleleHistogram,
             getSortColumns: () => ['TenK10K_AlleleHistogram'],
             getRequiredColumns: () => ['TenK10K_AlleleHistogram']
         },
         alleleHistogramFromIllumina174k: {
-            displayName: 'Alleles (Illumina174k)',
-            helpText: 'Allele histogram from Illumina174k',
+            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['AlleleFrequenciesFromIllumina174k']})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['AlleleFrequenciesFromIllumina174k'],
             getValue: (row) => row.AlleleFrequenciesFromIllumina174k,
             getSortColumns: () => ['AlleleFrequenciesFromIllumina174k'],
             getRequiredColumns: () => ['AlleleFrequenciesFromIllumina174k']
         },
         alleleHistogramFromT2TAssemblies: {
-            displayName: 'Alleles (T2T)',
-            helpText: 'Allele histogram from T2T Assemblies',
+            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['AlleleFrequenciesFromT2TAssemblies']})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['AlleleFrequenciesFromT2TAssemblies'],
             getValue: (row) => row.AlleleFrequenciesFromT2TAssemblies,
             getSortColumns: () => ['AlleleFrequenciesFromT2TAssemblies'],
             getRequiredColumns: () => ['AlleleFrequenciesFromT2TAssemblies']
         },
-
     }
 
     if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
@@ -1588,7 +1629,7 @@
     const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
         try {
             const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
-            console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query)
+            console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
             const requestBody = {
                 sql: query,
                 export_to_file_format: exportToFileFormat,
@@ -2154,42 +2195,6 @@
                         <div style="margin-top: 5px">
                             <table style="margin: 0 auto">
                 `
-            }   
-
-            const stdevLabels = {
-                'HPRC100_Stdev': 'LPS2',
-                'LPSLengthStdevFromHPRC100': 'LPS',
-                'TenK10K_Stdev': '10k',
-                'StdevFromIllumina174k': '1kGP',
-                'StdevFromT2TAssemblies': 'T2T',
-            }
-
-            const chartLabelMap = {
-                'HPRC100_AlleleHistogram': 'HPRC100',
-                'TenK10K_AlleleHistogram': 'TenK10K',
-                'AlleleFrequenciesFromIllumina174k': '1kGP',
-                'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-            }
-            const chartTitleMap = {
-                'HPRC100_AlleleHistogram': 'Allele Frequencies in HPRC 100',
-                'TenK10K_AlleleHistogram': 'Allele Frequencies in TenK10K',
-                'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies in Illumina 174k',
-                'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies in T2T assemblies',
-            }
-            const chartSubtitleMap = {
-                'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-                'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 2,412 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
-                'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
-                'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
-            }
-
-            //in the longest pure segment (LPS) detected at this tandem repeat locus by running an <b>updated version of TRGT</b> on 100 high-coverage long-read (LR) samples from the Human Pan-genome Reference Consortium (HPRC)
-            const stdevHelpTexts = {
-                'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${chartSubtitleMap['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-                'LPSLengthStdevFromHPRC100': `This is the standard deviation of the allele frequency distribution ${chartSubtitleMap['HPRC100_AlleleHistogram']}. This is the same data as σ<sub style=&#39;font-size: 0.7em;&#39;>${stdevLabels['HPRC100_Stdev']}</sub>, but generated in September 2024 using an older version of the TRGT LPS pipeline.<br /><br /><b>Range:</b> 0 to 123.0`,
-                'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${chartSubtitleMap['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&#39;static/TenK10K_ancestry_PC1_vs_PC2.png&#39; style=&#39;max-width: 600px&#39;>`,
-                'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${chartSubtitleMap['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
-                'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${chartSubtitleMap['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
             }
 
             for (const key of stdevColumns) {
@@ -2197,13 +2202,13 @@
                     polymorphismDialogContent += `
                         <tr>
                             <td style="text-align: left;">
-                                        <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${stdevLabels[key]}</sub></span>
+                                        <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
                                     </td>
                                     <td style="text-align: right;">
                                         = ${row[key].toFixed(3)}
                                     </td>
                                     <td style="text-align: right;">
-                                        <i class="question circle icon link" style="margin-left: 15px;" data-html="${stdevHelpTexts[key]}"></i>
+                                        <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
                                     </td>
                         </tr>
                     `
@@ -2216,7 +2221,7 @@
                 let namesOfMissingSigmas = []
                 for (const key of stdevColumns) {
                     if (row[key] == null) {
-                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${stdevLabels[key]}</sub></span>`)
+                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
                     }
                 }
                 polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
@@ -2237,8 +2242,8 @@
                         polymorphismDialogContent += `
                             
                             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                                <div style="margin-bottom: 5px;"><b>${chartTitleMap[column]}</b><br /><span style="color: #686868;">${chartSubtitleMap[column]}</span></div>
-                                <canvas class="polymorphism-allele-frequency-chart" data-label="${chartLabelMap[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
+                                <canvas class="polymorphism-allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
                             </div>
                         `
                     }
