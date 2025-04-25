@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script type="text/javascript" src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script>
+    <script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script>
     <!-- script type="text/javascript" src="igv.min.js"></script -->
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-H6MVWR637M"></script>
@@ -1504,6 +1504,7 @@
 
     async function updateIgv() {
 
+
         // create igv.js browser object if it hasn't been created yet
         if (!window.igvBrowser) {
             const config = generateIgvConfig(false)
@@ -1530,6 +1531,7 @@
             })
 
             // add the IGV tracks selection button
+            //$($('#igv-viewport')[0].shadowRoot).find('.igv-navbar-left-container')
             $('.igv-navbar-left-container').after(
                 `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-radius:5px; color:#06359d !important; background-color: white !important">
                    Select IGV Tracks
