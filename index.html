@@ -1144,7 +1144,7 @@
             getRequiredColumns: () => ['GencodeGeneName'],
         },
         polymorphism: {
-            displayName: 'Polymorphism',
+            displayName: 'Polymorphism Summary',
             helpText: 'Summary of available sources of polymorphism data for the TR locus',
             getValue: (row) => {
                 let polymorphismDetails = ``
@@ -1266,14 +1266,23 @@
         },
     }
 
+    const alleleHistogramColumnToOtherColumns = {
+        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
+        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
+        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
+        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
+    }
+
+
 
     for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
+        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
             getValue: (row) => row[columnName] ? `<canvas class="allele-frequency-inline-chart" data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px;"></canvas>` : '<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>',
-            getSortColumns: () => [columnName],
-            getRequiredColumns: () => [columnName]
+            getSortColumns: () => [stdevColumnName],
+            getRequiredColumns: () => [columnName, stdevColumnName]
         }
     }
 
@@ -1610,6 +1619,7 @@
     const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
         try {
             const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
+            console.log("Page state:", GLOBAL_PAGE_STATE)
             console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
             const requestBody = {
                 sql: query,
@@ -2203,8 +2213,11 @@
         })
 
         this.style.minHeight = '55px'
+        this.style.maxHeight = '55px'
+        this.style.minWidth = '100px'
+        this.style.maxWidth = '200px'
         this.style.height = '55px'
-        
+
         $(this).parent().css('padding-top', '0')
         $(this).parent().css('padding-bottom', '0')
     }
@@ -2243,12 +2256,12 @@
             const columnName = RESULTS_TABLE_COLUMN_NAMES[columnId]
             if (columnName) {   
                 const columnObject = TABLE_COLUMNS[columnName]
-                const isSorted = columnId === sortColumn
+                const isSorted = columnName === sortColumn
                 let icon = '<i class="sort icon"></i>'
                 if (isSorted) {
                     icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
                 }
-                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnId}">${columnObject.displayName} ${icon}</th>`
+                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnName}">${columnObject.displayName} ${icon}</th>`
             }
         })
 
