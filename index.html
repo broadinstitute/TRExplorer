@@ -1019,7 +1019,15 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: [0, 1, 2, 3, 4, 6, 15].join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [
+            'interval', 
+            'motif', 
+            'geneRegion',
+            'geneName', 
+            'variationCluster', 
+            'polymorphism', 
+            'HPRC100_AlleleHistogram',
+        ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     /*
