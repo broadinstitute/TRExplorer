@@ -908,27 +908,59 @@
         'variationCluster',  // 4
         'mappability',  // 5
         'trsInRegion',  // 6
-        'gencodeGeneId',  // 7
-        'gencodeTranscriptId',  // 8
-        'refSeqGeneRegion',  // 9
-        'refSeqGeneId',  // 10
-        'refSeqGeneName',  // 11
-        'maneGeneRegion',  // 12
-        'maneGeneId',  // 13
-        'maneGeneName',  // 14
 
-        'HPRC100_AlleleHistogram',  // 15
-        'TenK10K_AlleleHistogram',  // 16
-        'AlleleFrequenciesFromIllumina174k',  // 17
-        'AlleleFrequenciesFromT2TAssemblies',  // 18
+        'gencodeGeneId',  // 8
+        'gencodeTranscriptId',  // 9
+        'refSeqGeneRegion',  // 10
+        'refSeqGeneId',  // 11
+        'refSeqGeneName',  // 12
+        'maneGeneRegion',  // 13
+        'maneGeneId',  // 14
+        'maneGeneName',  // 15
 
-        'polymorphism',  // 19
+        'HPRC100_AlleleHistogram',  // 16
+        'TenK10K_AlleleHistogram',  // 17
+        'AlleleFrequenciesFromIllumina174k',  // 18
+        'AlleleFrequenciesFromT2TAssemblies',  // 19
         
-        'HPRC100_Stdev',  // 20
-        'TenK10K_Stdev',  // 21
-        'StdevFromIllumina174k',  // 22
-        'StdevFromT2TAssemblies',  // 23
+        'polymorphism',  // 20
+
+        'HPRC100_Stdev',  // 21
+        'TenK10K_Stdev',  // 22
+        'StdevFromIllumina174k',  // 23
+        'StdevFromT2TAssemblies',  // 24
     ]
+
+    const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
+        'interval',  
+        'motif',  
+        'geneRegion',  
+        'geneName',  
+        'variationCluster',  
+        'mappability',  
+        'trsInRegion',  
+        'polymorphism',  
+
+        'gencodeGeneId',  
+        'gencodeTranscriptId',  
+        'refSeqGeneRegion',  
+        'refSeqGeneId',  
+        'refSeqGeneName',  
+        'maneGeneRegion',  
+        'maneGeneId',  
+        'maneGeneName',  
+
+        'HPRC100_AlleleHistogram',  
+        'TenK10K_AlleleHistogram',  
+        'AlleleFrequenciesFromIllumina174k',  
+        'AlleleFrequenciesFromT2TAssemblies',  
+        
+        'HPRC100_Stdev',  
+        'TenK10K_Stdev',  
+        'StdevFromIllumina174k',  
+        'StdevFromT2TAssemblies',  
+    ]
+
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
         'LPSLengthStdevFromHPRC100',
@@ -985,7 +1017,7 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: [0, 1, 2, 3, 4, 15, 19].join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [0, 1, 2, 3, 4, 7, 16].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     /*
@@ -2252,9 +2284,8 @@
             </button>
         </th>`
 
-        visibleColumns.forEach(columnId => {
-            const columnName = RESULTS_TABLE_COLUMN_NAMES[columnId]
-            if (columnName) {   
+        Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+            if (visibleColumns.includes(columnId)) {  
                 const columnObject = TABLE_COLUMNS[columnName]
                 const isSorted = columnName === sortColumn
                 let icon = '<i class="sort icon"></i>'
@@ -2266,6 +2297,7 @@
         })
 
         tableHtml += '</tr></thead><tbody>'
+
 
         results.rows.forEach((row) => {
             let isDiseaseAssociated = false
@@ -2307,10 +2339,8 @@
                 ${diseaseAssociatedIcon}
             </td>`
             
-            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            visibleColumns.forEach(columnId => {
-                const columnName = RESULTS_TABLE_COLUMN_NAMES[columnId]
-                if (columnName) {
+            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+                if (visibleColumns.includes(columnId)) {
                     const columnObject = TABLE_COLUMNS[columnName]
                     let value
                     if (!columnObject || !columnObject.getValue) {
@@ -2522,8 +2552,9 @@
             $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-flex-container"></div>')
             
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            const checkboxes = Object.entries(RESULTS_TABLE_COLUMN_NAMES).map(([columnId, columnName]) => {
-                const isChecked = visibleColumns.includes(columnId)
+            const checkboxes = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES.map((columnName) => {
+                const columnId = RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)
+                const isChecked = visibleColumns.includes(columnId.toString())
                 return `
                     <div class="results-table-column-settings-checkbox-item">
                         <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
@@ -2848,8 +2879,6 @@
 
             window.lastSearchQuerySuffix = querySuffix
             window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
-
-            console.log('Response:', window.searchResults)
 
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
