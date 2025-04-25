@@ -8,8 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script>
-    <!-- script type="text/javascript" src="igv.min.js"></script -->
+    <!-- script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script -->
+    <script src="https://cdn.jsdelivr.net/npm/igv@3.2.6/dist/igv.min.js"></script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-H6MVWR637M"></script>
     <script>
@@ -1019,7 +1019,7 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: [0, 1, 2, 3, 4, 7, 16].join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [0, 1, 2, 3, 4, 7, 15].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     /*
@@ -1531,9 +1531,9 @@
             })
 
             // add the IGV tracks selection button
-            //$($('#igv-viewport')[0].shadowRoot).find('.igv-navbar-left-container')
-            $('.igv-navbar-left-container').after(
-                `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-radius:5px; color:#06359d !important; background-color: white !important">
+            $($('#igv-viewport')[0].shadowRoot).find('.igv-navbar-left-container').after(
+            //$('.igv-navbar-left-container').after(
+                `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-color:#06359d !important; border-width: 1px !important; border-radius:5px; color:#06359d !important; background-color: white !important; cursor: pointer;">
                    Select IGV Tracks
                    <i class="setting icon" style="margin-left:10px" />
                 </button>`
@@ -1597,7 +1597,8 @@
             
             $(".ui.checkbox").checkbox()
 
-            $('#igv-select-tracks-button').click(() => {
+            $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
+            //$('#igv-select-tracks-button').click(() => {
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
                     const trackName = rt[0]
                     const isChecked = GLOBAL_PAGE_STATE[trackName] === 1
