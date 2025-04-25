@@ -1034,10 +1034,10 @@
     }
 
     const ALLELE_HISTOGRAM_HELP_TEXTS = {
-        'HPRC100_AlleleHistogram': `${ALLELE_FREQUENCY_CHART_TITLES['HPRC100_AlleleHistogram']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
-        'TenK10K_AlleleHistogram': `${ALLELE_FREQUENCY_CHART_TITLES['TenK10K_AlleleHistogram']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
-        'AlleleFrequenciesFromIllumina174k': `${ALLELE_FREQUENCY_CHART_TITLES['AlleleFrequenciesFromIllumina174k']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
-        'AlleleFrequenciesFromT2TAssemblies': `${ALLELE_FREQUENCY_CHART_TITLES['AlleleFrequenciesFromT2TAssemblies']} ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
+        'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
+        'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
+        'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
+        'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
     }
 
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
@@ -1933,7 +1933,6 @@
 
                     const query = `SELECT ${selectClause} FROM ${searchQuerySuffix}`
                     const results = await queryBigQuery(query, null, null, fileFormat, toolName)
-                    console.log(results)
 
                     if (results.public_urls) {
                         if (results.public_urls.length > 1) {
@@ -1981,6 +1980,128 @@
         })
     }
 
+    const createAlleleFrequencyChart = function() {
+        const chartLabel = $(this).data('label')
+        const frequencies = $(this).data('frequencies')
+        const refAlleleSize = $(this).data('ref-allele-size')
+        const chartWidth = $(this).data('chart-width')
+        const chartHeight = $(this).data('chart-height')
+
+        if (!frequencies) return   // Skip if no data
+
+        console.log(chartLabel, ':', frequencies)
+
+        const data = frequencies.split(',').map(item => {
+            const [size, count] = item.split(':')
+            return {
+                size: parseInt(size.replace('x', '')),
+                count: parseInt(count)
+            }
+        })
+
+        //data.sort((a, b) => a.size - b.size)
+
+        const yLookup = {}
+        const xLabels =  []
+        const colors = []
+        const borderColors = []
+        for (let i = Math.min(...data.map(d => d.size)) - 1; i <= Math.max(...data.map(d => d.size)) + 1; i++) {
+            xLabels.push(i)
+            yLookup[i] = 0
+        }
+        for (let x of xLabels) {
+            yLookup[x] = data.find(d => d.size === x)?.count || 0
+            colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
+            borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
+        }
+
+        //set y-limit to the nearest whole power of 10 divided by 2, rounding up
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...data.map(d => d.count))))) / 2
+        new Chart(this, {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: xLabels.map(d => yLookup[d]),
+                    backgroundColor: colors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'end',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 5,
+                            font: {
+                                size: 10
+                            },
+                            generateLabels: function(chart) {
+                                return [{
+                                    text: `Ref. Allele: ${refAlleleSize} repeats`,
+                                    fillStyle: 'rgba(255, 165, 0, 0.7)',
+                                    strokeStyle: 'rgba(255, 165, 0, 1)',
+                                    lineWidth: 1,
+                                    hidden: false,
+                                    index: 0
+                                }]
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Count: ${context.raw}`
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Repeat Count'
+                        },
+                    },
+                    y: {
+                        type: 'logarithmic',
+                        min: 0,
+                        max: parseInt(yLimit),
+                        title: {
+                            display: true,
+                            text: '# of samples'
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (Math.floor(value) === value) {
+                                    return parseInt(value)
+                                }
+                            }
+                        },
+                        afterBuildTicks: (axis) => {
+                            const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
+                            axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
+                        }
+                    }
+                }
+            }
+        })
+
+        this.style.minWidth = chartWidth
+
+        this.style.height = chartHeight
+        this.style.minHeight = chartHeight
+        this.style.maxHeight = chartHeight
+    }
+    
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
@@ -2033,7 +2154,7 @@
                 let diseaseLocusId = ''
                 let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
                 try {
-                    console.log(row.DiseaseInfo)
+                    //console.log(row.DiseaseInfo)
                     const diseaseInfo = JSON.parse(row.DiseaseInfo)
                     const resources = []
                     if (diseaseInfo.STRchiveId) {
@@ -2243,143 +2364,21 @@
                             
                             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                                 <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                                <canvas class="polymorphism-allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" style="width: 100%; height: 100px;"></canvas>
+                                <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
                             </div>
                         `
                     }
                 }
                 polymorphismDialogContent += '</div></div>'
             }
-            polymorphismDialogContent = polymorphismDialogContent.replace(/\s+/g, ' ').trim()
-
-            $('#polymorphism-dialog-content').html(polymorphismDialogContent)
-
-            $('#polymorphism-dialog').modal('show')
-        
-            // Destroy any existing charts before creating new ones
-            Chart.helpers.each(Chart.instances, function(instance) {
-                instance.destroy()
-            })
             
-            $('.polymorphism-allele-frequency-chart').each(function() {
-                const chartLabel = $(this).data('label')
-                const frequencies = $(this).data('frequencies')
-                const refAlleleSize = $(this).data('ref-allele-size')
+            $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
 
-                if (!frequencies) return   // Skip if no data
-
-                console.log(chartLabel, ':', frequencies)
-
-                const data = frequencies.split(',').map(item => {
-                    const [size, count] = item.split(':')
-                    return {
-                        size: parseInt(size.replace('x', '')),
-                        count: parseInt(count)
-                    }
-                })
-
-                //data.sort((a, b) => a.size - b.size)
-
-                const yLookup = {}
-                const xLabels =  []
-                const colors = []
-                const borderColors = []
-                for (let i = Math.min(...data.map(d => d.size)) - 1; i <= Math.max(...data.map(d => d.size)) + 1; i++) {
-                    xLabels.push(i)
-                    yLookup[i] = 0
-                }
-                for (let x of xLabels) {
-                    yLookup[x] = data.find(d => d.size === x)?.count || 0
-                    colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
-                    borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
-                }
-
-                //set y-limit to the nearest whole power of 10 divided by 2, rounding up
-                const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...data.map(d => d.count))))) / 2
-                new Chart(this, {
-                    type: 'bar',
-                    data: {
-                        labels: xLabels,
-                        datasets: [{
-                            data: xLabels.map(d => yLookup[d]),
-                            backgroundColor: colors,
-                            borderColor: borderColors,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                align: 'end',
-                                labels: {
-                                    boxWidth: 10,
-                                    boxHeight: 10,
-                                    padding: 5,
-                                    font: {
-                                        size: 10
-                                    },
-                                    generateLabels: function(chart) {
-                                        return [{
-                                            text: `Ref. Allele: ${refAlleleSize} repeats`,
-                                            fillStyle: 'rgba(255, 165, 0, 0.7)',
-                                            strokeStyle: 'rgba(255, 165, 0, 1)',
-                                            lineWidth: 1,
-                                            hidden: false,
-                                            index: 0
-                                        }]
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return `Count: ${context.raw}`
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Repeat Count'
-                                },
-                            },
-                            y: {
-                                type: 'logarithmic',
-                                min: 0,
-                                max: parseInt(yLimit),
-                                title: {
-                                    display: true,
-                                    text: '# of samples'
-                                },
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        if (Math.floor(value) === value) {
-                                            return parseInt(value)
-                                        }
-                                    }
-                                },
-                                afterBuildTicks: (axis) => {
-                                    const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
-                                    axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
-                                }
-                            }
-                        }
-                    }
-                })
-                this.style.minWidth = '500px'
-                this.style.height = '200px'
-                this.style.minHeight = '200px'
-                this.style.maxHeight = '200px'
-            })
+            $('.allele-frequency-chart').each(createAlleleFrequencyChart)
 
             $('.question').popup({ on: 'click' })
+
+            $('#polymorphism-dialog').modal('show')
         })
 
         
@@ -2727,6 +2726,8 @@
 
             window.lastSearchQuerySuffix = querySuffix
             window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
+
+            console.log('Response:', window.searchResults)
 
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
