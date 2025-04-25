@@ -1013,10 +1013,10 @@
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
-        'HPRC100_AlleleHistogram': 'Allele Frequencies in HPRC 100',
-        'TenK10K_AlleleHistogram': 'Allele Frequencies in TenK10K',
-        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies in Illumina 174k',
-        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies in T2T assemblies',
+        'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
+        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K short-read genomes',
+        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
+        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
     }
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
         'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
@@ -2371,7 +2371,7 @@
                 }
                 polymorphismDialogContent += '</div></div>'
             }
-            
+
             $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
 
             $('.allele-frequency-chart').each(createAlleleFrequencyChart)
