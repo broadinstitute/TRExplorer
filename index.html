@@ -2622,11 +2622,10 @@
                 searchQuery = searchQuery.trim()
 
                 // Split input by commas to handle multiple values
-                const queryValues = searchQuery.split(',').map(q => q.trim()).filter(q => q !== '')
+                const queryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
                 
                 // Process each query value and create query conditions
                 const queryClauses = queryValues.map(queryValue => {
-                    queryValue = queryValue.trim()
 
                     // Check if it's a genomic region (chr:start-end)
                     const regionMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*:[\s]*([\d,]+)[\s]*-[\s]*([\d,]+)[\s]*$/i)
@@ -2634,6 +2633,7 @@
                         let [_, chrom, start, end] = regionMatch
                         start = parseInt(start.replace(/,/g, ''))
                         end = parseInt(end.replace(/,/g, ''))
+                        console.log(`Parsed region: ${chrom}:${start}-${end}`)
                         return `
                             (chrom = '${chrom}' AND start_0based < ${end} AND end_1based >= ${start})
                         `
