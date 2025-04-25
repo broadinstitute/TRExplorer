@@ -901,32 +901,33 @@
     const DEFAULT_SORT_DIRECTION = 'ASC'
 
     const RESULTS_TABLE_COLUMN_NAMES = [
-        'interval',
-        'motif',
-        'geneRegion',
-        'geneName',
-        'variationCluster',
-        'mappability',
-        'polymorphism',
-        'trsInRegion',
-        'gencodeGeneId',
-        'gencodeTranscriptId',
-        'refSeqGeneRegion',
-        'refSeqGeneId',
-        'refSeqGeneName',
-        'maneGeneRegion',
-        'maneGeneId',
-        'maneGeneName',
+        'interval',  // 0
+        'motif',  // 1
+        'geneRegion',  // 2
+        'geneName',  // 3
+        'variationCluster',  // 4
+        'mappability',  // 5
+        'trsInRegion',  // 6
+        'gencodeGeneId',  // 7
+        'gencodeTranscriptId',  // 8
+        'refSeqGeneRegion',  // 9
+        'refSeqGeneId',  // 10
+        'refSeqGeneName',  // 11
+        'maneGeneRegion',  // 12
+        'maneGeneId',  // 13
+        'maneGeneName',  // 14
 
-        'HPRC100_AlleleHistogram',
-        'TenK10K_AlleleHistogram',
-        'AlleleFrequenciesFromIllumina174k',
-        'AlleleFrequenciesFromT2TAssemblies',
+        'HPRC100_AlleleHistogram',  // 15
+        'TenK10K_AlleleHistogram',  // 16
+        'AlleleFrequenciesFromIllumina174k',  // 17
+        'AlleleFrequenciesFromT2TAssemblies',  // 18
 
-        'HPRC100_Stdev',
-        'TenK10K_Stdev',
-        'StdevFromIllumina174k',
-        'StdevFromT2TAssemblies',
+        'polymorphism',  // 19
+        
+        'HPRC100_Stdev',  // 20
+        'TenK10K_Stdev',  // 21
+        'StdevFromIllumina174k',  // 22
+        'StdevFromT2TAssemblies',  // 23
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -984,7 +985,7 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: [0, 1, 2, 3, 4, 16, 6].join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [0, 1, 2, 3, 4, 15, 19].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
