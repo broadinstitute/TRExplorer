@@ -988,6 +988,26 @@
         showColumns: [0, 1, 2, 3, 4, 15, 19].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
+    const GENE_REGION_COLORS = {
+        'CDS': 'rgb(208,5,5)',
+        'exon': 'rgb(255,168,0)',
+        'intron': 'rgb(40,126,40)',
+        'intergenic': 'rgb(0,178,255)',
+        '5\' UTR': 'rgb(0,72,255)',
+        '3\' UTR': 'rgb(0,72,255)',
+        'promoter': 'rgb(93,1,196)',
+    }
+
+    const getGeneRegionValue = (geneRegion) => {
+        if (!geneRegion) return ''
+        const color = GENE_REGION_COLORS[geneRegion]
+        const regionRename = {
+            'CDS': 'coding',
+            'exon': 'exon (non-coding gene)'
+        }
+        return `<span style="font-weight: normal; color: ${color}">${regionRename[geneRegion] || geneRegion}</span>`
+    }
+
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
         DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
     })
@@ -1110,14 +1130,7 @@
         geneRegion: {
             displayName: 'Region',
             helpText: 'TR locus gene region. <b>Examples:</b> 5\'UTR, coding, etc.',
-            getValue: (row) => {
-                if (!row.GencodeGeneRegion) return ''
-                const regionRename = {
-                    'CDS': 'coding',
-                    'exon': 'exon (non-coding gene)'
-                }
-                return regionRename[row.GencodeGeneRegion] || row.GencodeGeneRegion
-            },
+            getValue: (row) => getGeneRegionValue(row.GencodeGeneRegion),
             getSortColumns: () => ['GencodeGeneRegion'],
             getRequiredColumns: () => ['GencodeGeneRegion'],
         },
@@ -1210,7 +1223,7 @@
         refSeqGeneRegion: {
             displayName: 'RefSeq Region',
             helpText: 'RefSeq gene region',
-            getValue: (row) => row.RefSeqGeneRegion,
+            getValue: (row) => getGeneRegionValue(row.RefSeqGeneRegion),
             getSortColumns: () => ['RefSeqGeneRegion'],
             getRequiredColumns: () => ['RefSeqGeneRegion']
         },
@@ -1231,7 +1244,7 @@
         maneGeneRegion: {
             displayName: 'MANE Region',
             helpText: 'MANE gene region',
-            getValue: (row) => row.MANEGeneRegion,
+            getValue: (row) => getGeneRegionValue(row.MANEGeneRegion),
             getSortColumns: () => ['MANEGeneRegion'],
             getRequiredColumns: () => ['MANEGeneRegion']
         },
