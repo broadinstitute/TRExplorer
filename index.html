@@ -1157,7 +1157,7 @@
                                 <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
                             </span>
                             <span style="color: #333;">
-                                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : 'not available'} &nbsp; &nbsp; 
+                                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
                             </span>
                             <span class="cell-action-link">                                    
                                 ${row.TenK10K_Stdev != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
@@ -1269,7 +1269,7 @@
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
-            getValue: (row) => `<canvas class="allele-frequency-inline-chart" data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px;"></canvas>`,
+            getValue: (row) => row[columnName] ? `<canvas class="allele-frequency-inline-chart" data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px;"></canvas>` : '<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>',
             getSortColumns: () => [columnName],
             getRequiredColumns: () => [columnName]
         }
@@ -1355,7 +1355,7 @@
         }
 
         if (GLOBAL_PAGE_STATE['showRs'] === 1) {
-            $('#search-form').submit()
+            await performSearch(false)
         }
     }
 
@@ -2200,7 +2200,8 @@
             }
         })
 
-        this.style.minHeight = '50px'
+        this.style.minHeight = '55px'
+        this.style.height = '55px'
         
         $(this).parent().css('padding-top', '0')
         $(this).parent().css('padding-bottom', '0')
@@ -2827,10 +2828,6 @@
             const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause} ORDER BY ${sortClause}`
             const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
 
-            if (!showTableWhileLoading) {
-                GLOBAL_PAGE_STATE['currentPage'] = 1
-            }
-
             const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
             const pageSize = GLOBAL_PAGE_STATE['pageSize']
 
@@ -2909,6 +2906,9 @@
     // handle search
     const handleSearch = async (event) => {
         event.preventDefault()
+
+        GLOBAL_PAGE_STATE['currentPage'] = 1
+
         await performSearch(false)
     }
 
