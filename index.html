@@ -988,6 +988,7 @@
         showColumns: [0, 1, 2, 3, 4, 15, 19].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
+    /*
     const GENE_REGION_COLORS = {
         'CDS': 'rgb(208,5,5)',
         'exon': 'rgb(255,168,0)',
@@ -997,15 +998,16 @@
         '3\' UTR': 'rgb(0,72,255)',
         'promoter': 'rgb(93,1,196)',
     }
+    */
 
     const getGeneRegionValue = (geneRegion) => {
         if (!geneRegion) return ''
-        const color = GENE_REGION_COLORS[geneRegion]
+        //const color = GENE_REGION_COLORS[geneRegion]
         const regionRename = {
             'CDS': 'coding',
             'exon': 'exon (non-coding gene)'
         }
-        return `<span style="font-weight: normal; color: ${color}">${regionRename[geneRegion] || geneRegion}</span>`
+        return `${regionRename[geneRegion] || geneRegion}`
     }
 
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
