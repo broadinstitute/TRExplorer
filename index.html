@@ -905,10 +905,10 @@
         'motif',
         'geneRegion',
         'geneName',
-        'polymorphism',
         'variationCluster',
-        'trsInRegion',
         'mappability',
+        'polymorphism',
+        'trsInRegion',
         'gencodeGeneId',
         'gencodeTranscriptId',
         'refSeqGeneRegion',
@@ -918,15 +918,15 @@
         'maneGeneId',
         'maneGeneName',
 
-        'stdevFromHPRC100',
-        'stdevFromIllumina174k',
-        'stdevFromT2TAssemblies',
-        'stdevFromTenK10k',
-        'alleleHistogramFromHPRC100',
-        'alleleHistogramFromTenK10k',
-        'alleleHistogramFromIllumina174k',
-        'alleleHistogramFromT2TAssemblies',
-        
+        'HPRC100_AlleleHistogram',
+        'TenK10K_AlleleHistogram',
+        'AlleleFrequenciesFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies',
+
+        'HPRC100_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
+        'StdevFromT2TAssemblies',
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -984,7 +984,7 @@
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
 
-        showColumns: Object.keys(RESULTS_TABLE_COLUMN_NAMES.slice(0, 8)).join(SHOW_COLUMNS_VALUE_DELIMITER),
+        showColumns: [0, 1, 2, 3, 4, 5, 6, 16, ].join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -1087,7 +1087,7 @@
     }
 
     // column definitions
-    const TABLE_COLUMNS = {
+    let TABLE_COLUMNS = {
         interval: {
             displayName: 'Interval (hg38)',
             helpText: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
@@ -1248,62 +1248,27 @@
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
         },
-        stdevFromHPRC100: {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub>`,
-            helpText: STDEV_HELP_TEXTS['HPRC100_Stdev'],
-            getValue: (row) => row.HPRC100_Stdev,
-            getSortColumns: () => ['HPRC100_Stdev'],
-            getRequiredColumns: () => ['HPRC100_Stdev']
-        },
-        stdevFromTenK10k: {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['TenK10K_Stdev']}</sub>`,
-            helpText: STDEV_HELP_TEXTS['TenK10K_Stdev'],
-            getValue: (row) => row.TenK10K_Stdev,
-            getSortColumns: () => ['TenK10K_Stdev'],
-            getRequiredColumns: () => ['TenK10K_Stdev']
-        },
-        stdevFromIllumina174k: {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['StdevFromIllumina174k']}</sub>`,
-            helpText: STDEV_HELP_TEXTS['StdevFromIllumina174k'],
-            getValue: (row) => row.StdevFromIllumina174k,
-            getSortColumns: () => ['StdevFromIllumina174k'],
-            getRequiredColumns: () => ['StdevFromIllumina174k']
-        },
-        stdevFromT2TAssemblies: {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS['StdevFromT2TAssemblies']}</sub>`,
-            helpText: STDEV_HELP_TEXTS['StdevFromT2TAssemblies'],
-            getValue: (row) => row.StdevFromT2TAssemblies,
-            getSortColumns: () => ['StdevFromT2TAssemblies'],
-            getRequiredColumns: () => ['StdevFromT2TAssemblies']
-        },
-        alleleHistogramFromHPRC100: {
-            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['HPRC100_AlleleHistogram']})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['HPRC100_AlleleHistogram'],
-            getValue: (row) => row.HPRC100_AlleleHistogram,
-            getSortColumns: () => ['HPRC100_AlleleHistogram'],
-            getRequiredColumns: () => ['HPRC100_AlleleHistogram']
-        },
-        alleleHistogramFromTenK10k: {
-            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['TenK10K_AlleleHistogram']})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['TenK10K_AlleleHistogram'],
-            getValue: (row) => row.TenK10K_AlleleHistogram,
-            getSortColumns: () => ['TenK10K_AlleleHistogram'],
-            getRequiredColumns: () => ['TenK10K_AlleleHistogram']
-        },
-        alleleHistogramFromIllumina174k: {
-            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['AlleleFrequenciesFromIllumina174k']})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['AlleleFrequenciesFromIllumina174k'],
-            getValue: (row) => row.AlleleFrequenciesFromIllumina174k,
-            getSortColumns: () => ['AlleleFrequenciesFromIllumina174k'],
-            getRequiredColumns: () => ['AlleleFrequenciesFromIllumina174k']
-        },
-        alleleHistogramFromT2TAssemblies: {
-            displayName: `Alleles (${ALLELE_HISTOGRAM_SHORT_NAMES['AlleleFrequenciesFromT2TAssemblies']})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS['AlleleFrequenciesFromT2TAssemblies'],
-            getValue: (row) => row.AlleleFrequenciesFromT2TAssemblies,
-            getSortColumns: () => ['AlleleFrequenciesFromT2TAssemblies'],
-            getRequiredColumns: () => ['AlleleFrequenciesFromT2TAssemblies']
-        },
+    }
+
+
+    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
+        TABLE_COLUMNS[columnName] = {
+            displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
+            getValue: (row) => `<canvas class="allele-frequency-inline-chart" data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px;"></canvas>`,
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName]
+        }
+    }
+
+    for (const columnName of ['HPRC100_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
+        TABLE_COLUMNS[columnName] = {
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
+            helpText: STDEV_HELP_TEXTS[columnName],
+            getValue: (row) => row[columnName],
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName]
+        }
     }
 
     if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
@@ -1980,8 +1945,17 @@
         })
     }
 
+    const parseAlleleFrequenciesString = (frequenciesString) => {
+        return frequenciesString.split(',').map(item => {
+            const [size, count] = item.split(':')
+            return {
+                size: parseInt(size.replace('x', '')),
+                count: parseInt(count)
+            }
+        })
+    }
+
     const createAlleleFrequencyChart = function() {
-        const chartLabel = $(this).data('label')
         const frequencies = $(this).data('frequencies')
         const refAlleleSize = $(this).data('ref-allele-size')
         const chartWidth = $(this).data('chart-width')
@@ -1989,17 +1963,146 @@
 
         if (!frequencies) return   // Skip if no data
 
-        console.log(chartLabel, ':', frequencies)
+        const chartLabel = $(this).data('label')
+        if (chartLabel) {
+            console.log(chartLabel, ':', frequencies)
+        }
 
-        const data = frequencies.split(',').map(item => {
-            const [size, count] = item.split(':')
-            return {
-                size: parseInt(size.replace('x', '')),
-                count: parseInt(count)
+        const data = parseAlleleFrequenciesString(frequencies)
+
+        //data.sort((a, b) => a.size - b.size)
+
+        const yLookup = {}
+        const xLabels =  []
+        const colors = []
+        const borderColors = []
+        for (let i = Math.min(...data.map(d => d.size)) - 1; i <= Math.max(...data.map(d => d.size)) + 1; i++) {
+            xLabels.push(i)
+            yLookup[i] = 0
+        }
+        for (let x of xLabels) {
+            yLookup[x] = data.find(d => d.size === x)?.count || 0
+            colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
+            borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
+        }
+
+        // Destroy any existing chart on this canvas
+        const existingChart = Chart.getChart(this);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+
+        //set y-limit to the nearest whole power of 10 divided by 2, rounding up
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...data.map(d => d.count))))) / 2
+        new Chart(this, {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: xLabels.map(d => yLookup[d]),
+                    backgroundColor: colors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'end',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 5,
+                            font: {
+                                size: 12
+                            },
+                            generateLabels: function(chart) {
+                                return [{
+                                    text: `Ref. Allele: ${refAlleleSize} repeats`,
+                                    fillStyle: 'rgba(255, 165, 0, 0.7)',
+                                    strokeStyle: 'rgba(255, 165, 0, 1)',
+                                    lineWidth: 1,
+                                    hidden: false,
+                                    index: 0
+                                }]
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Count: ${context.raw}`
+                            }
+                        },
+                        position: 'nearest',
+                        yAlign: 'bottom'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Repeat Count',
+                            font: {
+                                size: 13
+                            },
+                        },
+                        ticks: {
+                            font: {
+                                size: 13
+                            },
+                        }
+                    },
+                    y: {
+                        type: 'logarithmic',
+                        min: 0,
+                        max: parseInt(yLimit),
+                        title: {
+                            display: true,
+                            text: '# of samples',
+                            font: {
+                                size: 13
+                            },
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (Math.floor(value) === value) {
+                                    return parseInt(value)
+                                }
+                            },
+                            font: {
+                                size: 13
+                            },
+                        },
+                        afterBuildTicks: (axis) => {
+                            const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
+                            axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
+                        }
+                    }
+                }
             }
         })
 
-        //data.sort((a, b) => a.size - b.size)
+        this.style.minWidth = chartWidth
+
+        this.style.height = chartHeight
+        this.style.minHeight = chartHeight
+        this.style.maxHeight = chartHeight
+    }
+
+    const createSmallAlleleFrequencyChart = function() {
+        const frequencies = $(this).data('frequencies')
+        const refAlleleSize = $(this).data('ref-allele-size')
+        
+        if (!frequencies) return   // Skip if no data
+
+        const data = parseAlleleFrequenciesString(frequencies)
 
         const yLookup = {}
         const xLabels =  []
@@ -2034,74 +2137,62 @@
                 animation: false,
                 plugins: {
                     legend: {
-                        display: true,
-                        align: 'end',
-                        labels: {
-                            boxWidth: 10,
-                            boxHeight: 10,
-                            padding: 5,
-                            font: {
-                                size: 10
-                            },
-                            generateLabels: function(chart) {
-                                return [{
-                                    text: `Ref. Allele: ${refAlleleSize} repeats`,
-                                    fillStyle: 'rgba(255, 165, 0, 0.7)',
-                                    strokeStyle: 'rgba(255, 165, 0, 1)',
-                                    lineWidth: 1,
-                                    hidden: false,
-                                    index: 0
-                                }]
-                            }
-                        }
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
                                 return `Count: ${context.raw}`
                             }
-                        }
+                        },
+                        position: 'nearest',
+                        yAlign: 'bottom'
                     }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Repeat Count'
-                        },
-                    },
                     y: {
                         type: 'logarithmic',
                         min: 0,
                         max: parseInt(yLimit),
-                        title: {
-                            display: true,
-                            text: '# of samples'
-                        },
                         beginAtZero: true,
                         ticks: {
+                            font: {
+                                size: 10
+                            },
                             callback: function(value) {
                                 if (Math.floor(value) === value) {
                                     return parseInt(value)
                                 }
-                            }
+                            },
+                            padding: 3,
                         },
-                        afterBuildTicks: (axis) => {
-                            const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
-                            axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
+                        grid: {
+                            drawTicks: false
+                        }
+
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 10
+                            },
+                            padding: 3
+                        },
+                        grid: {
+                            drawTicks: false
                         }
                     }
                 }
             }
         })
 
-        this.style.minWidth = chartWidth
-
-        this.style.height = chartHeight
-        this.style.minHeight = chartHeight
-        this.style.maxHeight = chartHeight
+        this.style.minHeight = '50px'
+        
+        $(this).parent().css('padding-top', '0')
+        $(this).parent().css('padding-bottom', '0')
     }
-    
+
+
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
@@ -2126,7 +2217,7 @@
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
         tableHtml += `<th style="text-align: center">
-            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column settings and descriptions">
+            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column descriptions and settings">
                 <i class="setting icon"></i>
             </button>
         </th>`
@@ -2276,6 +2367,10 @@
             }
         })
 
+        // Init charts
+        $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
+
+
         // Initialize popups for variation cluster cells
         $('.cell-in-variation-cluster-column').popup({
             position: 'right center',
@@ -2361,7 +2456,7 @@
                 for (const column of alleleFrequencyColumns) {
                     if (row[column] != null) {
                         polymorphismDialogContent += `
-                            
+
                             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                                 <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
                                 <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
@@ -2858,3 +2953,4 @@
 
 </body>
 </html>
+
