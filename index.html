@@ -679,6 +679,9 @@
 
             <!-- Advanced Search Wrapper -->
             <div id="advanced-search-wrapper" style="padding-top: 20px">
+                <!-- Form error message -->
+                <div id="form-error-message" class="ui error message" style="display: none; margin-bottom: 1em;"></div>
+                
                 <!-- Advanced Search (Initially Hidden) -->
                 <form id="advanced-search-form" class="ui form" style="display:none">
 
@@ -748,7 +751,7 @@
                     <div class="two fields" style="padding-top: 5px">
                         <div class="field" style="max-width: 430px; margin-right:20px">
                             <label>Motif Size(s)</label>
-                            <input type="text" id="motif-size-input" name="keepMotifSize" placeholder="e.g., 3, 2-6, or a comma-separated list of these">
+                            <input type="text" id="motif-size-input" name="keepMotifSize" placeholder="e.g., 3, 2-6, 7-, or a comma-separated list of these">
                         </div>
                         <div class="field" style="max-width: 440px;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin: 0 0 .28571429rem 0;">
@@ -1408,6 +1411,9 @@
         }
 
         if (GLOBAL_PAGE_STATE['showRs'] === 1) {
+            if (!validateForm()) {
+                return;
+            }            
             await performSearch(false)
         }
     }
@@ -1723,7 +1729,7 @@
                     Showing ${nFirstRowOnPage.toLocaleString()}-${nLastRowOnPage.toLocaleString()} out of ${totalResults.toLocaleString()}
                 </div>
                 <div class="export-selector">
-                    <span class="export-label">Export to file:</span>
+                    <span class="export-label"><b>Export to:</b></span>
                     <div class="ui selection dropdown export-dropdown" id="export-dropdown" style="min-width: 160px">
                         <input type="hidden" name="export-format">
                         <i class="dropdown icon"></i>
@@ -2940,8 +2946,7 @@
         $('#about-modal').modal('show')
     })
 
-    // "filter" button click handler
-    $('#filter-button').click(() => {
+    const toggleAdvancedSearch = () => {
         GLOBAL_PAGE_STATE['showAdvFilters'] = (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) ? 0 : 1
         writePersistentPageStateToUrl()
 
@@ -2960,14 +2965,105 @@
             $('#advanced-search-form').slideUp(300)
             $('#filter-button .filter.icon').addClass('rotated')
         }
-    })
+    }
+
+        // "filter" button click handler
+    $('#filter-button').click(toggleAdvancedSearch)
 
     // handle search
+    const validateMotifSizeInput = (input) => {
+        if (!input) return true; // Empty input is valid
+        
+        // First validate the overall format - only allow numbers, commas, and hyphens
+        if (!/^[-\d\s,]+$/.test(input)) return false;
+        
+        const values = input.split(',').map(v => v.trim()).filter(v => v !== '');
+        
+        for (const value of values) {
+            // Check for open-ended ranges like "15-"
+            const openEndedMatch = value.match(/^(\d+)-$/);
+            if (openEndedMatch) {
+                const min = parseInt(openEndedMatch[1]);
+                if (isNaN(min) || min < 1) return false;
+                continue;
+            }
+            
+            // Check for ranges like "2-6"
+            const rangeMatch = value.match(/^(\d+)-(\d+)$/);
+            if (rangeMatch) {
+                const min = parseInt(rangeMatch[1]);
+                const max = parseInt(rangeMatch[2]);
+                if (isNaN(min) || isNaN(max) || min < 1 || max < min) return false;
+                continue;
+            }
+            
+            // Check for single numbers
+            const singleNumber = parseInt(value);
+            if (isNaN(singleNumber) || singleNumber < 1) return false;
+        }
+        
+        return true;
+    };
+
+    const validateMotifInput = (input) => {
+        if (!input) return true; // Empty input is valid
+        
+        const motifs = input.split(',').map(m => m.trim()).filter(m => m !== '');
+        
+        for (const motif of motifs) {
+            // Check if motif contains only valid DNA characters (A,C,G,T,N, case insensitive)
+            if (!/^[ACGTNacgtn]+$/.test(motif)) {
+                return false;
+            }
+        }
+        
+        return true;
+    };
+
+    const validateForm = () => {
+
+        // Validate motif size input
+        const motifSizeInput = $('#motif-size-input').val();
+        if (!validateMotifSizeInput(motifSizeInput)) {
+            // Ensure advanced search form is visible
+            if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+                toggleAdvancedSearch()
+            }
+            $('#form-error-message').html('<b>ERROR:</b> Invalid motif size filter. Please specify motif sizes or size ranges like: 3, 2-6, 7-').show();
+            $('#motif-size-input').closest('.field').addClass('error');
+            return false;
+        } else {
+            $('#motif-size-input').closest('.field').removeClass('error');
+        }   
+
+        // Validate motif input
+        const motifInput = $('#motif-input').val();
+        if (!validateMotifInput(motifInput)) {
+            // Ensure advanced search form is visible
+            if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+                toggleAdvancedSearch()
+            }
+            $('#form-error-message').html('<b>ERROR:</b> Invalid motif filter. Motifs should only contain A, C, G, T, or N characters').show();
+            $('#motif-input').closest('.field').addClass('error');
+            return false;
+        } else {
+            $('#motif-input').closest('.field').removeClass('error');
+        }
+
+        // Clear any form errors
+        $('#form-error-message').hide();
+        $('.field.error').removeClass('error');
+        return true;
+    }        
+
     const handleSearch = async (event) => {
         event.preventDefault()
 
-        GLOBAL_PAGE_STATE['currentPage'] = 1
+        if (!validateForm()) {
+            return;
+        }
 
+        GLOBAL_PAGE_STATE['currentPage'] = 1
         await performSearch(false)
     }
 
