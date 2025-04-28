@@ -463,7 +463,7 @@
             display: flex;
             flex-direction: column;
             flex-wrap: wrap;
-            max-height: calc(8 * 35px);
+            max-height: calc(9 * 35px);
             gap: 5px 20px;
         }
 
@@ -911,7 +911,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250428_094020'
+    const TABLE_ID = 'catalog_20250428_113239'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -924,27 +924,29 @@
         'variationCluster',  // 4
         'mappability',  // 5
         'trsInRegion',  // 6
+        'isPathogenic',  // 7
 
         'gencodeGeneId',  // 8
         'gencodeTranscriptId',  // 9
         'refSeqGeneRegion',  // 10
         'refSeqGeneId',  // 11
         'refSeqGeneName',  // 12
-        'maneGeneRegion',  // 13
-        'maneGeneId',  // 14
-        'maneGeneName',  // 15
+        'refSeqTranscriptId',  // 13
+        'maneGeneRegion',  // 14
+        'maneGeneId',  // 15
+        'maneGeneName',  // 16
 
-        'HPRC100_AlleleHistogram',  // 16
-        'TenK10K_AlleleHistogram',  // 17
-        'AlleleFrequenciesFromIllumina174k',  // 18
-        'AlleleFrequenciesFromT2TAssemblies',  // 19
+        'HPRC100_AlleleHistogram',  // 17
+        'TenK10K_AlleleHistogram',  // 18
+        'AlleleFrequenciesFromIllumina174k',  // 19
+        'AlleleFrequenciesFromT2TAssemblies',  // 20
         
-        'polymorphism',  // 20
+        'polymorphism',  // 21
 
-        'HPRC100_Stdev',  // 21
-        'TenK10K_Stdev',  // 22
-        'StdevFromIllumina174k',  // 23
-        'StdevFromT2TAssemblies',  // 24
+        'HPRC100_Stdev',  // 22
+        'TenK10K_Stdev',  // 23
+        'StdevFromIllumina174k',  // 24
+        'StdevFromT2TAssemblies',  // 25
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -955,6 +957,7 @@
         'variationCluster',  
         'mappability',  
         'trsInRegion',  
+        'isPathogenic',  
         'polymorphism',  
 
         'gencodeGeneId',  
@@ -962,6 +965,7 @@
         'refSeqGeneRegion',  
         'refSeqGeneId',  
         'refSeqGeneName',  
+        'refSeqTranscriptId',  
         'maneGeneRegion',  
         'maneGeneId',  
         'maneGeneName',  
@@ -1166,6 +1170,46 @@
         return parseInt(end) - parseInt(start)
     }
 
+    const generateDiseaseAssociatedIcon = (row, linkText) => {
+        if (row.DiseaseInfo == null) {
+            return ''
+        }
+        let diseaseAssociatedIconHtml = ''
+        let diseaseLocusId = ''
+        let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
+        try {
+            //console.log(row.DiseaseInfo)
+            const diseaseInfo = JSON.parse(row.DiseaseInfo)
+            const resources = []
+            if (diseaseInfo.STRchiveId) {
+                resources.push(`<a href='https://strchive.org/loci/${diseaseInfo.STRchiveId}' target='_blank'>STRchive</a>`)
+            }
+            if (diseaseInfo.STRipyId) {
+                resources.push(`<a href='https://stripy.org/database/${diseaseInfo.STRipyId}' target='_blank'>STRipy</a>`)
+            }
+            if (diseaseInfo.locusId != 'RAI1') {
+                resources.push(`<a href='https://gnomad.broadinstitute.org/short-tandem-repeat/${diseaseInfo.LocusId}?dataset=gnomad_r4' target='_blank'>gnomAD</a>`)
+            }
+            if (diseaseInfo.Diseases.length > 0 && diseaseInfo.Diseases[0].OMIM) {
+                resources.push(`<a href='https://www.omim.org/entry/${diseaseInfo.Diseases[0].OMIM}' target='_blank'>OMIM</a>`)
+            }
+            diseaseDescription += `Expansions at this ${diseaseInfo.LocusId} locus cause ${diseaseInfo.Diseases.map(d => d.Name).join(' & ')}.<br />
+            <br />
+                <span style='display: block; white-space: nowrap;'>For more information, see:<br />${resources.join(', &nbsp; ')}</span>
+            </span>`
+        } catch (e) {
+            diseaseLocusId = row.LocusId
+            diseaseDescription = '<i>An error occurred while loading this information.</i>'
+            console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
+        }
+        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon cell-with-icon-and-popup user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
+        if (linkText) {
+            diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
+        }
+        return diseaseAssociatedIconHtml
+    }
+
+
     // column definitions
     let TABLE_COLUMNS = {
         interval: {
@@ -1226,6 +1270,13 @@
             },
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
+        },
+        isPathogenic: {
+            displayName: 'Is Pathogenic',
+            helpText: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
+            getValue: (row) => row.KnownDiseaseAssociatedLocus ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
+            getSortColumns: () => ['KnownDiseaseAssociatedLocus'],
+            getRequiredColumns: () => ['KnownDiseaseAssociatedLocus']
         },
         variationCluster: {
             displayName: 'VC',
@@ -1293,6 +1344,14 @@
             getSortColumns: () => ['RefSeqGeneId'],
             getRequiredColumns: () => ['RefSeqGeneId']
         },
+        refSeqTranscriptId: {
+            displayName: 'RefSeq Transcript Id',
+            helpText: 'RefSeq transcript ID',
+            getValue: (row) => row.RefseqTranscriptId,
+            getSortColumns: () => ['RefseqTranscriptId'],
+            getRequiredColumns: () => ['RefseqTranscriptId']
+        },
+
         refSeqGeneName: {
             displayName: 'RefSeq Gene',
             helpText: 'RefSeq gene name',
@@ -2330,45 +2389,16 @@
 
         tableHtml += '</tr></thead><tbody>'
 
+        const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
-        results.rows.forEach((row) => {
-            let isDiseaseAssociated = false
-            let diseaseAssociatedIcon = ''
-            if (row.DiseaseInfo != null) {
-                isDiseaseAssociated = true
-                let diseaseLocusId = ''
-                let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
-                try {
-                    //console.log(row.DiseaseInfo)
-                    const diseaseInfo = JSON.parse(row.DiseaseInfo)
-                    const resources = []
-                    if (diseaseInfo.STRchiveId) {
-                        resources.push(`<a href='https://strchive.org/loci/${diseaseInfo.STRchiveId}' target='_blank'>STRchive</a>`)
-                    }
-                    if (diseaseInfo.STRipyId) {
-                        resources.push(`<a href='https://stripy.org/database/${diseaseInfo.STRipyId}' target='_blank'>STRipy</a>`)
-                    }
-                    if (diseaseInfo.locusId != 'RAI1') {
-                        resources.push(`<a href='https://gnomad.broadinstitute.org/short-tandem-repeat/${diseaseInfo.LocusId}?dataset=gnomad_r4' target='_blank'>gnomAD</a>`)
-                    }
-                    if (diseaseInfo.Diseases.length > 0 && diseaseInfo.Diseases[0].OMIM) {
-                        resources.push(`<a href='https://www.omim.org/entry/${diseaseInfo.Diseases[0].OMIM}' target='_blank'>OMIM</a>`)
-                    }
-                    diseaseDescription += `Expansions at this ${diseaseInfo.LocusId} locus cause ${diseaseInfo.Diseases.map(d => d.Name).join(' & ')}.<br />
-                    <br />
-                        <span style='display: block; white-space: nowrap;'>For more information, see:<br />${resources.join(', &nbsp; ')}</span>
-                    </span>`
-                } catch (e) {
-                    diseaseLocusId = row.LocusId
-                    diseaseDescription = '<i>An error occurred while loading this information.</i>'
-                    console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
-                }
-                diseaseAssociatedIcon += `<i style="margin-left: 10px;" class="disease-associated-icon user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
-            }
-            tableHtml += `<tr ${isDiseaseAssociated ? 'class="disease-associated-row"' : ''}>`
-            tableHtml += `<td style="text-align: center;">
+        results.rows.forEach((row, index) => {
+            let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
+            
+            tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
+            tableHtml += `<td style="text-align: left;">
+                <div style="min-width: 25px; padding-right: 5px; display: inline-block;">#${(startIndex + index + 1).toLocaleString()}:</div>
                 <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
-                ${diseaseAssociatedIcon}
+                ${diseaseAssociatedIconHtml}
             </td>`
             
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
