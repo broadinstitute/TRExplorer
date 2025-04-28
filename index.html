@@ -762,43 +762,54 @@
                         </div>
                     </div>
 
-                    <div class="field" style="padding-top: 5px">
-                        <label>Other Filters</label>
-                        <div class="checkbox-group">
-                            <div class="ui checkbox" style="padding-right: 10px !important">
-                                <input type="checkbox" name="polymorphismFilter">
-                                <label>Polymorphism filter:</label>
-                            </div>
-                            <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 250px; margin-right: 30px !important">
-                                <input type="hidden" name="polymorphismFilterType">
-                                <i class="dropdown icon"></i>
-                                <div class="default text">Select filter</div>
-                                <div class="menu">
-                                    <div class="item" data-value=""></div>
-                                    <div class="item" data-value="sigma_gt_0.0">σ<sub>LPS</sub> > 0.0</div>
-                                    <div class="item" data-value="sigma_gt_0.3">σ<sub>LPS</sub> > 0.3</div>
-                                    <div class="item" data-value="sigma_gt_0.5">σ<sub>LPS</sub> > 0.5</div>
-                                    <div class="item" data-value="sigma_gt_1.0">σ<sub>LPS</sub> > 1.0</div>
-                                    <div class="item" data-value="sigma_gt_3.0">σ<sub>LPS</sub> > 3.0</div>
-                                    <div class="item" data-value="sigma_gt_5.0">σ<sub>LPS</sub> > 5.0</div>
+                    <div style="display: flex; gap: 120px;">
+                        <div class="field" style="padding-top: 5px; max-width: 430px;">
+                            <label>Polymorphism Filter</label>
+                            <div class="checkbox-group" style="display: flex; align-items: center;">
+                                <div class="ui checkbox" style="padding-right: 10px !important; display: inline-flex; align-items: center;">
+                                    <input type="checkbox" name="polymorphismFilter">
+                                    <label>Polymorphism filter:</label>
+                                </div>
+                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block;">
+                                    <input type="hidden" name="polymorphismFilterType">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select filter</div>
+                                    <div class="menu">
+                                        <div class="item" data-value=""></div>
+                                        <div class="item" data-value="sigma_LPS2">σ<sub>LPS2</sub></div>
+                                        <div class="item" data-value="sigma_LPS">σ<sub>LPS</sub></div>
+                                        <div class="item" data-value="sigma_10K">σ<sub>10K</sub></div>
+                                        <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
+                                        <div class="item" data-value="sigma_T2T">σ<sub>T2T</sub></div>
+                                    </div>
+                                </div>
+                                <div style="display: inline-flex; align-items: center;">
+                                    <span style="margin-right: 12px;">≥</span>
+                                    <input type="text" id="polymorphism-threshold" name="polymorphismThreshold" placeholder="0.5" style="width: 60px;">
                                 </div>
                             </div>
-                            <div class="ui checkbox" style="padding-right: 10px !important">
-                                <input type="checkbox" name="vcFilter">
-                                <label>Variation cluster (VC) filter:</label>
-                            </div>
-                            <div class="ui selection dropdown" id="variation-cluster-filter-dropdown">
-                                <input type="hidden" name="vcFilterType">
-                                <i class="dropdown icon"></i>
-                                <div class="default text">Select filter</div>
-                                <div class="menu">
-                                    <div class="item" data-value=""></div>
-                                    <div class="divider"></div>
-                                    <div class="item" data-value="exclude">Exclude VCs</div>
-                                    <div class="item" data-value="exclude_ge_50">Exclude VCs ≥ +50bp</div>
-                                    <div class="divider"></div>
-                                    <div class="item" data-value="keep">Keep only VCs</div>
-                                    <div class="item" data-value="keep_ge_50">Keep only VCs ≥ +50bp</div>
+                        </div>
+
+                        <div class="field" style="max-width: 440px;">
+                            <label>Variation Cluster Filter</label>
+                            <div class="checkbox-group" style="display: flex; align-items: center;">
+                                <div class="ui checkbox" style="padding-right: 10px !important">
+                                    <input type="checkbox" name="vcFilter">
+                                    <label>Variation cluster (VC) filter:</label>
+                                </div>
+                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown">
+                                    <input type="hidden" name="vcFilterType">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select filter</div>
+                                    <div class="menu">
+                                        <div class="item" data-value=""></div>
+                                        <div class="divider"></div>
+                                        <div class="item" data-value="exclude">Exclude VCs</div>
+                                        <div class="item" data-value="exclude_ge_50">Exclude VCs ≥ +50bp</div>
+                                        <div class="divider"></div>
+                                        <div class="item" data-value="keep">Keep only VCs</div>
+                                        <div class="item" data-value="keep_ge_50">Keep only VCs ≥ +50bp</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -900,7 +911,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250424_174423'
+    const TABLE_ID = 'catalog_20250428_094020'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -1014,6 +1025,7 @@
 
         polymorphismFilter: 0,
         polymorphismFilterType: '',
+        polymorphismThreshold: '',
         vcFilter: 0,
         vcFilterType: '',
 
@@ -1069,7 +1081,7 @@
     const STDEV_SIGMA_SUBSCRIPTS = {
         'HPRC100_Stdev': 'LPS2',
         'LPSLengthStdevFromHPRC100': 'LPS',
-        'TenK10K_Stdev': '10k',
+        'TenK10K_Stdev': '10K',
         'StdevFromIllumina174k': '1kGP',
         'StdevFromT2TAssemblies': 'T2T',
     }
@@ -1088,7 +1100,7 @@
     }
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
         'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 2,412 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
+        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
     }
@@ -1401,6 +1413,7 @@
         $('input[name="polymorphismFilter"]').prop('checked', GLOBAL_PAGE_STATE['polymorphismFilter'] === 1)
         $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
         $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
+        $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
 
         $('input[name="vcFilter"]').prop('checked', GLOBAL_PAGE_STATE['vcFilter'] === 1)
         $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
@@ -2719,26 +2732,26 @@
                 // Add polymorphism filter conditions
                 const polymorphismFilter = $('input[name="polymorphismFilter"]').prop('checked')
                 const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
-                if (polymorphismFilter && polymorphismFilterType) {
+                const polymorphismThreshold = $('input[name="polymorphismThreshold"]').val()
+                if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold) {
                     switch (polymorphismFilterType) {
-                        case 'sigma_gt_0.0':
-                            conditions.push("HPRC100_Stdev > 0.0")
+                        case 'sigma_LPS2':
+                            conditions.push(`HPRC100_Stdev > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_gt_0.3':
-                            conditions.push("HPRC100_Stdev > 0.3")
+                        case 'sigma_LPS':
+                            conditions.push(`LPSLengthStdevFromHPRC100 > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_gt_0.5':
-                            conditions.push("HPRC100_Stdev > 0.5")
+                        case 'sigma_10K':
+                            conditions.push(`TenK10K_Stdev > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_gt_1.0':
-                            conditions.push("HPRC100_Stdev > 1.0")
+                        case 'sigma_1kGP':
+                            conditions.push(`StdevFromIllumina174k > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_gt_3.0':
-                            conditions.push("HPRC100_Stdev > 3.0")
+                        case 'sigma_T2T':
+                            conditions.push(`StdevFromT2TAssemblies > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_gt_5.0':
-                            conditions.push("HPRC100_Stdev > 5.0")
-                            break
+                        default:
+                            console.error(`Unknown polymorphism filter type: ${polymorphismFilterType}`)
                     }
                 }
 
@@ -2921,6 +2934,7 @@
 
             GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
+            GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
             GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
             writePersistentPageStateToUrl()
@@ -2958,6 +2972,7 @@
             $('#source-catalog-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sourceCatalog'])
             $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
             $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
+            $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
             $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
             $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
 
@@ -3048,6 +3063,41 @@
             return false;
         } else {
             $('#motif-input').closest('.field').removeClass('error');
+        }
+
+        // Validate polymorphism threshold input
+        if ($('input[name="polymorphismFilter"]').prop('checked')) {
+            const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
+            const polymorphismThreshold = $('#polymorphism-threshold').val();
+            console.log("polymorphismFilterType", polymorphismFilterType, "polymorphismThreshold", polymorphismThreshold)
+
+            if (!polymorphismFilterType || isNaN(polymorphismThreshold) || parseFloat(polymorphismThreshold) < 0) {
+                // Ensure advanced search form is visible
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+                    toggleAdvancedSearch()
+                }
+                if (!polymorphismFilterType) {
+                    $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the polymorphism filter dropdown').show();
+                } else {
+                    $('#form-error-message').html(`<b>ERROR:</b> The polymorphism filter value '${polymorphismThreshold}' is invalid`).show();
+                }
+                $('#polymorphism-threshold').closest('.field').addClass('error');
+                return false;
+            } else {
+                $('#polymorphism-threshold').closest('.field').removeClass('error');
+            }
+        }
+
+        // Validate variation cluster filter
+        if ($('input[name="vcFilter"]').prop('checked')) {
+            const variationClusterFilterType = $('#variation-cluster-filter-dropdown').dropdown('get value')
+            if (!variationClusterFilterType) {
+                $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the variation cluster filter dropdown').show();
+                $('#variation-cluster-filter-dropdown').closest('.field').addClass('error');
+                return false;
+            } else {
+                $('#variation-cluster-filter-dropdown').closest('.field').removeClass('error');
+            }
         }
 
         // Clear any form errors
