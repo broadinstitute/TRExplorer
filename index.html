@@ -417,6 +417,7 @@
 
         #results-area {
             position: relative;
+            z-index: 1;
         }
 
         .cell-with-icon-and-popup {
@@ -819,7 +820,7 @@
             </div>
 
             <!-- Results Area -->
-            <div id="results-area">
+            <div id="results-area" style="position: relative; z-index: 100;">
                 <div id="loading-container" style="display: none">
                     <div id="loading-indicator" class="loading-indicator">
                         <div class="ui small active inline loader"></div>
@@ -940,13 +941,15 @@
         'TenK10K_AlleleHistogram',  // 18
         'AlleleFrequenciesFromIllumina174k',  // 19
         'AlleleFrequenciesFromT2TAssemblies',  // 20
-        
+
         'polymorphism',  // 21
 
         'HPRC100_Stdev',  // 22
         'TenK10K_Stdev',  // 23
         'StdevFromIllumina174k',  // 24
         'StdevFromT2TAssemblies',  // 25
+
+        'HPRC100_BiallelicHistogram',  // 26
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -995,6 +998,7 @@
         'TenK10K_Stdev',
         'HPRC100_AlleleHistogram',
         'HPRC100_Stdev',
+        'HPRC100_BiallelicHistogram',
     ]
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1095,18 +1099,22 @@
         'TenK10K_AlleleHistogram': 'TenK10K',
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
+        'HPRC100_BiallelicHistogram': 'HPRC100',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
         'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
         'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K short-read genomes',
         'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
+        'HPRC100_BiallelicHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
     }
+
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
         'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
         'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
+        'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
     }
 
     const STDEV_HELP_TEXTS = {
@@ -1122,6 +1130,7 @@
         'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
         'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
         'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
+        'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
     }
 
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
@@ -1210,6 +1219,15 @@
     }
 
 
+    const getHtmlAttributesForPolymorphism = (row) => {
+        let polymorphismDetails = ``
+        for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
+            if (row[dataColumn] != null) {
+                polymorphismDetails += `data-${dataColumn}='${row[dataColumn]}' `
+            }
+        }
+        return polymorphismDetails
+    }
     // column definitions
     let TABLE_COLUMNS = {
         interval: {
@@ -1247,15 +1265,8 @@
         polymorphism: {
             displayName: 'Polymorphism Summary',
             helpText: 'Summary of available sources of polymorphism data for the TR locus',
-            getValue: (row) => {
-                let polymorphismDetails = ``
-                    for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-                    if (row[dataColumn] != null) {
-                        polymorphismDetails += `data-${dataColumn}='${row[dataColumn]}' `
-                    }
-                }
-                        
-                return `<span class="cell-in-polymorphism-column" ${polymorphismDetails}>
+            getValue: (row) => {                        
+                return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
                             <span class="cell-action-link">
                                 <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
                             </span>
@@ -1380,6 +1391,15 @@
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
         },
+
+        HPRC100_BiallelicHistogram: {
+            displayName: 'HPRC100 Biallelic Histogram',
+            helpText: 'Biallelic histogram of HPRC100',
+            getValue: (row) => row.HPRC100_BiallelicHistogram,
+            getSortColumns: () => ['HPRC100_BiallelicHistogram'],
+            getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
+        }
+        
     }
 
     const alleleHistogramColumnToOtherColumns = {
@@ -1396,7 +1416,9 @@
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName] ? `<canvas class="allele-frequency-inline-chart" data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px;"></canvas>` : '<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>',
+            getValue: (row) => row[columnName] ? 
+                `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>` : 
+                `<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>`,
             getSortColumns: () => [stdevColumnName],
             getRequiredColumns: () => [columnName, stdevColumnName]
         }
@@ -2245,6 +2267,23 @@
         this.style.maxHeight = chartHeight
     }
 
+    const createBiallelicHistogramChart = function() {
+        const frequencies = $(this).data('frequencies')
+        const refAlleleSize = $(this).data('ref-allele-size')
+        const chartWidth = $(this).data('chart-width')
+        const chartHeight = $(this).data('chart-height')
+
+        if (!frequencies) return   // Skip if no data
+
+        const chartLabel = $(this).data('label')
+        if (chartLabel) {
+            console.log(chartLabel, ':', frequencies)
+        }
+
+        //const data = parseAlleleFrequenciesString(frequencies)
+        
+    }
+
     const createSmallAlleleFrequencyChart = function() {
         const frequencies = $(this).data('frequencies')
         const refAlleleSize = $(this).data('ref-allele-size')
@@ -2502,104 +2541,7 @@
         })
 
         // Initialize popups for polymorphism cells
-        $('.cell-in-polymorphism-column').click(function() {
-            const row = $(this).data()
-            for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-                const lowerCaseKey = key.toLowerCase()
-                if (row[lowerCaseKey] != null) {
-                    row[key] = row[lowerCaseKey]
-                }
-            }
-                        
-            $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
-            $('#polymorphism-dialog-content').html('')
-
-            const stdevColumns = ['HPRC100_Stdev', 'LPSLengthStdevFromHPRC100', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-            const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
-
-            const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 == null, row.HPRC100_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
-
-            let polymorphismDialogContent = `
-                <div class="content" style="text-align: center">
-            `
-
-            if (nStdevsNotAvailable == stdevColumns.length) {
-                polymorphismDialogContent += `
-                        <span style="color: #686868;">No polymorphism data available.</span>
-                        <br /><br />
-                `
-            } else {
-                polymorphismDialogContent += `
-                    <div><span class="cell-popup-details-label">Allele Frequency Distribution Summary Statistics</span></div>
-                        <div style="margin-top: 5px">
-                            <table style="margin: 0 auto">
-                `
-            }
-
-            for (const key of stdevColumns) {
-                if (row[key] != null) {
-                    polymorphismDialogContent += `
-                        <tr>
-                            <td style="text-align: left;">
-                                        <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
-                                    </td>
-                                    <td style="text-align: right;">
-                                        = ${row[key].toFixed(3)}
-                                    </td>
-                                    <td style="text-align: right;">
-                                        <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
-                                    </td>
-                        </tr>
-                    `
-                }
-            }
-            polymorphismDialogContent += "</table>"
-
-            if (nStdevsNotAvailable > 0) {
-                polymorphismDialogContent += "<br />"
-                let namesOfMissingSigmas = []
-                for (const key of stdevColumns) {
-                    if (row[key] == null) {
-                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
-                    }
-                }
-                polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
-            }
-
-            polymorphismDialogContent += "</div>"
-            // check if any of the allele frequency columns are available
-            const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
-            if (alleleFrequencyColumnsAvailable) {
-                // calculate the height of the allele frequency charts
-                polymorphismDialogContent += `
-                    <div style="margin-top: 15px;">
-                        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-                `
-
-                for (const column of alleleFrequencyColumns) {
-                    if (row[column] != null) {
-                        polymorphismDialogContent += `
-
-                            <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                                <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                                <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
-                            </div>
-                        `
-                    }
-                }
-                polymorphismDialogContent += '</div></div>'
-            }
-
-            $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
-
-            $('.allele-frequency-chart').each(createAlleleFrequencyChart)
-
-            $('.question').popup({ on: 'click' })
-
-            $('#polymorphism-dialog').modal('show')
-        })
-
-        
+        $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
 
         $('.disease-associated-icon').popup({ on: 'click' })
 
@@ -3135,6 +3077,123 @@
         $('.field.error').removeClass('error');
         return true;
     }        
+
+    function showPolymorphismDialog() {
+        const row = $(this).data()
+        for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
+            const lowerCaseKey = key.toLowerCase()
+            if (row[lowerCaseKey] != null) {
+                row[key] = row[lowerCaseKey]
+            }
+        }
+                    
+        $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
+        $('#polymorphism-dialog-content').html('')
+
+        const stdevColumns = ['HPRC100_Stdev', 'LPSLengthStdevFromHPRC100', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+
+        const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 == null, row.HPRC100_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+
+        let polymorphismDialogContent = `
+            <div class="content" style="text-align: center">
+        `
+
+        if (nStdevsNotAvailable == stdevColumns.length) {
+            polymorphismDialogContent += `
+                    <span style="color: #686868;">No polymorphism data available.</span>
+                    <br /><br />
+            `
+        } else {
+            polymorphismDialogContent += `
+                <div><span class="cell-popup-details-label">Allele Frequency Distribution Summary Statistics</span></div>
+                    <div style="margin-top: 5px">
+                        <table style="margin: 0 auto">
+            `
+        }
+
+        for (const key of stdevColumns) {
+            if (row[key] != null) {
+                polymorphismDialogContent += `
+                    <tr>
+                        <td style="text-align: left;">
+                                    <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
+                                </td>
+                                <td style="text-align: right;">
+                                    = ${row[key].toFixed(3)}
+                                </td>
+                                <td style="text-align: right;">
+                                    <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                                </td>
+                    </tr>
+                `
+            }
+        }
+        polymorphismDialogContent += "</table>"
+
+        if (nStdevsNotAvailable > 0) {
+            polymorphismDialogContent += "<br />"
+            let namesOfMissingSigmas = []
+            for (const key of stdevColumns) {
+                if (row[key] == null) {
+                    namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
+                }
+            }
+            polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+        }
+
+        polymorphismDialogContent += "</div>"
+        // check if any of the allele frequency columns are available
+        const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
+        if (alleleFrequencyColumnsAvailable) {
+            // calculate the height of the allele frequency charts
+            polymorphismDialogContent += `
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            `
+
+            for (const column of alleleFrequencyColumns) {
+                if (row[column] != null) {
+                    polymorphismDialogContent += `
+
+                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
+                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                        </div>
+                    `
+                }
+            }
+            polymorphismDialogContent += '</div></div>'
+        }
+
+        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram']
+        const biallelicHistogramColumnsAvailable = row.HPRC100_BiallelicHistogram != null
+        if (biallelicHistogramColumnsAvailable) {
+            polymorphismDialogContent += `
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            `
+            for (const column of biallelicHistogramColumns) {
+                if (row[column] != null) {
+                    polymorphismDialogContent += `
+                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
+                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                        </div>
+                    `
+                }
+            }
+            polymorphismDialogContent += '</div></div>'
+        }
+
+        $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
+
+        $('.allele-frequency-chart').each(createAlleleFrequencyChart)
+        $('.biallelic-histogram-chart').each(createBiallelicHistogramChart)
+        $('.question').popup({ on: 'click' })
+
+        $('#polymorphism-dialog').modal('show')
+    }
 
     const handleSearch = async (event) => {
         event.preventDefault()
