@@ -2331,8 +2331,8 @@
         const longAlleleLabels = []
         
         // Create binned or regular labels
-        for (let i = minAllele; i <= maxAllele; i += binSize) {
-            const binEnd = Math.min(i + binSize, maxAllele)
+        for (let i = Math.max(0, minAllele - binSize); i <= maxAllele + binSize; i += binSize) {
+            const binEnd = i + binSize
             const label = needsBinning ? `${i}-${binEnd}` : i
             shortAlleleLabels.push(label)
             longAlleleLabels.push(label)
@@ -2347,8 +2347,8 @@
                     const shortAlleleEnd = parseInt(shortAlleleLabel.split('-')[1])
                     const longAlleleStart = parseInt(longAlleleLabel.split('-')[0])
                     const longAlleleEnd = parseInt(longAlleleLabel.split('-')[1])
-                    for (let short = shortAlleleStart; short <= shortAlleleEnd; short++) {
-                        for (let long = longAlleleStart; long <= longAlleleEnd; long++) {
+                    for (let short = shortAlleleStart; short < shortAlleleEnd; short++) {
+                        for (let long = longAlleleStart; long < longAlleleEnd; long++) {
                             const value = lookup[`${short}/${long}`]
                             if (value) {
                                 binCount += value
@@ -2443,7 +2443,16 @@
                                 if (value === 0) return ''
                                 const shortLabel = shortAlleleLabels[c.parsed.y]
                                 const longLabel = longAlleleLabels[c.parsed.x]
-                                return `Genotype: ${shortLabel}/${longLabel}`
+                                // if it's a bin, show the range
+                                if (typeof shortLabel === 'string' && typeof longLabel === 'string' && shortLabel.includes('-') && longLabel.includes('-')) {
+                                    const shortStart = parseInt(shortLabel.split('-')[0])
+                                    const shortEnd = parseInt(shortLabel.split('-')[1])
+                                    const longStart = parseInt(longLabel.split('-')[0])
+                                    const longEnd = parseInt(longLabel.split('-')[1])
+                                    return `Genotype Bin:\n${longStart} ≤ long  allele < ${longEnd}\n${shortStart} ≤ short allele < ${shortEnd}`
+                                } else {
+                                    return `Genotype: ${shortLabel}/${longLabel}`
+                                }
                             },
                             label: function(context) {
                                 const c = context
@@ -2452,7 +2461,7 @@
                                 const shortLabel = shortAlleleLabels[c.parsed.y]
                                 const longLabel = longAlleleLabels[c.parsed.x]
                                 const genotype = `${shortLabel}/${longLabel}`
-                                return `ndividuals: ${lookup[genotype] || 0}`
+                                return `Individuals: ${lookup[genotype] || 0}`
                             }
                         }
                     },
