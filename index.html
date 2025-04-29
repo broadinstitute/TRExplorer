@@ -2318,19 +2318,19 @@
         // Find the range of allele sizes
         const allShortAlleles = data.map(d => d.y)
         const allLongAlleles = data.map(d => d.x)
-        const minShortAllele = 0
-        const maxShortAllele = Math.max(...allShortAlleles) + 1
-        const minLongAllele = 0
-        const maxLongAllele = Math.max(...allLongAlleles) + 1
+        //const minShortAllele = 0
+        //const maxShortAllele = Math.max(...allShortAlleles) + 1
+        const minAllele = 0
+        const maxAllele = Math.max(...allShortAlleles, ...allLongAlleles) + 1
 
         const stepSize = 1 //Math.floor(maxAllele / 50) + 1
         // Create labels for both axes
         const shortAlleleLabels = []
-        for (let i = minShortAllele; i <= maxLongAllele; i += stepSize) {
+        for (let i = minAllele; i <= maxAllele; i += stepSize) {
             shortAlleleLabels.push(i)
         }
         const longAlleleLabels = []
-        for (let i = minLongAllele; i <= maxLongAllele; i += stepSize) {
+        for (let i = minAllele; i <= maxAllele; i += stepSize) {
             longAlleleLabels.push(i)
         }
 
@@ -2377,8 +2377,8 @@
                     x: {
                         type: 'linear',
                         offset: false,  // Remove offset to center labels
-                        min: minLongAllele,
-                        max: maxLongAllele,
+                        min: minAllele,
+                        max: maxAllele,
                         ticks: {
                             stepSize: 1,
                             callback: function(value) {
@@ -2399,8 +2399,8 @@
                     y: {
                         type: 'linear',
                         offset: false,  // Remove offset to center labels
-                        min: minShortAllele,
-                        max: maxLongAllele,
+                        min: minAllele,
+                        max: maxAllele,
                         reverse: false,  // Reverse y-axis
                         ticks: {
                             stepSize: 1,
