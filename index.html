@@ -7,6 +7,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2"></script>
 
     <!-- script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script -->
     <script src="https://cdn.jsdelivr.net/npm/igv@3.2.6/dist/igv.min.js"></script>
@@ -417,7 +418,6 @@
 
         #results-area {
             position: relative;
-            z-index: 1;
         }
 
         .cell-with-icon-and-popup {
@@ -1106,7 +1106,7 @@
         'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K short-read genomes',
         'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
-        'HPRC100_BiallelicHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
+        'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
     }
 
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
@@ -2117,13 +2117,21 @@
     }
 
     const parseAlleleFrequenciesString = (frequenciesString) => {
-        return frequenciesString.split(',').map(item => {
-            const [size, count] = item.split(':')
-            return {
-                size: parseInt(size.replace('x', '')),
-                count: parseInt(count)
+        try {
+            const data = []
+            const items = frequenciesString.split(',')
+            for (let i = 0; i < items.length; i++) {
+                const [size, count] = items[i].split(':')
+                data.push({
+                    size: parseInt(size.replace('x', '')),
+                    count: parseInt(count)
+                })
             }
-        })
+            return data
+        } catch (e) {
+            console.error('Error parsing allele frequencies string:', e)
+            return []
+        }
     }
 
     const createAlleleFrequencyChart = function() {
@@ -2267,8 +2275,33 @@
         this.style.maxHeight = chartHeight
     }
 
+    const parseBiallelicHistogramString = function(frequenciesString) {
+        // example: frequencies = "2/2:58,2/3:34,3/3:4"
+        const data = []
+        const lookup = {}
+        const items = frequenciesString.split(',')
+        for (let i = 0; i < items.length; i++) {
+            try {
+                const value = items[i].split(':')
+                const genotype = value[0].split('/')
+                const allele1 = parseInt(genotype[0])
+                const allele2 = parseInt(genotype[1])
+                const shortAlleleSize = Math.min(allele1, allele2)
+                const longAlleleSize = Math.max(allele1, allele2)
+                const count = parseInt(value[1])
+                data.push({ x: longAlleleSize, y: shortAlleleSize, v: count})
+                lookup[`${shortAlleleSize}/${longAlleleSize}`] = count
+            } catch (e) {
+                console.error('Error parsing biallelic histogram string:', e)
+                return [[], {}]
+            }
+        }
+
+        return [data, lookup]
+    }
+
     const createBiallelicHistogramChart = function() {
-        const frequencies = $(this).data('frequencies')
+        const frequencies = $(this).data('frequencies') 
         const refAlleleSize = $(this).data('ref-allele-size')
         const chartWidth = $(this).data('chart-width')
         const chartHeight = $(this).data('chart-height')
@@ -2280,8 +2313,136 @@
             console.log(chartLabel, ':', frequencies)
         }
 
-        //const data = parseAlleleFrequenciesString(frequencies)
+        const [data, lookup] = parseBiallelicHistogramString(frequencies)
         
+        // Find the range of allele sizes
+        const allShortAlleles = data.map(d => d.y)
+        const allLongAlleles = data.map(d => d.x)
+        const minShortAllele = 0
+        const maxShortAllele = Math.max(...allShortAlleles) + 1
+        const minLongAllele = 0
+        const maxLongAllele = Math.max(...allLongAlleles) + 1
+
+        const stepSize = 1 //Math.floor(maxAllele / 50) + 1
+        // Create labels for both axes
+        const shortAlleleLabels = []
+        for (let i = minShortAllele; i <= maxLongAllele; i += stepSize) {
+            shortAlleleLabels.push(i)
+        }
+        const longAlleleLabels = []
+        for (let i = minLongAllele; i <= maxLongAllele; i += stepSize) {
+            longAlleleLabels.push(i)
+        }
+
+        // Create 2D data array for heatmap
+        const counts = []
+        const maxCount = Math.max(...data.map(d => d.v))
+        for (let i = 0; i < longAlleleLabels.length; i++) {
+            counts[i] = []
+            for (let j = 0; j < shortAlleleLabels.length; j++) {
+                const shortAllele = shortAlleleLabels[j]
+                const longAllele = longAlleleLabels[i]
+                const key = `${shortAllele}/${longAllele}`
+                counts[i][j] = lookup[key] || 0
+            }
+        }
+
+        // Destroy any existing chart
+        const existingChart = Chart.getChart(this)
+        if (existingChart) {
+            existingChart.destroy()
+        }
+
+        // Create the chart
+        new Chart(this, {
+            type: 'matrix',
+            data: {
+                datasets: [{
+                    data: data,
+                    backgroundColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex].v
+                        if (value === 0) return 'rgba(240, 240, 240, 0.5)'
+                        const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
+                        return `rgba(33, 133, 208, ${alpha})`
+                    },
+                    borderColor: 'rgba(0, 0, 0, 0.5)',
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        offset: false,  // Remove offset to center labels
+                        min: minLongAllele,
+                        max: maxLongAllele,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return Math.floor(value)  // Only show integer values
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Long allele (repeats)',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: true
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        offset: false,  // Remove offset to center labels
+                        min: minShortAllele,
+                        max: maxLongAllele,
+                        reverse: false,  // Reverse y-axis
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return Math.floor(value)  // Only show integer values
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Short allele (repeats)',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: true
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const point = context[0]
+                                return `Short allele: ${shortAlleleLabels[point.parsed.y]}, Long allele: ${longAlleleLabels[point.parsed.x]}`
+                            },
+                            label: function(context) {
+                                return `Count: ${context.dataset.data[context.dataIndex].v}`
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        })
+
+        this.style.minWidth = chartWidth
+        this.style.height = chartWidth
+        this.style.minHeight = chartWidth
+        this.style.maxHeight = chartWidth
     }
 
     const createSmallAlleleFrequencyChart = function() {
