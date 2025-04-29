@@ -57,6 +57,7 @@ def parse_allele_histograms_from_tsv(tsv_path):
             locus_id = fields[col_indices['locus_id']]
             lookup[locus_id] = {
                 'allele_size_histogram': fields[col_indices['allele_size_histogram']],
+                'biallelic_histogram': fields[col_indices['biallelic_histogram']],
                 'mode_allele': int(fields[col_indices['mode_allele']]),
                 'stdev': float(fields[col_indices['stdev']]),
                 #'mean': float(fields[col_indices['mean']]),
@@ -206,6 +207,7 @@ schema = [
     bigquery.SchemaField("TenK10K_99thPercentile", "INTEGER"),
 
     bigquery.SchemaField("HPRC100_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("HPRC100_BiallelicHistogram", "STRING"),
     bigquery.SchemaField("HPRC100_ModeAllele", "INTEGER"),
     bigquery.SchemaField("HPRC100_Stdev", "FLOAT"),
     bigquery.SchemaField("HPRC100_Median", "INTEGER"),
@@ -363,12 +365,14 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
         record["HPRC100_AlleleHistogram"] = hprc100_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["HPRC100_BiallelicHistogram"] = hprc100_lookup[record["LocusId"]]["biallelic_histogram"]
         record["HPRC100_ModeAllele"] = hprc100_lookup[record["LocusId"]]["mode_allele"]
         record["HPRC100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
         record["HPRC100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
         record["HPRC100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
 
     counters["total_rows"] += 1
+    
     # Convert any None values to None (BigQuery will handle NULL)
     row = {k: v for k, v in record.items() if k in field_names}
     rows_to_insert.append(row)
