@@ -2313,39 +2313,62 @@
             console.log(chartLabel, ':', frequencies)
         }
 
-        const [data, lookup] = parseBiallelicHistogramString(frequencies)
+        let [data, lookup] = parseBiallelicHistogramString(frequencies)
         
         // Find the range of allele sizes
         const allShortAlleles = data.map(d => d.y)
         const allLongAlleles = data.map(d => d.x)
-        //const minShortAllele = 0
-        //const maxShortAllele = Math.max(...allShortAlleles) + 1
-        const minAllele = 0
+        const minAllele = Math.min(...allShortAlleles, ...allLongAlleles) - 1
         const maxAllele = Math.max(...allShortAlleles, ...allLongAlleles) + 1
 
-        const stepSize = 1 //Math.floor(maxAllele / 50) + 1
+        // Calculate bin size if range exceeds 30
+        const maxBins = 20
+        const needsBinning = (maxAllele - minAllele) > maxBins
+        const binSize = needsBinning ? Math.ceil((maxAllele - minAllele) / maxBins) : 1
+
         // Create labels for both axes
         const shortAlleleLabels = []
-        for (let i = minAllele; i <= maxAllele; i += stepSize) {
-            shortAlleleLabels.push(i)
-        }
         const longAlleleLabels = []
-        for (let i = minAllele; i <= maxAllele; i += stepSize) {
-            longAlleleLabels.push(i)
+        
+        // Create binned or regular labels
+        for (let i = minAllele; i <= maxAllele; i += binSize) {
+            const binEnd = Math.min(i + binSize, maxAllele)
+            const label = needsBinning ? `${i}-${binEnd}` : i
+            shortAlleleLabels.push(label)
+            longAlleleLabels.push(label)
         }
 
-        // Create 2D data array for heatmap
-        const counts = []
-        const maxCount = Math.max(...data.map(d => d.v))
-        for (let i = 0; i < longAlleleLabels.length; i++) {
-            counts[i] = []
-            for (let j = 0; j < shortAlleleLabels.length; j++) {
-                const shortAllele = shortAlleleLabels[j]
-                const longAllele = longAlleleLabels[i]
-                const key = `${shortAllele}/${longAllele}`
-                counts[i][j] = lookup[key] || 0
+        if (needsBinning) {
+            data = []
+            for (const shortAlleleLabel of shortAlleleLabels) {
+                for (const longAlleleLabel of longAlleleLabels) {
+                    let binCount = 0 
+                    const shortAlleleStart = parseInt(shortAlleleLabel.split('-')[0])
+                    const shortAlleleEnd = parseInt(shortAlleleLabel.split('-')[1])
+                    const longAlleleStart = parseInt(longAlleleLabel.split('-')[0])
+                    const longAlleleEnd = parseInt(longAlleleLabel.split('-')[1])
+                    for (let short = shortAlleleStart; short <= shortAlleleEnd; short++) {
+                        for (let long = longAlleleStart; long <= longAlleleEnd; long++) {
+                            const value = lookup[`${short}/${long}`]
+                            if (value) {
+                                binCount += value
+                            }
+                        }
+                    }
+                    data.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCount})
+                }
             }
-        }
+            
+            lookup = {}
+            for (const d of data) {
+                if (d.v > 0) {
+                    lookup[`${d.y}/${d.x}`] = d.v
+                }
+            }
+        } 
+
+        // Calculate maxCount from the binned data
+        const maxCount = Math.max(...data.map(d => d.v))
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(this)
@@ -2361,12 +2384,16 @@
                     data: data,
                     backgroundColor: function(context) {
                         const value = context.dataset.data[context.dataIndex].v
-                        if (value === 0) return 'rgba(240, 240, 240, 0.5)'
+                        if (value === 0) return 'rgba(255, 255, 255, 0)'
                         const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
                         return `rgba(33, 133, 208, ${alpha})`
                     },
                     borderColor: 'rgba(0, 0, 0, 0.5)',
-                    borderWidth: 1,
+                    borderWidth: function(context) {
+                        const value = context.dataset.data[context.dataIndex].v
+                        if (value === 0) return 0
+                        return 1
+                    }
                 }]
             },
             options: {
@@ -2375,16 +2402,9 @@
                 animation: false,
                 scales: {
                     x: {
-                        type: 'linear',
+                        type: 'category',
                         offset: false,  // Remove offset to center labels
-                        min: minAllele,
-                        max: maxAllele,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                return Math.floor(value)  // Only show integer values
-                            }
-                        },
+                        labels: longAlleleLabels,
                         title: {
                             display: true,
                             text: 'Long allele (repeats)',
@@ -2397,17 +2417,10 @@
                         }
                     },
                     y: {
-                        type: 'linear',
+                        type: 'category',
                         offset: false,  // Remove offset to center labels
-                        min: minAllele,
-                        max: maxAllele,
-                        reverse: false,  // Reverse y-axis
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                return Math.floor(value)  // Only show integer values
-                            }
-                        },
+                        reverse: true,  // Reverse y-axis
+                        labels: shortAlleleLabels,
                         title: {
                             display: true,
                             text: 'Short allele (repeats)',
@@ -2422,13 +2435,24 @@
                 },
                 plugins: {
                     tooltip: {
+                        displayColors: false,
                         callbacks: {
                             title: function(context) {
-                                const point = context[0]
-                                return `Short allele: ${shortAlleleLabels[point.parsed.y]}, Long allele: ${longAlleleLabels[point.parsed.x]}`
+                                const c = context[0]
+                                const value = c.dataset.data[c.dataIndex].v
+                                if (value === 0) return ''
+                                const shortLabel = shortAlleleLabels[c.parsed.y]
+                                const longLabel = longAlleleLabels[c.parsed.x]
+                                return `Genotype: ${shortLabel}/${longLabel}`
                             },
                             label: function(context) {
-                                return `Count: ${context.dataset.data[context.dataIndex].v}`
+                                const c = context
+                                const value = c.dataset.data[c.dataIndex].v
+                                if (value === 0) return null
+                                const shortLabel = shortAlleleLabels[c.parsed.y]
+                                const longLabel = longAlleleLabels[c.parsed.x]
+                                const genotype = `${shortLabel}/${longLabel}`
+                                return `ndividuals: ${lookup[genotype] || 0}`
                             }
                         }
                     },
@@ -3202,7 +3226,6 @@
         if ($('input[name="polymorphismFilter"]').prop('checked')) {
             const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
             const polymorphismThreshold = $('#polymorphism-threshold').val();
-            console.log("polymorphismFilterType", polymorphismFilterType, "polymorphismThreshold", polymorphismThreshold)
 
             if (!polymorphismFilterType || isNaN(polymorphismThreshold) || parseFloat(polymorphismThreshold) < 0) {
                 // Ensure advanced search form is visible
