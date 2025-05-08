@@ -57,13 +57,14 @@ def parse_allele_histograms_from_tsv(tsv_path):
             locus_id = fields[col_indices['locus_id']]
             lookup[locus_id] = {
                 'allele_size_histogram': fields[col_indices['allele_size_histogram']],
-                'biallelic_histogram': fields[col_indices['biallelic_histogram']],
                 'mode_allele': int(fields[col_indices['mode_allele']]),
                 'stdev': float(fields[col_indices['stdev']]),
                 #'mean': float(fields[col_indices['mean']]),
                 'median': float(fields[col_indices['median']]),
                 '99th_percentile': float(fields[col_indices['99th_percentile']]),
             }
+            if 'biallelic_histogram' in col_indices:
+                lookup[locus_id]['biallelic_histogram'] = fields[col_indices['biallelic_histogram']]
     
     return lookup
 
