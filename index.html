@@ -208,6 +208,7 @@
         /* Results table */
         #results-table {
             margin-top: 1em;
+            position: relative;  /* Add this to establish a positioning context */
         }
 
         #results-table.loading {
@@ -218,6 +219,14 @@
         #results-table table.ui.table {
             border-left: none;
             border-right: none;
+        }
+
+        #results-table table.ui.table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: white;  /* Ensure header has solid background */
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);  /* Add subtle shadow for depth */
         }
 
         #results-table table.ui.table th,
@@ -771,7 +780,7 @@
                                     <input type="checkbox" name="polymorphismFilter">
                                     <label>Polymorphism filter:</label>
                                 </div>
-                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block;">
+                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block; z-index: 200;">
                                     <input type="hidden" name="polymorphismFilterType">
                                     <i class="dropdown icon"></i>
                                     <div class="default text">Select filter</div>
@@ -798,7 +807,7 @@
                                     <input type="checkbox" name="vcFilter">
                                     <label>Variation cluster (VC) filter:</label>
                                 </div>
-                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown">
+                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown" style="z-index: 200;">
                                     <input type="hidden" name="vcFilterType">
                                     <i class="dropdown icon"></i>
                                     <div class="default text">Select filter</div>
@@ -913,6 +922,7 @@
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
     const TABLE_ID = 'catalog_20250428_113239'
+    //const TABLE_ID = 'catalog_20250430_070846'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
