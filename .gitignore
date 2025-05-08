@@ -2,6 +2,15 @@ prev/
 catalogs/data
 *.db
 
+*.txt.gz
+*.tsv.gz
+*.txt.bgz
+*.tsv.bgz
+*.bed.gz
+*.bed
+*.txt
+*.tbi
+
 *.idea
 *.iml
 
