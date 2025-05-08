@@ -323,6 +323,10 @@
             flex-grow: 1;
         }
 
+        .ui.selection.dropdown {
+            z-index: 200 !important;
+        }
+
         /* Make export dropdown menu tall enough to show all options */
         .export-selector .ui.selection.dropdown .menu {
             max-height: none !important;
@@ -780,7 +784,7 @@
                                     <input type="checkbox" name="polymorphismFilter">
                                     <label>Polymorphism filter:</label>
                                 </div>
-                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block; z-index: 200;">
+                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block">
                                     <input type="hidden" name="polymorphismFilterType">
                                     <i class="dropdown icon"></i>
                                     <div class="default text">Select filter</div>
@@ -807,7 +811,7 @@
                                     <input type="checkbox" name="vcFilter">
                                     <label>Variation cluster (VC) filter:</label>
                                 </div>
-                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown" style="z-index: 200;">
+                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown">
                                     <input type="hidden" name="vcFilterType">
                                     <i class="dropdown icon"></i>
                                     <div class="default text">Select filter</div>
@@ -1855,7 +1859,7 @@
                 </div>
                 <div class="page-size-selector">
                     <span>Page size:</span>
-                    <div class="ui selection dropdown page-size-select" style="min-width: 80px;">
+                    <div class="ui selection dropdown page-size-select" style="min-width: 80px">
                         <input type="hidden" name="page-size">
                         <i class="dropdown icon"></i>
                         <div class="text">${pageSize}</div>
