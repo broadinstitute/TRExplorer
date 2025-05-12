@@ -617,6 +617,17 @@
     </div>
 </div>
 
+
+<div class="ui modal" id="faq-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        Frequently Asked Questions
+    </div>
+    <div class="content" style="font-size: 1.1em">
+        <iframe src="FAQ.html" style="width: 100%; height: 100%; border: 0px"></iframe>
+    </div>
+</div>
+
 <!-- modal dialog for selecting results table columns -->
 <div class="ui modal" id="results-table-column-settings-dialog">
     <i class="close icon"></i>
@@ -659,6 +670,7 @@
             </a>
         </div>
         <div class="seven wide column" id="header-nav">
+            <a href="#" id="faq-link">FAQ</a>
             <a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/tag/v1.0" target="_blank">Downloads</a>
             <a href="#" id="about-link">About</a>
             <a href="https://github.com/bw2/tandem-repeat-explorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
@@ -926,7 +938,7 @@
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
     const TABLE_ID = 'catalog_20250428_113239'
-    //const TABLE_ID = 'catalog_20250430_070846'
+    //const TABLE_ID = 'catalog_20250511_170252'
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -1101,9 +1113,9 @@
 
 
     const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC100_Stdev': 'LPS2',
+        'HPRC100_Stdev': 'hprc100',
         'LPSLengthStdevFromHPRC100': 'LPS',
-        'TenK10K_Stdev': '10K',
+        'TenK10K_Stdev': '10K10K',
         'StdevFromIllumina174k': '1kGP',
         'StdevFromT2TAssemblies': 'T2T',
     }
@@ -2148,47 +2160,43 @@
         }
     }
 
-    const createAlleleFrequencyChart = function() {
-        const frequencies = $(this).data('frequencies')
-        const refAlleleSize = $(this).data('ref-allele-size')
-        const chartWidth = $(this).data('chart-width')
-        const chartHeight = $(this).data('chart-height')
+    const createAlleleFrequencyChart = (chartData) => {
+        const frequencies = chartData.frequencies
+        const thisObj = chartData.thisObj
+        const refAlleleSize = chartData.refAlleleSize
+        const chartWidth = chartData.chartWidth
+        const chartHeight = chartData.chartHeight
+        const minAlleleSize = chartData.minAlleleSize
+        const maxAlleleSize = chartData.maxAlleleSize
 
-        if (!frequencies) return   // Skip if no data
+        const chartLabel = chartData.label
 
-        const chartLabel = $(this).data('label')
-        if (chartLabel) {
-            console.log(chartLabel, ':', frequencies)
-        }
-
-        const data = parseAlleleFrequenciesString(frequencies)
-
-        //data.sort((a, b) => a.size - b.size)
+        //frequencies.sort((a, b) => a.size - b.size)
 
         const yLookup = {}
         const xLabels =  []
         const colors = []
         const borderColors = []
-        for (let i = Math.min(...data.map(d => d.size)) - 1; i <= Math.max(...data.map(d => d.size)) + 1; i++) {
+        for (let i = minAlleleSize - 1; i <= maxAlleleSize + 1; i++) {
             xLabels.push(i)
             yLookup[i] = 0
         }
         for (let x of xLabels) {
-            yLookup[x] = data.find(d => d.size === x)?.count || 0
+            yLookup[x] = frequencies.find(f => f.size === x)?.count || 0
             colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
             borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
         }
 
         // Destroy any existing chart on this canvas
-        const existingChart = Chart.getChart(this);
+        const existingChart = Chart.getChart(thisObj);
         if (existingChart) {
             existingChart.destroy();
         }
 
 
         //set y-limit to the nearest whole power of 10 divided by 2, rounding up
-        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...data.map(d => d.count))))) / 2
-        new Chart(this, {
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...frequencies.map(f => f.count))))) / 2
+        new Chart(thisObj, {
             type: 'bar',
             data: {
                 labels: xLabels,
@@ -2257,7 +2265,7 @@
                         max: parseInt(yLimit),
                         title: {
                             display: true,
-                            text: '# of samples',
+                            text: '# of alleles',
                             font: {
                                 size: 13
                             },
@@ -2282,11 +2290,11 @@
             }
         })
 
-        this.style.minWidth = chartWidth
+        thisObj.style.minWidth = chartWidth
 
-        this.style.height = chartHeight
-        this.style.minHeight = chartHeight
-        this.style.maxHeight = chartHeight
+        thisObj.style.height = chartHeight
+        thisObj.style.minHeight = chartHeight
+        thisObj.style.maxHeight = chartHeight
     }
 
     const parseBiallelicHistogramString = function(frequenciesString) {
@@ -2314,38 +2322,31 @@
         return [data, lookup]
     }
 
-    const createBiallelicHistogramChart = function() {
-        const frequencies = $(this).data('frequencies') 
-        const refAlleleSize = $(this).data('ref-allele-size')
-        const chartWidth = $(this).data('chart-width')
-        const chartHeight = $(this).data('chart-height')
+    const createBiallelicHistogramChart = (chartData) => {
+        let data = chartData.data
+        let lookup = chartData.lookup
+        const thisObj = chartData.thisObj
+        const refAlleleSize = chartData.refAlleleSize
+        const chartWidth = chartData.chartWidth
+        const chartHeight = chartData.chartHeight
+        const minAlleleSize = chartData.minAlleleSize - 1
+        const maxAlleleSize = chartData.maxAlleleSize + 1
 
-        if (!frequencies) return   // Skip if no data
-
-        const chartLabel = $(this).data('label')
-        if (chartLabel) {
-            console.log(chartLabel, ':', frequencies)
-        }
-
-        let [data, lookup] = parseBiallelicHistogramString(frequencies)
-        
         // Find the range of allele sizes
         const allShortAlleles = data.map(d => d.y)
         const allLongAlleles = data.map(d => d.x)
-        const minAllele = Math.min(...allShortAlleles, ...allLongAlleles) - 1
-        const maxAllele = Math.max(...allShortAlleles, ...allLongAlleles) + 1
 
         // Calculate bin size if range exceeds 30
         const maxBins = 20
-        const needsBinning = (maxAllele - minAllele) > maxBins
-        const binSize = needsBinning ? Math.ceil((maxAllele - minAllele) / maxBins) : 1
+        const needsBinning = (maxAlleleSize - minAlleleSize) > maxBins
+        const binSize = needsBinning ? Math.ceil((maxAlleleSize - minAlleleSize) / maxBins) : 1
 
         // Create labels for both axes
         const shortAlleleLabels = []
         const longAlleleLabels = []
         
         // Create binned or regular labels
-        for (let i = Math.max(0, minAllele - binSize); i <= maxAllele + binSize; i += binSize) {
+        for (let i = Math.max(0, minAlleleSize - binSize); i <= maxAlleleSize + binSize; i += binSize) {
             const binEnd = i + binSize
             const label = needsBinning ? `${i}-${binEnd}` : i
             shortAlleleLabels.push(label)
@@ -2385,13 +2386,13 @@
         const maxCount = Math.max(...data.map(d => d.v))
 
         // Destroy any existing chart
-        const existingChart = Chart.getChart(this)
+        const existingChart = Chart.getChart(thisObj)
         if (existingChart) {
             existingChart.destroy()
         }
 
         // Create the chart
-        new Chart(this, {
+        new Chart(thisObj, {
             type: 'matrix',
             data: {
                 datasets: [{
@@ -2486,10 +2487,10 @@
             }
         })
 
-        this.style.minWidth = chartWidth
-        this.style.height = chartWidth
-        this.style.minHeight = chartWidth
-        this.style.maxHeight = chartWidth
+        thisObj.style.minWidth = chartWidth
+        thisObj.style.height = chartWidth
+        thisObj.style.minHeight = chartWidth
+        thisObj.style.maxHeight = chartWidth
     }
 
     const createSmallAlleleFrequencyChart = function() {
@@ -3140,6 +3141,11 @@
         $('#about-modal').modal('show')
     })
 
+    $('#faq-link').click((e) => {
+        e.preventDefault()
+        $('#faq-modal').modal('show')
+    })
+
     const toggleAdvancedSearch = () => {
         GLOBAL_PAGE_STATE['showAdvFilters'] = (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) ? 0 : 1
         writePersistentPageStateToUrl()
@@ -3365,7 +3371,7 @@
 
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
                         </div>
                     `
                 }
@@ -3385,7 +3391,7 @@
                     polymorphismDialogContent += `
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies="${row[column]}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
                         </div>
                     `
                 }
@@ -3395,11 +3401,74 @@
 
         $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
 
-        $('.allele-frequency-chart').each(createAlleleFrequencyChart)
-        $('.biallelic-histogram-chart').each(createBiallelicHistogramChart)
+
+        // prepare chart data
+        let alleleFrequencyChartData = []
+        $('.allele-frequency-chart').each(function() {
+            const frequenciesColumn = $(this).data('frequencies-column')            
+            const frequenciesString = row[frequenciesColumn]            
+            if (!frequenciesString) return   // Skip if no data
+
+            const frequencies = parseAlleleFrequenciesString(frequenciesString)
+            
+            alleleFrequencyChartData.push({
+                frequencies: frequencies,                
+                thisObj: this,
+                refAlleleSize: $(this).data('ref-allele-size'),
+                chartWidth: $(this).data('chart-width'),
+                chartHeight: $(this).data('chart-height'),
+                label: $(this).data('label'),
+                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
+                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+            })
+        }) 
+
+        //compute overall min, max for all charts and then create the charts
+        let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
+        let overallMaxAlleleSize = Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize))
+
+        alleleFrequencyChartData.forEach((chartData) => {
+            chartData.minAlleleSize = overallMinAlleleSize
+            chartData.maxAlleleSize = overallMaxAlleleSize 
+
+            createAlleleFrequencyChart(chartData)
+        })
+
+        let biallelicHistogramChartData = []
+        $('.biallelic-histogram-chart').each(function() {
+            const frequenciesColumn = $(this).data('frequencies-column')            
+            let frequenciesString = row[frequenciesColumn]
+            if (!frequenciesString) return   // Skip if no data
+
+            let [data, lookup] = parseBiallelicHistogramString(frequenciesString)
+
+            biallelicHistogramChartData.push({
+                data: data,
+                lookup: lookup,
+                thisObj: this,
+                refAlleleSize: $(this).data('ref-allele-size'),
+                chartWidth: $(this).data('chart-width'),
+                chartHeight: $(this).data('chart-height'),
+                label: $(this).data('label'),
+                minAlleleSize: Math.min(...data.map(f => Math.min(f.x, f.y))),
+                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y)))
+            })
+        })
+
+        overallMinAlleleSize = Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize))
+        overallMaxAlleleSize = Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize))
+
+        biallelicHistogramChartData.forEach((chartData) => {
+            chartData.minAlleleSize = overallMinAlleleSize
+            chartData.maxAlleleSize = overallMaxAlleleSize 
+
+            createBiallelicHistogramChart(chartData)
+        })
+        
+        $('#polymorphism-dialog').modal('show')
+
         $('.question').popup({ on: 'click' })
 
-        $('#polymorphism-dialog').modal('show')
     }
 
     const handleSearch = async (event) => {
