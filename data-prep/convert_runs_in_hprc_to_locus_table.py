@@ -13,23 +13,28 @@ motif       (example: "T")
 allele_sizes (example: 25,23,24,24,10,15)
 """
 
-import argparse
 import collections
+import glob
 import gzip
 import os
 import numpy as np
 import tqdm
-parser = argparse.ArgumentParser()
-parser.add_argument("--input-tsv", type=str, default="runs_in_hprc.2025_04.txt.gz")
-parser.add_argument("--output-path", type=str, default="runs_in_hprc.2025_04.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz")
-args = parser.parse_args()
 
-# check that file exists
-if not os.path.exists(args.input_tsv):
-    parser.error(f"File {args.input_tsv} does not exist")
+INPUT_PATHS = "hprc-lps/*.txt.gz"
+OUTPUT_PATH = "hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz"
+
+
 
 def process_group(locus_id, motif, allele_sizes, alleles_for_current_key_by_sample_id, output_file):
-    """Process a group of allele sizes and write statistics to output file."""
+    """Process a group of allele sizes and write statistics to output file.
+    
+    Args:
+        locus_id (str): the locus id (can be a comma-separated list of locus ids when it's a variation cluster)
+        motif (str): the motif (in variation clusters, this will correspond to the motif at the end of one of the locus ids)
+        allele_sizes (list): the allele sizes for all samples
+        alleles_for_current_key_by_sample_id (dict): the alleles for the current key by sample id
+        output_file (file): the output file
+    """
     
     if not allele_sizes:
         return
@@ -77,9 +82,56 @@ def process_group(locus_id, motif, allele_sizes, alleles_for_current_key_by_samp
 
 def main():
 
-    print(f"Processing {os.path.basename(args.input_tsv)}")
-    infile = gzip.open(args.input_tsv, "rt")
-    outfile = gzip.open(args.output_path, "wt")
+    input_paths = glob.glob(INPUT_PATHS)
+
+    assert len(input_paths) == 100, f"Expected 100 input paths, got {len(input_paths)}"
+    
+    """
+    Input table example row:
+    $1      trid : 1-92675-92688-AAG
+    $2    allele : 1
+    $3     motif : AAG
+    $4   lps_len : 4
+    """
+
+    alleles_by_locus = collections.defaultdict(list)
+    alleles_by_locus_and_sample_id = collections.defaultdict(lambda: collections.defaultdict(list))
+
+    for sample_number, input_path in enumerate(input_paths):
+        sample_id = os.path.basename(input_path).split(".")[0]
+
+        print(f"Processing sample #{sample_number+1:3d}: {sample_id}: {os.path.basename(input_path)}")
+        infile = gzip.open(input_path, "rt")
+        header_line = next(infile) # skip header
+        assert header_line.strip() == "\t".join(["trid", "allele", "motif", "lps_len"]), f"Unexpected header line: {header_line.strip()}"
+
+        # iterate through the file, reading two lines at a time
+        for line_number, line in enumerate(infile):
+            line_number += 1
+
+            # process line #1
+            fields = line.strip().split("\t")
+
+            if len(fields) != 4:
+                raise ValueError(f"Expected 4 fields, got {len(fields)} in line #{line_number}: {line}")
+
+            locus_id, first_or_second_allele, motif, allele_size = fields
+
+            try:
+                allele_size = int(allele_size)
+            except ValueError:
+                raise ValueError(f"Expected integer allele size, got {allele_size} in line #{line_number}: {line}")
+
+            current_key = (locus_id, motif)
+
+            alleles_by_locus[current_key].append(allele_size)
+            alleles_by_locus_and_sample_id[current_key][sample_id].append(allele_size)
+
+
+        infile.close()
+
+
+    outfile = gzip.open(OUTPUT_PATH, "wt")
 
     # Write header
     outfile.write("\t".join([
@@ -94,64 +146,16 @@ def main():
         "99th_percentile",
     ]) + "\n")
 
-    previous_key = None
-    previously_seen_keys = set()
-    alleles_for_current_key = []
-    alleles_for_current_key_by_sample_id = collections.defaultdict(list)
 
-    sample_ids = set()
-    counters = collections.Counter()
-    for line_number, line in tqdm.tqdm(enumerate(infile, 1), unit=" rows", unit_scale=True, total=896_015_950):
-        fields = line.strip().split("\t")
-        if len(fields) != 4:
-            print(f"WARNING: Skipping malformed line: {line}")
-            continue
+    output_lines_counter = 0
+    for (locus_id, motif) in tqdm.tqdm(alleles_by_locus, unit=" loci", unit_scale=True):
+        key = (locus_id, motif)
+        process_group(locus_id, motif, alleles_by_locus[key], alleles_by_locus_and_sample_id[key], outfile)
+        output_lines_counter += 1
 
-        current_locus_id, motif, sample_id, allele_size = fields
-        
-        sample_ids.add(sample_id)
-
-        current_key = (current_locus_id, motif)
-        if previous_key is None:
-            previous_key = current_key
-
-        if current_key != previous_key:
-            # check that the previous key is not a duplicate
-            if previous_key in previously_seen_keys:
-                parser.error(f"{args.input_tsv} is not sorted by locus id on line #{line_number}: {current_locus_id}") 
-            previously_seen_keys.add(previous_key)
-
-            # process the previous group
-            previous_locus_id = previous_key[0]
-            previous_motif = previous_key[1]
-            previous_key = current_key
-
-            process_group(previous_locus_id, previous_motif, alleles_for_current_key, alleles_for_current_key_by_sample_id, outfile)
-            alleles_for_current_key = []
-            alleles_for_current_key_by_sample_id = collections.defaultdict(list)
-            counters['output_lines'] += 1
-
-        # record the current allele size
-        try:
-            allele_size = int(allele_size)
-            alleles_for_current_key.append(allele_size)
-            alleles_for_current_key_by_sample_id[sample_id].append(allele_size)
-        except ValueError:
-            print(f"Warning: Skipping invalid allele at line #{line_number}: {current_locus_id} {motif} {sample_id} {allele_size}")
-            continue
-                
-    # process the last group
-    if alleles_for_current_key:
-        process_group(current_locus_id, motif, alleles_for_current_key, alleles_for_current_key_by_sample_id, outfile)
-        counters['output_lines'] += 1
-        if current_key in previously_seen_keys:
-            parser.error(f"{args.input_tsv} is not sorted by locus id on line #{line_number}: {current_locus_id}") 
-
-
-    infile.close()
     outfile.close()
 
-    print(f"Wrote {counters['output_lines']:9,d} lines to {args.output_path} for {len(sample_ids):9,d} unique sample ids")
+    print(f"Wrote {output_lines_counter:9,d} lines to {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     main()

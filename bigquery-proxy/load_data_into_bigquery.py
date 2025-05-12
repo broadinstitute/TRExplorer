@@ -31,7 +31,7 @@ parser.add_argument("-d", "--known-disease-associated-loci",
                     help="ExpansionHunter catalog with the latest known disease-associated loci",
                     default="https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json")
 parser.add_argument("--tenk10k-tsv", default="../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz")
-parser.add_argument("--hprc100-tsv", default="../data-prep/runs_in_hprc.2025_04.grouped_by_locus_and_motif.tsv.gz")
+parser.add_argument("--hprc100-tsv", default="../data-prep/hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz")
 
 args = parser.parse_args()
 
