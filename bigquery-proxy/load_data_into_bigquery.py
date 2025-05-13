@@ -32,6 +32,7 @@ parser.add_argument("-d", "--known-disease-associated-loci",
                     default="https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json")
 parser.add_argument("--tenk10k-tsv", default="../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz")
 parser.add_argument("--hprc100-tsv", default="../data-prep/hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz")
+parser.add_argument("--aou1027-tsv", default="../data-prep/AoULR_phase1_TRGT_Weisburd_v1.0.1_combined.txt.gz")
 
 args = parser.parse_args()
 
@@ -68,6 +69,31 @@ def parse_allele_histograms_from_tsv(tsv_path):
     
     return lookup
 
+
+def parse_AoU1027_data_from_tsv(tsv_path):
+    """Parse the AoU1027 TSV file line by line and create a lookup dictionary."""
+    lookup = {}
+    with gzip.open(tsv_path, 'rt') as f:
+        header = f.readline().strip().split('\t')
+        col_indices = {col: i for i, col in enumerate(header)}
+        for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
+            fields = line.strip().split('\t')
+            locus_id = fields[col_indices['TRID2']]
+            lookup[locus_id] = {
+                'mode_allele': int(float(fields[col_indices['Mode']])),
+                'stdev': float(fields[col_indices['Stdev']]),
+                'median': int(float(fields[col_indices['50thPercentile']])), 
+                '99th_percentile': int(float(fields[col_indices['99thPercentile']])),
+                'num_called_alleles': int(fields[col_indices['numCalledAlleles']]),
+
+                "combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
+                "expected_lps_stdev": float(fields[col_indices['expectedCombinedLPSStdev']]),
+                "oe_length": float(fields[col_indices['OE_len']]),
+            }
+
+    return lookup
+
+
 print(f"Parsing tenk10k data from {args.tenk10k_tsv}")
 tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
 print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
@@ -76,7 +102,9 @@ print(f"Parsing hprc100 data from {args.hprc100_tsv}")
 hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
 print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
 
-
+print(f"Parsing AoU1027 data from {args.aou1027_tsv}")
+aou1027_lookup = parse_AoU1027_data_from_tsv(args.aou1027_tsv)
+print(f"Parsed {len(aou1027_lookup):,d} records from the AoU1027 table: {args.aou1027_tsv}")
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
 if os.path.isfile(args.known_disease_associated_loci):
@@ -192,10 +220,7 @@ schema = [
     bigquery.SchemaField("ManeGeneName", "STRING"),
     bigquery.SchemaField("ManeGeneId", "STRING"),
     bigquery.SchemaField("ManeTranscriptId", "STRING"),
-    bigquery.SchemaField("LPSLengthStdevFromHPRC100", "FLOAT"),
-    bigquery.SchemaField("LPSMotifFromHPRC100", "STRING"),
-    bigquery.SchemaField("LPSMotifFractionFromHPRC100", "FLOAT"),
-    bigquery.SchemaField("LPSMotifDenominatorFromHPRC100", "INTEGER"),
+
     bigquery.SchemaField("AlleleFrequenciesFromIllumina174k", "STRING"),
     bigquery.SchemaField("StdevFromIllumina174k", "FLOAT"),
     bigquery.SchemaField("AlleleFrequenciesFromT2TAssemblies", "STRING"),
@@ -214,6 +239,15 @@ schema = [
     bigquery.SchemaField("HPRC100_Median", "INTEGER"),
     bigquery.SchemaField("HPRC100_99thPercentile", "INTEGER"),
 
+    bigquery.SchemaField("AoU1027_ModeAllele", "INTEGER"),
+    bigquery.SchemaField("AoU1027_Stdev", "FLOAT"),
+    bigquery.SchemaField("AoU1027_Median", "INTEGER"),
+    bigquery.SchemaField("AoU1027_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("AoU1027_NumCalledAlleles", "INTEGER"),
+
+    bigquery.SchemaField("AoU1027_CombinedLPSStdev", "FLOAT"),
+    bigquery.SchemaField("AoU1027_ExpectedLPSStdev", "FLOAT"),
+    bigquery.SchemaField("AoU1027_OE_length", "FLOAT")
 ]
 
 field_names = {field.name for field in schema}
@@ -304,13 +338,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     record["start_0based"] = start_0based
     record["end_1based"] = end_1based
     record["MotifSize"] = len(record["CanonicalMotif"])
-    if record.get("LPSMotifFractionFromHPRC100"):
-        counters["rows_with_original_LPS_data_from_hprc100"] += 1
-        tokens = record["LPSMotifFractionFromHPRC100"].split(": ")  # example value: "AACCCT: 112/187"
-        record["LPSMotifFromHPRC100"] = tokens[0]
-        numerator, denominator = map(int, tokens[1].split("/"))
-        record["LPSMotifFractionFromHPRC100"] = numerator/denominator if denominator > 0 else None
-        record["LPSMotifDenominatorFromHPRC100"] = denominator
 
     if record.get("StdevFromT2TAssemblies"):
         record["StdevFromT2TAssemblies"] = round(record["StdevFromT2TAssemblies"], 3)
@@ -345,8 +372,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
 
     if record.get("StdevFromIllumina174k") and not record.get("AlleleFrequenciesFromIllumina174k"):
         print("WARNING: StdevFromIllumina174k is present but AlleleFrequenciesFromIllumina174k is missing in record:", pformat(record, indent=4))
-    if record.get("LPSLengthStdevFromHPRC100") and not record.get("LPSMotifFromHPRC100"):
-        print("WARNING: LPSLengthStdevFromHPRC100 is present but LPSMotifFromHPRC100 is missing in record:", pformat(record, indent=4))
 
     #if record.get("StdevFromT2TAssemblies") and not record.get("AlleleFrequenciesFromT2TAssemblies"):
     #    This happens where loci in source catalogs overlapped
@@ -371,6 +396,17 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["HPRC100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
         record["HPRC100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
         record["HPRC100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
+
+    if record["LocusId"] in aou1027_lookup:
+        counters["rows_with_aou1027_data"] += 1
+        record["AoU1027_ModeAllele"] = aou1027_lookup[record["LocusId"]]["mode_allele"]
+        record["AoU1027_Stdev"] = aou1027_lookup[record["LocusId"]]["stdev"]
+        record["AoU1027_Median"] = aou1027_lookup[record["LocusId"]]["median"]
+        record["AoU1027_99thPercentile"] = aou1027_lookup[record["LocusId"]]["99th_percentile"]
+        record["AoU1027_NumCalledAlleles"] = aou1027_lookup[record["LocusId"]]["num_called_alleles"]
+        record["AoU1027_CombinedLPSStdev"] = aou1027_lookup[record["LocusId"]]["combined_lps_stdev"]
+        record["AoU1027_ExpectedLPSStdev"] = aou1027_lookup[record["LocusId"]]["expected_lps_stdev"]
+        record["AoU1027_OE_length"] = aou1027_lookup[record["LocusId"]]["oe_length"]
 
     counters["total_rows"] += 1
     
