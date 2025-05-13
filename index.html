@@ -253,6 +253,10 @@
             text-overflow: ellipsis;
         }
 
+        .show-popup {
+            cursor: pointer;
+        }
+
         /* Loading indicators */
         .ui.loader {
             margin-top: 2em;
@@ -442,10 +446,6 @@
         .cell-in-polymorphism-column {
             cursor: pointer;
             color: #2185d0;
-        }
-
-        .cell-popup-details-label {
-            font-weight: bold;
         }
 
         .cell-action-link {
@@ -1268,8 +1268,12 @@
             helpText: 'The repeat motif and motif size. <b>Examples:</b> CAG (3), GGCCCC (6)',
             getValue: (row) => {
                 const motif = row.ReferenceMotif
-                const truncatedMotif = motif.length > 12 ? motif.substring(0, 12) + '...' : motif
-                return `${truncatedMotif} &nbsp (${row.MotifSize})`
+                if ( motif.length > 12 ) {
+                    const truncatedMotif = motif.substring(0, 12) + '...'
+                    return `<span class="show-popup" data-html="${motif}">${truncatedMotif} &nbsp (${row.MotifSize})</span>`
+                } else {
+                    return `${motif} &nbsp (${row.MotifSize})`
+                }
             },
             getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
             getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
@@ -1324,9 +1328,9 @@
                     const refRegionSize = computeIntervalSize(row.ReferenceRegion)
                     const clusterDetails = `
                             <div class="content" style="text-align: center;">
-                                <div><span class="cell-popup-details-label">Variation Cluster Interval:</span> <br />${row.VariationCluster}</div>
+                                <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row.VariationCluster}</div>
                                 <br />
-                                <div><span class="cell-popup-details-label">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row.VariationClusterSizeDiff} bp</div>
+                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row.VariationClusterSizeDiff} bp</div>
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
@@ -2743,11 +2747,9 @@
 
 
         // Initialize popups for variation cluster cells
-        $('.cell-in-variation-cluster-column').popup({
-            position: 'right center',
-            on: 'click',
-            hoverable: true,
-        })
+        $('.cell-in-variation-cluster-column').popup({ position: 'right center', on: 'click', hoverable: true })
+
+        $('.show-popup').popup({ on: 'click', hoverable: true })
 
         // Initialize popups for polymorphism cells
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
@@ -3319,7 +3321,7 @@
             `
         } else {
             polymorphismDialogContent += `
-                <div><span class="cell-popup-details-label">Allele Frequency Distribution Summary Statistics</span></div>
+                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
                     <div style="margin-top: 5px">
                         <table style="margin: 0 auto">
             `
