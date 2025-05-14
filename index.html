@@ -253,6 +253,10 @@
             text-overflow: ellipsis;
         }
 
+        .ui.modal {
+            width: 75% !important;
+        }
+
         .show-popup {
             cursor: pointer;
         }
@@ -937,46 +941,48 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250514_082123'
+    const TABLE_ID = 'catalog_20250514_143155'
 
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
 
     const RESULTS_TABLE_COLUMN_NAMES = [
-        'interval',  // 0
-        'motif',  // 1
-        'geneRegion',  // 2
-        'geneName',  // 3
-        'variationCluster',  // 4
-        'mappability',  // 5
-        'trsInRegion',  // 6
-        'isPathogenic',  // 7
+        'interval',
+        'motif',
+        'geneRegion',
+        'geneName',
+        'variationCluster',
+        'mappability',
+        'trsInRegion',
+        'isPathogenic',
 
-        'gencodeGeneId',  // 8
-        'gencodeTranscriptId',  // 9
-        'refSeqGeneRegion',  // 10
-        'refSeqGeneId',  // 11
-        'refSeqGeneName',  // 12
-        'refSeqTranscriptId',  // 13
-        'maneGeneRegion',  // 14
-        'maneGeneId',  // 15
-        'maneGeneName',  // 16
+        'gencodeGeneId',
+        'gencodeTranscriptId',
+        'refSeqGeneRegion',
+        'refSeqGeneId',
+        'refSeqGeneName',
+        'refSeqTranscriptId',
+        'maneGeneRegion',
+        'maneGeneId',
+        'maneGeneName',
 
-        'HPRC100_AlleleHistogram',  // 17
-        'TenK10K_AlleleHistogram',  // 18
-        'AlleleFrequenciesFromIllumina174k',  // 19
-        'AlleleFrequenciesFromT2TAssemblies',  // 20
+        'HPRC100_AlleleHistogram',
+        'TenK10K_AlleleHistogram',
+        'AlleleFrequenciesFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies',
 
-        'polymorphism',  // 21
+        'polymorphism',
 
-        'HPRC100_Stdev',  // 22
-        'AoU1027_Stdev',  // 23
-        'TenK10K_Stdev',  // 24
-        'StdevFromIllumina174k',  // 25
-        'StdevFromT2TAssemblies',  // 26
+        'HPRC100_Stdev',
+        'AoU1027_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
+        'StdevFromT2TAssemblies',
 
-        'HPRC100_BiallelicHistogram',  // 27
+        'HPRC100_BiallelicHistogram',
+
+        'constraint_OE_Length',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -1010,6 +1016,8 @@
         'TenK10K_Stdev',  
         'StdevFromIllumina174k',  
         'StdevFromT2TAssemblies',  
+
+        'constraint_OE_Length',
     ]
 
 
@@ -1147,9 +1155,9 @@
     }
 
     const STDEV_HELP_TEXTS = {
-        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
-        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&#39;static/TenK10K_ancestry_PC1_vs_PC2.png&#39; style=&#39;max-width: 600px&#39;>`,
+        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
+        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&quot;static/TenK10K_ancestry_PC1_vs_PC2.png&quot; style=&quot;max-width: 600px&quot;>`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
         'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
     }
@@ -1318,6 +1326,13 @@
             },
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
+        },
+        constraint_OE_Length: {
+            displayName: 'Constraint (O/E Length) Percentile',
+            helpText: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
+            getValue: (row) => row.AoU1027_OE_LengthPercentile != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
+            getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
+            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
         },
         isPathogenic: {
             displayName: 'Is Pathogenic',
@@ -2100,6 +2115,9 @@
                         'AoU1027_Stdev',
                         'AoU1027_Median',
                         'AoU1027_99thPercentile',
+
+                        'AoU1027_OE_Length',
+                        'AoU1027_OE_LengthPercentile',
                     ]
                     selectClause = tsv_columns.join(', ')
                 } else {

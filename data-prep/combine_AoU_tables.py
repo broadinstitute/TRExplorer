@@ -42,8 +42,6 @@ df = df[df.Stdev.notna()].copy()
 df["longestPureSegmentMotif"] = df["longestPureSegmentMotif"].apply(compute_canonical_motif)
 df["TRID2"] = df.apply(get_individual_repeat_id_that_matches_longest_pure_segment_motif, axis=1)
 
-df["Mode"] = df.apply(lambda m: m["Mode"] / len(m["longestPureSegmentMotif"]), axis=1)
-df["Stdev"] = df.apply(lambda m: m["Stdev"] / len(m["longestPureSegmentMotif"]), axis=1)
 
 before = len(df)
 df = df[df.TRID2.notna()]
@@ -56,6 +54,8 @@ before = len(df)
 df = df[df.canonical_motif == df.longestPureSegmentMotif]
 print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows where canonical motif == longestPureSegmentMotif")
 
+df["Mode"] = df.apply(lambda m: m["Mode"] / len(m["longestPureSegmentMotif"]), axis=1)
+df["Stdev"] = df.apply(lambda m: m["Stdev"] / len(m["longestPureSegmentMotif"]), axis=1)
 # join on the full TRID column since the other 2 tables only have 1 row per full TRID
 df_list[0] = df
 
@@ -72,6 +72,9 @@ df.set_index("TRID", inplace=True)
 df = df.join(df_list[2], how="left")
 df.reset_index(inplace=True)
 print(f"Resulting dataframe has {len(df):,} rows with {len(df.TRID.unique()):,} unique TRIDs and {len(df.columns):,} columns")
+
+df["OE_len_percentile"] = df["OE_len"].rank(pct=True)
+
 
 output_filename = "AoULR_phase1_TRGT_Weisburd_v1.0.1_combined.txt.gz"
 df.to_csv(output_filename, sep="\t", index=False, header=True)

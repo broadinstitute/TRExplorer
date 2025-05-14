@@ -86,9 +86,10 @@ def parse_AoU1027_data_from_tsv(tsv_path):
                 '99th_percentile': int(float(fields[col_indices['99thPercentile']])),
                 'num_called_alleles': int(fields[col_indices['numCalledAlleles']]),
 
-                "combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
-                "expected_lps_stdev": float(fields[col_indices['expectedCombinedLPSStdev']]),
+                #"combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
+                #"expected_lps_stdev": float(fields[col_indices['expectedCombinedLPSStdev']]),
                 "oe_length": float(fields[col_indices['OE_len']]),
+                "oe_length_percentile": float(fields[col_indices['OE_len_percentile']]),
             }
 
     return lookup
@@ -251,9 +252,10 @@ schema = [
     bigquery.SchemaField("AoU1027_99thPercentile", "INTEGER"),
     bigquery.SchemaField("AoU1027_NumCalledAlleles", "INTEGER"),
 
-    bigquery.SchemaField("AoU1027_CombinedLPSStdev", "FLOAT"),
-    bigquery.SchemaField("AoU1027_ExpectedLPSStdev", "FLOAT"),
-    bigquery.SchemaField("AoU1027_OE_length", "FLOAT")
+    #bigquery.SchemaField("AoU1027_CombinedLPSStdev", "FLOAT"),
+    #bigquery.SchemaField("AoU1027_ExpectedLPSStdev", "FLOAT"),
+    bigquery.SchemaField("AoU1027_OE_Length", "FLOAT"),
+    bigquery.SchemaField("AoU1027_OE_LengthPercentile", "FLOAT"),
 ]
 
 field_names = {field.name for field in schema}
@@ -410,10 +412,11 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["AoU1027_Median"] = aou1027_lookup[record["LocusId"]]["median"]
         record["AoU1027_99thPercentile"] = aou1027_lookup[record["LocusId"]]["99th_percentile"]
         record["AoU1027_NumCalledAlleles"] = aou1027_lookup[record["LocusId"]]["num_called_alleles"]
-        record["AoU1027_CombinedLPSStdev"] = aou1027_lookup[record["LocusId"]]["combined_lps_stdev"]
-        record["AoU1027_ExpectedLPSStdev"] = aou1027_lookup[record["LocusId"]]["expected_lps_stdev"]
-        record["AoU1027_OE_length"] = aou1027_lookup[record["LocusId"]]["oe_length"]
-
+        #record["AoU1027_CombinedLPSStdev"] = aou1027_lookup[record["LocusId"]]["combined_lps_stdev"]
+        #record["AoU1027_ExpectedLPSStdev"] = aou1027_lookup[record["LocusId"]]["expected_lps_stdev"]
+        record["AoU1027_OE_Length"] = aou1027_lookup[record["LocusId"]]["oe_length"]
+        record["AoU1027_OE_LengthPercentile"] = aou1027_lookup[record["LocusId"]]["oe_length_percentile"]
+        
     counters["total_rows"] += 1
     
     # Convert any None values to None (BigQuery will handle NULL)
