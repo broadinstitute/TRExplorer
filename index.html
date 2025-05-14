@@ -802,9 +802,9 @@
                                     <div class="default text">Select filter</div>
                                     <div class="menu">
                                         <div class="item" data-value=""></div>
-                                        <div class="item" data-value="sigma_LPS2">σ<sub>LPS2</sub></div>
-                                        <div class="item" data-value="sigma_LPS">σ<sub>LPS</sub></div>
-                                        <div class="item" data-value="sigma_10K">σ<sub>10K</sub></div>
+                                        <div class="item" data-value="sigma_HPRC100">σ<sub>HPRC100</sub></div>
+                                        <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027</sub></div>
+                                        <div class="item" data-value="sigma_TenK10K">σ<sub>TenK10K</sub></div>
                                         <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
                                         <div class="item" data-value="sigma_T2T">σ<sub>T2T</sub></div>
                                     </div>
@@ -937,8 +937,8 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20250428_113239'
-    //const TABLE_ID = 'catalog_20250511_170252'
+    const TABLE_ID = 'catalog_20250514_082123'
+
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
@@ -971,11 +971,12 @@
         'polymorphism',  // 21
 
         'HPRC100_Stdev',  // 22
-        'TenK10K_Stdev',  // 23
-        'StdevFromIllumina174k',  // 24
-        'StdevFromT2TAssemblies',  // 25
+        'AoU1027_Stdev',  // 23
+        'TenK10K_Stdev',  // 24
+        'StdevFromIllumina174k',  // 25
+        'StdevFromT2TAssemblies',  // 26
 
-        'HPRC100_BiallelicHistogram',  // 26
+        'HPRC100_BiallelicHistogram',  // 27
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -1005,6 +1006,7 @@
         'AlleleFrequenciesFromT2TAssemblies',  
         
         'HPRC100_Stdev',  
+        'AoU1027_Stdev',  
         'TenK10K_Stdev',  
         'StdevFromIllumina174k',  
         'StdevFromT2TAssemblies',  
@@ -1012,7 +1014,7 @@
 
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
-        'LPSLengthStdevFromHPRC100',
+        'AoU1027_Stdev',
         'StdevFromIllumina174k', 
         'AlleleFrequenciesFromIllumina174k',
         'StdevFromT2TAssemblies',
@@ -1020,11 +1022,12 @@
         'ReferenceRegion',
         'NumRepeatsInReference',
         'ReferenceMotif',
+        'HPRC100_Stdev',
+        'HPRC100_AlleleHistogram',
+        'HPRC100_BiallelicHistogram',
+        'AoU1027_Stdev',
         'TenK10K_AlleleHistogram',
         'TenK10K_Stdev',
-        'HPRC100_AlleleHistogram',
-        'HPRC100_Stdev',
-        'HPRC100_BiallelicHistogram',
     ]
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1113,9 +1116,9 @@
 
 
     const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC100_Stdev': 'hprc100',
-        'LPSLengthStdevFromHPRC100': 'LPS',
-        'TenK10K_Stdev': '10K10K',
+        'HPRC100_Stdev': 'Hprc100',
+        'AoU1027_Stdev': 'AoU1027',
+        'TenK10K_Stdev': '10k10k',
         'StdevFromIllumina174k': '1kGP',
         'StdevFromT2TAssemblies': 'T2T',
     }
@@ -1145,7 +1148,7 @@
 
     const STDEV_HELP_TEXTS = {
         'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-        'LPSLengthStdevFromHPRC100': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. This is the same data as σ<sub style=&#39;font-size: 0.7em;&#39;>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub>, but generated in September 2024 using an older version of the TRGT LPS pipeline.<br /><br /><b>Range:</b> 0 to 123.0`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&#39;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&#39; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
         'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&#39;static/TenK10K_ancestry_PC1_vs_PC2.png&#39; style=&#39;max-width: 600px&#39;>`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
         'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
@@ -1295,7 +1298,7 @@
         polymorphism: {
             displayName: 'Polymorphism Summary',
             helpText: 'Summary of available sources of polymorphism data for the TR locus',
-            getValue: (row) => {                        
+            getValue: (row) => {
                 return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
                             <span class="cell-action-link">
                                 <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
@@ -1303,6 +1306,10 @@
                             <span style="color: #333;">
                                 = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
                             </span>
+                            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
+                            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
+                                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
+                            </span>` : ''}
                             <span class="cell-action-link">                                    
                                 ${row.TenK10K_Stdev != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
                             </span>
@@ -1454,7 +1461,7 @@
         }
     }
 
-    for (const columnName of ['HPRC100_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
+    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
@@ -2067,10 +2074,10 @@
                         'ManeGeneId',
                         'ManeTranscriptId',
                         
-                        'LPSLengthStdevFromHPRC100',
-                        'LPSMotifFromHPRC100',
-                        'LPSMotifFractionFromHPRC100',
-                        'LPSMotifDenominatorFromHPRC100',
+                        //'LPSLengthStdevFromHPRC100',
+                        //'LPSMotifFromHPRC100',
+                        //'LPSMotifFractionFromHPRC100',
+                        //'LPSMotifDenominatorFromHPRC100',
 
                         'AlleleFrequenciesFromIllumina174k',
                         'StdevFromIllumina174k',
@@ -2088,6 +2095,11 @@
                         'HPRC100_Stdev',
                         'HPRC100_Median',
                         'HPRC100_99thPercentile',
+
+                        'AoU1027_ModeAllele',
+                        'AoU1027_Stdev',
+                        'AoU1027_Median',
+                        'AoU1027_99thPercentile',
                     ]
                     selectClause = tsv_columns.join(', ')
                 } else {
@@ -2918,13 +2930,13 @@
                 const polymorphismThreshold = $('input[name="polymorphismThreshold"]').val()
                 if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold) {
                     switch (polymorphismFilterType) {
-                        case 'sigma_LPS2':
+                        case 'sigma_HPRC100':
                             conditions.push(`HPRC100_Stdev > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_LPS':
-                            conditions.push(`LPSLengthStdevFromHPRC100 > ${polymorphismThreshold}`)
+                        case 'sigma_AoU1027':
+                            conditions.push(`AoU1027_Stdev > ${polymorphismThreshold}`)
                             break
-                        case 'sigma_10K':
+                        case 'sigma_TenK10K':
                             conditions.push(`TenK10K_Stdev > ${polymorphismThreshold}`)
                             break
                         case 'sigma_1kGP':
@@ -3305,10 +3317,10 @@
         $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
         $('#polymorphism-dialog-content').html('')
 
-        const stdevColumns = ['HPRC100_Stdev', 'LPSLengthStdevFromHPRC100', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
         const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
 
-        const nStdevsNotAvailable = [row.LPSLengthStdevFromHPRC100 == null, row.HPRC100_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+        const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
 
         let polymorphismDialogContent = `
             <div class="content" style="text-align: center">
