@@ -37,9 +37,13 @@ def get_individual_repeat_id_that_matches_longest_pure_segment_motif(row):
     return trid2
 
 df = df_list[0]
-df = df[df.Stdev.notna()]
-df.loc[:, "longestPureSegmentMotif"] = df["longestPureSegmentMotif"].apply(compute_canonical_motif)
-df.loc[:, "TRID2"] = df.apply(get_individual_repeat_id_that_matches_longest_pure_segment_motif, axis=1)
+df = df[df.Stdev.notna()].copy()
+
+df["longestPureSegmentMotif"] = df["longestPureSegmentMotif"].apply(compute_canonical_motif)
+df["TRID2"] = df.apply(get_individual_repeat_id_that_matches_longest_pure_segment_motif, axis=1)
+
+df["Mode"] = df.apply(lambda m: m["Mode"] / len(m["longestPureSegmentMotif"]), axis=1)
+df["Stdev"] = df.apply(lambda m: m["Stdev"] / len(m["longestPureSegmentMotif"]), axis=1)
 
 before = len(df)
 df = df[df.TRID2.notna()]

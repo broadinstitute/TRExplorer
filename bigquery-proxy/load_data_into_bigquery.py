@@ -94,17 +94,23 @@ def parse_AoU1027_data_from_tsv(tsv_path):
     return lookup
 
 
-print(f"Parsing tenk10k data from {args.tenk10k_tsv}")
-tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
-print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
+tenk10k_lookup = {}
+if args.tenk10k_tsv:
+    print(f"Parsing tenk10k data from {args.tenk10k_tsv}")
+    tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
+    print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
+    
+hprc100_lookup = {}
+if args.hprc100_tsv:
+    print(f"Parsing hprc100 data from {args.hprc100_tsv}")
+    hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
+    print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
 
-print(f"Parsing hprc100 data from {args.hprc100_tsv}")
-hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
-print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
-
-print(f"Parsing AoU1027 data from {args.aou1027_tsv}")
-aou1027_lookup = parse_AoU1027_data_from_tsv(args.aou1027_tsv)
-print(f"Parsed {len(aou1027_lookup):,d} records from the AoU1027 table: {args.aou1027_tsv}")
+aou1027_lookup = {}
+if args.aou1027_tsv:
+    print(f"Parsing AoU1027 data from {args.aou1027_tsv}")
+    aou1027_lookup = parse_AoU1027_data_from_tsv(args.aou1027_tsv)
+    print(f"Parsed {len(aou1027_lookup):,d} records from the AoU1027 table: {args.aou1027_tsv}")
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
 if os.path.isfile(args.known_disease_associated_loci):
