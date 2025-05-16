@@ -981,8 +981,8 @@
         'StdevFromT2TAssemblies',
 
         'HPRC100_BiallelicHistogram',
-
-        'constraint_OE_Length',
+        'TenK10K_BiallelicHistogram',
+        'AoU1027_OE_LengthPercentile',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -1017,7 +1017,7 @@
         'StdevFromIllumina174k',  
         'StdevFromT2TAssemblies',  
 
-        'constraint_OE_Length',
+        'AoU1027_OE_LengthPercentile',
     ]
 
 
@@ -1035,7 +1035,9 @@
         'HPRC100_BiallelicHistogram',
         'AoU1027_Stdev',
         'TenK10K_AlleleHistogram',
+        'TenK10K_BiallelicHistogram',
         'TenK10K_Stdev',
+        'AoU1027_OE_LengthPercentile',
     ]
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1137,6 +1139,7 @@
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
         'HPRC100_BiallelicHistogram': 'HPRC100',
+        'TenK10K_BiallelicHistogram': 'TenK10K',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
         'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
@@ -1144,6 +1147,7 @@
         'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
         'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
+        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K short-read genomes',
     }
 
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
@@ -1152,6 +1156,7 @@
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
         'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
     }
 
     const STDEV_HELP_TEXTS = {
@@ -1168,8 +1173,8 @@
         'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
         'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
         'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
+        'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
-
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
     const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
         'CAG',
@@ -1327,7 +1332,7 @@
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
         },
-        constraint_OE_Length: {
+        AoU1027_OE_LengthPercentile: {
             displayName: 'Constraint (O/E Length) Percentile',
             helpText: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
             getValue: (row) => row.AoU1027_OE_LengthPercentile != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
@@ -1450,6 +1455,13 @@
             getValue: (row) => row.HPRC100_BiallelicHistogram,
             getSortColumns: () => ['HPRC100_BiallelicHistogram'],
             getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
+        },
+        TenK10K_BiallelicHistogram: {
+            displayName: 'TenK10K Biallelic Histogram',
+            helpText: 'Biallelic histogram of TenK10K',
+            getValue: (row) => row.TenK10K_BiallelicHistogram,
+            getSortColumns: () => ['TenK10K_BiallelicHistogram'],
+            getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
         }
         
     }
@@ -3362,14 +3374,14 @@
                 polymorphismDialogContent += `
                     <tr>
                         <td style="text-align: left;">
-                                    <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
-                                </td>
-                                <td style="text-align: right;">
-                                    = ${row[key].toFixed(3)}
-                                </td>
-                                <td style="text-align: right;">
-                                    <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
-                                </td>
+                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
+                        </td>
+                        <td style="text-align: right;">
+                            = ${row[key].toFixed(3)}
+                        </td>
+                        <td style="text-align: right;">
+                            <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                        </td>
                     </tr>
                 `
             }
@@ -3385,6 +3397,14 @@
                 }
             }
             polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+        }
+
+        if (row.AoU1027_OE_LengthPercentile != null) {
+            polymorphismDialogContent += `
+                <div style="margin-top: 25px">
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${TABLE_COLUMNS['AoU1027_OE_LengthPercentile']['helpText']}"></i>
+                </div>
+            `
         }
 
         polymorphismDialogContent += "</div>"
@@ -3411,8 +3431,8 @@
             polymorphismDialogContent += '</div></div>'
         }
 
-        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram']
-        const biallelicHistogramColumnsAvailable = row.HPRC100_BiallelicHistogram != null
+        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
         if (biallelicHistogramColumnsAvailable) {
             polymorphismDialogContent += `
                 <div style="margin-top: 15px;">
