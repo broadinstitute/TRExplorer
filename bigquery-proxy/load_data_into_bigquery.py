@@ -234,6 +234,7 @@ schema = [
     bigquery.SchemaField("StdevFromT2TAssemblies", "FLOAT"),
 
     bigquery.SchemaField("TenK10K_AlleleHistogram", "STRING"),
+    bigquery.SchemaField("TenK10K_BiallelicHistogram", "STRING"),
     bigquery.SchemaField("TenK10K_ModeAllele", "INTEGER"),
     bigquery.SchemaField("TenK10K_Stdev", "FLOAT"),
     bigquery.SchemaField("TenK10K_Median", "INTEGER"),
@@ -391,6 +392,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     if record["LocusId"] in tenk10k_lookup:
         counters["rows_with_tenk10k_data"] += 1
         record["TenK10K_AlleleHistogram"] = tenk10k_lookup[record["LocusId"]]["allele_size_histogram"]
+        record["TenK10K_BiallelicHistogram"] = tenk10k_lookup[record["LocusId"]]["biallelic_histogram"]
         record["TenK10K_ModeAllele"] = tenk10k_lookup[record["LocusId"]]["mode_allele"]
         record["TenK10K_Stdev"] = tenk10k_lookup[record["LocusId"]]["stdev"]
         record["TenK10K_Median"] = tenk10k_lookup[record["LocusId"]]["median"]

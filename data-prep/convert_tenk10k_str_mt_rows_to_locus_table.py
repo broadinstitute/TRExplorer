@@ -70,6 +70,8 @@ OUTPUT_HEADER_FIELDS = [
     "99th_percentile",
     "tenk_10k_vs_catalog_overlap_size",
     "tenk_10k_vs_catalog_size_diff",
+    "binom_hwep",
+    "variant_lc",
 ]
 
 def write_to_output(output_row_data, output_tsv, counters):
@@ -308,6 +310,8 @@ def main():
             "allele_array_counts": aggregated_info_json["allele_array_counts"],
             "diploid_allele_array_counts": aggregated_info_diploid_json["diploid_allele_array_counts"],
             "mode_allele": aggregated_info_json["mode_allele"],
+            "binom_hwep": row_data["binom_hwep"],
+            "variant_lc": row_data["variant_lc"],
 
             "found_in_catalog": found_in_catalog,
             "found_interval_overlap_size": found_interval_overlap_size,

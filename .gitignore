@@ -2,6 +2,7 @@ prev/
 catalogs/data
 *.db
 
+
 *.txt.gz
 *.tsv.gz
 *.txt.bgz
@@ -10,6 +11,7 @@ catalogs/data
 *.bed
 *.txt
 *.tbi
+*.tsv
 
 *.idea
 *.iml
