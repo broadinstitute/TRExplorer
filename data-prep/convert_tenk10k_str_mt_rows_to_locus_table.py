@@ -7,18 +7,19 @@ $3                       rsid : NA
 $4                       qual : -1.0000e+01
 $5                    filters : NA
 $6                       info : {"END":100004741,"REF":20,"REPID":"1-100004722-100004741-T","RL":20,"RU":"T","SVTYPE":null,"VARID":"1-100004722-100004741-T"}
-$7                 variant_qc : {"AC":[4766,51,1,1,1,2,1,1],"AF":[0.9879767827529021,0.010572139303482588,2.0729684908789387E-4,2.0729684908789387E-4,2.0729684908789387E-4,4.1459369817578774E-4,2.0729684908789387E-4,2.0729684908789387E-4],"AN":4824,"homozygote_count":[2354,0,0,0,0,0,0,0],"call_rate":1.0,"n_called":2412,"n_not_called":0,"n_filtered":0,"n_het":58,"n_non_ref":58,"het_freq_hwe":null,"p_value_hwe":null,"p_value_excess_het":null}
+$7                 variant_qc : {"AC":[3801,43,1,1,1,2,0,1],"AF":[0.9872727272727273,0.011168831168831168,2.5974025974025974E-4,2.5974025974025974E-4,2.5974025974025974E-4,5.194805194805195E-4,0.0,2.5974025974025974E-4],"AN":3850,"homozygote_count":[1876,0,0,0,0,0,0,0],"call_rate":1.0,"n_called":1925,"n_not_called":0,"n_filtered":0,"n_het":49,"n_non_ref":49,"het_freq_hwe":null,"p_value_hwe":null,"p_value_excess_het":null}
 $8                      REPID : 1-100004722-100004741-T
 $9         rep_length_alleles : [20,19,78,123,136,150,151,170]
 $10              motif_length : 1
 $11         bp_length_alleles : [20,19,78,123,136,150,151,170]
-$12           aggregated_info : {"allele_array_counts":[{"key":170,"value":1},{"key":20,"value":4766},{"key":78,"value":1},{"key":123,"value":1},{"key":150,"value":2},{"key":151,"value":1},{"key":19,"value":51},{"key":136,"value":1}],"mode_allele":20}
-$13               num_alleles : 8
-$14   sum_alleles_is_not_mode : 58
-$15  prop_alleles_is_not_mode : 1.2023e-02
-$16                binom_hwep : 8.9373e-01
-$17                   obs_het : 2.4046e-02
-$18                variant_lc : 4.4575e+01
+$12   aggregated_info_diploid : {"diploid_allele_array_counts":[{"key":"20/150","value":2},{"key":"20/78","value":1},{"key":"20/20","value":1876},{"key":"20/136","value":1},{"key":"20/170","value":1},{"key":"20/19","value":43},{"key":"20/123","value":1}]}
+$13           aggregated_info : {"allele_array_counts":[{"key":170,"value":1},{"key":20,"value":3801},{"key":78,"value":1},{"key":123,"value":1},{"key":150,"value":2},{"key":19,"value":43},{"key":136,"value":1}],"mode_allele":20}
+$14               num_alleles : 7
+$15   sum_alleles_is_not_mode : 49
+$16  prop_alleles_is_not_mode : 1.2727e-02
+$17                binom_hwep : 8.8440e-01
+$18                   obs_het : 2.5455e-02
+$19                variant_lc : 4.4834e+01
 
 and outputs a table with columns:
 
@@ -61,6 +62,7 @@ OUTPUT_HEADER_FIELDS = [
     "tenk10k_interval",
     "motif", 
     "allele_size_histogram", 
+    "biallelic_histogram",
     "mode_allele",
     "mean",
     "stdev",
@@ -112,12 +114,30 @@ def write_to_output(output_row_data, output_tsv, counters):
         output_row["tenk_10k_vs_catalog_size_diff"] = output_row["found_interval_size_diff"]
 
         output_row["allele_size_histogram"] = ""
+        output_row["biallelic_histogram"] = ""
         if found_in_catalog is None:
             counters["tenk10k rows not found in catalog"] += 1
         else:
             counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1        
             if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
                 output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in zip(values, weights)])
+                try:
+                    # convert {"diploid_allele_array_counts":[{"key":"20/150","value":2}, ...]} to  biallelic_histogram : 6/6:4,6/12:1,12/15:1,15/15:2,
+                    biallelic_histogram = []
+                    for diploid_allele_array_count in output_row["diploid_allele_array_counts"]:
+                        key = diploid_allele_array_count["key"]
+                        if key is None:
+                            continue
+
+                        allele_1_allele_2 = key.split("/")
+                        allele_1 = int(allele_1_allele_2[0])
+                        allele_2 = int(allele_1_allele_2[-1])
+                        value = int(diploid_allele_array_count["value"])
+
+                        biallelic_histogram.append(f"{allele_1}/{allele_2}:{value}")
+                    output_row["biallelic_histogram"] = ",".join(biallelic_histogram)
+                except Exception as e:
+                    print(f"WARNING: Unable to parse diploid_allele_array_counts: {output_row['diploid_allele_array_counts']}  {e}")
 
         output_fields = [output_row[field] for field in OUTPUT_HEADER_FIELDS]
         fout.write("\t".join(map(str, output_fields)) + "\n")
@@ -131,7 +151,7 @@ def write_to_output(output_row_data, output_tsv, counters):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", type=int, default=None, help="Number of lines to process")
-    parser.add_argument("--tenk10k-tsv", default="tenk10k_str_mt_rows.tsv.bgz")
+    parser.add_argument("--tenk10k-tsv", default="str_polymorphic_run_mt_bioheart_tob_v1_n1925_rows.tsv.bgz")
     parser.add_argument("--trexplorer-catalog", default="~/code/tandem-repeat-catalogs/results__2024-10-01/release_draft_2024-10-01/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.json.gz")
     parser.add_argument("--output-tsv", default="tenk10k_str_mt_rows.reformatted.tsv.gz")
     args = parser.parse_args()
@@ -193,16 +213,17 @@ def main():
 
         counters["total tenk10k rows"] += 1
         fields = line.strip().split("\t")
-        # zip(header_fields, fields)
-        if len(fields) != 18:
+        if len(fields) != len(header_line):
             print(f"WARNING: Skipping line #{i+1} because it has {len(fields)} fields")
             continue
+
+        row_data = dict(zip(header_line, fields))
         
-        chrom, start_0based = fields[0].split(":")
+        chrom, start_0based = row_data["locus"].split(":")
         chrom = chrom.replace("chr", "")
         start_0based = int(start_0based)
 
-        info_field = fields[5]
+        info_field = row_data["info"]
         info_json = json.loads(info_field)
         end_1based = int(info_json["END"])
         motif = info_json["RU"]
@@ -216,8 +237,11 @@ def main():
 
         #fout_bed.write(f"{chrom}\t{start_0based}\t{end_1based}\t{motif}\t.\t.\n")
 
-        aggregated_info = fields[11]
+        aggregated_info = row_data["aggregated_info"]
         aggregated_info_json = json.loads(aggregated_info)
+
+        aggregated_info_diploid = row_data["aggregated_info_diploid"]
+        aggregated_info_diploid_json = json.loads(aggregated_info_diploid)
 
         found_in_catalog = None
         catalog_locus_id = None
@@ -282,6 +306,7 @@ def main():
             "tenk10k_locus_id": info_json["REPID"],
             "tenk10k_interval": f"{chrom}:{start_0based}-{end_1based}",
             "allele_array_counts": aggregated_info_json["allele_array_counts"],
+            "diploid_allele_array_counts": aggregated_info_diploid_json["diploid_allele_array_counts"],
             "mode_allele": aggregated_info_json["mode_allele"],
 
             "found_in_catalog": found_in_catalog,
@@ -306,12 +331,13 @@ def main():
     for catalog_locus_id, output_row in output_row_data.items():
         if output_row["found_interval_size_diff"] < 3 * len(output_row["motif"]):
             filtered_output_row_data[catalog_locus_id] = output_row
-    print(f"Filtered out {len(output_row_data) - len(filtered_output_row_data):,d} out of {len(output_row_data):,d} ({100 * (len(output_row_data) - len(filtered_output_row_data)) / len(output_row_data):.1f}%) catalog entries because the interval size difference 3 repeat units or more")
+    print(f"Filtered out {len(output_row_data) - len(filtered_output_row_data):,d} out of {len(output_row_data):,d} ({100 * (len(output_row_data) - len(filtered_output_row_data)) / len(output_row_data) if len(output_row_data) > 0 else 0:.1f}%) catalog entries because the interval size difference 3 repeat units or more")
 
     print(f"Writing tenk10k data for {len(filtered_output_row_data):,d} catalog entries to {output_tsv}")
     write_to_output(filtered_output_row_data, output_tsv, counters)
 
     # print counters
+    print("Counters:")
     for key, count in sorted(counters.items(), key=lambda x: -x[1]):
         print(f"{count:10,d} {key}")
 
