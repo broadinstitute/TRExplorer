@@ -1119,7 +1119,7 @@
     })
 
     DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
-    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog'] = 1
+    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v1'] = 1
 
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
@@ -2752,6 +2752,10 @@
             try {
                 $('body').css('cursor', 'wait')
 
+                // Navigate to the locus
+                GLOBAL_PAGE_STATE['igvLoc'] = paddedLocus
+                writePersistentPageStateToUrl()
+
                 // Show IGV if hidden
                 if (GLOBAL_PAGE_STATE['showIGV'] !== 1) {
 
@@ -2761,20 +2765,17 @@
                     $('#show-igv-divider-text').hide()
                     $('#hide-igv-divider-text').show()
                     await updateIgv()
+                } else {
+                    await window.igvBrowser.search(paddedLocus)
                 }
 
                 // Scroll the page to the IGV browser
                 $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
 
-                // Navigate to the locus
-                GLOBAL_PAGE_STATE['igvLoc'] = paddedLocus
-                writePersistentPageStateToUrl()
-
-                await window.igvBrowser.search(paddedLocus)
 
                 // Enable the "TR Explorer genome-wide catalog" track if it's not already enabled
-                if (!GLOBAL_PAGE_STATE['igv_tr_explorer_catalog']) {
-                    GLOBAL_PAGE_STATE['igv_tr_explorer_catalog'] = 1
+                if (!GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v1']) {
+                    GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v1'] = 1
                     writePersistentPageStateToUrl()
 
                     await updateIgv()
