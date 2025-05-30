@@ -2852,6 +2852,14 @@
         writePersistentPageStateToUrl()
     }
 
+    const splitSearchQuery = (searchQuery) => {
+        if (!searchQuery) {
+            return []
+        }
+
+        return searchQuery.trim().split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+    }
+
     const performSearch = async (showTableWhileLoading = false) => {
         // Remove any error messages and no results message
         $('#error-message').hide()
@@ -2875,10 +2883,9 @@
 
             let searchQuery = $('#search-query').val()
             if (searchQuery) {
-                searchQuery = searchQuery.trim()
 
                 // Split input by commas to handle multiple values
-                const queryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+                const queryValues = splitSearchQuery(searchQuery)
                 
                 // Process each query value and create query conditions
                 const queryClauses = queryValues.map(queryValue => {
@@ -3532,6 +3539,13 @@
         }
 
         GLOBAL_PAGE_STATE['currentPage'] = 1
+
+        // set igvLoc to the first value in the search query
+        const searchQuery = $('#search-query').val()
+        if (searchQuery) {
+            GLOBAL_PAGE_STATE['igvLoc'] = splitSearchQuery(searchQuery)[0]
+        }
+
         await performSearch(false)
     }
 
