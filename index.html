@@ -808,7 +808,7 @@
                                         <div class="item" data-value=""></div>
                                         <div class="item" data-value="sigma_HPRC100">σ<sub>HPRC100</sub></div>
                                         <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027</sub></div>
-                                        <div class="item" data-value="sigma_TenK10K">σ<sub>TenK10K</sub></div>
+                                        <div class="item" data-value="sigma_TenK10K">σ<sub>10k10k</sub></div>
                                         <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
                                         <div class="item" data-value="sigma_T2T">σ<sub>T2T</sub></div>
                                     </div>
@@ -1135,34 +1135,34 @@
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
         'HPRC100_AlleleHistogram': 'HPRC100',
-        'TenK10K_AlleleHistogram': 'TenK10K',
+        'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
         'HPRC100_BiallelicHistogram': 'HPRC100',
-        'TenK10K_BiallelicHistogram': 'TenK10K',
+        'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
         'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
-        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K short-read genomes',
+        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
         'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
         'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
-        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K short-read genomes',
+        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
     }
 
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
         'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
+        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
         'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K dataset</a>',
+        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
     }
 
     const STDEV_HELP_TEXTS = {
         'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
         'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
-        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&quot;static/TenK10K_ancestry_PC1_vs_PC2.png&quot; style=&quot;max-width: 600px&quot;>`,
+        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European and South or East Asian ancestry, as shown by the purple dots here: <img src=&quot;static/TenK10K_ancestry_PC1_vs_PC2.png&quot; style=&quot;max-width: 600px&quot;>`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
         'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
     }
@@ -1457,8 +1457,8 @@
             getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
         },
         TenK10K_BiallelicHistogram: {
-            displayName: 'TenK10K Biallelic Histogram',
-            helpText: 'Biallelic histogram of TenK10K',
+            displayName: 'TenK10K Phase 1 Biallelic Histogram',
+            helpText: 'Biallelic histogram of TenK10K Phase 1',
             getValue: (row) => row.TenK10K_BiallelicHistogram,
             getSortColumns: () => ['TenK10K_BiallelicHistogram'],
             getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
