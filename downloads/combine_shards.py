@@ -45,6 +45,7 @@ with gzip.open(output_path, "wt") as out_f:
 
                 json.dump(record, out_f, indent=4)
 
+                total_rows += 1
                 for k, v in record.items():
                     if v is not None:
                         key_counters[k] += 1
