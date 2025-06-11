@@ -486,7 +486,7 @@
             padding: 5px 0;
         }
 
-        #results-table-column-settings-dialog.ui.modal, #faq-modal.ui.modal {
+        #results-table-column-settings-dialog.ui.modal, #faq-modal.ui.modal, #downloads-modal.ui.modal {
             width: 70% !important;
         }
     </style>
@@ -506,7 +506,7 @@
                         <table class="igv-checkbox-container-table" id="igv-tr-explorer-catalog-tracks-checkboxes">
                             <tr>
                                 <th class="igv-checkbox-container-header-row">
-                                    TR Explorer Catalog
+                                    TRExplorer Catalog
                                 </th>
                                 <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
                                     # of loci
@@ -580,49 +580,15 @@
 <div class="ui modal" id="about-modal">
     <i class="close icon"></i>
     <div class="header">
-        About TR Explorer
+        About TRExplorer
     </div>
-    <div class="content" style="font-size: 1.1em;">
-        <p><b>Features:</b>
-            <ul>
-                <li><b>Search</b> TRs by genomic intervals, genes, observed polymorphism rates, variation clusters, and other attributes</li>
-                <li><b>Export</b> search results to BED, TSV, JSON or to the specific formats used as input to various TR genotyping tools</li>
-                <li><b>Use IGV.js</b> to explore more than 10 recently-published or widely-used TR catalogs alongside other reference tracks</li>
-            </ul>
-        </p>
-
-        <div class="ornamental-divider" style="
-            height: 15px;
-            width: 100%;
-            margin: 2em auto;
-            text-align: center;
-            color: rgba(0,0,0,0.5);            
-        ">
-            <svg width="100%" height="30" viewBox="0 0 1000 30" preserveAspectRatio="xMidYMid meet">
-                <!-- Continuous horizontal line -->
-                <path d="M0,15 L1000,15" stroke="currentColor" stroke-width="1"/>
-                
-                <!-- Left diamonds -->
-                <path d="M380,15 l10,-7 l10,7 l-10,7 z" fill="currentColor"/>
-                <path d="M350,15 l8,-5 l8,5 l-8,5 z" fill="currentColor"/>
-                                
-                <!-- Right diamonds (mirrored) -->
-                <path d="M620,15 l-10,-7 l-10,7 l10,7 z" fill="currentColor"/>
-                <path d="M650,15 l-8,-5 l-8,5 l8,5 z" fill="currentColor"/>
-            </svg>
-        </div>
-
-        <p>TR Explorer is a companion resource for the paper:</p>
-        <p><strong>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases</strong></p>
-        <p>Ben Weisburd, Egor Dolzhenko, Mark F. Bennett, Matt C. Danzi, Adam English, Laurel Hiatt, Hope Tanudisastro, Nehir Edibe Kurtas, Helyaneh Ziaei Jam, Harrison Brand, Fritz J. Sedlazeck, Melissa Gymrek, Harriet Dashnow, Michael A. Eberle, Heidi L. Rehm</p>
-        <p><a href="https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1" target="_blank"><em>bioRxiv 2024.10.04.615514</em></a></p>
-        <p>It allows users to explore the catalog described in the paper, as well as other genome-wide TR catalogs.</p>
-        
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="about.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
     </div>
 </div>
 
-
-<div class="ui modal" id="faq-modal" style="height: 80%; min-height:80%">
+<!-- FAQ modal dialog -->
+<div class="ui modal" id="faq-modal" style="height: 80%; min-height:75%">
     <i class="close icon"></i>
     <div class="header">
         Frequently Asked Questions
@@ -631,6 +597,18 @@
         <iframe src="FAQ.html" style="width: 100%; height: 100%; border: 0px"></iframe>
     </div>
 </div>
+
+<!-- downloads modal dialog -->
+<div class="ui modal" id="downloads-modal" style="height: 80%; min-height: 80%">
+    <i class="close icon"></i>
+    <div class="header">
+        Downloads
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%;">
+        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px;"></iframe>
+    </div>
+</div>
+
 
 <!-- modal dialog for selecting results table columns -->
 <div class="ui modal" id="results-table-column-settings-dialog">
@@ -670,12 +648,12 @@
         <div class="three wide column" style="padding: 0px !important"></div>
         <div class="three wide column" id="header-title">
             <a href="/">
-                <img src="tandem-repeat-explorer-logo-white.png" alt="TR Explorer Logo" style="height: 40px; margin-left: 10px;">
+                <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
             </a>
         </div>
         <div class="seven wide column" id="header-nav">
             <a href="#" id="faq-link">FAQ</a>
-            <a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases" target="_blank">Downloads</a>
+            <a href="#" id="downloads-link">Downloads</a>
             <a href="#" id="about-link">About</a>
             <a href="https://github.com/bw2/tandem-repeat-explorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
         </div>
@@ -724,7 +702,7 @@
                             <div class="menu">
                                 <div class="item" data-value="tr_explorer_catalog">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TR Explorer catalog</span>
+                                        <span>TRExplorer catalog</span>
                                         <span style="color: #888; margin-left: 20px;">4,863,041 loci</span>
                                     </div>
                                 </div>
@@ -895,13 +873,13 @@
     ]
 
     const TR_EXPLORER_CATALOG  = [
-        ["igv_tr_explorer_catalog_v1", "TR Explorer genome-wide catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
+        ["igv_tr_explorer_catalog_v1", "TRExplorer genome-wide catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
     ]
 
     const TR_VARIATION_CLUSTERS = [
         ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TR Explorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TR Explorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
     ];
 
     const KNOWN_TR_LOCI_TRACK = [
@@ -1727,7 +1705,7 @@
                     <tr>
                         <td style="padding: 5px 0px !important">
                             <i>Source Catalogs:</i>
-                            <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TR Explorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
+                            <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
                         </td>
                         <td></td>
                     </tr>
@@ -2778,7 +2756,7 @@
                 $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
 
 
-                // Enable the "TR Explorer genome-wide catalog" track if it's not already enabled
+                // Enable the "TRExplorer genome-wide catalog" track if it's not already enabled
                 if (!GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v1']) {
                     GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v1'] = 1
                     writePersistentPageStateToUrl()
@@ -3193,14 +3171,11 @@
     }
 
     // "About" modal
-    $('#about-link').click((e) => {
-        e.preventDefault()
-        $('#about-modal').modal('show')
-    })
-
-    $('#faq-link').click((e) => {
-        e.preventDefault()
-        $('#faq-modal').modal('show')
+    ['about', 'faq', 'downloads'].forEach(prefix => {
+        $(`#${prefix}-link`).click((e) => {
+            e.preventDefault()
+            $(`#${prefix}-modal`).modal('show')
+        })
     })
 
     const toggleAdvancedSearch = () => {
