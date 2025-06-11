@@ -1391,14 +1391,14 @@
         },
         gencodeGeneId: {
             displayName: 'Gencode Gene Id',
-            helpText: 'Gencode gene ID (ENSG)',
+            helpText: 'Gencode v46 gene ID (ENSG)',
             getValue: (row) => row.GencodeGeneId,
             getSortColumns: () => ['GencodeGeneId'],
             getRequiredColumns: () => ['GencodeGeneId']
         },
         gencodeTranscriptId: {
             displayName: 'Gencode Transcript Id',
-            helpText: 'Gencode transcript ID (ENST)',
+            helpText: 'Gencode v46 transcript ID (ENST)',
             getValue: (row) => row.GencodeTranscriptId,
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
@@ -1434,21 +1434,21 @@
         },
         maneGeneRegion: {
             displayName: 'MANE Region',
-            helpText: 'MANE gene region',
+            helpText: 'MANE v1.3 gene region',
             getValue: (row) => getGeneRegionValue(row.MANEGeneRegion),
             getSortColumns: () => ['MANEGeneRegion'],
             getRequiredColumns: () => ['MANEGeneRegion']
         },
         maneGeneId: {
             displayName: 'MANE Id',
-            helpText: 'MANE gene ID',
+            helpText: 'MANE v1.3 gene ID',
             getValue: (row) => row.MANEGeneId,
             getSortColumns: () => ['MANEGeneId'],
             getRequiredColumns: () => ['MANEGeneId']
         },
         maneGeneName: {
             displayName: 'MANE Gene',
-            helpText: 'MANE gene name',
+            helpText: 'MANE v1.3 gene name',
             getValue: (row) => row.MANEGeneName,
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
