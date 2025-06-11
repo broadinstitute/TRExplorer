@@ -1,6 +1,12 @@
 <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
 <div style="font-family: 'Lato', 'Helvetica Neue', Arial, Helvetica, sans-serif">
+<style>
+    .question.circle.icon {
+        cursor: pointer;
+    }
+</style>
 
 The following JSON annotation files are available for loci in the TRExplorer catalog:
 
@@ -32,9 +38,11 @@ The following JSON annotation files are available for loci in the TRExplorer cat
         <table class="ui basic table" style="width: 100%; border-collapse: collapse; border: 0px;">
             <thead class="ui table header">
                 <tr class="ui table row">
-                    <th style="vertical-align: top;">New JSON fields</th>
-                    <th style="vertical-align: top;">Source</th>
-                    <th style="vertical-align: top;">Available for % of loci</th>
+                    <th style="vertical-align: top; font-size: 0.85em;">New JSON fields</th>
+                    <th style="vertical-align: top; font-size: 0.85em;">Source</th>
+                    <th style="vertical-align: top; font-size: 0.85em;">% of loci &nbsp; &nbsp;
+                        <i class="question circle outline icon" data-content="The percentage of TRExplorer catalog loci for which these annotations are available. Each dataset may include data for a different subset of loci." data-variation="wide"></i>
+                    </th>
                 </tr>
             </thead>
             <tr class="ui table row">
@@ -47,7 +55,7 @@ The following JSON annotation files are available for loci in the TRExplorer cat
                     <a href="https://docs.google.com/spreadsheets/d/1w8XVyfFBW6IC5lDnn3nmp1AGwqARor777g31Y3loO-E/edit?usp=sharing" target="_blank">AoU1027_Stdev</a><br/>
                 </td>
                 <td style="vertical-align: top;">AoU 1,027 long-read dataset (see FAQ for details)</td>
-                <td style="text-align: center;">91.3%</td>
+                <td style="text-align: center; vertical-align: top;">91.3%</td>
             </tr>
             <tr class="ui table row">
                 <td style="vertical-align: top;">
@@ -58,7 +66,7 @@ The following JSON annotation files are available for loci in the TRExplorer cat
                     <a href="https://docs.google.com/spreadsheets/d/1w8XVyfFBW6IC5lDnn3nmp1AGwqARor777g31Y3loO-E/edit?usp=sharing" target="_blank">HPRC100_Stdev</a><br/>
                 </td>
                 <td style="vertical-align: top;">HPRC100 long-read dataset (see FAQ for details)</td>
-                <td style="text-align: center;">94.8%</td>
+                <td style="text-align: center; vertical-align: top;">94.8%</td>
             </tr>
             <tr class="ui table row">
                 <td style="vertical-align: top;">
@@ -69,7 +77,7 @@ The following JSON annotation files are available for loci in the TRExplorer cat
                     <a href="https://docs.google.com/spreadsheets/d/1w8XVyfFBW6IC5lDnn3nmp1AGwqARor777g31Y3loO-E/edit?usp=sharing" target="_blank">TenK10K_Stdev</a><br/>
                 </td>
                 <td style="vertical-align: top;">TenK10K Phase 1 short-read dataset (see FAQ for details)</td>
-                <td style="text-align: center;">50.6%</td>
+                <td style="text-align: center; vertical-align: top;">50.6%</td>
             </tr>
         </table>
         The following v1.0 fields have been removed from this latest version: &nbsp; <b>LPSLengthStdevFromHPRC100</b>, &nbsp; <b>LPSMotifFractionFromHPRC100</b><br/>
@@ -84,6 +92,13 @@ The following JSON annotation files are available for loci in the TRExplorer cat
     </tbody>
 </div>
 
-
+<script>
+$(document).ready(() => {
+    $('.question').popup({
+        on: 'click',
+        hoverable: true,
+    });
+});
+</script>
 
 </div>
