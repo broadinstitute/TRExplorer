@@ -52,7 +52,7 @@ with gzip.open(output_path, "wt") as out_f:
 
     out_f.write("\n]")
 
-print(f"Wrote {total_rows:,d} records to {output_path}")
+print(f"Wrote {total_rows:,d} records from {len(input_file_paths)} shards to {output_path}")
 
 for k, c in sorted(key_counters.items(), key=lambda i: -i[1]):
     print(f"{c:10,d} out of {total_rows:,d} ({c/total_rows:.1%}) rows have {k}")
