@@ -1,5 +1,34 @@
-<div style="font-family: 'Lato', 'Helvetica Neue', Arial, Helvetica, sans-serif">
-<b>Q1: What datasets are included in TRExplorer?</b><br />
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
+
+<style>
+    .separator {
+        border: 1px dashed #eee;
+        margin: 2em 0;
+    }
+</style>
+
+<div style="font-size: 1.2em;">
+<b>Q1: How do I use TRExplorer?</b><br />
+<br />
+TRExplorer is similar to the gnomAD browser, but for tandem repeats (TRs). It allows users to search for TRs by their genomic intervals, 
+gene names, gene regions, motifs, and other properties. Then, it displays TR allele size distributions, constraint metrics, and many other annotations 
+based on different short read and long read datasets (see Q2 for details).<br />
+<br />
+<div style="margin-left: 20px"> 
+<i>Example use cases:</i>
+<ul>
+    <li><a href="https://trexplorer.broadinstitute.org/#sc=motif&sd=DESC&igvLoc=CACNA1C&showRs=1&searchQuery=CACNA1C" target="_blank">Example #1</a>: View a table of all STR and VNTR loci in the CACNA1C gene, sorted by motif size </li>
+    <li><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&igvLoc=CAG&showRs=1&showAdvFilters=1&keepMotif=CAG&keepCodingLoci=1" target="_blank">Example #2</a>: View a table of all coding CAG loci, sorted by their degree of polymorphism in 100 long read genomes from the HPRC, <br /> then export them to an ExpansionHunter catalog by selecting <i>Export To:</i> <i class="right arrow icon"></i> <i>ExpansionHunter</i></li>
+    <li><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&showIGV=1&igvLoc=chr1%3A149390651-149390991&showRs=1&searchQuery=NOTCH2NLC&sourceCatalog=&igv_tr_explorer_catalog_v1=1&igv_segdups=1&igv_36k_map=1" target="_blank">Example #3</a>: See other TR loci and sequence context around the NOTCH2NLC disease-associated locus along with the segmental duplications and mappability tracks in IGV.js </li>
+</ul>
+</div>
+
+
+
+<hr class="separator">
+<b>Q2: What datasets are included in TRExplorer?</b><br />
 <br />
 <div style="margin-left: 20px"> 
     Population allele frequencies are currently available from the following short read, long read, and assembly-based datasets:<br />
@@ -21,26 +50,26 @@
         <li><span style="color: #039d55">1000 Genomes Project</span> [<b>1KGP</b>]:   2,504 Illumina genomes from individuals of diverse ancestry, characterized with STR-Finder as described in the Illumina <a href="https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_generation.md" target="_blank">STR generation docs</a>.</li>
     </ul>
 </div>
-<br />
-<br />
 
-<b>Q2: Can I contribute data to TRExplorer?</b><br />
+<hr class="separator">
+<b>Q3: Can I contribute data to TRExplorer?</b><br />
 <br />
 If you are a study investigator and are interested in contributing tandem repeat genotypes or annotations to the TRExplorer resource, please email
 Ben Weisburd at <i>weisburd</i><i>@</i><i>broadinstitute.org</i><br />
-<br />
-<br />
 
 
-<b>Q3: How do I cite TRExplorer?</b> <br />
+
+<hr class="separator">
+<b>Q4: How do I cite TRExplorer?</b> <br />
 <br />
 If you use TRExplorer in your work, please cite the following preprint:<br />
 <br />
-Weisburd B, Dolzhenko E, Bennett MF, Danzi MC, English A, Hiatt L, Tanudisastro H, Kurtas NE, Jam HZ, Brand H, Sedlazeck FJ, Gymrek M, Dashnow H, Eberle MA, Rehm HL.
-<i>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases.</i>
-bioRxiv 2024.10.04.615514; <a href="https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1.full" target="_blank">https://doi.org/10.1101/2024.10.04.615514</a><br />
+<div style="margin-left: 20px"> 
+    Weisburd B, Dolzhenko E, Bennett MF, Danzi MC, English A, Hiatt L, Tanudisastro H, Kurtas NE, Jam HZ, Brand H, Sedlazeck FJ, Gymrek M, Dashnow H, Eberle MA, Rehm HL.
+    <i>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases.</i>
+    bioRxiv 2024.10.04.615514; <a href="https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1.full" target="_blank">https://doi.org/10.1101/2024.10.04.615514</a><br />
+</div
 <br />
 <br />
-<i><b>TODO:</b> More FAQs coming soon!</i> <br />
-
+<br />
 </div>
