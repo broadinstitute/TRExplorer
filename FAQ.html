@@ -13,8 +13,11 @@
 <div style="padding-bottom: 5px;"><a href="#q1"><b>Q1:</b> &nbsp; How do I use TRExplorer?</a></div>
 <div style="padding-bottom: 5px;"><a href="#q2"><b>Q2:</b> &nbsp; What datasets are included in TRExplorer?</a></div>
 <div style="padding-bottom: 5px;"><a href="#q3"><b>Q3:</b> &nbsp; Why do many TR loci have population allele frequencies from some datasets but not from others?</a></div>
-<div style="padding-bottom: 5px;"><a href="#q4"><b>Q4:</b> &nbsp; Can I contribute data to TRExplorer?</a></div>
-<div style="padding-bottom: 0px;"><a href="#q5"><b>Q5:</b> &nbsp; How do I cite TRExplorer?</a></div>
+<div style="padding-bottom: 5px;"><a href="#q4"><b>Q4:</b> &nbsp; How do I interpret differences in allele distributions across datasets?</a></div>
+<div style="padding-bottom: 5px;"><a href="#q5"><b>Q5:</b> &nbsp; How do I interpret the (O/E) constraint percentile score?</a></div>
+<div style="padding-bottom: 5px;"><a href="#q6"><b>Q6:</b> &nbsp; How do I use the VC, mappability, and nearby TR annotations?</a></div>
+<div style="padding-bottom: 5px;"><a href="#q7"><b>Q7:</b> &nbsp; How do I cite TRExplorer?</a></div>
+<div style="padding-bottom: 0px;"><a href="#q8"><b>Q8:</b> &nbsp; Can I contribute data to TRExplorer?</a></div>
 
 <hr class="separator">
 <a name="q1"></a>
@@ -24,13 +27,22 @@ TRExplorer is similar to the gnomAD browser, but for tandem repeats (TRs). It al
 gene names, gene regions, motifs, and other properties. Then, it displays TR allele size distributions, constraint metrics, and many other annotations 
 based on different short read and long read datasets (see Q2 for details).<br />
 <br />
-<div style="margin-left: 20px"> 
 <i>Example use cases:</i>
-<ul>
-    <li><a href="https://trexplorer.broadinstitute.org/#sc=motif&sd=DESC&igvLoc=CACNA1C&showRs=1&searchQuery=CACNA1C" target="_blank">Example #1</a>: View a table of all STR and VNTR loci in the CACNA1C gene, sorted by motif size</li>
-    <li><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&igvLoc=CAG&showRs=1&showAdvFilters=1&keepMotif=CAG&keepCodingLoci=1" target="_blank">Example #2</a>: View a table of all coding CAG loci, sorted by their degree of polymorphism in 100 long read genomes from the HPRC, <br /> then export them to an ExpansionHunter catalog by selecting <i>Export To:</i> <i class="right arrow icon"></i> <i>ExpansionHunter</i></li>
-    <li><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&showIGV=1&igvLoc=chr1%3A149390651-149390991&showRs=1&searchQuery=NOTCH2NLC&sourceCatalog=&igv_tr_explorer_catalog_v1=1&igv_segdups=1&igv_36k_map=1" target="_blank">Example #3</a>: See other TR loci and sequence context around the NOTCH2NLC disease-associated locus along with the segmental duplications and mappability tracks in IGV.js</li>
-</ul>
+<div style="margin-left: 20px"> 
+<table style="margin-top: 8px;">
+<tr>
+    <td style="vertical-align: top; white-space: nowrap; padding-right: 8px;"><a href="https://trexplorer.broadinstitute.org/#sc=motif&sd=DESC&igvLoc=CACNA1C&showRs=1&searchQuery=CACNA1C" target="_blank">Example #1</a></td>
+    <td style="vertical-align: top;">View a table of all STR and VNTR loci in the CACNA1C gene, sorted by motif size</td>
+</tr>
+<tr>
+    <td style="vertical-align: top; white-space: nowrap;"><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&igvLoc=CAG&showRs=1&showAdvFilters=1&keepMotif=CAG&keepCodingLoci=1" target="_blank">Example #2</a></td>
+    <td style="vertical-align: top;">View a table of all coding CAG loci throughout the genome, sorted by their degree of polymorphism in 100 long read genomes from the HPRC, <br /> then export them to an ExpansionHunter catalog by selecting <i>Export To:</i> <i class="right arrow icon"></i> <i>ExpansionHunter</i></td>
+</tr>
+<tr>
+    <td style="vertical-align: top; white-space: nowrap;"><a href="https://trexplorer.broadinstitute.org/#sc=HPRC100_AlleleHistogram&sd=DESC&showIGV=1&igvLoc=chr1%3A149390651-149390991&showRs=1&searchQuery=NOTCH2NLC&sourceCatalog=&igv_tr_explorer_catalog_v1=1&igv_segdups=1&igv_36k_map=1" target="_blank">Example #3</a></td>
+    <td style="vertical-align: top;">See other TR loci and sequence context around the NOTCH2NLC disease-associated locus in IGV.js, <br />along with the segmental duplications and mappability tracks in IGV.js</td>
+</tr>
+</table>
 </div>
 
 <hr class="separator">
@@ -70,14 +82,59 @@ definitions (ie. start and end coordinates and motifs).
 
 <hr class="separator">
 <a name="q4"></a>
-<b>Q4: Can I contribute data to TRExplorer?</b><br />
+<b>Q4: How do I interpret differences in allele distributions across datasets?</b><br />
 <br />
-If you are a study investigator and are interested in contributing tandem repeat genotypes or annotations to the TRExplorer resource, please email
-Ben Weisburd at <i>weisburd</i><i>@</i><i>broadinstitute.org</i><br />
+Differences in tandem repeat (TR) allele distributions between datasets can arise from a variety of technical and biological factors, including but not limited to:<br />
+<ul>
+<li><b>Ancestry:</b> TRs are among the most mutable elements in the genome and have been demonstrated to exhibit population-specific variation 
+[<a href="https://www.nature.com/articles/s41467-023-42278-3" target="_blank">Jam et al. 2023</a>]. <br />
+<li><b>Sequencing modality:</b> Datasets generated with long-read sequencing yield more accurate TR genotypes, especially for longer or more complex repeats. 
+In contrast, short-read sequencing may produce less precise genotypes, particularly for alleles that exceed the read length.<br />
+<li><b>Coverage:</b> Higher sequencing depth generally improves genotyping accuracy. In low-coverage datasets, some alleles, especially 
+rare or longer alleles, may be underrepresented or missed entirely due to stochastic sampling.<br />
+<li><b>Genotyping tool and reference catalog:</b> TR genotyping algorithms differ in how they model repeats and handle alignment artifacts. Additionally, 
+not all datasets are genotyped using the same representation of the TR catalog, which may lead to differences in the way alleles are reported.<br />
+</ul>
 
 <hr class="separator">
 <a name="q5"></a>
-<b>Q5: How do I cite TRExplorer?</b> <br />
+<b>Q5: How do I interpret the (O/E) constraint percentile score?</b><br />
+<br />
+The (O/E) constraint percentile reflects how much observed variation in a tandem repeat (TR) differs from the expectation under neutral selection.
+[<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>] defines observed-to-expected (O/E) constraint as the ratio of observed variability in longest pure segment (LPS) length to the expected variability, 
+based on sequence context. These expectations are predicted using a deep learning model trained on TRs more than 10kb away from the nearest gene, which are presumably 
+mostly under neutral selection.  Unlike genic constraint models, which focus primarily on identifying loci under purifying selection, TR constraint captures both ends 
+of the evolutionary spectrum: <br />
+<br />
+<b>Low O/E values (constrained):</b>
+TRs with less variability than expected may be functionally important and under negative selection. For example, repeats in coding regions where expansion or contraction 
+could disrupt protein structure or dosage.<br />
+<br />
+<b>High O/E values (excess variation):</b>
+TRs with greater variability than expected may reflect positive selection, recent evolutionary origin, or genomic instability. Notably, many known pathogenic TRs 
+(those causing repeat expansion disorders) fall into this high-variance category.<br />
+<br />
+The percentile score contextualizes this measure across the genome to help prioritize loci for follow-up.
+
+<hr class="separator">
+<a name="q6"></a>
+<b>Q6: How do I use the VC, mappability, and nearby TR annotations?</b><br />
+<br />
+These annotations provide important context about the genomic context of a tandem repeat (TR) locus and can inform interpretation of genotyping accuracy and biological relevance.<br />
+<br />
+<b>Variation cluster (VC):</b> As described in [<a href="https://doi.org/10.1101/2024.10.04.615514" target="_blank">Weisburd, Dolzhenko et al., 2024</a>], variation clusters represent broader polymorphic regions composed of adjacent or overlapping TRs 
+and possibly other variation. If a TR is flagged as part of a VC, we recommend reviewing neighboring TRs in the same cluster, as the region may harbor complex or composite repeat structures.<br />
+<br />
+<b>Nearby TRs:</b> This flag indicates whether a given locus is located within a dense region of adjacent TRs. Loci in TR-dense regions may be prone to ambiguous alignments or 
+compound variation patterns that may impact analysis accuracy and interpretation.<br />
+<br />
+<b>Low mappability:</b> TRs with low sequence mappability may be difficult to genotype accurately using short-read sequencing due to read alignment uncertainty.
+In combination, these annotations can help flag loci that may be challenging to resolve with short reads, and highlight regions where long-read data or broader contextual analysis 
+may be warranted.<br />
+
+<hr class="separator">
+<a name="q7"></a>
+<b>Q7: How do I cite TRExplorer?</b> <br />
 <br />
 If you use TRExplorer in your work, please cite the following preprint:<br />
 <br />
@@ -86,31 +143,13 @@ If you use TRExplorer in your work, please cite the following preprint:<br />
     <i>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases.</i>
     bioRxiv 2024.10.04.615514; <a href="https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1.full" target="_blank">https://doi.org/10.1101/2024.10.04.615514</a><br />
 </div>
+
+<hr class="separator">
+<a name="q8"></a>
+<b>Q8: Can I contribute data to TRExplorer?</b><br />
+<br />
+If you are interested in contributing tandem repeat genotypes or annotations to the TRExplorer resource, please email
+<i>weisburd</i><i>@</i><i>broadinstitute.org</i><br />
+
 </div>
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
-<br />
+<div style="padding-bottom: 700px;"></div>
