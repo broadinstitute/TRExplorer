@@ -327,10 +327,6 @@
             flex-grow: 1;
         }
 
-        .ui.selection.dropdown {
-            z-index: 200 !important;
-        }
-
         /* Make export dropdown menu tall enough to show all options */
         .export-selector .ui.selection.dropdown .menu {
             max-height: none !important;
@@ -1963,6 +1959,12 @@
                         writePersistentPageStateToUrl()
                         performSearch(true)
                     }
+                },
+                onShow: function() {
+                    $(this).css('z-index', 1001)
+                },
+                onHide: function() {
+                    $(this).css('z-index', '')
                 }
             })
 
@@ -2020,6 +2022,12 @@
         })
 
         $('.export-dropdown').dropdown({
+            onShow: function() {
+                $(this).css('z-index', 10001)
+            },
+            onHide: function() {
+                $(this).css('z-index', '')
+            },
             onChange: async (value) => {
                 if (!value) return
 
@@ -2052,19 +2060,19 @@
                     selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
                 } else if(value === 'gangstr') {
                     toolName = 'GangSTR'
-                    selectClause = `chrom, start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
+                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
                 } else if(value === 'hipstr' || value === 'longtr') {
                     toolName = value === 'hipstr' ? 'HipSTR' : 'LongTR'
-                    selectClause = `chrom, start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
+                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
                 } else if(value === 'trgt') {
                     toolName = 'TRGT'
-                    selectClause = `chrom, start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
                 } else if(value === 'bed') {
-                    selectClause = `chrom, start_0based, end_1based, ReferenceMotif, MotifSize`
+                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
                     const tsv_columns = [
                         //'chrom_index',
-                        'chrom',
+                        `CONCAT('chr', chrom) AS chrom`,
                         'start_0based',
                         'end_1based',
                         'ReferenceRegion',
