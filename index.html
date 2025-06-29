@@ -3564,6 +3564,12 @@
     
     // polymorphism filter dropdown
     $('#polymorphism-filter-dropdown').dropdown({
+        onShow: function() {
+            $(this).css('z-index', 10001)
+        },
+        onHide: function() {
+            $(this).css('z-index', '')
+        },
         onChange: (value) => {
             if (value) {
                 $('input[name="polymorphismFilter"]').prop('checked', true)
@@ -3573,6 +3579,12 @@
 
     // Add event handler for variation cluster filter dropdown
     $('#variation-cluster-filter-dropdown').dropdown({
+        onShow: function() {
+            $(this).css('z-index', 10001)
+        },
+        onHide: function() {
+            $(this).css('z-index', '')
+        },
         onChange: (value) => {
             if (value) {
                 $('input[name="vcFilter"]').prop('checked', true)
