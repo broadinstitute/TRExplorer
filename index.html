@@ -1334,9 +1334,9 @@
         isPathogenic: {
             displayName: 'Is Pathogenic',
             helpText: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
-            getValue: (row) => row.KnownDiseaseAssociatedLocus ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
-            getSortColumns: () => ['KnownDiseaseAssociatedLocus'],
-            getRequiredColumns: () => ['KnownDiseaseAssociatedLocus']
+            getValue: (row) => row.DiseaseInfo ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
+            getSortColumns: () => ['DiseaseInfo'],
+            getRequiredColumns: () => ['DiseaseInfo']
         },
         variationCluster: {
             displayName: 'VC',
