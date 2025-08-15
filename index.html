@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tandem Repeat Explorer</title>
+    <title>TRExplorer</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -1335,7 +1335,7 @@
             getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
         },
         isPathogenic: {
-            displayName: 'Is Pathogenic',
+            displayName: 'Disease-associated?',
             helpText: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
             getValue: (row) => row.DiseaseInfo ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
             getSortColumns: () => ['DiseaseInfo'],
@@ -2697,7 +2697,7 @@
             
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: left;">
-                <div style="min-width: 25px; padding-right: 5px; display: inline-block;">#${(startIndex + index + 1).toLocaleString()}:</div>
+                <div style="min-width: 25px; padding-right: 5px; display: inline-block;"><a href="locus.html?#locusId=${row.LocusId}">#${(startIndex + index + 1).toLocaleString()}:</a></div>
                 <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
                 ${diseaseAssociatedIconHtml}
             </td>`
@@ -2864,7 +2864,9 @@
             return []
         }
 
-        return searchQuery.trim().split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+        searchQuery = searchQuery.trim()
+        searchQuery = searchQuery.replace(/[–—−‐‑‒﹘﹣－‾]/g, '-') // Replace all unicode dash types with a regular dash
+        return searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
     }
 
     const performSearch = async (showTableWhileLoading = false) => {
