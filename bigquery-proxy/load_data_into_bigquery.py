@@ -25,7 +25,7 @@ TABLE_ID = "catalog"
 
 parser = argparse.ArgumentParser(description="Load data into BigQuery from the annotated catalog JSON file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
-                    default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.1/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
                     help="ExpansionHunter catalog with the latest known disease-associated loci",
@@ -79,11 +79,14 @@ def parse_AoU1027_data_from_tsv(tsv_path):
         for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
             fields = line.strip().split('\t')
             locus_id = fields[col_indices['TRID2']]
+            motif_size = len(fields[col_indices['longestPureSegmentMotif']])
             lookup[locus_id] = {
-                'mode_allele': int(float(fields[col_indices['Mode']])),
-                'stdev': float(fields[col_indices['Stdev']]),
-                'median': int(float(fields[col_indices['50thPercentile']])), 
-                '99th_percentile': int(float(fields[col_indices['99thPercentile']])),
+                'mode_allele': int(float(fields[col_indices['Mode']]))//motif_size,
+                'stdev': float(fields[col_indices['Stdev']])/motif_size,
+                'median': int(float(fields[col_indices['50thPercentile']]))//motif_size,
+                '99th_percentile': int(float(fields[col_indices['99thPercentile']]))//motif_size,
+                'max_allele': int(float(fields[col_indices['100thPercentile']]))//motif_size,
+                'unique_alleles': int(fields[col_indices['numAlleles']]),
                 'num_called_alleles': int(fields[col_indices['numCalledAlleles']]),
 
                 #"combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
@@ -251,6 +254,8 @@ schema = [
     bigquery.SchemaField("AoU1027_Stdev", "FLOAT"),
     bigquery.SchemaField("AoU1027_Median", "INTEGER"),
     bigquery.SchemaField("AoU1027_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("AoU1027_MaxAllele", "INTEGER"),
+    bigquery.SchemaField("AoU1027_UniqueAlleles", "INTEGER"),
     bigquery.SchemaField("AoU1027_NumCalledAlleles", "INTEGER"),
 
     #bigquery.SchemaField("AoU1027_CombinedLPSStdev", "FLOAT"),
@@ -391,33 +396,38 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
 
     if record["LocusId"] in tenk10k_lookup:
         counters["rows_with_tenk10k_data"] += 1
-        record["TenK10K_AlleleHistogram"] = tenk10k_lookup[record["LocusId"]]["allele_size_histogram"]
-        record["TenK10K_BiallelicHistogram"] = tenk10k_lookup[record["LocusId"]]["biallelic_histogram"]
-        record["TenK10K_ModeAllele"] = tenk10k_lookup[record["LocusId"]]["mode_allele"]
-        record["TenK10K_Stdev"] = tenk10k_lookup[record["LocusId"]]["stdev"]
-        record["TenK10K_Median"] = tenk10k_lookup[record["LocusId"]]["median"]
-        record["TenK10K_99thPercentile"] = tenk10k_lookup[record["LocusId"]]["99th_percentile"]
+        tenk10k_record = tenk10k_lookup[record["LocusId"]]
+        record["TenK10K_AlleleHistogram"] = tenk10k_record["allele_size_histogram"]
+        record["TenK10K_BiallelicHistogram"] = tenk10k_record["biallelic_histogram"]
+        record["TenK10K_ModeAllele"] = tenk10k_record["mode_allele"]
+        record["TenK10K_Stdev"] = tenk10k_record["stdev"]
+        record["TenK10K_Median"] = tenk10k_record["median"]
+        record["TenK10K_99thPercentile"] = tenk10k_record["99th_percentile"]
 
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
-        record["HPRC100_AlleleHistogram"] = hprc100_lookup[record["LocusId"]]["allele_size_histogram"]
-        record["HPRC100_BiallelicHistogram"] = hprc100_lookup[record["LocusId"]]["biallelic_histogram"]
-        record["HPRC100_ModeAllele"] = hprc100_lookup[record["LocusId"]]["mode_allele"]
-        record["HPRC100_Stdev"] = hprc100_lookup[record["LocusId"]]["stdev"]
-        record["HPRC100_Median"] = hprc100_lookup[record["LocusId"]]["median"]
-        record["HPRC100_99thPercentile"] = hprc100_lookup[record["LocusId"]]["99th_percentile"]
+        hprc100_record = hprc100_lookup[record["LocusId"]]
+        record["HPRC100_AlleleHistogram"] = hprc100_record["allele_size_histogram"]
+        record["HPRC100_BiallelicHistogram"] = hprc100_record["biallelic_histogram"]
+        record["HPRC100_ModeAllele"] = hprc100_record["mode_allele"]
+        record["HPRC100_Stdev"] = hprc100_record["stdev"]
+        record["HPRC100_Median"] = hprc100_record["median"]
+        record["HPRC100_99thPercentile"] = hprc100_record["99th_percentile"]
 
     if record["LocusId"] in aou1027_lookup:
         counters["rows_with_aou1027_data"] += 1
-        record["AoU1027_ModeAllele"] = aou1027_lookup[record["LocusId"]]["mode_allele"]
-        record["AoU1027_Stdev"] = aou1027_lookup[record["LocusId"]]["stdev"]
-        record["AoU1027_Median"] = aou1027_lookup[record["LocusId"]]["median"]
-        record["AoU1027_99thPercentile"] = aou1027_lookup[record["LocusId"]]["99th_percentile"]
-        record["AoU1027_NumCalledAlleles"] = aou1027_lookup[record["LocusId"]]["num_called_alleles"]
-        #record["AoU1027_CombinedLPSStdev"] = aou1027_lookup[record["LocusId"]]["combined_lps_stdev"]
-        #record["AoU1027_ExpectedLPSStdev"] = aou1027_lookup[record["LocusId"]]["expected_lps_stdev"]
-        record["AoU1027_OE_Length"] = aou1027_lookup[record["LocusId"]]["oe_length"]
-        record["AoU1027_OE_LengthPercentile"] = aou1027_lookup[record["LocusId"]]["oe_length_percentile"]
+        aou1027_record = aou1027_lookup[record["LocusId"]]
+        record["AoU1027_ModeAllele"] = aou1027_record["mode_allele"]
+        record["AoU1027_Stdev"] = aou1027_record["stdev"]
+        record["AoU1027_Median"] = aou1027_record["median"]
+        record["AoU1027_99thPercentile"] = aou1027_record["99th_percentile"]
+        record["AoU1027_MaxAllele"] = aou1027_record["max_allele"]
+        record["AoU1027_UniqueAlleles"] = aou1027_record["unique_alleles"]
+        record["AoU1027_NumCalledAlleles"] = aou1027_record["num_called_alleles"]
+        #record["AoU1027_CombinedLPSStdev"] = aou1027_record["combined_lps_stdev"]
+        #record["AoU1027_ExpectedLPSStdev"] = aou1027_record["expected_lps_stdev"]
+        record["AoU1027_OE_Length"] = aou1027_record["oe_length"]
+        record["AoU1027_OE_LengthPercentile"] = aou1027_record["oe_length_percentile"]
         
     counters["total_rows"] += 1
     
