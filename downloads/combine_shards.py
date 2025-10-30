@@ -6,16 +6,20 @@ import re
 import tqdm
 
 # Find all sharded JSON files matching the pattern
-input_file_paths = glob.glob("TR_catalog.shard_*_of_*.*.json.gz")
+pattern = "TR_catalog.shard_*_of_*.4863041_loci.20251021*.json.gz"
+input_file_paths = glob.glob(pattern)
 
 if not input_file_paths:
-    print("TR_catalog.shard_*_of_*.*.json.gz files not found in the current directory")
+    print(f"{pattern} files not found in the current directory")
     exit()
+
+print(f"Input paths:\n   ", "\n    ".join(sorted(input_file_paths)))
+
 
 # Construct output filename
 first_file = input_file_paths[0]
 # Match pattern: TR_catalog.shard_XX_of_YY.ZZZZZ_loci.YYYYMMDD_HHMMSS.json.gz
-match = re.match(r'TR_catalog\.shard_\d+_of_\d+\.(.+)\.json\.gz', first_file)
+match = re.match(r"TR_catalog\.shard_\d+_of_\d+\.(.+)\.json\.gz", first_file)
 if not match:
     print(f"Could not parse filename pattern from {first_file}")
 
