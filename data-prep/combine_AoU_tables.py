@@ -54,8 +54,6 @@ before = len(df)
 df = df[df.canonical_motif == df.longestPureSegmentMotif]
 print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows where canonical motif == longestPureSegmentMotif")
 
-df["Mode"] = df.apply(lambda m: m["Mode"] / len(m["longestPureSegmentMotif"]), axis=1)
-df["Stdev"] = df.apply(lambda m: m["Stdev"] / len(m["longestPureSegmentMotif"]), axis=1)
 # join on the full TRID column since the other 2 tables only have 1 row per full TRID
 df_list[0] = df
 
