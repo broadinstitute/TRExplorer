@@ -13,6 +13,7 @@ motif       (example: "T")
 allele_sizes (example: 25,23,24,24,10,15)
 """
 
+import argparse
 import collections
 import glob
 import gzip
@@ -21,7 +22,6 @@ import numpy as np
 import tqdm
 
 INPUT_PATHS = "hprc-lps/*.txt.gz"
-OUTPUT_PATH = "hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz"
 
 
 
@@ -80,11 +80,22 @@ def process_group(locus_id, motif, allele_sizes, alleles_for_current_key_by_samp
         int(np.percentile(allele_sizes, 99)), 
     ])) + "\n")
 
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=None, help="Number of samples to process")
+    args = parser.parse_args()
 
-    input_paths = glob.glob(INPUT_PATHS)
 
+    input_paths = list(sorted(glob.glob(INPUT_PATHS)))
+    
     assert len(input_paths) == 100, f"Expected 100 input paths, got {len(input_paths)}"
+
+    if args.n is not None:
+        if args.n > len(input_paths):
+            parser.error(f"Requested {args.n} samples, but only {len(input_paths)} input paths available")
+        input_paths = input_paths[:args.n]
+
     
     """
     Input table example row:
@@ -131,7 +142,13 @@ def main():
         infile.close()
 
 
-    outfile = gzip.open(OUTPUT_PATH, "wt")
+    if args.n is not None:
+        output_path = f"hprc_lps.{args.n}_samples.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz"
+    else:   
+        output_path = "hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz"
+
+
+    outfile = gzip.open(output_path, "wt")
 
     # Write header
     outfile.write("\t".join([
@@ -155,7 +172,7 @@ def main():
 
     outfile.close()
 
-    print(f"Wrote {output_lines_counter:9,d} lines to {OUTPUT_PATH}")
+    print(f"Wrote {output_lines_counter:9,d} lines to {output_path}")
 
 if __name__ == "__main__":
     main()
