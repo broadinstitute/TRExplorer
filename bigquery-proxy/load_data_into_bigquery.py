@@ -5,6 +5,7 @@ import collections
 import datetime
 import gzip
 import json
+from typing import Any
 import ijson
 import os
 from pprint import pformat
@@ -13,7 +14,9 @@ import requests
 from google.cloud import bigquery
 import time
 import tqdm
+import scipy.stats
 import sys
+
 
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
@@ -25,7 +28,7 @@ TABLE_ID = "catalog"
 
 parser = argparse.ArgumentParser(description="Load data into BigQuery from the annotated catalog JSON file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
-                    default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.1/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
                     help="ExpansionHunter catalog with the latest known disease-associated loci",
@@ -33,7 +36,9 @@ parser.add_argument("-d", "--known-disease-associated-loci",
 parser.add_argument("--tenk10k-tsv", default="../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz")
 parser.add_argument("--hprc100-tsv", default="../data-prep/hprc_lps.2025_05.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz")
 parser.add_argument("--aou1027-tsv", default="../data-prep/AoULR_phase1_TRGT_Weisburd_v1.0.1_combined.txt.gz")
-
+parser.add_argument("--vamos-ori-motifs-tsv", default="../data-prep/oriMotifFinal.all.tsv.gz")
+parser.add_argument("--vamos-eff-motifs-tsv", default="../data-prep/effMotifFinal.all.tsv.gz")
+parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 args = parser.parse_args()
 
 def get_json_iterator(content, is_gzipped=False):
@@ -81,12 +86,14 @@ def parse_AoU1027_data_from_tsv(tsv_path):
             locus_id = fields[col_indices['TRID2']]
             motif_size = len(fields[col_indices['longestPureSegmentMotif']])
             lookup[locus_id] = {
-                'mode_allele': int(float(fields[col_indices['Mode']]))//motif_size,
+                'min_allele': int(float(fields[col_indices['0thPercentile']]))//motif_size,
+                'mode_allele': int(float(fields[col_indices['Mode']]))//motif_size,  # mode allele is in the table as number of repeats
                 'stdev': float(fields[col_indices['Stdev']])/motif_size,
                 'median': int(float(fields[col_indices['50thPercentile']]))//motif_size,
                 '99th_percentile': int(float(fields[col_indices['99thPercentile']]))//motif_size,
+
                 'max_allele': int(float(fields[col_indices['100thPercentile']]))//motif_size,
-                'unique_alleles': int(fields[col_indices['numAlleles']]),
+                'unique_alleles': None, # int(fields[col_indices['numAlleles']]),  this field currently has a bug which needs to be fixed
                 'num_called_alleles': int(fields[col_indices['numCalledAlleles']]),
 
                 #"combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
@@ -98,15 +105,43 @@ def parse_AoU1027_data_from_tsv(tsv_path):
     return lookup
 
 
+def parse_vamos_motif_frequencies_from_tsv(tsv_path):
+    """Parse the Vamos motif frequencies TSV file line by line and create a lookup dictionary."""
+    lookup = {}
+    with gzip.open(tsv_path, 'rt') as f:
+        header = f.readline().strip().split('\t')
+        #if "effMotifs" in header:   # efficient motif table parsing not implemented yet - not clear how to parse counts.
+        #    index_eff_motifs = header.index("effMotifs")
+        #    header[index_eff_motifs] = "motifs"
+            
+        col_indices = {col: i for i, col in enumerate(header)}
+        for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
+            fields = line.strip().split('\t')
+            chrom = fields[col_indices['chr']]
+            start_0based = int(fields[col_indices['start']])
+            end_1based = int(fields[col_indices['end']])
+            ori_motifs = fields[col_indices['motifs']]
+            ori_motif_counts = fields[col_indices['motifCounts']]
+
+            if ori_motifs.count(",") != ori_motif_counts.count(","):
+                print(f"WARNING: For {reference_region} number of motif values ({ori_motifs}) != number of motif counts ({ori_motif_counts})")
+                continue
+
+            reference_region = f"{chrom}:{start_0based}-{end_1based}"
+            lookup[reference_region] = ",".join([f"{motif}:{count}" for motif, count in zip(ori_motifs.split(","), ori_motif_counts.split(","))])   
+
+    return lookup
+
+
 tenk10k_lookup = {}
 if args.tenk10k_tsv:
-    print(f"Parsing tenk10k data from {args.tenk10k_tsv}")
+    print(f"Parsing Tenk10k data from {args.tenk10k_tsv}")
     tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
     print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
     
 hprc100_lookup = {}
 if args.hprc100_tsv:
-    print(f"Parsing hprc100 data from {args.hprc100_tsv}")
+    print(f"Parsing HPRC100 data from {args.hprc100_tsv}")
     hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
     print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
 
@@ -115,6 +150,22 @@ if args.aou1027_tsv:
     print(f"Parsing AoU1027 data from {args.aou1027_tsv}")
     aou1027_lookup = parse_AoU1027_data_from_tsv(args.aou1027_tsv)
     print(f"Parsed {len(aou1027_lookup):,d} records from the AoU1027 table: {args.aou1027_tsv}")
+
+if hprc100_lookup and aou1027_lookup:
+    # compute correlation between medians, stdevs, 
+    shared_keys = set(hprc100_lookup.keys()) & set[Any](aou1027_lookup.keys())
+    for column in "mode_allele", "stdev", "median", "99th_percentile":
+        pearsonr, _ = scipy.stats.pearsonr(
+            [hprc100_lookup[k][column] for k in shared_keys], 
+            [aou1027_lookup[k][column] for k in shared_keys])
+        if pearsonr < 0.66:
+            print(f"WARNING: pearson correlation coefficient (R) between the {column} values of HPRC100 and AoU1027 is only: {pearsonr}")
+        else:
+            print(f"Correlation between the {column} at {len(shared_keys):,d} TR loci in HPRC100 and AoU1027 is {pearsonr:0.2f}")
+
+vamos_ori_motif_frequencies_lookup = parse_vamos_motif_frequencies_from_tsv(args.vamos_ori_motifs_tsv)
+#vamos_eff_motif_frequencies_lookup = parse_vamos_motif_frequencies_from_tsv(args.vamos_eff_motifs_tsv)
+
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
 if os.path.isfile(args.known_disease_associated_loci):
@@ -185,6 +236,18 @@ for reference_region, locus_info in known_disease_associated_loci.items():
         key: locus_info[key] for key in ["LocusId", "STRchiveId", "STRipyId", "Diseases", "RepeatUnit"] if key in locus_info
     }
 
+repeat_masker_lookup = {}
+if args.repeat_masker_lookup_json:
+    print(f"Parsing repeat masker lookup from {args.repeat_masker_lookup_json}")
+    with gzip.open(args.repeat_masker_lookup_json, 'rt') as f:
+        repeat_masker_lookup = json.load(f)
+    print(f"Parsed {len(repeat_masker_lookup):,d} records from the repeat masker lookup: {args.repeat_masker_lookup_json}")
+    # convert to repeat masker lookup entries to string format
+    print(f"Converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
+    for locus_id, repeat_masker_intervals in tqdm.tqdm(repeat_masker_lookup.items(), unit=" loci", unit_scale=True, total=len(repeat_masker_lookup)):
+        repeat_masker_lookup[locus_id] = ", ".join([f"{interval['repClass']}:{interval['repFamily']}:{interval['repName']}" for interval in repeat_masker_intervals])
+    print(f"Done converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
+
 # Define the schema
 schema = [
     bigquery.SchemaField("id", "INTEGER", mode="REQUIRED"),
@@ -231,11 +294,13 @@ schema = [
     bigquery.SchemaField("ManeGeneId", "STRING"),
     bigquery.SchemaField("ManeTranscriptId", "STRING"),
 
+    # Illumina174k data
     bigquery.SchemaField("AlleleFrequenciesFromIllumina174k", "STRING"),
     bigquery.SchemaField("StdevFromIllumina174k", "FLOAT"),
     bigquery.SchemaField("AlleleFrequenciesFromT2TAssemblies", "STRING"),
     bigquery.SchemaField("StdevFromT2TAssemblies", "FLOAT"),
 
+    # TenK10K data
     bigquery.SchemaField("TenK10K_AlleleHistogram", "STRING"),
     bigquery.SchemaField("TenK10K_BiallelicHistogram", "STRING"),
     bigquery.SchemaField("TenK10K_ModeAllele", "INTEGER"),
@@ -243,6 +308,7 @@ schema = [
     bigquery.SchemaField("TenK10K_Median", "INTEGER"),
     bigquery.SchemaField("TenK10K_99thPercentile", "INTEGER"),
 
+    # HPRC100 data
     bigquery.SchemaField("HPRC100_AlleleHistogram", "STRING"),
     bigquery.SchemaField("HPRC100_BiallelicHistogram", "STRING"),
     bigquery.SchemaField("HPRC100_ModeAllele", "INTEGER"),
@@ -250,6 +316,8 @@ schema = [
     bigquery.SchemaField("HPRC100_Median", "INTEGER"),
     bigquery.SchemaField("HPRC100_99thPercentile", "INTEGER"),
 
+    # AoU1027 data
+    bigquery.SchemaField("AoU1027_MinAllele", "INTEGER"),
     bigquery.SchemaField("AoU1027_ModeAllele", "INTEGER"),
     bigquery.SchemaField("AoU1027_Stdev", "FLOAT"),
     bigquery.SchemaField("AoU1027_Median", "INTEGER"),
@@ -262,6 +330,10 @@ schema = [
     #bigquery.SchemaField("AoU1027_ExpectedLPSStdev", "FLOAT"),
     bigquery.SchemaField("AoU1027_OE_Length", "FLOAT"),
     bigquery.SchemaField("AoU1027_OE_LengthPercentile", "FLOAT"),
+
+    bigquery.SchemaField("RepeatMaskerIntervals", "STRING"),
+    bigquery.SchemaField("VamosOriMotifFrequencies", "STRING"),
+    #bigquery.SchemaField("VamosEffMotifFrequencies", "STRING"),
 ]
 
 field_names = {field.name for field in schema}
@@ -352,7 +424,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     record["start_0based"] = start_0based
     record["end_1based"] = end_1based
     record["MotifSize"] = len(record["CanonicalMotif"])
-
+    
     if record.get("StdevFromT2TAssemblies"):
         record["StdevFromT2TAssemblies"] = round(record["StdevFromT2TAssemblies"], 3)
 
@@ -404,6 +476,13 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["TenK10K_Median"] = tenk10k_record["median"]
         record["TenK10K_99thPercentile"] = tenk10k_record["99th_percentile"]
 
+        # sanity checks: 
+        if record["TenK10K_Median"] > record["TenK10K_99thPercentile"]:
+            print(f"WARNING: TenK10K_Median > TenK10K_99thPercentile for {record['LocusId']}: Median == {record['TenK10K_Median']} and 99thPercentile == {record['TenK10K_99thPercentile']}")
+        allele_set = set([record["TenK10K_ModeAllele"], record["TenK10K_Median"], record["TenK10K_99thPercentile"]])
+        if len(allele_set) > 1 and record["TenK10K_Stdev"] == 0:
+            print(f"WARNING: len({allele_set}) > 1 and TenK10K_Stdev == 0 for {record['LocusId']}: len({allele_set}) == {len(allele_set)}")
+
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
         hprc100_record = hprc100_lookup[record["LocusId"]]
@@ -414,9 +493,17 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["HPRC100_Median"] = hprc100_record["median"]
         record["HPRC100_99thPercentile"] = hprc100_record["99th_percentile"]
 
+        # sanity checks: 
+        if record["HPRC100_Median"] > record["HPRC100_99thPercentile"]:
+            print(f"WARNING: HPRC100_Median > HPRC100_99thPercentile for {record['LocusId']}: Median == {record['HPRC100_Median']} and 99thPercentile == {record['HPRC100_99thPercentile']}")
+        allele_set = set([record["HPRC100_ModeAllele"], record["HPRC100_Median"], record["HPRC100_99thPercentile"]])
+        if len(allele_set) > 1 and record["HPRC100_Stdev"] == 0:
+            print(f"WARNING: len({allele_set}) > 1 and HPRC100_Stdev == 0 for {record['LocusId']}: len({allele_set}) == {len(allele_set)}")
+
     if record["LocusId"] in aou1027_lookup:
         counters["rows_with_aou1027_data"] += 1
         aou1027_record = aou1027_lookup[record["LocusId"]]
+        record["AoU1027_MinAllele"] = aou1027_record["min_allele"]
         record["AoU1027_ModeAllele"] = aou1027_record["mode_allele"]
         record["AoU1027_Stdev"] = aou1027_record["stdev"]
         record["AoU1027_Median"] = aou1027_record["median"]
@@ -428,6 +515,38 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         #record["AoU1027_ExpectedLPSStdev"] = aou1027_record["expected_lps_stdev"]
         record["AoU1027_OE_Length"] = aou1027_record["oe_length"]
         record["AoU1027_OE_LengthPercentile"] = aou1027_record["oe_length_percentile"]
+
+        # sanity checks: 
+        if record["AoU1027_Median"] > record["AoU1027_MaxAllele"]:
+            print(f"WARNING: For {record['LocusId']}, AoU1027 Median > 100thPercentile: Median == {record['AoU1027_Median']} and MaxAllele == {record['AoU1027_MaxAllele']}")
+        if record["AoU1027_Median"] > record["AoU1027_99thPercentile"]:
+            print(f"WARNING: For {record['LocusId']}, AoU1027 Median > 99thPercentile: Median == {record['AoU1027_Median']} and 99thPercentile == {record['AoU1027_99thPercentile']}")
+        if record["AoU1027_99thPercentile"] > record["AoU1027_MaxAllele"]:
+            print(f"WARNING: For {record['LocusId']}, AoU1027 99thPercentile > 100thPercentile: 99thPercentile == {record['AoU1027_99thPercentile']} and MaxAllele == {record['AoU1027_MaxAllele']}")
+        if record["AoU1027_ModeAllele"] > record["AoU1027_MaxAllele"]:
+            print(f"WARNING: For {record['LocusId']}, AoU1027 Mode > 100thPercentile: Mode == {record['AoU1027_ModeAllele']} and MaxAllele == {record['AoU1027_MaxAllele']}")
+        allele_set = set([record["AoU1027_MinAllele"], record["AoU1027_ModeAllele"], record["AoU1027_Median"], record["AoU1027_99thPercentile"], record["AoU1027_MaxAllele"]])
+        allele_set_string = f"0thPercentile == {record['AoU1027_MinAllele']}, Mode == {record['AoU1027_ModeAllele']}, Median == {record['AoU1027_Median']}, 99thPercentile == {record['AoU1027_99thPercentile']}, 100thPercentile == {record['AoU1027_MaxAllele']}"
+        #if record["AoU1027_UniqueAlleles"] < len(allele_set):
+        #    print(f"WARNING: For {record['LocusId']}, AoU1027 numAlleles == {record['AoU1027_UniqueAlleles']} while {allele_set_string}")
+        #if record["AoU1027_Stdev"] > 0 and record["AoU1027_UniqueAlleles"] == 1:
+        #    print(f"WARNING: For {record['LocusId']}, AoU1027 Stdev > 0 while numAlleles == 1: Stdev == {record['AoU1027_Stdev']}")
+        if len(allele_set) > 1 and record["AoU1027_Stdev"] == 0:
+            print(f"WARNING: For {record['LocusId']}, AoU1027 Stdev == 0 while {allele_set_string}")
+
+
+    if record["ReferenceRegion"] in vamos_ori_motif_frequencies_lookup:
+        counters["rows_with_vamos_ori_motif_frequencies"] += 1
+        record["VamosOriMotifFrequencies"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]
+    
+    #if record["ReferenceRegion"] in vamos_eff_motif_frequencies_lookup:
+    #    counters["rows_with_vamos_eff_motif_frequencies"] += 1
+    #    record["VamosEffMotifFrequencies"] = vamos_eff_motif_frequencies_lookup[record["ReferenceRegion"]]
+
+
+    if record["LocusId"] in repeat_masker_lookup:
+        counters["rows_with_repeat_masker_intervals"] += 1
+        record["RepeatMaskerIntervals"] = repeat_masker_lookup[record["LocusId"]]
         
     counters["total_rows"] += 1
     
@@ -459,5 +578,9 @@ with open("../index.html", "wt") as f:
 print("Done!")
 
 print("\nCounters:")
+total_rows = counters["total_rows"]
 for key, count in sorted(counters.items(), key=lambda x: x[1], reverse=True):
-    print(f"{count:10,d} {key}")
+    if key == "total_rows":
+        print(f"{count:10,d}  {key}")
+    else:
+        print(f"{count:10,d} ( {count/total_rows*100:.1f}%)  {key}")
