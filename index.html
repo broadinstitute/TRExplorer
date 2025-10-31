@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2"></script>
 
     <!-- script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script -->
-    <script src="https://cdn.jsdelivr.net/npm/igv@3.3.0/dist/igv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/igv@3.4.0/dist/igv.min.js"></script>
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-6R8FPBQRFH"></script>
@@ -1618,8 +1618,6 @@
 
     const generateIgvConfig = (addSelectedTracks) => {
 
-        const locus = GLOBAL_PAGE_STATE['igvLoc']
-
         // specify IGV tracks and the data to display in them
         const tracks = []
 
@@ -1704,24 +1702,23 @@
             "cytobandURL": "https://s3.amazonaws.com/igv.org.genomes/hg38/annotations/cytoBandIdeo.txt.gz",
             "aliasURL": "https://s3.amazonaws.com/igv.org.genomes/hg38/hg38_alias.tab",
             "chromosomeOrder": "chr1, chr2, chr3, chr4, chr5, chr6, chr7, chr8, chr9, chr10, chr11, chr12, chr13, chr14, chr15, chr16, chr17, chr18, chr19, chr20, chr21, chr22, chrX, chrY",
-            "tracks": tracks,
         }
 
         return {
-            reference: reference,
+            genome: reference,
+            tracks: tracks,            
             showCursorTrackingGuide: true,
-            locus: locus,
         }
     }
 
     async function updateIgv() {
-
 
         // create igv.js browser object if it hasn't been created yet
         if (!window.igvBrowser) {
             const config = generateIgvConfig(false)
             window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
 
+            
             //window.igvBrowser.trackViews.forEach((trackView) => { monkeyPatchPopupData(trackView.track) }
             window.igvBrowser.on('trackremoved', (track) => {
                 // get the track id that matches the url
@@ -1735,8 +1732,9 @@
                 })
             })
 
+            
             window.igvBrowser.on('locuschange', (locus) => {
-                if (locus[0]) {
+                if (locus[0] && locus[0].chr && locus[0].start && locus[0].end) {
                     GLOBAL_PAGE_STATE['igvLoc'] = `${locus[0].chr}:${parseInt(locus[0].start)}-${parseInt(locus[0].end)}`
                     writePersistentPageStateToUrl()
                 }
@@ -1837,13 +1835,16 @@
                 writePersistentPageStateToUrl()
                 await updateIgv()
             })
+            
         }
 
         if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
             const igvConfig = generateIgvConfig(true)
 
             console.log("Updating igv config to", igvConfig)
+
             await window.igvBrowser.loadSessionObject(igvConfig)
+            
         }
     }
 
@@ -2824,6 +2825,10 @@
                     $('#hide-igv-divider-text').show()
                     await updateIgv()
                 } else {
+                    if (!window.igvBrowser) {
+                        console.error("WARNING: IGV browser not initialized yet")
+                        await updateIgv()
+                    }
                     await window.igvBrowser.search(paddedLocus)
                 }
 
@@ -2956,7 +2961,6 @@
                         let [_, chrom, start, end] = regionMatch
                         start = parseInt(start.replace(/,/g, ''))
                         end = parseInt(end.replace(/,/g, ''))
-                        console.log(`Parsed region: ${chrom}:${start}-${end}`)
                         return `
                             (chrom = '${chrom}' AND start_0based < ${end} AND end_1based >= ${start})
                         `
