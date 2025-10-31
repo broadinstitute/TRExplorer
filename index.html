@@ -1628,8 +1628,9 @@
             tracks.push({
                 name: "Refseq",
                 format: "refgene",
-                url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/ncbiRefSeq.txt.gz",
-                indexed: false,
+                url: `${REFERENCE_BASE_URL}/ncbiRefSeq.txt.gz`,
+                indexed: true,
+                indexURL: `${REFERENCE_BASE_URL}/ncbiRefSeq.txt.gz.tbi`,
                 infoURL: "https://www.ncbi.nlm.nih.gov/gene/?term=$$",
                 height: 150,
             })
@@ -1649,16 +1650,35 @@
                         url: trackURL,
                         indexURL: `${trackURL}.tbi`,
                         indexed: true,
-                        searchable: true,
+                        searchable: false,
                         height: 350,
                         visibilityWindow: -1,
                         displayMode: 'EXPANDED',
                         color: 'rgb(76,171,225)',
                     })
+                } else if (trackURL.endsWith('.bed.gz')) {
+                    tracks.push({
+                        format: 'bed',
+                        name: trackDisplayName,
+                        url: trackURL,
+                        indexURL: `${trackURL}.tbi`,
+                        indexed: true,
+                        searchable: false,
+                        displayMode: 'EXPANDED',
+                    })
+                } else if (trackURL.endsWith('.gtf.gz')) {
+                    tracks.push({
+                        format: 'gtf',
+                        name: trackDisplayName,
+                        url: trackURL,
+                        indexed: true,
+                        searchable: false,
+                        displayMode: 'EXPANDED',
+                    })
                 } else {
                     tracks.push({
                         name: trackDisplayName,
-                        url: trackURL
+                        url: trackURL,
                     })
                 }
 
@@ -2155,15 +2175,19 @@
                         'HPRC100_Median',
                         'HPRC100_99thPercentile',
 
+                        'AoU1027_MinAllele',
                         'AoU1027_ModeAllele',
                         'AoU1027_Stdev',
                         'AoU1027_Median',
                         'AoU1027_99thPercentile',
                         'AoU1027_MaxAllele',
-                        'AoU1027_UniqueAlleles',
+                        //'AoU1027_UniqueAlleles',   // TODO restore this field when I get new data table with bug fix
 
                         'AoU1027_OE_Length',
                         'AoU1027_OE_LengthPercentile',
+
+                        'RepeatMaskerIntervals',
+                        'VamosOriMotifFrequencies',
                     ]
                     selectClause = tsv_columns.join(', ')
                 } else {
