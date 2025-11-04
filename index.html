@@ -1373,7 +1373,7 @@
                     Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
                     PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
                     PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> vamos v2.1'>v2 draft &nbsp; <i>[5]</i></span>",
+                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
                 }
                 const [version, sourceCatalog] = row.Source.split(':')
                 return sourceCatalogNameMap[sourceCatalog]
@@ -3020,7 +3020,11 @@
 
         searchQuery = searchQuery.trim()
         searchQuery = searchQuery.replace(/[–—−‐‑‒﹘﹣－‾]/g, '-') // Replace all unicode dash types with a regular dash
-        return searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+
+        // split by comma except where the comma is part of a large number (eg. 1,234,567)
+        const searchQueryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+
+        return searchQueryValues
     }
 
     const performSearch = async (showTableWhileLoading = false) => {
@@ -3063,19 +3067,30 @@
                             (chrom = '${chrom}' AND start_0based < ${end} AND end_1based >= ${start})
                         `
                     } else {
-                        // Try other fields
-                        return `
-                            (UPPER(GencodeGeneName) = UPPER('${queryValue}')
-                            OR UPPER(GencodeGeneId) = UPPER('${queryValue}')
-                            OR UPPER(GencodeTranscriptId) = UPPER('${queryValue}')
-                            OR UPPER(RefseqGeneName) = UPPER('${queryValue}')
-                            OR UPPER(RefseqGeneId) = UPPER('${queryValue}')
-                            OR UPPER(RefseqTranscriptId) = UPPER('${queryValue}')
-                            OR UPPER(ManeGeneName) = UPPER('${queryValue}')
-                            OR UPPER(ManeGeneId) = UPPER('${queryValue}')
-                            OR UPPER(ManeTranscriptId) = UPPER('${queryValue}')
-                            OR UPPER(LocusId) = UPPER('${queryValue}'))
-                        `
+                        const locusIdMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i)
+                        if (locusIdMatch) {
+                            console.log("locusIdMatch", locusIdMatch)
+                            let [_, chrom, start, end, motif] = locusIdMatch
+                            start = parseInt(start.replace(/,/g, ''))
+                            end = parseInt(end.replace(/,/g, ''))
+                            return `
+                                (chrom = '${chrom}' AND start_0based < ${end - motif.length} AND end_1based >= ${start + motif.length} AND MotifSize = ${motif.length})
+                            `
+                        } else {
+                            // Try other fields
+                            return `
+                                (UPPER(GencodeGeneName) = UPPER('${queryValue}')
+                                OR UPPER(GencodeGeneId) = UPPER('${queryValue}')
+                                OR UPPER(GencodeTranscriptId) = UPPER('${queryValue}')
+                                OR UPPER(RefseqGeneName) = UPPER('${queryValue}')
+                                OR UPPER(RefseqGeneId) = UPPER('${queryValue}')
+                                OR UPPER(RefseqTranscriptId) = UPPER('${queryValue}')
+                                OR UPPER(ManeGeneName) = UPPER('${queryValue}')
+                                OR UPPER(ManeGeneId) = UPPER('${queryValue}')
+                                OR UPPER(ManeTranscriptId) = UPPER('${queryValue}')
+                                OR UPPER(LocusId) = UPPER('${queryValue}'))
+                            `
+                        }
                     }
                 })
                 
