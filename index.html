@@ -1006,6 +1006,9 @@
         'HPRC100_BiallelicHistogram',
         'TenK10K_BiallelicHistogram',
         'AoU1027_OE_LengthPercentile',
+
+        'repeatMaskerIntervals',
+        'vamosOriMotifFrequencies',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -1038,10 +1041,13 @@
         'AoU1027_Stdev',  
         'TenK10K_Stdev',  
         'StdevFromIllumina174k',  
-        'StdevFromT2TAssemblies',  
+        'StdevFromT2TAssemblies',
 
-        'AoU1027_OE_LengthPercentile',
         'source',
+        'AoU1027_OE_LengthPercentile',
+
+        'repeatMaskerIntervals',
+        'vamosOriMotifFrequencies',
     ]
 
 
@@ -1358,7 +1364,7 @@
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
         },
         source: {
-            displayName: 'Locus Source',
+            displayName: 'Source',
             helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog.',
             getValue: (row) => {
                 const sourceCatalogNameMap = {
@@ -1419,6 +1425,23 @@
             getSortColumns: () => ['TRsInRegion'],
             getRequiredColumns: () => ['TRsInRegion']
         },
+
+        repeatMaskerIntervals: {
+            displayName: 'Repeat Masker',
+            helpText: 'UCSC Repeat masker intervals that overlap this TR locus.',
+            getValue: (row) => row.RepeatMaskerIntervals ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
+            getSortColumns: () => ['RepeatMaskerIntervals'],
+            getRequiredColumns: () => ['RepeatMaskerIntervals'],
+        },
+
+        vamosOriMotifFrequencies: {
+            displayName: 'Motif Variability',
+            helpText: 'Different motifs detected at this locus by the Vamos v2.1 pipeline',
+            getValue: (row) => parseMotifFrequenciesString(row.VamosOriMotifFrequencies),
+            getSortColumns: () => ['VamosOriMotifFrequencies'],
+            getRequiredColumns: () => ['VamosOriMotifFrequencies'],
+        },
+
         mappability: {
             displayName: 'Mappability',
             helpText: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
@@ -2282,6 +2305,60 @@
         } catch (e) {
             console.error('Error parsing allele frequencies string:', e)
             return []
+        }
+    }
+
+    const parseMotifFrequenciesString = (frequenciesString) => {
+        if (!frequenciesString) {
+            return ''
+        }
+
+        console.log(frequenciesString)
+        try {
+            const items = frequenciesString.split(',')
+            let total = 0
+            let motifs = {}
+            for (let i = 0; i < items.length; i++) {
+                let [motif, count] = items[i].split(':')
+                count = parseInt(count)
+                motif = motif.trim()
+                motifs[motif] = count
+                total += count
+            }
+
+
+            // convert counts to fractions
+            let motifCount = 0
+            let homopolymerMotifCount = 0
+            for (let motif in motifs) {
+                motifs[motif] /= total
+                if (motifs[motif] >= 0.01) {
+                    motifCount += 1
+                    if (motif.length == 1) {
+                        homopolymerMotifCount += 1
+                    }
+                }
+            }
+
+            if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
+                return ''
+            }
+
+
+            let resultMotifs = []
+            for (let motif in motifs) {
+                if (motifs[motif] >= 0.01) {
+                    resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td>${motif}</td></tr>`)
+                }
+            }
+
+            let data_html = "Motifs observed at this locus within T2T assemblies by the Vamos v2.1 pipeline. Percentages represent relative motif frequencies. <br /><br />"
+            data_html += `<table style='border-spacing: 20px 3px'>${resultMotifs.join('')}</table>`
+
+            return `<span class="show-popup" data-html="${data_html}">${resultMotifs.length} motifs</span>`
+        } catch (e) {
+            console.error('Error parsing motif frequencies string:', e)
+            return ''
         }
     }
 
