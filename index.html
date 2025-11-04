@@ -961,7 +961,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251030_111645'
+    const TABLE_ID = 'catalog_20251104_071456'
 
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
@@ -970,9 +970,11 @@
     const RESULTS_TABLE_COLUMN_NAMES = [
         'interval',
         'motif',
+
         'geneRegion',
         'geneName',
         'variationCluster',
+        'source',
         'mappability',
         'trsInRegion',
         'isPathogenic',
@@ -1038,6 +1040,7 @@
         'StdevFromT2TAssemblies',  
 
         'AoU1027_OE_LengthPercentile',
+        'source',
     ]
 
 
@@ -1103,7 +1106,8 @@
 
         showColumns: [
             'interval', 
-            'motif', 
+            'motif',
+            'source',
             'geneRegion',
             'geneName', 
             'variationCluster', 
@@ -1351,6 +1355,23 @@
             },
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
+        },
+        source: {
+            displayName: 'Locus Source',
+            helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog.',
+            getValue: (row) => {
+                const sourceCatalogNameMap = {
+                    KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
+                    Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
+                    PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
+                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
+                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> vamos v2.1'>v2 draft &nbsp; <i>[5]</i></span>",
+                }
+                const [version, sourceCatalog] = row.Source.split(':')
+                return sourceCatalogNameMap[sourceCatalog]
+            },
+            getSortColumns: () => ['Source'],
+            getRequiredColumns: () => ['Source'],
         },
         AoU1027_OE_LengthPercentile: {
             displayName: 'Constraint (O/E Length) Percentile',
