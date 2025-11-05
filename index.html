@@ -2353,7 +2353,7 @@
                 }
             }
 
-            let data_html = "Motifs observed at this locus within T2T assemblies by the Vamos v2.1 pipeline. Percentages represent relative motif frequencies. <br /><br />"
+            let data_html = "Motifs detected at this locus within 94 HPRC T2T assemblies by the Vamos v2.1 pipeline. Percentages represent relative motif frequencies, not showing motifs below 1%<br /><br />"
             data_html += `<table style='border-spacing: 20px 3px'>${resultMotifs.join('')}</table>`
 
             return `<span class="show-popup" data-html="${data_html}">${resultMotifs.length} motifs</span>`
