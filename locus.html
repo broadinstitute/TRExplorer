@@ -650,21 +650,161 @@
     </div>
 </div>
 <body>
-
-<!-- modal dialog for polymorphism allele frequencies -->
-<div class="ui modal" id="polymorphism-dialog">
+<!-- modal dialog for selecting IGV tracks -->
+<div class="ui modal" id="igv-track-selection-dialog">
     <i class="close icon"></i>
-    <div class="header" id="polymorphism-dialog-header" style="text-align: center">
-        Polymorphism
+    <div class="header" style="white-space: nowrap;">
+        Select IGV Tracks
     </div>
-    <div class="content scrolling">
-        <div id="polymorphism-dialog-content"></div>
+    <div class="content" style="padding-top:0px;">
+        <div class="ui form">
+            <table class="ui stackable table igv-track-selection-table">
+                <tr>
+                    <td style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-tr-explorer-catalog-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    TRExplorer Catalog
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                    # of loci
+                                </th>
+                            </tr>
+                        </table>
+                        <table class="igv-checkbox-container-table" id="igv-variation-cluster-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Variation Clusters
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                </th>
+                            </tr>
+                        </table>
+                        <table class="igv-checkbox-container-table" id="igv-known-disease-loci-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Known Disease-associated TR Loci
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                </th>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-other-tr-catalog-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Other Genome-wide TR Catalogs
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                    # of loci
+                                </th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-reference-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">Reference Tracks</th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-custom-tracks" style="width: 100%;">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">Custom Tracks <i class="question circle icon link" style="margin-left: 15px;" data-html="These inputs allow you to load your own custom tracks into IGV.js. They accept BED, BAM, VCF, GFF, BigWig, or any other IGV.js-compatible data format. The data file (and index) just have to be online at a publicly-accessible &nbsp;https://, &nbsp;gs://, &nbsp;or s3:// &nbsp; URL."></i></th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">
+            Cancel
+        </div>
+        <div id="igv-tracks-modal-apply-button" class="ui positive right labeled icon button">
+            Apply
+            <i class="checkmark icon"></i>
+        </div>
     </div>
 </div>
 
-<div class="ui grid">
+<div class="ui modal" id="whats-new-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        TRExplorer Updates
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="whats_new.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
+    </div>
+</div>
+
+
+<div class="ui modal" id="about-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        About TRExplorer
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="about.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
+    </div>
+</div>
+
+
+<!-- FAQ modal dialog -->
+<div class="ui modal" id="faq-modal" style="height: 80%; min-height:75%">
+    <i class="close icon"></i>
+    <div class="header">
+        Frequently Asked Questions
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="FAQ.html" style="width: 100%; height: 100%; border: 0px"></iframe>
+    </div>
+</div>
+
+<!-- downloads modal dialog -->
+<div class="ui modal" id="downloads-modal" style="height: 88%; min-height: 88%">
+    <i class="close icon"></i>
+    <div class="header">
+        Downloads
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%;">
+        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px;"></iframe>
+    </div>
+</div>
+
+
+<!-- modal dialog for selecting results table columns -->
+<div class="ui modal" id="results-table-column-settings-dialog">
+    <i class="close icon"></i>
+    <div class="header">
+        Results Table Columns
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important"></table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">
+            Cancel
+        </div>
+        <div id="results-table-column-settings-apply-button" class="ui positive right labeled icon button">
+            Apply
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
+<div class="ui stackable grid">
     <div class="ui row" id="header-stripe">
-        <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
+        <div class="three wide column" style="padding: 0px !important"></div>
         <div class="three wide column" id="header-title">
             <a href="/">
                 <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
@@ -694,177 +834,6 @@
                 <span id="show-igv-divider-text">Show IGV.js<i class="chevron down icon"></i></span>
                 <span id="hide-igv-divider-text" style="display: none">Hide IGV.js<i class="chevron up icon"></i></span>
             </div>
-
-            <form id="search-form" class="ui form">
-                <div class="field">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
-                        <label style="margin: 0; font-weight: 700 !important;">Search by region, gene, or transcript:</label>
-                        <span style="margin-right: 145px; font-weight: 400 !important; color: #888; font-size: 0.9em;">
-                            Examples: &nbsp; <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=chr4%3A3074000-3075000">
-                                chr4:3074000-3075000
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ATXN1">
-                                ATXN1
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENSG00000165060">
-                                ENSG00000165060
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENST00000370475">
-                                ENST00000370475
-                            </a>
-                        </span>
-                    </div>
-                    <div class="ui action input">
-                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a comma-separated list of these">
-                        <button id="filter-button" class="ui basic icon button" type="button" data-html="Show or hide additional TR filters" data-position="top center"><i class="filter icon rotated" style="transition: transform 0.3s;"></i></button>
-                        <button id="search-button" class="ui primary button" type="submit">Search</button>
-                    </div>
-                </div>
-            </form>
-
-            <!-- Advanced Search Wrapper -->
-            <div id="advanced-search-wrapper" style="padding-top: 20px">
-                <!-- Form error message -->
-                <div id="form-error-message" class="ui error message" style="display: none; margin-bottom: 1em;"></div>
-                
-                <!-- Advanced Search (Initially Hidden) -->
-                <form id="advanced-search-form" class="ui form" style="display:none">
-
-                    <div class="field" style="padding-top: 5px">
-                        <label>Search TR Catalog</label>
-                        <div class="ui selection dropdown" id="source-catalog-dropdown" style="max-width: 350px !important">
-                            <input type="hidden" name="sourceCatalog">
-                            <i class="dropdown icon"></i>
-                            <div class="default text">Select catalog</div>
-                            <div class="menu">
-                                <div class="item" data-value="tr_explorer_catalog_v2">
-                                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,543,507 loci</span>
-                                    </div>
-                                </div>
-                                <div class="item" data-value="tr_explorer_catalog">
-                                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v1</span>
-                                        <span style="color: #888; margin-left: 20px;">4,863,041 loci</span>
-                                    </div>
-                                </div>
-                                <div class="item" data-value="illumina_174k_catalog">
-                                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Illumina 174k</span>
-                                        <span style="color: #888; margin-left: 20px;">174,286 loci</span>
-                                    </div>
-                                </div>
-                                <div class="item" data-value="known_disease_loci">
-                                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Known disease-associated loci</span>
-                                        <span style="color: #888; margin-left: 20px;">63 loci</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field" style="padding-top: 5px">
-                        <label>Gene Region(s)</label>
-                        <div class="checkbox-group">
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepCodingLoci">
-                                <label>Coding</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepFiveUTRLoci">
-                                <label>5' UTR</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepThreeUTRLoci">
-                                <label>3' UTR</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepPromoterLoci">
-                                <label>Promoter</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepIntronLoci">
-                                <label>Intron</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepIntergenicLoci">
-                                <label>Intergenic</label>
-                            </div>
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="keepNonCodingExonLoci">
-                                <label>Exon (non-coding transcript)</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="two fields" style="padding-top: 5px">
-                        <div class="field" style="max-width: 430px; margin-right:20px">
-                            <label>Motif Size(s)</label>
-                            <input type="text" id="motif-size-input" name="keepMotifSize" placeholder="e.g., 3, 2-6, 7-, or a comma-separated list of these">
-                        </div>
-                        <div class="field" style="max-width: 440px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin: 0 0 .28571429rem 0;">
-                                <label style="font-size: .92857143em; font-weight: 700">Motif(s)</label>
-                                <a href="#" id="known-disease-motifs-link" style="color: #2185d0; font-size: 0.95em;">motifs of known disease-associated loci &gt;</a>
-                            </div>
-                            <input type="text" id="motif-input" name="keepMotif" placeholder="e.g., CAG, CCG, or a comma-separated list of these">
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 120px;">
-                        <div class="field" style="padding-top: 5px; max-width: 430px;">
-                            <label>Polymorphism Filter</label>
-                            <div class="checkbox-group" style="display: flex; align-items: center;">
-                                <div class="ui checkbox" style="padding-right: 10px !important; display: inline-flex; align-items: center;">
-                                    <input type="checkbox" name="polymorphismFilter">
-                                    <label>Polymorphism filter:</label>
-                                </div>
-                                <div class="ui selection dropdown" id="polymorphism-filter-dropdown" style="min-width: 80px; margin-right: 10px !important; display: inline-block">
-                                    <input type="hidden" name="polymorphismFilterType">
-                                    <i class="dropdown icon"></i>
-                                    <div class="default text">Select filter</div>
-                                    <div class="menu">
-                                        <div class="item" data-value=""></div>
-                                        <div class="item" data-value="sigma_HPRC100">σ<sub>HPRC100</sub></div>
-                                        <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027</sub></div>
-                                        <div class="item" data-value="sigma_TenK10K">σ<sub>10k10k</sub></div>
-                                        <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
-                                        <div class="item" data-value="sigma_T2T">σ<sub>T2T</sub></div>
-                                    </div>
-                                </div>
-                                <div style="display: inline-flex; align-items: center;">
-                                    <span style="margin-right: 12px;">≥</span>
-                                    <input type="text" id="polymorphism-threshold" name="polymorphismThreshold" placeholder="0.5" style="width: 60px;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="field" style="padding-top: 5px; max-width: 440px;">
-                            <label>Variation Cluster Filter</label>
-                            <div class="checkbox-group" style="display: flex; align-items: center;">
-                                <div class="ui checkbox" style="padding-right: 10px !important">
-                                    <input type="checkbox" name="vcFilter">
-                                    <label>Variation cluster (VC) filter:</label>
-                                </div>
-                                <div class="ui selection dropdown" id="variation-cluster-filter-dropdown">
-                                    <input type="hidden" name="vcFilterType">
-                                    <i class="dropdown icon"></i>
-                                    <div class="default text">Select filter</div>
-                                    <div class="menu">
-                                        <div class="item" data-value=""></div>
-                                        <div class="divider"></div>
-                                        <div class="item" data-value="exclude">Exclude VCs</div>
-                                        <div class="item" data-value="exclude_ge_50">Exclude VCs ≥ +50bp</div>
-                                        <div class="divider"></div>
-                                        <div class="item" data-value="keep">Keep only VCs</div>
-                                        <div class="item" data-value="keep_ge_50">Keep only VCs ≥ +50bp</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </form>
-            </div>
         </div>
         <div class="three wide column"></div>
     </div>
@@ -872,22 +841,8 @@
         <div class="one wide column"></div>
         <div class="fourteen wide column">
             <!-- Results Area -->
-            <div id="results-area" style="position: relative; z-index: 100;">
-                <div id="loading-container" style="display: none">
-                    <div id="loading-indicator" class="loading-indicator">
-                        <div class="ui small active inline loader"></div>
-                        <span>Loading...</span>
-                    </div>
-                </div>
-                <div class="pagination-container top-pagination"></div>
-                <div id="results-table"></div>
-                <div class="pagination-container bottom-pagination"></div>
-                <div id="error-message" class="ui negative message" style="display: none">
-                    <i class="close icon"></i>
-                    <div class="header">Error</div>
-                    <p id="error-text"></p>
-                </div>
-            </div>
+            <div id="results-title"></div>
+            <div id="results-area" style="position: relative; z-index: 100;"></div>
         </div>
         <div class="one wide column"></div>
     </div>
@@ -967,92 +922,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251105_072742'
-
-
-    const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
-    const DEFAULT_SORT_DIRECTION = 'ASC'
-
-    const RESULTS_TABLE_COLUMN_NAMES = [
-        'interval',
-        'motif',
-        'geneRegion',
-        'geneName',
-        'variationCluster',
-        'source',
-        'mappability',
-        'trsInRegion',
-        'isPathogenic',
-
-        'gencodeGeneId',
-        'gencodeTranscriptId',
-        'refSeqGeneRegion',
-        'refSeqGeneId',
-        'refSeqGeneName',
-        'refSeqTranscriptId',
-        'maneGeneRegion',
-        'maneGeneId',
-        'maneGeneName',
-
-        'HPRC100_AlleleHistogram',
-        'TenK10K_AlleleHistogram',
-        'AlleleFrequenciesFromIllumina174k',
-        'AlleleFrequenciesFromT2TAssemblies',
-
-        'polymorphism',
-
-        'HPRC100_Stdev',
-        'AoU1027_Stdev',
-        'TenK10K_Stdev',
-        'StdevFromIllumina174k',
-        'StdevFromT2TAssemblies',
-
-        'HPRC100_BiallelicHistogram',
-        'TenK10K_BiallelicHistogram',
-        'AoU1027_OE_LengthPercentile',
-
-        'repeatMaskerIntervals',
-        'vamosOriMotifFrequencies',
-    ]
-
-    const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
-        'interval',  
-        'motif',  
-        'geneRegion',  
-        'geneName',  
-        'variationCluster',  
-        'mappability',  
-        'trsInRegion',  
-        'isPathogenic',  
-        'polymorphism',  
-
-        'gencodeGeneId',  
-        'gencodeTranscriptId',  
-        'refSeqGeneRegion',  
-        'refSeqGeneId',  
-        'refSeqGeneName',  
-        'refSeqTranscriptId',  
-        'maneGeneRegion',  
-        'maneGeneId',  
-        'maneGeneName',  
-
-        'HPRC100_AlleleHistogram',  
-        'TenK10K_AlleleHistogram',  
-        'AlleleFrequenciesFromIllumina174k',  
-        'AlleleFrequenciesFromT2TAssemblies',  
-        
-        'HPRC100_Stdev',  
-        'AoU1027_Stdev',  
-        'TenK10K_Stdev',  
-        'StdevFromIllumina174k',  
-        'StdevFromT2TAssemblies',
-
-        'source',
-        'AoU1027_OE_LengthPercentile',
-
-        'repeatMaskerIntervals',
-        'vamosOriMotifFrequencies',
-    ]
+    const TABLE_ID = 'catalog_20250516_135817'
 
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -1078,53 +948,16 @@
 
     // persistent page state (added to the URL)
     let DEFAULT_GLOBAL_PAGE_STATE = {
-        currentPage: 1,
-        pageSize: 100,
-        
-        sc: DEFAULT_SORT_COLUMN,
-        sd: DEFAULT_SORT_DIRECTION,
+
+        locusId: '',
 
         showIGV: 0,
         igvLoc: 'chr4:3074821-3074990',
-
-        showRs: 0,  //show results table
-        searchQuery: '',
-        showAdvFilters: 0,
-
-        // advanced search params
-        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
-        keepMotifSize: '',
-        keepMotif: '',
-
-        keepCodingLoci: 0,
-        keepFiveUTRLoci: 0,
-        keepThreeUTRLoci: 0,
-        keepPromoterLoci: 0,
-        keepIntronLoci: 0,
-        keepIntergenicLoci: 0,
-        keepNonCodingExonLoci: 0,
-
-        polymorphismFilter: 0,
-        polymorphismFilterType: '',
-        polymorphismThreshold: '',
-        vcFilter: 0,
-        vcFilterType: '',
 
         // Custom track URLs
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
-
-        showColumns: [
-            'interval', 
-            'motif',
-            'geneRegion',
-            'geneName', 
-            'variationCluster',
-            'source',
-            'polymorphism',
-            'HPRC100_AlleleHistogram',
-        ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
     
     /*
@@ -1210,46 +1043,6 @@
         'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
-    // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
-    const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
-        'CAG',
-        'GCC',
-        'GAA',
-        'GTC',
-        'CAGG',
-        'TTTG',
-        'GGGCC',
-        'ATTCT',
-        'GGCCCC',
-        'GGCCTG',
-        'GGCGCGGAGC',
-        'CGCGGGGCGGGG',
-        'CCTCGCTGTGCCGCTGCCGA',
-        'CCTCATGGTGGTGGCTGGGGGCAG',
-    
-        /*
-        //BEAN1
-        "TAGAA",
-        "TGGAA",
-
-        //DAB1
-        "GAAAT",
-
-        //MARCHF6
-        "ATTTC",
-
-        //RAPGEF2, 
-        "TTTCA",
-
-        //RFC1
-        "AAGGC",
-        "AAGGG",
-        "ACAGG",
-        "AGAGG",
-        "AGGGC",
-        */
-    ].join(', ')
-
     const computeIntervalSize = (interval) => {
         const [chrom, start_end] = interval.split(':')
         const [start, end] = start_end.split('-')
@@ -1604,42 +1397,13 @@
             $('#filter-button .filter.icon').removeClass('rotated')
         }
 
-        // search
-        $('#search-query').val(GLOBAL_PAGE_STATE['searchQuery'])
-
-        $('select[name="sourceCatalog"]').val(GLOBAL_PAGE_STATE['sourceCatalog'])
-        $('#source-catalog-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sourceCatalog'])
-
-        $('input[name="keepMotifSize"]').val(GLOBAL_PAGE_STATE['keepMotifSize'])
-        $('input[name="keepMotif"]').val(GLOBAL_PAGE_STATE['keepMotif'])
-
-        $('input[name="keepCodingLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepCodingLoci'] === 1)
-        $('input[name="keepFiveUTRLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepFiveUTRLoci'] === 1)
-        $('input[name="keepThreeUTRLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepThreeUTRLoci'] === 1)
-        $('input[name="keepPromoterLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepPromoterLoci'] === 1)
-        $('input[name="keepIntronLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntronLoci'] === 1)
-        $('input[name="keepIntergenicLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntergenicLoci'] === 1)
-        $('input[name="keepNonCodingExonLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] === 1)
-
-        $('input[name="polymorphismFilter"]').prop('checked', GLOBAL_PAGE_STATE['polymorphismFilter'] === 1)
-        $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
-        $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
-        $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
-
-        $('input[name="vcFilter"]').prop('checked', GLOBAL_PAGE_STATE['vcFilter'] === 1)
-        $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
-        $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
         // Restore custom track URLs
         for (let i = 1; i <= 3; i++) {
             $(`#igv-custom-track-url-${i}`).val(GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] || '')
         }
 
-        if (GLOBAL_PAGE_STATE['showRs'] === 1) {
-            if (!validateForm()) {
-                return;
-            }            
-            await performSearch(false)
-        }
+        await performSearch()
+        
     }
 
     const writePersistentPageStateToUrl = () => {
@@ -1942,355 +1706,6 @@
         }
     }
 
-    const updatePaginationControls = () => {
-
-        const $topPagination = $('.top-pagination')
-        const $bottomPagination = $('.bottom-pagination')
-
-        const currentPage = GLOBAL_PAGE_STATE['currentPage']
-        const pageSize = GLOBAL_PAGE_STATE['pageSize']
-        const totalResults = window.searchResults.total_results
-
-
-        // Always show pagination controls if there are results
-        if (totalResults > 0) {
-            $topPagination.show()
-            $bottomPagination.show()
-        } else {
-            $topPagination.hide()
-            $bottomPagination.hide()
-            return
-        }
-
-        const nFirstRowOnPage = (currentPage - 1) * pageSize + 1
-        const nLastRowOnPage = Math.min(nFirstRowOnPage + pageSize - 1, totalResults)
-
-        const totalPages = parseInt(Math.ceil(totalResults / pageSize))
-
-        const paginationHtml = `
-                <div class="total-results">
-                    Showing ${nFirstRowOnPage.toLocaleString()}-${nLastRowOnPage.toLocaleString()} out of ${totalResults.toLocaleString()}
-                </div>
-                <div class="export-selector">
-                    <span class="export-label"><b>Export to:</b></span>
-                    <div class="ui selection dropdown export-dropdown" id="export-dropdown" style="min-width: 160px">
-                        <input type="hidden" name="export-format">
-                        <i class="dropdown icon"></i>
-                        <div class="default text">Select format</div>
-                        <div class="menu">
-                            <div class="item" data-value="bed">BED</div>
-                            <div class="item" data-value="tsv">TSV</div>
-                            <div class="item" data-value="json">JSON</div>
-                            <div class="divider"></div>
-                            <div class="header">Tool input formats:</div>
-                            <div class="item" data-value="expansion_hunter">ExpansionHunter</div>
-                            <div class="item" data-value="gangstr">GangSTR</div>
-                            <div class="item" data-value="hipstr">HipSTR</div>
-                            <div class="item" data-value="trgt">TRGT</div>
-                            <div class="item" data-value="longtr">LongTR</div>
-                        </div>
-                    </div>
-                    <i class="question circle icon export-help-icon" data-html="Export all ${totalResults.toLocaleString()} search results to a file in the selected format"></i>
-                </div>
-                <div class="page-size-selector">
-                    <span>Page size:</span>
-                    <div class="ui selection dropdown page-size-select" style="min-width: 80px">
-                        <input type="hidden" name="page-size">
-                        <i class="dropdown icon"></i>
-                        <div class="text">${pageSize}</div>
-                        <div class="menu">
-                            <div class="item" data-value="10">10</div>
-                            <div class="item" data-value="20">20</div>
-                            <div class="item" data-value="50">50</div>
-                            <div class="item" data-value="100">100</div>
-                            <div class="item" data-value="200">200</div>
-                            <div class="item" data-value="500">500</div>
-                            <div class="item" data-value="1000">1000</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="pagination-controls">
-                    <button class="ui icon button first-page ${currentPage === 1 ? 'disabled' : ''}" title="First page">
-                        <i class="angle double left icon"></i>
-                    </button>
-                    <button class="ui icon button prev-page ${currentPage === 1 ? 'disabled' : ''}"
-                            title="Previous page">
-                        <i class="angle left icon"></i>
-                    </button>
-                    <div class="page-input-container">
-                        <span>Page</span>
-                        <input type="number" class="page-number-input" min="1" max="${totalPages}" value="${currentPage}">
-                        <span class="total-pages">of ${totalPages.toLocaleString()}</span>
-                    </div>
-                    <button class="ui icon button next-page ${currentPage === totalPages ? 'disabled' : ''}"
-                            title="Next page">
-                        <i class="angle right icon"></i>
-                    </button>
-                    <button class="ui icon button last-page ${currentPage === totalPages ? 'disabled' : ''}"
-                            title="Last page">
-                        <i class="angle double right icon"></i>
-                    </button>
-                </div>
-            `
-
-        $topPagination.html(paginationHtml)
-        $bottomPagination.html(paginationHtml)
-
-        $('.export-help-icon').popup({ on: 'click' })
-
-        // Add click handlers for all pagination containers
-        $('.pagination-container').each(function() {
-            const $container = $(this)
-
-            // Handle page size selection using standard <select>
-            $container.find('.page-size-select').dropdown({
-                onChange: (value) => {
-                    const newPageSize = parseInt(value)
-                    if (newPageSize !== GLOBAL_PAGE_STATE['pageSize']) {
-                        GLOBAL_PAGE_STATE['pageSize'] = newPageSize
-                        GLOBAL_PAGE_STATE['currentPage'] = 1
-                        writePersistentPageStateToUrl()
-                        performSearch(true)
-                    }
-                },
-                onShow: function() {
-                    $(this).css('z-index', 1001)
-                },
-                onHide: function() {
-                    $(this).css('z-index', '')
-                }
-            })
-
-            // First page button
-            $container.find('.first-page').click(() => {
-                if (!$(this).hasClass('disabled')) {
-                    GLOBAL_PAGE_STATE['currentPage'] = 1
-                    writePersistentPageStateToUrl()
-                    performSearch(true)
-                }
-            })
-
-            // Previous page button
-            $container.find('.prev-page').click(() => {
-                if (!$(this).hasClass('disabled')) {
-                    GLOBAL_PAGE_STATE['currentPage'] -= 1
-                    writePersistentPageStateToUrl()
-                    performSearch(true)
-                }
-            })
-
-            // Next page button
-            $container.find('.next-page').click(() => {
-                if (!$(this).hasClass('disabled')) {
-                    GLOBAL_PAGE_STATE['currentPage'] += 1
-                    writePersistentPageStateToUrl()
-                    performSearch(true)
-                }
-            })
-
-            // Last page button
-            $container.find('.last-page').click(() => {
-                if (!$(this).hasClass('disabled')) {
-                    GLOBAL_PAGE_STATE['currentPage'] = totalPages
-                    writePersistentPageStateToUrl()
-                    performSearch(true)
-                }
-            })
-
-            // Page input handler
-            $container.find('.page-number-input').on('change keypress', function(e) {
-                if (e.type === 'change' || e.which === 13) {
-                    const newPage = parseInt($(this).val())
-                    if (newPage !== currentPage) {
-                        GLOBAL_PAGE_STATE['currentPage'] = Math.max(1, Math.min(newPage, totalPages))
-                        writePersistentPageStateToUrl()
-                        performSearch(true)
-                    }
-
-                    if (e.type === 'keypress') {
-                        e.preventDefault()
-                    }
-                }
-            })
-        })
-
-        $('.export-dropdown').dropdown({
-            onShow: function() {
-                $(this).css('z-index', 10001)
-            },
-            onHide: function() {
-                $(this).css('z-index', '')
-            },
-            onChange: async (value) => {
-                if (!value) return
-
-                $('.export-dropdown').dropdown('clear')
-
-                const searchQuerySuffix = window.lastSearchQuerySuffix
-
-                if (!searchQuerySuffix) {
-                    alert('No results to export. Please perform a search first.')
-                    return
-                }
-
-
-                // Format data based on export type
-                let fileFormat
-                if (value === 'expansion_hunter' || value == 'json') {
-                    fileFormat = 'JSON'
-                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'bed') {
-                    fileFormat = 'BED'
-                } else if (value === 'tsv') {
-                    fileFormat = 'TSV'
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
-                }
-
-                let toolName
-                let selectClause
-                if (value === 'expansion_hunter') {
-                    toolName = 'ExpansionHunter'
-                    selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
-                } else if(value === 'gangstr') {
-                    toolName = 'GangSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
-                } else if(value === 'hipstr' || value === 'longtr') {
-                    toolName = value === 'hipstr' ? 'HipSTR' : 'LongTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
-                } else if(value === 'trgt') {
-                    toolName = 'TRGT'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
-                } else if(value === 'bed') {
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
-                } else if(value === 'tsv' || value === 'json') {
-                    const tsv_columns = [
-                        //'chrom_index',
-                        `CONCAT('chr', chrom) AS chrom`,
-                        'start_0based',
-                        'end_1based',
-                        'ReferenceRegion',
-                        'LocusId',
-                        'ReferenceMotif',
-                        'MotifSize',
-                        'CanonicalMotif',
-                        'NumRepeatsInReference',
-                        'ReferenceRepeatPurity',
-                        'NsInFlanks',
-                        'TRsInRegion',
-                        'Source',
-                        //'LeftFlankMappability',
-                        //'RightFlankMappability',
-                        'FlanksAndLocusMappability',
-                        'VariationCluster',
-                        'VariationClusterSizeDiff',
-                        'KnownDiseaseAssociatedLocus',
-                        'KnownDiseaseAssociatedMotif',
-                        'GencodeGeneRegion',
-                        'GencodeGeneName',
-                        'GencodeGeneId',
-                        'GencodeTranscriptId',
-                        'RefseqGeneRegion',
-                        'RefseqGeneName',
-                        'RefseqGeneId',
-                        'RefseqTranscriptId',
-                        'ManeGeneRegion',
-                        'ManeGeneName',
-                        'ManeGeneId',
-                        'ManeTranscriptId',
-
-                        //'LPSLengthStdevFromHPRC100',
-                        //'LPSMotifFromHPRC100',
-                        //'LPSMotifFractionFromHPRC100',
-                        //'LPSMotifDenominatorFromHPRC100',
-
-                        'AlleleFrequenciesFromIllumina174k',
-                        'StdevFromIllumina174k',
-                        'AlleleFrequenciesFromT2TAssemblies',
-                        'StdevFromT2TAssemblies',
-
-                        'TenK10K_AlleleHistogram',
-                        'TenK10K_ModeAllele',
-                        'TenK10K_Stdev',
-                        'TenK10K_Median',
-                        'TenK10K_99thPercentile',
-
-                        'HPRC100_AlleleHistogram',
-                        'HPRC100_ModeAllele',
-                        'HPRC100_Stdev',
-                        'HPRC100_Median',
-                        'HPRC100_99thPercentile',
-
-                        'AoU1027_MinAllele',
-                        'AoU1027_ModeAllele',
-                        'AoU1027_Stdev',
-                        'AoU1027_Median',
-                        'AoU1027_99thPercentile',
-                        'AoU1027_MaxAllele',
-                        //'AoU1027_UniqueAlleles',   // TODO restore this field when I get new data table with bug fix
-
-                        'AoU1027_OE_Length',
-                        'AoU1027_OE_LengthPercentile',
-
-                        'RepeatMaskerIntervals',
-                        'VamosOriMotifFrequencies',
-                    ]
-                    selectClause = tsv_columns.join(', ')
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
-                }
-
-                try {
-                    $('body').css('cursor', 'wait')
-
-                    const query = `SELECT ${selectClause} FROM ${searchQuerySuffix}`
-                    const results = await queryBigQuery(query, null, null, fileFormat, toolName)
-
-                    if (results.public_urls) {
-                        if (results.public_urls.length > 1) {
-                            if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
-                                return;
-                            }
-                        }
-                        for (const url of results.public_urls) {
-                            console.log('Downloading URL:', url)
-                            // Create and trigger download link using jQuery
-                            const $link = $('<a>')
-                                .attr('href', url)
-                                .appendTo('body')
-                            $link[0].click()
-
-                            // Add a small delay between downloads
-                            await new Promise(resolve => setTimeout(resolve, 2000))
-
-                            // Keep track of the link for later removal
-                            if (!window.downloadLinks) {
-                                window.downloadLinks = []
-                            }
-                            window.downloadLinks.push($link)
-
-                            // If this is the first link, start the cleanup timer
-                            if (window.downloadLinks.length === 1) {
-                                setTimeout(() => {
-                                    window.downloadLinks.forEach($link => {
-                                        $link.remove()
-                                    })
-                                    window.downloadLinks = []
-                                }, 2*60*1000)
-                            }
-
-                        }
-                    }
-
-                } catch (error) {
-                    console.error('Error exporting data:', error)
-                    alert('Error exporting data: ' + error.message)
-                } finally {
-                    $('body').css('cursor', 'default')
-                }
-            }
-        })
-    }
-
     const parseAlleleFrequenciesString = (frequenciesString) => {
         try {
             const data = []
@@ -2306,61 +1721,6 @@
         } catch (e) {
             console.error('Error parsing allele frequencies string:', e)
             return []
-        }
-    }
-
-    const parseMotifFrequenciesString = (frequenciesString) => {
-        if (!frequenciesString) {
-            return ''
-        }
-
-        console.log(frequenciesString)
-        try {
-            const items = frequenciesString.split(',')
-            let total = 0
-            let motifs = {}
-            for (let i = 0; i < items.length; i++) {
-                let [motif, count] = items[i].split(':')
-                count = parseInt(count)
-                motif = motif.trim()
-                motifs[motif] = count
-                total += count
-            }
-
-
-            // convert counts to fractions
-            let motifCount = 0
-            let homopolymerMotifCount = 0
-            for (let motif in motifs) {
-                motifs[motif] /= total
-                if (motifs[motif] >= 0.01) {
-                    motifCount += 1
-                    if (motif.length == 1) {
-                        homopolymerMotifCount += 1
-                    }
-                }
-            }
-
-            if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
-                return ''
-            }
-
-
-            let resultMotifs = []
-            for (let motif in motifs) {
-                if (motifs[motif] >= 0.01) {
-                    resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 24 ? (motif.substring(0, 24) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
-                }
-            }
-
-            let data_html = `<table style='border-spacing: 20px 3px'><tr><td><b>Frequency</b></td><td><b>Motif</b></td></tr>${resultMotifs.join('')}</table><br />`
-            data_html += "Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies. Percentages represent relative motif frequencies. Motifs at homopolymer loci as well as motifs below 1% are not shown.<br /><br />"
-
-
-            return `<span class="show-popup" data-html="${data_html}">${resultMotifs.length} motifs</span>`
-        } catch (e) {
-            console.error('Error parsing motif frequencies string:', e)
-            return ''
         }
     }
 
@@ -2805,724 +2165,11 @@
     }
 
     const displaySearchResults = () => {
+        // display the search results in the results-table div
 
-        const results = window.searchResults
-        const sortColumn = GLOBAL_PAGE_STATE['sc']
-        const sortDirection = GLOBAL_PAGE_STATE['sd']
-        const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+        const row = window.searchResults.rows[0]
+        console.log("search results row:", row)
 
-        const resultsTableElement = $('#results-table')
-
-        resultsTableElement.removeClass('loading')
-        if (!results.rows || results.rows.length === 0) {
-            resultsTableElement.html('<div class="no-results">No matching results found</div>')
-            $('.pagination-container').hide()
-            return
-        }
-
-        let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
-        tableHtml += `<th style="text-align: center">
-            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column descriptions and settings">
-                <i class="setting icon"></i>
-            </button>
-        </th>`
-
-        Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-            if (visibleColumns.includes(columnId)) {
-                const columnObject = TABLE_COLUMNS[columnName]
-                const isSorted = columnName === sortColumn
-                let icon = '<i class="sort icon"></i>'
-                if (isSorted) {
-                    icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
-                }
-                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnName}">${columnObject.displayName} ${icon}</th>`
-            }
-        })
-
-        tableHtml += '</tr></thead><tbody>'
-
-        const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
-
-        results.rows.forEach((row, index) => {
-            let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
-
-            tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
-            tableHtml += `<td style="text-align: left;">
-                <div style="min-width: 25px; padding-right: 5px; display: inline-block;"><a href="locus.html?#locusId=${row.LocusId}">#${(startIndex + index + 1).toLocaleString()}:</a></div>
-                <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
-                ${diseaseAssociatedIconHtml}
-            </td>`
-
-            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-                if (visibleColumns.includes(columnId)) {
-                    const columnObject = TABLE_COLUMNS[columnName]
-                    let value
-                    if (!columnObject || !columnObject.getValue) {
-                        const label = columnObject ? 'columnObject' : 'columnObject.getValue'
-                        console.log('WARNING: ', label, 'is undefined for columnId:', columnId, 'columnName:', columnName)
-                        value = row[columnName]
-                    } else {
-                        value = columnObject.getValue(row)
-                    }
-
-                    tableHtml += `<td>${value != null ? value : ''}</td>`
-                }
-            })
-            tableHtml += '</tr>'
-        })
-        tableHtml += '</tbody></table>'
-        resultsTableElement.html(tableHtml)
-
-        // Add click handlers for sortable headers
-        resultsTableElement.find('.results-table-sortable-header').click(function() {
-            const column = $(this).data('column')
-            if (column === sortColumn) {
-                if (sortDirection === 'ASC') {
-                    GLOBAL_PAGE_STATE['sd'] = 'DESC'
-                } else if (sortDirection === 'DESC') {
-                    GLOBAL_PAGE_STATE['sc'] = DEFAULT_SORT_COLUMN
-                    GLOBAL_PAGE_STATE['sd'] = DEFAULT_SORT_DIRECTION
-                }
-            } else {
-                GLOBAL_PAGE_STATE['sc'] = column
-                GLOBAL_PAGE_STATE['sd'] = 'ASC'
-            }
-
-            performSearch(true)
-        })
-
-        // Add click handlers for IGV buttons
-        $('.row-igv-button').click(async function() {
-            const locus = $(this).data('locus')
-            if (!locus) return
-
-            // Parse the locus to get chrom, start, end
-            const match = locus.match(/^(?:chr)?([XYMTt0-9]+):(\d+)-(\d+)$/i)
-            if (!match) return
-
-            const [_, chrom, start, end] = match
-            const padding = 150
-            const paddedStart = Math.max(0, parseInt(start) - padding)
-            const paddedEnd = parseInt(end) + padding
-            const paddedLocus = `${chrom}:${paddedStart}-${paddedEnd}`
-
-
-            try {
-                $('body').css('cursor', 'wait')
-
-                // Navigate to the locus
-                GLOBAL_PAGE_STATE['igvLoc'] = paddedLocus
-                writePersistentPageStateToUrl()
-
-                // Show IGV if hidden
-                if (GLOBAL_PAGE_STATE['showIGV'] !== 1) {
-
-                    GLOBAL_PAGE_STATE['showIGV'] = 1
-
-                    $('#igv-row').show()
-                    $('#show-igv-divider-text').hide()
-                    $('#hide-igv-divider-text').show()
-                    await updateIgv()
-                } else {
-                    if (!window.igvBrowser) {
-                        console.error("WARNING: IGV browser not initialized yet")
-                        await updateIgv()
-                    }
-                    await window.igvBrowser.search(paddedLocus)
-                }
-
-                // Scroll the page to the IGV browser
-                $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
-
-
-                // Enable the "TRExplorer genome-wide catalog" track if it's not already enabled
-                if (!GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2']) {
-                    GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
-                    writePersistentPageStateToUrl()
-
-                    await updateIgv()
-                }
-            } finally {
-                $('body').css('cursor', 'default')
-            }
-        })
-
-        // Init charts
-        $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
-
-
-        // Initialize popups for variation cluster cells
-        $('.cell-in-variation-cluster-column').popup({ position: 'right center', on: 'click', hoverable: true })
-
-        $('.show-popup').popup({ on: 'click', hoverable: true })
-
-        // Initialize popups for polymorphism cells
-        $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
-
-        $('.disease-associated-icon').popup({ on: 'click' })
-
-        // "Column settings" modal
-        $('#results-table-settings-button').click((e) => {
-            e.preventDefault()
-
-            // Clear existing checkboxes
-            $('.results-table-column-settings-checkboxes tr').remove()
-
-            // Create a flex container div instead of using table rows
-            $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-flex-container"></div>')
-
-            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            const checkboxes = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES.map((columnName) => {
-                const columnId = RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)
-                const isChecked = visibleColumns.includes(columnId.toString())
-                return `
-                    <div class="results-table-column-settings-checkbox-item">
-                        <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
-                            <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
-                            <label>${TABLE_COLUMNS[columnName].displayName}</label>
-                        </div>
-                        ${TABLE_COLUMNS[columnName].helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
-                    </div>`
-            }).join('')
-
-            $('.results-table-column-settings-checkbox-flex-container').append(checkboxes)
-
-            // Initialize checkboxes
-            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox()
-            $('#results-table-column-settings-dialog').modal('show')
-            $('.question').popup({ on: 'click' })
-        })
-
-        // Handle Apply button click in column settings dialog
-        $('#results-table-column-settings-apply-button').click(() => {
-            const selectedColumns = []
-            $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {
-                if ($(this).prop('checked')) {
-                    const columnId = $(this).attr('name').replace('show_column_', '')
-                    selectedColumns.push(columnId)
-                }
-            })
-
-            GLOBAL_PAGE_STATE['showColumns'] = selectedColumns.join(SHOW_COLUMNS_VALUE_DELIMITER)
-            writePersistentPageStateToUrl()
-            performSearch(true)
-
-            $('#results-table-column-settings-dialog').modal('hide')
-        })
-
-        GLOBAL_PAGE_STATE['showRs'] = 1
-        writePersistentPageStateToUrl()
-    }
-
-    const splitSearchQuery = (searchQuery) => {
-        if (!searchQuery) {
-            return []
-        }
-
-        searchQuery = searchQuery.trim()
-        searchQuery = searchQuery.replace(/[–—−‐‑‒﹘﹣－‾]/g, '-') // Replace all unicode dash types with a regular dash
-
-        // split by comma except where the comma is part of a large number (eg. 1,234,567)
-        const searchQueryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
-
-        return searchQueryValues
-    }
-
-    const performSearch = async (showTableWhileLoading = false) => {
-        // Remove any error messages and no results message
-        $('#error-message').hide()
-        $('.no-results').hide()
-        $('.top-pagination').hide()         // Hide only top pagination container during loading
-        $('#loading-container').show()      // Show loading indicator
-
-        // Add loading state to table without emptying it
-        if (showTableWhileLoading) {
-            $('.bottom-pagination').show()
-            $('#results-table').addClass('loading')
-        } else {
-            $('#results-table').hide()
-            $('.bottom-pagination').hide()
-        }
-
-        try {
-            $('body').css('cursor', 'wait')
-
-            let conditions = []
-
-            let searchQuery = $('#search-query').val()
-            if (searchQuery) {
-
-                // Split input by commas to handle multiple values
-                const queryValues = splitSearchQuery(searchQuery)
-
-                // Process each query value and create query conditions
-                const queryClauses = queryValues.map(queryValue => {
-
-                    // Check if it's a genomic region (chr:start-end)
-                    const regionMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*:[\s]*([\d,]+)[\s]*-[\s]*([\d,]+)[\s]*$/i)
-                    if (regionMatch) {
-                        let [_, chrom, start, end] = regionMatch
-                        start = parseInt(start.replace(/,/g, ''))
-                        end = parseInt(end.replace(/,/g, ''))
-                        return `
-                            (chrom = '${chrom}' AND start_0based < ${end} AND end_1based >= ${start})
-                        `
-                    } else {
-                        const locusIdMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i)
-                        if (locusIdMatch) {
-                            console.log("locusIdMatch", locusIdMatch)
-                            let [_, chrom, start, end, motif] = locusIdMatch
-                            start = parseInt(start.replace(/,/g, ''))
-                            end = parseInt(end.replace(/,/g, ''))
-                            return `
-                                (chrom = '${chrom}' AND start_0based < ${end - motif.length} AND end_1based >= ${start + motif.length} AND MotifSize = ${motif.length})
-                            `
-                        } else {
-                            // Try other fields
-                            return `
-                                (UPPER(GencodeGeneName) = UPPER('${queryValue}')
-                                OR UPPER(GencodeGeneId) = UPPER('${queryValue}')
-                                OR UPPER(GencodeTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(RefseqGeneName) = UPPER('${queryValue}')
-                                OR UPPER(RefseqGeneId) = UPPER('${queryValue}')
-                                OR UPPER(RefseqTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(ManeGeneName) = UPPER('${queryValue}')
-                                OR UPPER(ManeGeneId) = UPPER('${queryValue}')
-                                OR UPPER(ManeTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(LocusId) = UPPER('${queryValue}'))
-                            `
-                        }
-                    }
-                })
-                
-                // Combine all clauses with OR for multiple input values
-                if (queryClauses.length > 0) {
-                    conditions.push(`(${queryClauses.join(' OR ')})`)
-                }
-            }
-
-            if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
-
-                // Add source catalog condition
-                const sourceCatalog = $('#source-catalog-dropdown').dropdown('get value')
-                if (sourceCatalog) {
-                    switch (sourceCatalog) {
-                        case 'tr_explorer_catalog_v2':
-                            break   // No additional conditions needed
-                        case 'tr_explorer_catalog':
-                            conditions.push("source LIKE 'TRExplorerV1%'")
-                            break
-                        case 'illumina_174k_catalog':
-                            conditions.push(
-                                "(FoundInIllumina174kPolymorphicTRs = 'Yes' OR (FoundInKnownDiseaseAssociatedLoci = 'Yes' AND FoundInIllumina174kPolymorphicTRs LIKE '%Yes%'))")
-                            break
-                        case 'known_disease_loci':
-                            conditions.push(
-                                "KnownDiseaseAssociatedLocus IS NOT NULL")
-                            break
-                    }
-                }
-
-                // Add variation cluster filter conditions
-                const vcFilter = $('input[name="vcFilter"]').prop('checked')
-                const vcFilterType = $('#variation-cluster-filter-dropdown').dropdown('get value')
-                if (vcFilter && vcFilterType) {
-                    switch (vcFilterType) {
-                        case 'exclude':
-                            conditions.push("(VariationCluster IS NULL OR VariationCluster = '')")
-                            break
-                        case 'exclude_ge_50':
-                            conditions.push("(VariationCluster IS NULL OR VariationCluster = '' OR VariationClusterSizeDiff < 50)")
-                            break
-                        case 'keep':
-                            conditions.push("(VariationCluster IS NOT NULL AND VariationCluster != '')")
-                            break
-                        case 'keep_ge_50':
-                            conditions.push("(VariationCluster IS NOT NULL AND VariationCluster != '' AND VariationClusterSizeDiff >= 50)")
-                            break
-                    }
-                }
-
-                // Add polymorphism filter conditions
-                const polymorphismFilter = $('input[name="polymorphismFilter"]').prop('checked')
-                const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
-                const polymorphismThreshold = $('input[name="polymorphismThreshold"]').val()
-                if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold) {
-                    switch (polymorphismFilterType) {
-                        case 'sigma_HPRC100':
-                            conditions.push(`HPRC100_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_AoU1027':
-                            conditions.push(`AoU1027_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_TenK10K':
-                            conditions.push(`TenK10K_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_1kGP':
-                            conditions.push(`StdevFromIllumina174k > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_T2T':
-                            conditions.push(`StdevFromT2TAssemblies > ${polymorphismThreshold}`)
-                            break
-                        default:
-                            console.error(`Unknown polymorphism filter type: ${polymorphismFilterType}`)
-                    }
-                }
-
-                // Add known disease-associated loci condition
-                let knownDiseaseLoci = $('input[name="keepKdLoci"]').prop('checked')
-                if (knownDiseaseLoci) {
-                    conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL AND KnownDiseaseAssociatedLocus != ''")
-                }
-
-
-                let motifSizeInput = $('input[name="keepMotifSize"]').val()
-                if (motifSizeInput) {
-                    motifSizeInput = motifSizeInput.trim()
-
-                    let sizeClauses = []
-                    
-                    // Split input by commas and process each value
-                    const values = motifSizeInput.split(',').map(v => v.trim()).filter(v => v !== '')
-                    
-                    values.forEach(value => {
-                        // Handle open-ended ranges like "15-"
-                        const openEndedMatch = value.match(/^(\d+)-$/)
-                        if (openEndedMatch) {
-                            const min = parseInt(openEndedMatch[1])
-                            sizeClauses.push(`(MotifSize >= ${min})`)
-                            return
-                        }
-                        
-                        // Handle ranges like "2-6"
-                        const rangeMatch = value.match(/^(\d+)-(\d+)$/)
-                        if (rangeMatch) {
-                            const min = parseInt(rangeMatch[1])
-                            const max = parseInt(rangeMatch[2])
-                            sizeClauses.push(`(MotifSize BETWEEN ${min} AND ${max})`)
-                            return
-                        }
-                        
-                        // Handle single numbers
-                        const singleNumber = parseInt(value)
-                        if (!isNaN(singleNumber)) {
-                            sizeClauses.push(`(MotifSize = ${singleNumber})`)
-                        }
-                    })
-                    
-                    if (sizeClauses.length > 0) {
-                        conditions.push(`(${sizeClauses.join(' OR ')})`)
-                    }
-                }
-
-                const reverseCompliment = (m) => {
-                    const complement = {
-                        'A': 'T',
-                        'T': 'A',
-                        'C': 'G',
-                        'G': 'C',
-                        'R': 'Y',
-                        'Y': 'R',
-                        'M': 'K',
-                        'K': 'M',
-                        'B': 'V',
-                        'D': 'H',
-                        'H': 'D',
-                        'V': 'B',
-                    }
-                    
-                    return m.toUpperCase().split('').map(base => complement[base] || base).reverse().join('')
-                }
-
-                const computeCanonicalMotif = (m) => {
-                    m = m.toUpperCase()
-                    
-                    const rotations = []
-                    for (let i = 0; i < m.length; i++) {
-                        rotations.push(m.slice(i) + m.slice(0, i))
-                    }
-                    
-                    // Get reverse complement of each rotation
-                    const allVariants = [...rotations, ...rotations.map(rot => reverseCompliment(rot))]
-                    
-                    // Return the lexicographically smallest variant
-                    return allVariants.sort()[0]
-                }
-
-                
-                let motifInput = $('#motif-input').val()
-                if (motifInput) {
-                    motifInput = motifInput.trim()
-                    const motifs = motifInput.split(',').map(m => m.trim()).filter(m => m !== '')
-                    if (motifs.length > 0) {
-                        const motifClauses = motifs.map(motif => 
-                            `UPPER(CanonicalMotif) = UPPER('${computeCanonicalMotif(motif)}')`
-                        )
-                        conditions.push(`(${motifClauses.join(' OR ')})`)
-                    }
-                }
-
-                // Add gene region conditions
-                const regionConditions = []
-                
-                if ($('input[name="keepCodingLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('CDS')")
-                }
-                if ($('input[name="keepFiveUTRLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('5\\' UTR')")
-                }
-                if ($('input[name="keepThreeUTRLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('3\\' UTR')")
-                }
-                if ($('input[name="keepPromoterLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('promoter')")
-                }
-                if ($('input[name="keepIntronLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('intron')")
-                }
-                if ($('input[name="keepIntergenicLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('intergenic')")
-                }
-                if ($('input[name="keepNonCodingExonLoci"]').prop('checked')) {
-                    regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('exon')")
-                }
-
-                if (regionConditions.length > 0) {
-                    conditions.push(`(${regionConditions.join(' OR ')})`)
-                }
-            }
-
-            //get all required columns for the visible columns
-            let selectedColumns = [
-                'LocusId',
-                'ReferenceRegion',
-                'DiseaseInfo',
-            ]
-
-            //add the visible columns to the selected columns
-            const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-                if (visibleColumns.includes(columnId)) {
-                    const columnObject = TABLE_COLUMNS[columnName]
-                    columnObject.getRequiredColumns().forEach(column => {
-                        if (!selectedColumns.includes(column)) {
-                            selectedColumns.push(column)
-                        }
-                    })
-                }
-            })
-
-            const sortColumn = GLOBAL_PAGE_STATE['sc']
-            const sortDirection = GLOBAL_PAGE_STATE['sd']
-
-            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-            const sortColumns = TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom', 'start_0based']
-            const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
-
-            const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause} ORDER BY ${sortClause}`
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
-
-            const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
-            const pageSize = GLOBAL_PAGE_STATE['pageSize']
-
-            window.lastSearchQuerySuffix = querySuffix
-            window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
-
-            // Remove loading indicator and placeholder before showing results
-            $('#loading-container').hide()
-
-            GLOBAL_PAGE_STATE['searchQuery'] = searchQuery
-
-            GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
-
-            GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
-            GLOBAL_PAGE_STATE['keepMotif'] = $('#motif-input').val()
-
-            GLOBAL_PAGE_STATE['keepCodingLoci'] = $('input[name="keepCodingLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepFiveUTRLoci'] = $('input[name="keepFiveUTRLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepThreeUTRLoci'] = $('input[name="keepThreeUTRLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepPromoterLoci'] = $('input[name="keepPromoterLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepIntronLoci'] = $('input[name="keepIntronLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
-
-            GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
-            GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
-            GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
-            writePersistentPageStateToUrl()
-
-            displaySearchResults()
-            
-            updatePaginationControls()
-            
-        } catch (error) {
-            console.error('Error performing search:', error)
-            $('#loading-container').hide()
-            displayError('Error performing search: ' + error.message)
-        } finally {
-            $('body').css('cursor', 'default')
-            $('#results-table').show()
-            $('#results-table').removeClass('loading')
-        }
-    }
-
-    // "About" modal
-    ['whats-new', 'faq', 'downloads', 'about'].forEach(prefix => {
-        $(`#${prefix}-link`).click((e) => {
-            e.preventDefault()
-            $(`#${prefix}-modal`).modal('show')
-        })
-    })
-
-    const toggleAdvancedSearch = () => {
-        GLOBAL_PAGE_STATE['showAdvFilters'] = (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) ? 0 : 1
-        writePersistentPageStateToUrl()
-
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
-            $('#advanced-search-form').slideDown(300)
-            $('#filter-button .filter.icon').removeClass('rotated')
-
-            $('select[name="sourceCatalog"]').val(GLOBAL_PAGE_STATE['sourceCatalog'])
-            $('#source-catalog-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sourceCatalog'])
-            $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
-            $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
-            $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
-            $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
-            $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
-
-        } else {
-            $('#advanced-search-form').slideUp(300)
-            $('#filter-button .filter.icon').addClass('rotated')
-        }
-    }
-
-        // "filter" button click handler
-    $('#filter-button').click(toggleAdvancedSearch)
-
-    // handle search
-    const validateMotifSizeInput = (input) => {
-        if (!input) return true; // Empty input is valid
-        
-        // First validate the overall format - only allow numbers, commas, and hyphens
-        if (!/^[-\d\s,]+$/.test(input)) return false;
-        
-        const values = input.split(',').map(v => v.trim()).filter(v => v !== '');
-        
-        for (const value of values) {
-            // Check for open-ended ranges like "15-"
-            const openEndedMatch = value.match(/^(\d+)-$/);
-            if (openEndedMatch) {
-                const min = parseInt(openEndedMatch[1]);
-                if (isNaN(min) || min < 1) return false;
-                continue;
-            }
-            
-            // Check for ranges like "2-6"
-            const rangeMatch = value.match(/^(\d+)-(\d+)$/);
-            if (rangeMatch) {
-                const min = parseInt(rangeMatch[1]);
-                const max = parseInt(rangeMatch[2]);
-                if (isNaN(min) || isNaN(max) || min < 1 || max < min) return false;
-                continue;
-            }
-            
-            // Check for single numbers
-            const singleNumber = parseInt(value);
-            if (isNaN(singleNumber) || singleNumber < 1) return false;
-        }
-        
-        return true;
-    };
-
-    const validateMotifInput = (input) => {
-        if (!input) return true; // Empty input is valid
-        
-        const motifs = input.split(',').map(m => m.trim()).filter(m => m !== '');
-        
-        for (const motif of motifs) {
-            // Check if motif contains only valid DNA characters (A,C,G,T,N, case insensitive)
-            if (!/^[ACGTNacgtn]+$/.test(motif)) {
-                return false;
-            }
-        }
-        
-        return true;
-    };
-
-    const validateForm = () => {
-
-        // Validate motif size input
-        const motifSizeInput = $('#motif-size-input').val();
-        if (!validateMotifSizeInput(motifSizeInput)) {
-            // Ensure advanced search form is visible
-            if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
-                toggleAdvancedSearch()
-            }
-            $('#form-error-message').html('<b>ERROR:</b> Invalid motif size filter. Please specify motif sizes or size ranges like: 3, 2-6, 7-').show();
-            $('#motif-size-input').closest('.field').addClass('error');
-            return false;
-        } else {
-            $('#motif-size-input').closest('.field').removeClass('error');
-        }   
-
-        // Validate motif input
-        const motifInput = $('#motif-input').val();
-        if (!validateMotifInput(motifInput)) {
-            // Ensure advanced search form is visible
-            if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
-                toggleAdvancedSearch()
-            }
-            $('#form-error-message').html('<b>ERROR:</b> Invalid motif filter. Motifs should only contain A, C, G, T, or N').show();
-            $('#motif-input').closest('.field').addClass('error');
-            return false;
-        } else {
-            $('#motif-input').closest('.field').removeClass('error');
-        }
-
-        // Validate polymorphism threshold input
-        if ($('input[name="polymorphismFilter"]').prop('checked')) {
-            const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
-            const polymorphismThreshold = $('#polymorphism-threshold').val();
-
-            if (!polymorphismFilterType || isNaN(polymorphismThreshold) || parseFloat(polymorphismThreshold) < 0) {
-                // Ensure advanced search form is visible
-                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
-                    toggleAdvancedSearch()
-                }
-                if (!polymorphismFilterType) {
-                    $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the polymorphism filter dropdown').show();
-                } else {
-                    $('#form-error-message').html(`<b>ERROR:</b> The polymorphism filter value '${polymorphismThreshold}' is invalid`).show();
-                }
-                $('#polymorphism-threshold').closest('.field').addClass('error');
-                return false;
-            } else {
-                $('#polymorphism-threshold').closest('.field').removeClass('error');
-            }
-        }
-
-        // Validate variation cluster filter
-        if ($('input[name="vcFilter"]').prop('checked')) {
-            const variationClusterFilterType = $('#variation-cluster-filter-dropdown').dropdown('get value')
-            if (!variationClusterFilterType) {
-                $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the variation cluster filter dropdown').show();
-                $('#variation-cluster-filter-dropdown').closest('.field').addClass('error');
-                return false;
-            } else {
-                $('#variation-cluster-filter-dropdown').closest('.field').removeClass('error');
-            }
-        }
-
-        // Clear any form errors
-        $('#form-error-message').hide();
-        $('.field.error').removeClass('error');
-        return true;
-    }        
-
-    function showPolymorphismDialog() {
-        const row = $(this).data()
         for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
             const lowerCaseKey = key.toLowerCase()
             if (row[lowerCaseKey] != null) {
@@ -3530,8 +2177,8 @@
             }
         }
                     
-        $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
-        $('#polymorphism-dialog-content').html('')
+        $('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
+        $('#results-area').html('')
 
         const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
         const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
@@ -3637,7 +2284,7 @@
             polymorphismDialogContent += '</div></div>'
         }
 
-        $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
+        $('#results-area').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
 
 
         // prepare chart data
@@ -3702,77 +2349,67 @@
 
             createBiallelicHistogramChart(chartData)
         })
-        
-        $('#polymorphism-dialog').modal('show')
 
         $('.question').popup({ on: 'click' })
 
     }
 
-    const handleSearch = async (event) => {
-        event.preventDefault()
+    const performSearch = async () => {
+        // Remove any error messages and no results message
+        $('#error-message').hide()
+        $('#loading-container').show()      // Show loading indicator
+        
+        try {
+            $('body').css('cursor', 'wait')
 
-        if (!validateForm()) {
-            return;
+            let conditions = []
+
+            let locusId = GLOBAL_PAGE_STATE['locusId']
+            if (locusId) {
+                conditions.push(`LocusId = '${locusId}'`)
+            } else {
+                displayError('Missing locusId URL parameter')
+                return
+            }
+
+            //get all required columns for the visible columns
+            let selectedColumns = [
+                'LocusId',
+                'ReferenceRegion',
+                'DiseaseInfo',
+                ...REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
+            ]
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+            const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause}`
+            const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
+
+            window.searchResults = await queryBigQuery(query, 0, 1, null, null)
+
+            console.log("search results:", window.searchResults)
+            // Remove loading indicator and placeholder before showing results
+            $('#loading-container').hide()
+
+            displaySearchResults()
+
+        } catch (error) {
+            console.error('Error performing search:', error)
+            $('#loading-container').hide()
+            displayError('Error performing search: ' + error.message)
+        } finally {
+            $('body').css('cursor', 'default')
+            $('#results-table').show()
+            $('#results-table').removeClass('loading')
         }
-
-        GLOBAL_PAGE_STATE['currentPage'] = 1
-
-        // set igvLoc to the first value in the search query
-        const searchQuery = $('#search-query').val()
-        if (searchQuery) {
-            GLOBAL_PAGE_STATE['igvLoc'] = splitSearchQuery(searchQuery)[0]
-        }
-
-        await performSearch(false)
     }
 
-    $('#search-form').submit(handleSearch)
-    $('#advanced-search-form').submit(handleSearch)
-    $('#advanced-search-form').find('input').keypress((e) => {
-        if (e.which === 13) {
+    // initialize the "What's new", "FAQ", "Downloads", and "About" modals
+    ['whats-new', 'faq', 'downloads', 'about'].forEach(prefix => {
+        $(`#${prefix}-link`).click((e) => {
             e.preventDefault()
-            handleSearch(e)
-        }
-    })
-
-    // Initialize source catalog dropdown
-    $('#source-catalog-dropdown').dropdown()
-    
-    // polymorphism filter dropdown
-    $('#polymorphism-filter-dropdown').dropdown({
-        onShow: function() {
-            $(this).css('z-index', 10001)
-        },
-        onHide: function() {
-            $(this).css('z-index', '')
-        },
-        onChange: (value) => {
-            if (value) {
-                $('input[name="polymorphismFilter"]').prop('checked', true)
-            }
-        }
-    })
-
-    // Add event handler for variation cluster filter dropdown
-    $('#variation-cluster-filter-dropdown').dropdown({
-        onShow: function() {
-            $(this).css('z-index', 10001)
-        },
-        onHide: function() {
-            $(this).css('z-index', '')
-        },
-        onChange: (value) => {
-            if (value) {
-                $('input[name="vcFilter"]').prop('checked', true)
-            }
-        }
-    })
-    
-    $('#known-disease-motifs-link').click((e) => {
-        e.preventDefault()
-
-        $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI)
+            $(`#${prefix}-modal`).modal('show')
+        })
     })
 
     // handle browser forward & back buttons
