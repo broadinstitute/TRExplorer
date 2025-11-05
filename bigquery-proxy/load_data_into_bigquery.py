@@ -266,7 +266,7 @@ if args.repeat_masker_lookup_json:
     # convert to repeat masker lookup entries to string format
     print(f"Converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
     for locus_id, repeat_masker_intervals in tqdm.tqdm(repeat_masker_lookup.items(), unit=" loci", unit_scale=True, total=len(repeat_masker_lookup)):
-        repeat_masker_lookup[locus_id] = ", ".join([f"{interval['repClass']}:{interval['repFamily']}:{interval['repName']}" for interval in repeat_masker_intervals])
+        repeat_masker_lookup[locus_id] = ", ".join([f"{interval['repFamily']}:{interval['repName']}" for interval in repeat_masker_intervals])  # {interval['repClass']}:
     print(f"Done converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
 
 # Define the schema
