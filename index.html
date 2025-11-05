@@ -964,7 +964,7 @@
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251104_071456'
+    const TABLE_ID = 'catalog_20251104_201814'
 
 
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
@@ -1366,7 +1366,7 @@
         },
         source: {
             displayName: 'Source',
-            helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog.',
+            helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
             getValue: (row) => {
                 const sourceCatalogNameMap = {
                     KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
@@ -1429,7 +1429,7 @@
 
         repeatMaskerIntervals: {
             displayName: 'Repeat Masker',
-            helpText: 'UCSC Repeat masker intervals that overlap this TR locus.',
+            helpText: 'UCSC Repeat masker intervals that overlap the TR locus',
             getValue: (row) => row.RepeatMaskerIntervals ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
             getSortColumns: () => ['RepeatMaskerIntervals'],
             getRequiredColumns: () => ['RepeatMaskerIntervals'],
@@ -1437,10 +1437,10 @@
 
         vamosOriMotifFrequencies: {
             displayName: 'Motif Variability',
-            helpText: 'Different motifs detected at this locus by the Vamos v2.1 pipeline',
+            helpText: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
             getValue: (row) => parseMotifFrequenciesString(row.VamosOriMotifFrequencies),
-            getSortColumns: () => ['VamosOriMotifFrequencies'],
-            getRequiredColumns: () => ['VamosOriMotifFrequencies'],
+            getSortColumns: () => ['VamosOriMotifCount', 'VamosOriMotifFrequencies'],
+            getRequiredColumns: () => ['VamosOriMotifFrequencies', 'VamosOriMotifCount'],
         },
 
         mappability: {
@@ -2349,12 +2349,13 @@
             let resultMotifs = []
             for (let motif in motifs) {
                 if (motifs[motif] >= 0.01) {
-                    resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td>${motif}</td></tr>`)
+                    resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 24 ? (motif.substring(0, 24) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
                 }
             }
 
-            let data_html = "Motifs detected at this locus within 94 HPRC T2T assemblies by the Vamos v2.1 pipeline. Percentages represent relative motif frequencies, not showing motifs below 1%<br /><br />"
-            data_html += `<table style='border-spacing: 20px 3px'>${resultMotifs.join('')}</table>`
+            let data_html = `<table style='border-spacing: 20px 3px'><tr><td><b>Frequency</b></td><td><b>Motif</b></td></tr>${resultMotifs.join('')}</table><br />`
+            data_html += "Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies. Percentages represent relative motif frequencies. Motifs at homopolymer loci as well as motifs below 1% are not shown.<br /><br />"
+
 
             return `<span class="show-popup" data-html="${data_html}">${resultMotifs.length} motifs</span>`
         } catch (e) {
