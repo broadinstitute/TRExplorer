@@ -670,12 +670,12 @@
             </a>
         </div>
         <div class="seven wide column" id="header-nav">
-            <a href="#" id="about-link">About</a>	  
+            <a href="#" id="about-link">About</a>
             <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
             <a href="#" id="faq-link">FAQ</a>
             <a href="#" id="downloads-link">Downloads</a>
             <a href="https://github.com/broadinstitute/TRExplorer/issues" target="_blank">Issues</a>
-            <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>	    
+            <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
         </div>
         <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
     </div>
@@ -699,17 +699,13 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
                         <label style="margin: 0; font-weight: 700 !important;">Search by region, gene, or transcript:</label>
                         <span style="margin-right: 145px; font-weight: 400 !important; color: #888; font-size: 0.9em;">
-                            Examples: &nbsp; 
-                            <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=chr4%3A3074000-3075000">
+                            Examples: &nbsp; <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=chr4%3A3074000-3075000">
                                 chr4:3074000-3075000
-                            </a>, 
-                            <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ATXN1">
+                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ATXN1">
                                 ATXN1
-                            </a>, 
-                            <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENSG00000165060">
+                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENSG00000165060">
                                 ENSG00000165060
-                            </a>, 
-                            <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENST00000370475">
+                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENST00000370475">
                                 ENST00000370475
                             </a>
                         </span>
@@ -737,9 +733,15 @@
                             <i class="dropdown icon"></i>
                             <div class="default text">Select catalog</div>
                             <div class="menu">
+                                <div class="item" data-value="tr_explorer_catalog_v2">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span>TRExplorer catalog v2</span>
+                                        <span style="color: #888; margin-left: 20px;">5,543,507 loci</span>
+                                    </div>
+                                </div>
                                 <div class="item" data-value="tr_explorer_catalog">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog</span>
+                                        <span>TRExplorer catalog v1</span>
                                         <span style="color: #888; margin-left: 20px;">4,863,041 loci</span>
                                     </div>
                                 </div>
@@ -1089,7 +1091,7 @@
         showAdvFilters: 0,
 
         // advanced search params
-        sourceCatalog: 'tr_explorer_catalog', // Source catalog filter
+        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
         keepMotifSize: '',
         keepMotif: '',
 
@@ -1369,11 +1371,11 @@
             helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
             getValue: (row) => {
                 const sourceCatalogNameMap = {
-                    KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
-                    Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
-                    PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
-                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
+                    KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
+                    Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
+                    PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
+                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
+                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
                 }
                 const [version, sourceCatalog] = row.Source.split(':')
                 return sourceCatalogNameMap[sourceCatalog]
@@ -1755,7 +1757,7 @@
         return {
             reference: reference,
             showCursorTrackingGuide: true,
-            minimumBases: 40,
+            minimumBases: 40,  //required for https://github.com/igvteam/igv.js/issues/2046
             locus: locus,
         }
     }
@@ -3107,8 +3109,11 @@
                 const sourceCatalog = $('#source-catalog-dropdown').dropdown('get value')
                 if (sourceCatalog) {
                     switch (sourceCatalog) {
-                        case 'tr_explorer_catalog':
+                        case 'tr_explorer_catalog_v2':
                             break   // No additional conditions needed
+                        case 'tr_explorer_catalog':
+                            conditions.push("source LIKE 'TRExplorerV1%'")
+                            break
                         case 'illumina_174k_catalog':
                             conditions.push(
                                 "(FoundInIllumina174kPolymorphicTRs = 'Yes' OR (FoundInKnownDiseaseAssociatedLoci = 'Yes' AND FoundInIllumina174kPolymorphicTRs LIKE '%Yes%'))")
