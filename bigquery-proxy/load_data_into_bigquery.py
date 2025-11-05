@@ -28,7 +28,8 @@ TABLE_ID = "catalog"
 
 parser = argparse.ArgumentParser(description="Load data into BigQuery from the annotated catalog JSON file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
-                    default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    #default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    default="~/code/tandem-repeat-catalogs/results__2025-11-03/release_draft_2025-11-03/repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
                     help="ExpansionHunter catalog with the latest known disease-associated loci",
@@ -128,7 +129,27 @@ def parse_vamos_motif_frequencies_from_tsv(tsv_path):
                 continue
 
             reference_region = f"{chrom}:{start_0based}-{end_1based}"
-            lookup[reference_region] = ",".join([f"{motif}:{count}" for motif, count in zip(ori_motifs.split(","), ori_motif_counts.split(","))])   
+
+            total_counts = 0
+            motif_and_count_list = []
+            motif_set = set()
+            for motif, count in zip(ori_motifs.split(","), ori_motif_counts.split(",")):
+                if motif in motif_set:
+                    print(f"ERROR: Motif {motif} specified more than once in line: {line}")
+
+                motif_set.add(motif)
+                motif_and_count_list.append(f"{motif}:{count}")
+                total_counts += int(count)
+
+            total_motifs = 0
+            for count in ori_motif_counts.split(","):
+                if int(count) / total_counts >= 0.01:
+                    total_motifs += 1
+
+            lookup[reference_region] = {
+                "motif_frequencies": ",".join(motif_and_count_list),
+                "total_motifs": total_motifs,
+            }
 
     return lookup
 
@@ -332,8 +353,9 @@ schema = [
     bigquery.SchemaField("AoU1027_OE_LengthPercentile", "FLOAT"),
 
     bigquery.SchemaField("RepeatMaskerIntervals", "STRING"),
-    bigquery.SchemaField("VamosOriMotifFrequencies", "STRING"),
     #bigquery.SchemaField("VamosEffMotifFrequencies", "STRING"),
+    bigquery.SchemaField("VamosOriMotifFrequencies", "STRING"),
+    bigquery.SchemaField("VamosOriMotifCount", "INTEGER"),
 ]
 
 field_names = {field.name for field in schema}
@@ -399,8 +421,8 @@ is_gzipped = args.catalog_path.endswith('gz')
 if args.catalog_path.startswith("http"):
     response = requests.get(args.catalog_path)
     catalog = get_json_iterator(response.content, is_gzipped)
-elif os.path.isfile(args.catalog_path):
-    catalog = get_json_iterator(args.catalog_path, is_gzipped)
+elif os.path.isfile(os.path.expanduser(args.catalog_path)):
+    catalog = get_json_iterator(os.path.expanduser(args.catalog_path), is_gzipped)
 else:
     parser.error(f"Invalid catalog path: {args.catalog_path}")
 
@@ -537,7 +559,8 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
 
     if record["ReferenceRegion"] in vamos_ori_motif_frequencies_lookup:
         counters["rows_with_vamos_ori_motif_frequencies"] += 1
-        record["VamosOriMotifFrequencies"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]
+        record["VamosOriMotifFrequencies"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]["motif_frequencies"]
+        record["VamosOriMotifCount"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]["total_motifs"]
     
     #if record["ReferenceRegion"] in vamos_eff_motif_frequencies_lookup:
     #    counters["rows_with_vamos_eff_motif_frequencies"] += 1
