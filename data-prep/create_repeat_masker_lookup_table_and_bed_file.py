@@ -105,7 +105,7 @@ with gzip.open(os.path.expanduser(args.trexplorer_catalog), "rt") as f, fopen(ar
         reference_region = item["ReferenceRegion"]
         chrom, start, end = parse_interval(reference_region)
         chrom = chrom.replace("chr", "")
-        overlapping_intervals = repeat_masker_interval_trees[chrom].overlap(start, end)
+        overlapping_intervals = repeat_masker_interval_trees[chrom].overlap(start - 1, end + 1)  # do +/-1 to capture immediately-adjacent intervals
         max_overlapping_entries = max(max_overlapping_entries, len(overlapping_intervals))
         if len(overlapping_intervals) > 0:
             if output_counter > 0:

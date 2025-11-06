@@ -123,34 +123,45 @@ def parse_vamos_motif_frequencies_from_tsv(tsv_path):
             end_1based = int(fields[col_indices['end']])
             ori_motifs = fields[col_indices['motifs']]
             ori_motif_counts = fields[col_indices['motifCounts']]
+            reference_region = f"{chrom}:{start_0based}-{end_1based}"
 
             if ori_motifs.count(",") != ori_motif_counts.count(","):
                 print(f"WARNING: For {reference_region} number of motif values ({ori_motifs}) != number of motif counts ({ori_motif_counts})")
                 continue
 
-            reference_region = f"{chrom}:{start_0based}-{end_1based}"
-
             total_counts = 0
             motif_and_count_list = []
 
+            canonical_motif_to_motif = {}
+            canonical_motif_to_count = {}
             motif_list = []
             for motif, count in zip(ori_motifs.split(","), ori_motif_counts.split(",")):
                 if motif in motif_list:
-                    print(f"ERROR: Motif {motif} specified more than once in line: {line}")
+                    raise ValueError(f"ERROR: Motif {motif} specified more than once in line: {line}")
 
-                motif_list.append(motif)
+                count = int(count)
+                total_counts += count
+                canonical_motif = compute_canonical_motif(motif)
+                if canonical_motif not in canonical_motif_to_motif:
+                    canonical_motif_to_motif[canonical_motif] = motif
+                    canonical_motif_to_count[canonical_motif] = count
+                    motif_list.append(motif)
+                else:
+                    canonical_motif_to_count[canonical_motif] += count
+
+            total_frequent_motifs = 0
+            for motif in motif_list:
+                canonical_motif = compute_canonical_motif(motif)
+                count = canonical_motif_to_count[canonical_motif]
                 motif_and_count_list.append(f"{motif}:{count}")
-                total_counts += int(count)
 
-            total_motifs = 0
-            for count in ori_motif_counts.split(","):
                 if int(count) / total_counts >= 0.01:
-                    total_motifs += 1
+                    total_frequent_motifs += 1
 
             lookup[reference_region] = {
                 "unique_motifs": ",".join(motif_list),
                 "motif_frequencies": ",".join(motif_and_count_list),
-                "total_motif_count": total_motifs,
+                "total_frequent_motif_count": total_frequent_motifs,
             }
 
     return lookup
@@ -176,7 +187,7 @@ if args.aou1027_tsv:
 
 if hprc100_lookup and aou1027_lookup:
     # compute correlation between medians, stdevs, 
-    shared_keys = set(hprc100_lookup.keys()) & set[Any](aou1027_lookup.keys())
+    shared_keys = set(hprc100_lookup.keys()) & set(aou1027_lookup.keys())
     for column in "mode_allele", "stdev", "median", "99th_percentile":
         pearsonr, _ = scipy.stats.pearsonr(
             [hprc100_lookup[k][column] for k in shared_keys], 
@@ -192,7 +203,7 @@ vamos_ori_motif_frequencies_lookup = parse_vamos_motif_frequencies_from_tsv(args
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
 if os.path.isfile(args.known_disease_associated_loci):
-    fopen = open if args.known_disease_associated_loci.endswith("gz") else gzip.open 
+    fopen = gzip.open if args.known_disease_associated_loci.endswith(".gz") else open 
     with fopen(args.known_disease_associated_loci) as f:
         known_disease_associated_loci = ijson.items(f, "item", use_float=True)
 elif args.known_disease_associated_loci.startswith("http"):
@@ -495,7 +506,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         counters["rows_with_tenk10k_data"] += 1
         tenk10k_record = tenk10k_lookup[record["LocusId"]]
         record["TenK10K_AlleleHistogram"] = tenk10k_record["allele_size_histogram"]
-        record["TenK10K_BiallelicHistogram"] = tenk10k_record["biallelic_histogram"]
+        record["TenK10K_BiallelicHistogram"] = tenk10k_record.get("biallelic_histogram")
         record["TenK10K_ModeAllele"] = tenk10k_record["mode_allele"]
         record["TenK10K_Stdev"] = tenk10k_record["stdev"]
         record["TenK10K_Median"] = tenk10k_record["median"]
@@ -512,7 +523,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         counters["rows_with_hprc100_data"] += 1
         hprc100_record = hprc100_lookup[record["LocusId"]]
         record["HPRC100_AlleleHistogram"] = hprc100_record["allele_size_histogram"]
-        record["HPRC100_BiallelicHistogram"] = hprc100_record["biallelic_histogram"]
+        record["HPRC100_BiallelicHistogram"] = hprc100_record.get("biallelic_histogram")
         record["HPRC100_ModeAllele"] = hprc100_record["mode_allele"]
         record["HPRC100_Stdev"] = hprc100_record["stdev"]
         record["HPRC100_Median"] = hprc100_record["median"]
@@ -565,7 +576,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         vamos_ori_data = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]
         record["VamosOriUniqueMotifs"] = vamos_ori_data["unique_motifs"]
         record["VamosOriMotifFrequencies"] = vamos_ori_data["motif_frequencies"]
-        record["VamosOriMotifCount"] = vamos_ori_data["total_motif_count"]
+        record["VamosOriMotifCount"] = vamos_ori_data["total_frequent_motif_count"]
     
     #if record["ReferenceRegion"] in vamos_eff_motif_frequencies_lookup:
     #    counters["rows_with_vamos_eff_motif_frequencies"] += 1
