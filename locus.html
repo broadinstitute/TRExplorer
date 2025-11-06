@@ -641,6 +641,7 @@
             polymorphism: 'Summary of available sources of polymorphism data for the TR locus',
             source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
             trsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
+            numRepeatsInReference: 'TR locus genomic interval width divided by the motif size and rounded down to the neaerest integer',
             referenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89.',
             variationCluster: 'Summarizes whether the TR locus resides within a variation cluster',
             isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
@@ -1495,30 +1496,32 @@
 
 <body>
 
-<div class="ui stackable grid">
-    <div class="ui row" id="header-stripe">
-        <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
-        <div class="three wide column" id="header-title">
-            <a href="/">
-                <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
-            </a>
-        </div>
-        <div class="seven wide column" id="header-nav">
-            <a href="#" id="about-link">About</a>
-            <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
-            <a href="#" id="faq-link">FAQ</a>
-            <a href="#" id="downloads-link">Downloads</a>
-            <a href="https://github.com/broadinstitute/TRExplorer/issues" target="_blank">Issues</a>
-            <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
-        </div>
-        <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
-    </div>
+<div class="ui grid">
 
-    <div class="ui row" id="igv-row">
-        <div class="sixteen wide column">
-            <div id="igv-viewport"></div>
-        </div>
+    <div class="ui row" id="header-stripe">
+    <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
+    <div class="three wide column" id="header-title">
+        <a href="/">
+            <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
+        </a>
     </div>
+    <div class="seven wide column" id="header-nav">
+        <a href="#" id="about-link">About</a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
+        <a href="#" id="faq-link">FAQ</a>
+        <a href="#" id="downloads-link">Downloads</a>
+        <a href="https://github.com/broadinstitute/TRExplorer/issues/new?title=Add%20new%20TR%20locus%20to%20the%20TRExplorer%20website%20and%20catalog%3A&body=TR%20locus%20coordinates%20%28hg38%29%3A%0A%0ATR%20locus%20motif%20%28or%20motif%20size%29%3A%20%0A%0AI%20suggest%20adding%20this%20TR%20locus%20because%3A%20" target="_blank">Suggest New TR</a>
+        <a href="https://github.com/broadinstitute/TRExplorer/issues" target="_blank">Issues</a>
+        <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
+    </div>
+    <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
+</div>
+
+<div class="ui row" id="igv-row">
+    <div class="sixteen wide column">
+        <div id="igv-viewport"></div>
+    </div>
+</div>
 
     <div class="ui row">
         <div class="three wide column"></div>
