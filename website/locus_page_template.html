@@ -2,161 +2,10 @@
 <html>
     {% include "header_template.html" %}
 <body>
-<!-- modal dialog for selecting IGV tracks -->
-<div class="ui modal" id="igv-track-selection-dialog">
-    <i class="close icon"></i>
-    <div class="header" style="white-space: nowrap;">
-        Select IGV Tracks
-    </div>
-    <div class="content" style="padding-top:0px;">
-        <div class="ui form">
-            <table class="ui stackable table igv-track-selection-table">
-                <tr>
-                    <td style="padding: 10px 25px !important">
-                        <table class="igv-checkbox-container-table" id="igv-tr-explorer-catalog-tracks-checkboxes">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">
-                                    TRExplorer Catalog
-                                </th>
-                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
-                                    # of loci
-                                </th>
-                            </tr>
-                        </table>
-                        <table class="igv-checkbox-container-table" id="igv-variation-cluster-tracks-checkboxes">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">
-                                    Variation Clusters
-                                </th>
-                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
-                                </th>
-                            </tr>
-                        </table>
-                        <table class="igv-checkbox-container-table" id="igv-known-disease-loci-checkboxes">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">
-                                    Known Disease-associated TR Loci
-                                </th>
-                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
-                                </th>
-                            </tr>
-                        </table>
-                    </td>
-                    <td style="padding: 10px 25px !important">
-                        <table class="igv-checkbox-container-table" id="igv-other-tr-catalog-tracks-checkboxes">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">
-                                    Other Genome-wide TR Catalogs
-                                </th>
-                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
-                                    # of loci
-                                </th>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="padding: 10px 25px !important">
-                        <table class="igv-checkbox-container-table" id="igv-reference-tracks-checkboxes">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">Reference Tracks</th>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="padding: 10px 25px !important">
-                        <table class="igv-checkbox-container-table" id="igv-custom-tracks" style="width: 100%;">
-                            <tr>
-                                <th class="igv-checkbox-container-header-row">Custom Tracks <i class="question circle icon link" style="margin-left: 15px;" data-html="These inputs allow you to load your own custom tracks into IGV.js. They accept BED, BAM, VCF, GFF, BigWig, or any other IGV.js-compatible data format. The data file (and index) just have to be online at a publicly-accessible &nbsp;https://, &nbsp;gs://, &nbsp;or s3:// &nbsp; URL."></i></th>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </div>
-    <div class="actions">
-        <div class="ui deny button">
-            Cancel
-        </div>
-        <div id="igv-tracks-modal-apply-button" class="ui positive right labeled icon button">
-            Apply
-            <i class="checkmark icon"></i>
-        </div>
-    </div>
-</div>
-
-<div class="ui modal" id="whats-new-modal">
-    <i class="close icon"></i>
-    <div class="header">
-        TRExplorer Updates
-    </div>
-    <div class="content" style="font-size: 1.1em; height: 100%">
-        <iframe src="whats_new.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
-    </div>
-</div>
-
-
-<div class="ui modal" id="about-modal">
-    <i class="close icon"></i>
-    <div class="header">
-        About TRExplorer
-    </div>
-    <div class="content" style="font-size: 1.1em; height: 100%">
-        <iframe src="about.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
-    </div>
-</div>
-
-
-<!-- FAQ modal dialog -->
-<div class="ui modal" id="faq-modal" style="height: 80%; min-height:75%">
-    <i class="close icon"></i>
-    <div class="header">
-        Frequently Asked Questions
-    </div>
-    <div class="content" style="font-size: 1.1em; height: 100%">
-        <iframe src="FAQ.html" style="width: 100%; height: 100%; border: 0px"></iframe>
-    </div>
-</div>
-
-<!-- downloads modal dialog -->
-<div class="ui modal" id="downloads-modal" style="height: 88%; min-height: 88%">
-    <i class="close icon"></i>
-    <div class="header">
-        Downloads
-    </div>
-    <div class="content" style="font-size: 1.1em; height: 100%;">
-        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px;"></iframe>
-    </div>
-</div>
-
-
-<!-- modal dialog for selecting results table columns -->
-<div class="ui modal" id="results-table-column-settings-dialog">
-    <i class="close icon"></i>
-    <div class="header">
-        Results Table Columns
-    </div>
-    <div class="content">
-        <div class="ui form">
-            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important"></table>
-        </div>
-    </div>
-    <div class="actions">
-        <div class="ui deny button">
-            Cancel
-        </div>
-        <div id="results-table-column-settings-apply-button" class="ui positive right labeled icon button">
-            Apply
-            <i class="checkmark icon"></i>
-        </div>
-    </div>
-</div>
 
 <div class="ui stackable grid">
     <div class="ui row" id="header-stripe">
-        <div class="three wide column" style="padding: 0px !important"></div>
+        <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
         <div class="three wide column" id="header-title">
             <a href="/">
                 <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
@@ -237,16 +86,6 @@
         igv_custom_track_url_3: '',
     }
 
-    const getGeneRegionValue = (geneRegion) => {
-        if (!geneRegion) return ''
-        //const color = GENE_REGION_COLORS[geneRegion]
-        const regionRename = {
-            'CDS': 'coding',
-            'exon': 'exon (non-coding gene)'
-        }
-        return `${regionRename[geneRegion] || geneRegion}`
-    }
-
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
         DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
     })
@@ -258,320 +97,6 @@
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
 
-
-    const computeIntervalSize = (interval) => {
-        const [chrom, start_end] = interval.split(':')
-        const [start, end] = start_end.split('-')
-        return parseInt(end) - parseInt(start)
-    }
-
-    const generateDiseaseAssociatedIcon = (row, linkText) => {
-        if (row.DiseaseInfo == null) {
-            return ''
-        }
-        let diseaseAssociatedIconHtml = ''
-        let diseaseLocusId = ''
-        let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
-        try {
-            //console.log(row.DiseaseInfo)
-            const diseaseInfo = JSON.parse(row.DiseaseInfo)
-            const resources = []
-            if (diseaseInfo.STRchiveId) {
-                resources.push(`<a href='https://strchive.org/loci/${diseaseInfo.STRchiveId}' target='_blank'>STRchive</a>`)
-            }
-            if (diseaseInfo.STRipyId) {
-                resources.push(`<a href='https://stripy.org/database/${diseaseInfo.STRipyId}' target='_blank'>STRipy</a>`)
-            }
-            if (diseaseInfo.locusId != 'RAI1') {
-                resources.push(`<a href='https://gnomad.broadinstitute.org/short-tandem-repeat/${diseaseInfo.LocusId}?dataset=gnomad_r4' target='_blank'>gnomAD</a>`)
-            }
-            if (diseaseInfo.Diseases.length > 0 && diseaseInfo.Diseases[0].OMIM) {
-                resources.push(`<a href='https://www.omim.org/entry/${diseaseInfo.Diseases[0].OMIM}' target='_blank'>OMIM</a>`)
-            }
-            diseaseDescription += `Expansions at this ${diseaseInfo.LocusId} locus cause ${diseaseInfo.Diseases.map(d => d.Name).join(' & ')}.<br />
-            <br />
-                <span style='display: block; white-space: nowrap;'>For more information, see:<br />${resources.join(', &nbsp; ')}</span>
-            </span>`
-        } catch (e) {
-            diseaseLocusId = row.LocusId
-            diseaseDescription = '<i>An error occurred while loading this information.</i>'
-            console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
-        }
-        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon cell-with-icon-and-popup user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
-        if (linkText) {
-            diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
-        }
-        return diseaseAssociatedIconHtml
-    }
-
-
-    const getHtmlAttributesForPolymorphism = (row) => {
-        let polymorphismDetails = ``
-        for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-            if (row[dataColumn] != null) {
-                polymorphismDetails += `data-${dataColumn}='${row[dataColumn]}' `
-            }
-        }
-        return polymorphismDetails
-    }
-    // column definitions
-    let TABLE_COLUMNS = {
-        interval: {
-            displayName: 'Interval (hg38)',
-            helpText: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
-            getValue: (row) => row.ReferenceRegion.replace(/^chr/i, ''),
-            getSortColumns: () => [DEFAULT_SORT_COLUMN],
-            getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
-        },
-        motif: {
-            displayName: 'Motif',
-            helpText: 'The repeat motif and motif size. <b>Examples:</b> CAG (3), GGCCCC (6)',
-            getValue: (row) => {
-                const motif = row.ReferenceMotif
-                if ( motif.length > 12 ) {
-                    const truncatedMotif = motif.substring(0, 12) + '...'
-                    return `<span class="show-popup" data-html="${motif}">${truncatedMotif} &nbsp (${row.MotifSize})</span>`
-                } else {
-                    return `${motif} &nbsp (${row.MotifSize})`
-                }
-            },
-            getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
-            getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
-        },
-        geneRegion: {
-            displayName: 'Region',
-            helpText: 'TR locus gene region. <b>Examples:</b> 5\'UTR, coding, etc.',
-            getValue: (row) => getGeneRegionValue(row.GencodeGeneRegion),
-            getSortColumns: () => ['GencodeGeneRegion'],
-            getRequiredColumns: () => ['GencodeGeneRegion'],
-        },
-        geneName: {
-            displayName: 'Gene',
-            helpText: 'Gencode gene name',
-            getValue: (row) => row.GencodeGeneName,
-            getSortColumns: () => ['GencodeGeneName'],
-            getRequiredColumns: () => ['GencodeGeneName'],
-        },
-        polymorphism: {
-            displayName: 'Polymorphism Summary',
-            helpText: 'Summary of available sources of polymorphism data for the TR locus',
-            getValue: (row) => {
-                return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
-                            <span class="cell-action-link">
-                                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
-                            </span>
-                            <span style="color: #333;">
-                                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
-                            </span>
-                            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
-                            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
-                                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
-                            </span>` : ''}
-                            <span class="cell-action-link">                                    
-                                ${row.TenK10K_Stdev != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
-                            </span>
-                        </span>
-                        `
-            },
-            getSortColumns: () => ['HPRC100_Stdev'],
-            getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
-        },
-        source: {
-            displayName: 'Source',
-            helpText: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
-            getValue: (row) => {
-                const sourceCatalogNameMap = {
-                    KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
-                    Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
-                    PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
-                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
-                }
-                const [version, sourceCatalog] = row.Source.split(':')
-                return sourceCatalogNameMap[sourceCatalog]
-            },
-            getSortColumns: () => ['Source'],
-            getRequiredColumns: () => ['Source'],
-        },
-        AoU1027_OE_LengthPercentile: {
-            displayName: 'Constraint (O/E Length) Percentile',
-            helpText: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-            getValue: (row) => row.AoU1027_OE_LengthPercentile != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
-            getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
-            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
-        },
-        isPathogenic: {
-            displayName: 'Disease-associated?',
-            helpText: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
-            getValue: (row) => row.DiseaseInfo ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
-            getSortColumns: () => ['DiseaseInfo'],
-            getRequiredColumns: () => ['DiseaseInfo']
-        },
-        variationCluster: {
-            displayName: 'VC',
-            helpText: 'Summarizes whether the TR locus resides within a variation cluster',
-            getValue: (row) => {
-                const hasCluster = row.VariationCluster && row.VariationCluster.trim() !== ''
-                if (hasCluster) {
-                    const refRegionSize = computeIntervalSize(row.ReferenceRegion)
-                    const clusterDetails = `
-                            <div class="content" style="text-align: center;">
-                                <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row.VariationCluster}</div>
-                                <br />
-                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row.VariationClusterSizeDiff} bp</div>
-                            </div>
-                        `.replace(/\s+/g, ' ').trim()
-
-                    return `<span class="cell-with-icon-and-popup cell-in-variation-cluster-column" data-html='${clusterDetails}'>
-                            <i class="check circle icon"></i><span class="cell-action-link">Yes</span>
-                        </span>: +${row.VariationClusterSizeDiff}bp`
-                }
-                return ''
-            },
-            getSortColumns: () => ['VariationClusterSizeDiff'],
-            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
-        },
-        trsInRegion: {
-            displayName: 'Nearby TRs',
-            helpText: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
-            getValue: (row) => (row.TRsInRegion ? (parseInt(row.TRsInRegion) - 1) : ''),
-            getSortColumns: () => ['TRsInRegion'],
-            getRequiredColumns: () => ['TRsInRegion']
-        },
-        repeatMaskerIntervals: {
-            displayName: 'Repeat Masker',
-            helpText: 'UCSC Repeat masker intervals that overlap the TR locus',
-            getValue: (row) => row.RepeatMaskerIntervals ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
-            getSortColumns: () => ['RepeatMaskerIntervals'],
-            getRequiredColumns: () => ['RepeatMaskerIntervals'],
-        },
-        vamosOriMotifFrequencies: {
-            displayName: 'Motif Variability',
-            helpText: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
-            getValue: (row) => parseMotifFrequenciesString(row.VamosOriMotifFrequencies),
-            getSortColumns: () => ['VamosOriMotifCount', 'VamosOriMotifFrequencies'],
-            getRequiredColumns: () => ['VamosOriMotifFrequencies', 'VamosOriMotifCount'],
-        },
-
-        mappability: {
-            displayName: 'Mappability',
-            helpText: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
-            getValue: (row) => row.FlanksAndLocusMappability,
-            getSortColumns: () => ['FlanksAndLocusMappability'],
-            getRequiredColumns: () => ['FlanksAndLocusMappability']
-        },
-        gencodeGeneId: {
-            displayName: 'Gencode Gene Id',
-            helpText: 'Gencode v46 gene ID (ENSG)',
-            getValue: (row) => row.GencodeGeneId,
-            getSortColumns: () => ['GencodeGeneId'],
-            getRequiredColumns: () => ['GencodeGeneId']
-        },
-        gencodeTranscriptId: {
-            displayName: 'Gencode Transcript Id',
-            helpText: 'Gencode v46 transcript ID (ENST)',
-            getValue: (row) => row.GencodeTranscriptId,
-            getSortColumns: () => ['GencodeTranscriptId'],
-            getRequiredColumns: () => ['GencodeTranscriptId']
-        },
-        refSeqGeneRegion: {
-            displayName: 'RefSeq Region',
-            helpText: 'RefSeq gene region',
-            getValue: (row) => getGeneRegionValue(row.RefSeqGeneRegion),
-            getSortColumns: () => ['RefSeqGeneRegion'],
-            getRequiredColumns: () => ['RefSeqGeneRegion']
-        },
-        refSeqGeneId: {
-            displayName: 'RefSeq Id',
-            helpText: 'RefSeq gene ID',
-            getValue: (row) => row.RefSeqGeneId,
-            getSortColumns: () => ['RefSeqGeneId'],
-            getRequiredColumns: () => ['RefSeqGeneId']
-        },
-        refSeqTranscriptId: {
-            displayName: 'RefSeq Transcript Id',
-            helpText: 'RefSeq transcript ID',
-            getValue: (row) => row.RefseqTranscriptId,
-            getSortColumns: () => ['RefseqTranscriptId'],
-            getRequiredColumns: () => ['RefseqTranscriptId']
-        },
-        refSeqGeneName: {
-            displayName: 'RefSeq Gene',
-            helpText: 'RefSeq gene name',
-            getValue: (row) => row.RefSeqGeneName,
-            getSortColumns: () => ['RefSeqGeneName'],
-            getRequiredColumns: () => ['RefSeqGeneName']
-        },
-        maneGeneRegion: {
-            displayName: 'MANE Region',
-            helpText: 'MANE v1.3 gene region',
-            getValue: (row) => getGeneRegionValue(row.MANEGeneRegion),
-            getSortColumns: () => ['MANEGeneRegion'],
-            getRequiredColumns: () => ['MANEGeneRegion']
-        },
-        maneGeneId: {
-            displayName: 'MANE Id',
-            helpText: 'MANE v1.3 gene ID',
-            getValue: (row) => row.MANEGeneId,
-            getSortColumns: () => ['MANEGeneId'],
-            getRequiredColumns: () => ['MANEGeneId']
-        },
-        maneGeneName: {
-            displayName: 'MANE Gene',
-            helpText: 'MANE v1.3 gene name',
-            getValue: (row) => row.MANEGeneName,
-            getSortColumns: () => ['MANEGeneName'],
-            getRequiredColumns: () => ['MANEGeneName']
-        },
-
-        HPRC100_BiallelicHistogram: {
-            displayName: 'HPRC100 Biallelic Histogram',
-            helpText: 'Biallelic histogram of HPRC100',
-            getValue: (row) => row.HPRC100_BiallelicHistogram,
-            getSortColumns: () => ['HPRC100_BiallelicHistogram'],
-            getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
-        },
-        TenK10K_BiallelicHistogram: {
-            displayName: 'TenK10K Phase 1 Biallelic Histogram',
-            helpText: 'Biallelic histogram of TenK10K Phase 1',
-            getValue: (row) => row.TenK10K_BiallelicHistogram,
-            getSortColumns: () => ['TenK10K_BiallelicHistogram'],
-            getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
-        }
-        
-    }
-
-    const alleleHistogramColumnToOtherColumns = {
-        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
-        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
-        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
-        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
-    }
-
-
-
-    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
-        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
-        TABLE_COLUMNS[columnName] = {
-            displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName] ? 
-                `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>` : 
-                `<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>`,
-            getSortColumns: () => [stdevColumnName],
-            getRequiredColumns: () => [columnName, stdevColumnName]
-        }
-    }
-
-    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
-        TABLE_COLUMNS[columnName] = {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
-            helpText: STDEV_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName],
-            getSortColumns: () => [columnName],
-            getRequiredColumns: () => [columnName]
-        }
-    }
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
@@ -1388,7 +913,7 @@
                 row[key] = row[lowerCaseKey]
             }
         }
-                    
+
         $('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
         $('#results-area').html('')
 
@@ -1447,7 +972,7 @@
         if (row.AoU1027_OE_LengthPercentile != null) {
             polymorphismDialogContent += `
                 <div style="margin-top: 25px">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${TABLE_COLUMNS['AoU1027_OE_LengthPercentile']['helpText']}"></i>
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
                 </div>
             `
         }
@@ -1502,14 +1027,14 @@
         // prepare chart data
         let alleleFrequencyChartData = []
         $('.allele-frequency-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')            
-            const frequenciesString = row[frequenciesColumn]            
+            const frequenciesColumn = $(this).data('frequencies-column')
+            const frequenciesString = row[frequenciesColumn]
             if (!frequenciesString) return   // Skip if no data
 
             const frequencies = parseAlleleFrequenciesString(frequenciesString)
-            
+
             alleleFrequencyChartData.push({
-                frequencies: frequencies,                
+                frequencies: frequencies,
                 thisObj: this,
                 refAlleleSize: $(this).data('ref-allele-size'),
                 chartWidth: $(this).data('chart-width'),
@@ -1518,7 +1043,7 @@
                 minAlleleSize: Math.min(...frequencies.map(f => f.size)),
                 maxAlleleSize: Math.max(...frequencies.map(f => f.size))
             })
-        }) 
+        })
 
         //compute overall min, max for all charts and then create the charts
         let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
@@ -1526,14 +1051,14 @@
 
         alleleFrequencyChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize 
+            chartData.maxAlleleSize = overallMaxAlleleSize
 
             createAlleleFrequencyChart(chartData)
         })
 
         let biallelicHistogramChartData = []
         $('.biallelic-histogram-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')            
+            const frequenciesColumn = $(this).data('frequencies-column')
             let frequenciesString = row[frequenciesColumn]
             if (!frequenciesString) return   // Skip if no data
 
@@ -1557,7 +1082,7 @@
 
         biallelicHistogramChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize 
+            chartData.maxAlleleSize = overallMaxAlleleSize
 
             createBiallelicHistogramChart(chartData)
         })
@@ -1644,4 +1169,3 @@
 
 </body>
 </html>
-

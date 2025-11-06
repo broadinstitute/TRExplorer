@@ -3,6 +3,28 @@
     {% include "header_template.html" %}
 <body>
 
+<!-- modal dialog for selecting results table columns -->
+<div class="ui modal" id="results-table-column-settings-dialog">
+    <i class="close icon"></i>
+    <div class="header">
+        Results Table Columns
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <table class="ui stackable table results-table-column-settings-checkboxes" style="border: 0px !important"></table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">
+            Cancel
+        </div>
+        <div id="results-table-column-settings-apply-button" class="ui positive right labeled icon button">
+            Apply
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for polymorphism allele frequencies -->
 <div class="ui modal" id="polymorphism-dialog">
     <i class="close icon"></i>
@@ -600,7 +622,7 @@
         },
         AoU1027_OE_LengthPercentile: {
             displayName: 'Constraint (O/E Length) Percentile',
-            helpText: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
             getValue: (row) => row.AoU1027_OE_LengthPercentile != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
             getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
             getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
