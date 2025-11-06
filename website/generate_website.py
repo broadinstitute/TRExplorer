@@ -17,3 +17,5 @@ for template_file in glob.glob("*_page_template.html"):
     output_html_path = os.path.join("../", template_file.replace("_page_template", ""))
     with open(output_html_path, "wt") as f:
         f.write(html_content)
+
+    print(f"Wrote {output_html_path}")
