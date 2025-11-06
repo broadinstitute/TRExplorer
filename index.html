@@ -495,7 +495,149 @@
         #results-table-column-settings-dialog.ui.modal, #faq-modal.ui.modal, #downloads-modal.ui.modal, #whats-new-modal.ui.modal {
             width: 70% !important;
         }
-</style>
+    </style>
+
+    <script>
+
+        const TR_CATALOG_BASE_URL = "https://storage.googleapis.com/tandem-repeat-catalog"
+
+        const SHARED_TR_CATALOG_SIZES = {
+            known_disease_loci: 63,
+            illumina_174k_catalog: 174300,
+            tr_explorer_catalog: 4863041,
+            tr_explorer_catalog_v2: 5543507,
+        }
+
+        const TR_EXPLORER_SOURCE_CATALOGS = [
+            ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
+            ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
+            ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
+            ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
+        ]
+
+        const TR_EXPLORER_CATALOG  = [
+            ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
+            ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ]
+
+        const TR_VARIATION_CLUSTERS = [
+            ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+            ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+            ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ];
+
+        const KNOWN_TR_LOCI_TRACK = [
+            ["igv_kd_loci", "Disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci.bed.gz`, 68],
+            ["igv_trgt_kd_loci", "TRGT repo: disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.pathogenic_repeats.hg38.bed.gz`, 56],
+            ["igv_strchive_kd_loci", "STRchive catalog for TRGT (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/STRchive-disease-loci-v2.4.0.hg38.TRGT.B2FLLAlV.bed.gz`, 73],
+        ]
+
+        const GENOME_WIDE_TR_CATALOGS = [
+            ["igv_illumina_174k", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
+            ["igv_trgt", "TRGT", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.bed.gz`, 171146, "Genome-wide catalog provided in the <a href='https://github.com/PacificBiosciences/trgt/tree/3d10c75/repeats' target='_blank'>TRGT repo</a> (downloaded March, 2025)"],
+            ["igv_ucsc_sr", "UCSC simple repeat track", `${TR_CATALOG_BASE_URL}/other_catalogs/UCSC_SimpleRepeatTrack.bed.gz`, 965511],
+            ["igv_vamos", "VAMOS v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
+            ["igv_gangstr", "GangSTR v17", `${TR_CATALOG_BASE_URL}/other_catalogs/GangSTR_v17.bed.gz`, 1340266],
+            ["igv_hipstr", "HipSTR", `${TR_CATALOG_BASE_URL}/other_catalogs/HipSTR.bed.gz`, 1638945],
+            ["igv_adotto", "Adotto v1.2", `${TR_CATALOG_BASE_URL}/other_catalogs/Adotto_v1.2.bed.gz`, 2934805],
+            ["igv_popstr", "PopSTR v2", `${TR_CATALOG_BASE_URL}/other_catalogs/PopSTR_v2.bed.gz`, 5401401],
+            ["igv_platinum_trs", "Platinum TRs", `${TR_CATALOG_BASE_URL}/other_catalogs/PlatinumTRs.bed.gz`, 7524815, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/39149261/' target=_blank>Porubsky et al. 2024</a>]"],
+            ["igv_chiu", "Chiu et al.", `${TR_CATALOG_BASE_URL}/other_catalogs/Chiu_et_al.bed.gz`, 18759399, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/38947075/' target=_blank>Chiu et al. 2024</a>]"],
+        ]
+
+        REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
+
+        const REFERENCE_TRACKS = [
+            ["igv_gencode", "Gencode v46", `${REFERENCE_BASE_URL}/gencode_v46/gencode.v46.GRCh38.sorted.txt.gz`],
+            ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
+            ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
+            ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
+            ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
+            ["igv_triplosens", "ClinGen triplosensitivity track", `${REFERENCE_BASE_URL}/clingen/ClinGen_triplosensitivity_gene_GRCh38.sorted.bed.gz`],
+            ["igv_repeatmask", "UCSC RepeatMasker", `${REFERENCE_BASE_URL}/hg38.RepeatMasker.bed.gz`],
+        ]
+
+        const ALL_AVAILABLE_TRACKS = [
+            ...TR_EXPLORER_SOURCE_CATALOGS,
+            ...TR_EXPLORER_CATALOG,
+            ...TR_VARIATION_CLUSTERS,
+            ...GENOME_WIDE_TR_CATALOGS,
+            ...KNOWN_TR_LOCI_TRACK,
+            ...REFERENCE_TRACKS,
+        ]
+
+        // initialize BigQuery client
+        const PROJECT_ID = 'cmg-analysis'
+        const DATASET_ID = 'tandem_repeat_explorer'
+        const TABLE_ID = 'catalog_20251105_072742'
+
+        const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
+
+
+        const STDEV_SIGMA_SUBSCRIPTS = {
+            'HPRC100_Stdev': 'Hprc100',
+            'AoU1027_Stdev': 'AoU1027',
+            'TenK10K_Stdev': '10k10k',
+            'StdevFromIllumina174k': '1kGP',
+            'StdevFromT2TAssemblies': 'T2T',
+        }
+
+        const ALLELE_HISTOGRAM_SHORT_NAMES = {
+            'HPRC100_AlleleHistogram': 'HPRC100',
+            'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
+            'AlleleFrequenciesFromIllumina174k': '1kGP',
+            'AlleleFrequenciesFromT2TAssemblies': 'T2T',
+            'HPRC100_BiallelicHistogram': 'HPRC100',
+            'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
+        }
+        const ALLELE_FREQUENCY_CHART_TITLES = {
+            'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
+            'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
+            'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
+            'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
+            'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
+            'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
+        }
+
+        const ALLELE_FREQUENCY_CHART_SUBTITLES = {
+            'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+            'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+            'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
+            'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
+            'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+            'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+        }
+
+        const STDEV_HELP_TEXTS = {
+            'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
+            'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
+            'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
+            'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
+            'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
+        }
+
+        const ALLELE_HISTOGRAM_HELP_TEXTS = {
+            'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
+            'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
+            'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
+            'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
+            'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
+            'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
+        }
+
+
+        /*
+        const GENE_REGION_COLORS = {
+            'CDS': 'rgb(208,5,5)',
+            'exon': 'rgb(255,168,0)',
+            'intron': 'rgb(40,126,40)',
+            'intergenic': 'rgb(0,178,255)',
+            '5\' UTR': 'rgb(0,72,255)',
+            '3\' UTR': 'rgb(0,72,255)',
+            'promoter': 'rgb(93,1,196)',
+        }
+        */
+    </script>
 </head>
 
 <!-- modal dialog for selecting IGV tracks -->
@@ -897,79 +1039,6 @@
 
     $('body').css('cursor', 'wait')
 
-    const TR_CATALOG_BASE_URL = "https://storage.googleapis.com/tandem-repeat-catalog"
-
-    const SHARED_TR_CATALOG_SIZES = {
-        known_disease_loci: 63,
-        illumina_174k_catalog: 174300,
-        tr_explorer_catalog: 4863041,
-        tr_explorer_catalog_v2: 5543507,
-    }
-
-    const TR_EXPLORER_SOURCE_CATALOGS = [
-        ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
-        ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
-        ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
-        ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
-    ]
-
-    const TR_EXPLORER_CATALOG  = [
-        ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
-    ]
-
-    const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-    ];
-
-    const KNOWN_TR_LOCI_TRACK = [
-        ["igv_kd_loci", "Disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci.bed.gz`, 68],
-        ["igv_trgt_kd_loci", "TRGT repo: disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.pathogenic_repeats.hg38.bed.gz`, 56],
-        ["igv_strchive_kd_loci", "STRchive catalog for TRGT (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/STRchive-disease-loci-v2.4.0.hg38.TRGT.B2FLLAlV.bed.gz`, 73],
-    ]
-
-    const GENOME_WIDE_TR_CATALOGS = [
-        ["igv_illumina_174k", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
-        ["igv_trgt", "TRGT", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.bed.gz`, 171146, "Genome-wide catalog provided in the <a href='https://github.com/PacificBiosciences/trgt/tree/3d10c75/repeats' target='_blank'>TRGT repo</a> (downloaded March, 2025)"],
-        ["igv_ucsc_sr", "UCSC simple repeat track", `${TR_CATALOG_BASE_URL}/other_catalogs/UCSC_SimpleRepeatTrack.bed.gz`, 965511],
-        ["igv_vamos", "VAMOS v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
-        ["igv_gangstr", "GangSTR v17", `${TR_CATALOG_BASE_URL}/other_catalogs/GangSTR_v17.bed.gz`, 1340266],
-        ["igv_hipstr", "HipSTR", `${TR_CATALOG_BASE_URL}/other_catalogs/HipSTR.bed.gz`, 1638945],
-        ["igv_adotto", "Adotto v1.2", `${TR_CATALOG_BASE_URL}/other_catalogs/Adotto_v1.2.bed.gz`, 2934805],
-        ["igv_popstr", "PopSTR v2", `${TR_CATALOG_BASE_URL}/other_catalogs/PopSTR_v2.bed.gz`, 5401401],
-        ["igv_platinum_trs", "Platinum TRs", `${TR_CATALOG_BASE_URL}/other_catalogs/PlatinumTRs.bed.gz`, 7524815, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/39149261/' target=_blank>Porubsky et al. 2024</a>]"],
-        ["igv_chiu", "Chiu et al.", `${TR_CATALOG_BASE_URL}/other_catalogs/Chiu_et_al.bed.gz`, 18759399, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/38947075/' target=_blank>Chiu et al. 2024</a>]"],
-    ]
-
-    REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
-
-    const REFERENCE_TRACKS = [
-        ["igv_gencode", "Gencode v46", `${REFERENCE_BASE_URL}/gencode_v46/gencode.v46.GRCh38.sorted.txt.gz`],
-        ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
-        ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
-        ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
-        ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
-        ["igv_triplosens", "ClinGen triplosensitivity track", `${REFERENCE_BASE_URL}/clingen/ClinGen_triplosensitivity_gene_GRCh38.sorted.bed.gz`],
-        ["igv_repeatmask", "UCSC RepeatMasker", `${REFERENCE_BASE_URL}/hg38.RepeatMasker.bed.gz`],
-    ]
-
-    const ALL_AVAILABLE_TRACKS = [
-        ...TR_EXPLORER_SOURCE_CATALOGS,
-        ...TR_EXPLORER_CATALOG,
-        ...TR_VARIATION_CLUSTERS,
-        ...GENOME_WIDE_TR_CATALOGS,
-        ...KNOWN_TR_LOCI_TRACK,
-        ...REFERENCE_TRACKS,
-    ]
-
-    // initialize BigQuery client
-    const PROJECT_ID = 'cmg-analysis'
-    const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251105_072742'
-
-
     const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
     const DEFAULT_SORT_DIRECTION = 'ASC'
 
@@ -1074,8 +1143,6 @@
         'AoU1027_OE_LengthPercentile',
     ]
 
-    const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
-
     // persistent page state (added to the URL)
     let DEFAULT_GLOBAL_PAGE_STATE = {
         currentPage: 1,
@@ -1126,18 +1193,6 @@
             'HPRC100_AlleleHistogram',
         ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
-    
-    /*
-    const GENE_REGION_COLORS = {
-        'CDS': 'rgb(208,5,5)',
-        'exon': 'rgb(255,168,0)',
-        'intron': 'rgb(40,126,40)',
-        'intergenic': 'rgb(0,178,255)',
-        '5\' UTR': 'rgb(0,72,255)',
-        '3\' UTR': 'rgb(0,72,255)',
-        'promoter': 'rgb(93,1,196)',
-    }
-    */
 
     const getGeneRegionValue = (geneRegion) => {
         if (!geneRegion) return ''
@@ -1159,57 +1214,6 @@
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
-
-    const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC100_Stdev': 'Hprc100',
-        'AoU1027_Stdev': 'AoU1027',
-        'TenK10K_Stdev': '10k10k',
-        'StdevFromIllumina174k': '1kGP',
-        'StdevFromT2TAssemblies': 'T2T',
-    }
-
-    const ALLELE_HISTOGRAM_SHORT_NAMES = {
-        'HPRC100_AlleleHistogram': 'HPRC100',
-        'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
-        'AlleleFrequenciesFromIllumina174k': '1kGP',
-        'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-        'HPRC100_BiallelicHistogram': 'HPRC100',
-        'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
-    }
-    const ALLELE_FREQUENCY_CHART_TITLES = {
-        'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
-        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
-        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
-        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
-        'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
-        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
-    }
-
-    const ALLELE_FREQUENCY_CHART_SUBTITLES = {
-        'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
-        'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
-        'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
-        'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
-    }
-
-    const STDEV_HELP_TEXTS = {
-        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
-        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
-        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
-        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
-    }
-
-    const ALLELE_HISTOGRAM_HELP_TEXTS = {
-        'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
-        'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
-        'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
-        'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
-        'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
-        'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
-    }
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
     const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
         'CAG',
