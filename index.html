@@ -1801,10 +1801,10 @@
 
         'HPRC100_BiallelicHistogram',
         'TenK10K_BiallelicHistogram',
-        'AoU1027_OE_LengthPercentile',
 
-        'repeatMaskerIntervals',
         'vamosOriMotifFrequencies',
+        'repeatMaskerIntervals',
+        'AoU1027_OE_LengthPercentile',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
@@ -1840,10 +1840,10 @@
         'StdevFromT2TAssemblies',
 
         'source',
-        'AoU1027_OE_LengthPercentile',
 
-        'repeatMaskerIntervals',
         'vamosOriMotifFrequencies',
+        'repeatMaskerIntervals',
+        'AoU1027_OE_LengthPercentile',
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -1913,6 +1913,7 @@
             'source',
             'HPRC100_AlleleHistogram',
             'vamosOriMotifFrequencies',
+            'repeatMaskerIntervals',
         ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
 
