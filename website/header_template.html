@@ -572,6 +572,14 @@
         const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
 
 
+        const ALL_STDEV_COLUMNS = [
+            'HPRC100_Stdev',
+            'AoU1027_Stdev',
+            'TenK10K_Stdev',
+            'StdevFromIllumina174k',
+            'StdevFromT2TAssemblies',
+        ]
+        
         const STDEV_SIGMA_SUBSCRIPTS = {
             'HPRC100_Stdev': 'Hprc100',
             'AoU1027_Stdev': 'AoU1027',
@@ -968,7 +976,6 @@
                 return ''
             }
 
-            console.log(frequenciesString)
             try {
                 const items = frequenciesString.split(',')
                 let total = 0

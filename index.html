@@ -574,6 +574,14 @@
         const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
 
 
+        const ALL_STDEV_COLUMNS = [
+            'HPRC100_Stdev',
+            'AoU1027_Stdev',
+            'TenK10K_Stdev',
+            'StdevFromIllumina174k',
+            'StdevFromT2TAssemblies',
+        ]
+        
         const STDEV_SIGMA_SUBSCRIPTS = {
             'HPRC100_Stdev': 'Hprc100',
             'AoU1027_Stdev': 'AoU1027',
@@ -970,7 +978,6 @@
                 return ''
             }
 
-            console.log(frequenciesString)
             try {
                 const items = frequenciesString.split(',')
                 let total = 0
@@ -1839,7 +1846,6 @@
         'vamosOriMotifFrequencies',
     ]
 
-
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
         'AoU1027_Stdev',
         'StdevFromIllumina174k',
@@ -1905,12 +1911,12 @@
             'geneName', 
             'variationCluster',
             'source',
-            'polymorphism',
             'HPRC100_AlleleHistogram',
+            'vamosOriMotifFrequencies',
         ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
 
-    const getGeneRegionValue = (geneRegion) => {
+    const getGeneRegionColumnValue = (geneRegion) => {
         if (!geneRegion) return ''
         //const color = GENE_REGION_COLORS[geneRegion]
         const regionRename = {
@@ -1918,6 +1924,47 @@
             'exon': 'exon (non-coding gene)'
         }
         return `${regionRename[geneRegion] || geneRegion}`
+    }
+
+    const getPolymorphismSummaryColumnValue = (row) => {
+        return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
+            <span class="cell-action-link">
+                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
+            </span>
+            <span style="color: #333;">
+                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+            </span>
+            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
+            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
+                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+            </span>` : ''}
+            <span class="cell-action-link">
+                ${row['TenK10K_Stdev'] != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
+            </span>
+        </span>
+        `
+    }
+
+    const getAlleleHistogramColumnValue = (row, columnName) => {
+        if (row[columnName] ) {
+            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>`
+        } else {
+            let otherHistograms = ''
+            for ( const c of ALL_STDEV_COLUMNS ) {
+                if (row[c] != null) {
+                    otherHistograms += `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS[c]}</sub></span>`
+                }
+            }
+
+            let result = `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}><span style="color: #888888; text-align: center; display: block; width: 100%;">`
+            if (otherHistograms) {
+                result += `not available (but has ${otherHistograms})`
+            } else {
+                result += `not available`
+            }
+            result += `</span></span>`
+            return result
+        }
     }
 
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -2030,7 +2077,7 @@
         interval: {
             displayName: 'Interval (hg38)',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['interval'],
-            getValue: (row) => row.ReferenceRegion.replace(/^chr/i, ''),
+            getValue: (row) => row['ReferenceRegion'].replace(/^chr/i, ''),
             getSortColumns: () => [DEFAULT_SORT_COLUMN],
             getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
         },
@@ -2052,38 +2099,21 @@
         geneRegion: {
             displayName: 'Region',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['geneRegion'],
-            getValue: (row) => getGeneRegionValue(row.GencodeGeneRegion),
+            getValue: (row) => getGeneRegionColumnValue(row['GencodeGeneRegion']),
             getSortColumns: () => ['GencodeGeneRegion'],
             getRequiredColumns: () => ['GencodeGeneRegion'],
         },
         geneName: {
             displayName: 'Gene',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['geneName'],
-            getValue: (row) => row.GencodeGeneName,
+            getValue: (row) => row['GencodeGeneName'],
             getSortColumns: () => ['GencodeGeneName'],
             getRequiredColumns: () => ['GencodeGeneName'],
         },
         polymorphism: {
             displayName: 'Polymorphism Summary',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['polymorphism'],
-            getValue: (row) => {
-                return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
-                            <span class="cell-action-link">
-                                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
-                            </span>
-                            <span style="color: #333;">
-                                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
-                            </span>
-                            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
-                            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
-                                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp; 
-                            </span>` : ''}
-                            <span class="cell-action-link">                                    
-                                ${row.TenK10K_Stdev != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
-                            </span>
-                        </span>
-                        `
-            },
+            getValue: getPolymorphismSummaryColumnValue,
             getSortColumns: () => ['HPRC100_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
         },
@@ -2107,14 +2137,14 @@
         AoU1027_OE_LengthPercentile: {
             displayName: 'Constraint (O/E Length) Percentile',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
-            getValue: (row) => row.AoU1027_OE_LengthPercentile != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
+            getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
             getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
             getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
         },
         isPathogenic: {
             displayName: 'Disease-associated?',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['isPathogenic'],
-            getValue: (row) => row.DiseaseInfo ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
+            getValue: (row) => row['DiseaseInfo'] ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
             getSortColumns: () => ['DiseaseInfo'],
             getRequiredColumns: () => ['DiseaseInfo']
         },
@@ -2145,14 +2175,14 @@
         trsInRegion: {
             displayName: 'Nearby TRs',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['trsInRegion'],
-            getValue: (row) => (row.TRsInRegion ? (parseInt(row.TRsInRegion) - 1) : ''),
+            getValue: (row) => (row['TRsInRegion'] ? (parseInt(row['TRsInRegion']) - 1) : ''),
             getSortColumns: () => ['TRsInRegion'],
             getRequiredColumns: () => ['TRsInRegion']
         },
         repeatMaskerIntervals: {
             displayName: 'Repeat Masker',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['repeatMaskerIntervals'],
-            getValue: (row) => row.RepeatMaskerIntervals ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
+            getValue: (row) => row['RepeatMaskerIntervals'] ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
             getSortColumns: () => ['RepeatMaskerIntervals'],
             getRequiredColumns: () => ['RepeatMaskerIntervals'],
         },
@@ -2166,21 +2196,21 @@
         mappability: {
             displayName: 'Mappability',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['mappability'],
-            getValue: (row) => row.FlanksAndLocusMappability,
+            getValue: (row) => row['FlanksAndLocusMappability'],
             getSortColumns: () => ['FlanksAndLocusMappability'],
             getRequiredColumns: () => ['FlanksAndLocusMappability']
         },
         gencodeGeneId: {
             displayName: 'Gencode Gene Id',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['gencodeGeneId'],
-            getValue: (row) => row.GencodeGeneId,
+            getValue: (row) => row['GencodeGeneId'],
             getSortColumns: () => ['GencodeGeneId'],
             getRequiredColumns: () => ['GencodeGeneId']
         },
         gencodeTranscriptId: {
             displayName: 'Gencode Transcript Id',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['gencodeTranscriptId'],
-            getValue: (row) => row.GencodeTranscriptId,
+            getValue: (row) => row['GencodeTranscriptId'],
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
         },
@@ -2194,21 +2224,21 @@
         refSeqGeneId: {
             displayName: 'RefSeq Id',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqGeneId'],
-            getValue: (row) => row.RefSeqGeneId,
+            getValue: (row) => row['RefSeqGeneId'],
             getSortColumns: () => ['RefSeqGeneId'],
             getRequiredColumns: () => ['RefSeqGeneId']
         },
         refSeqTranscriptId: {
             displayName: 'RefSeq Transcript Id',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqTranscriptId'],
-            getValue: (row) => row.RefseqTranscriptId,
+            getValue: (row) => row['RefseqTranscriptId'],
             getSortColumns: () => ['RefseqTranscriptId'],
             getRequiredColumns: () => ['RefseqTranscriptId']
         },
         refSeqGeneName: {
             displayName: 'RefSeq Gene',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqGeneName'],
-            getValue: (row) => row.RefSeqGeneName,
+            getValue: (row) => row['RefSeqGeneName'],
             getSortColumns: () => ['RefSeqGeneName'],
             getRequiredColumns: () => ['RefSeqGeneName']
         },
@@ -2222,28 +2252,28 @@
         maneGeneId: {
             displayName: 'MANE Id',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['maneGeneId'],
-            getValue: (row) => row.MANEGeneId,
+            getValue: (row) => row['MANEGeneId'],
             getSortColumns: () => ['MANEGeneId'],
             getRequiredColumns: () => ['MANEGeneId']
         },
         maneGeneName: {
             displayName: 'MANE Gene',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['maneGeneName'],
-            getValue: (row) => row.MANEGeneName,
+            getValue: (row) => row['MANEGeneName'],
             getSortColumns: () => ['MANEGeneName'],
             getRequiredColumns: () => ['MANEGeneName']
         },
         HPRC100_BiallelicHistogram: {
             displayName: 'HPRC100 Biallelic Histogram',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC100_BiallelicHistogram'],
-            getValue: (row) => row.HPRC100_BiallelicHistogram,
+            getValue: (row) => row['HPRC100_BiallelicHistogram'],
             getSortColumns: () => ['HPRC100_BiallelicHistogram'],
             getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
         },
         TenK10K_BiallelicHistogram: {
             displayName: 'TenK10K Phase 1 Biallelic Histogram',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TenK10K_BiallelicHistogram'],
-            getValue: (row) => row.TenK10K_BiallelicHistogram,
+            getValue: (row) => row['TenK10K_BiallelicHistogram'],
             getSortColumns: () => ['TenK10K_BiallelicHistogram'],
             getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
         }
@@ -2263,11 +2293,9 @@
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName] ? 
-                `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>` : 
-                `<span style="color: #888888; text-align: center; display: block; width: 100%;">not available</span>`,
+            getValue: (row) => getAlleleHistogramColumnValue(row, columnName),
             getSortColumns: () => [stdevColumnName],
-            getRequiredColumns: () => [columnName, stdevColumnName]
+            getRequiredColumns: () => [columnName, ...ALL_STDEV_COLUMNS]
         }
     }
 
@@ -3102,7 +3130,6 @@
                     } else {
                         const locusIdMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i)
                         if (locusIdMatch) {
-                            console.log("locusIdMatch", locusIdMatch)
                             let [_, chrom, start, end, motif] = locusIdMatch
                             start = parseInt(start.replace(/,/g, ''))
                             end = parseInt(end.replace(/,/g, ''))
