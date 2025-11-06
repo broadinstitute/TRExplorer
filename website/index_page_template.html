@@ -256,6 +256,7 @@
     const RESULTS_TABLE_COLUMN_NAMES = [
         'interval',
         'motif',
+        'numRepeatsInReference',
         'referenceRepeatPurity',
         'geneRegion',
         'geneName',
@@ -333,6 +334,7 @@
         'vamosOriMotifFrequencies',
         'repeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
+        'numRepeatsInReference',
         'referenceRepeatPurity',
     ]
 
@@ -662,6 +664,13 @@
             },
             getSortColumns: () => ['VariationClusterSizeDiff'],
             getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
+        },
+        numRepeatsInReference: {
+            displayName: 'Repeats',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['numRepeatsInReference'],
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getSortColumns: () => ['NumRepeatsInReference'],
+            getRequiredColumns: () => ['NumRepeatsInReference']
         },
         referenceRepeatPurity: {
             displayName: 'Purity',
