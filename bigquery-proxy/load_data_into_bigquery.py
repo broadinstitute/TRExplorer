@@ -132,12 +132,13 @@ def parse_vamos_motif_frequencies_from_tsv(tsv_path):
 
             total_counts = 0
             motif_and_count_list = []
-            motif_set = set()
+
+            motif_list = []
             for motif, count in zip(ori_motifs.split(","), ori_motif_counts.split(",")):
-                if motif in motif_set:
+                if motif in motif_list:
                     print(f"ERROR: Motif {motif} specified more than once in line: {line}")
 
-                motif_set.add(motif)
+                motif_list.append(motif)
                 motif_and_count_list.append(f"{motif}:{count}")
                 total_counts += int(count)
 
@@ -147,8 +148,9 @@ def parse_vamos_motif_frequencies_from_tsv(tsv_path):
                     total_motifs += 1
 
             lookup[reference_region] = {
+                "unique_motifs": ",".join(motif_list),
                 "motif_frequencies": ",".join(motif_and_count_list),
-                "total_motifs": total_motifs,
+                "total_motif_count": total_motifs,
             }
 
     return lookup
@@ -353,7 +355,8 @@ schema = [
     bigquery.SchemaField("AoU1027_OE_LengthPercentile", "FLOAT"),
 
     bigquery.SchemaField("RepeatMaskerIntervals", "STRING"),
-    #bigquery.SchemaField("VamosEffMotifFrequencies", "STRING"),
+    #bigquery.SchemaField("VamosEffMotifs", "STRING"),
+    bigquery.SchemaField("VamosOriUniqueMotifs", "STRING"),
     bigquery.SchemaField("VamosOriMotifFrequencies", "STRING"),
     bigquery.SchemaField("VamosOriMotifCount", "INTEGER"),
 ]
@@ -559,8 +562,10 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
 
     if record["ReferenceRegion"] in vamos_ori_motif_frequencies_lookup:
         counters["rows_with_vamos_ori_motif_frequencies"] += 1
-        record["VamosOriMotifFrequencies"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]["motif_frequencies"]
-        record["VamosOriMotifCount"] = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]["total_motifs"]
+        vamos_ori_data = vamos_ori_motif_frequencies_lookup[record["ReferenceRegion"]]
+        record["VamosOriUniqueMotifs"] = vamos_ori_data["unique_motifs"]
+        record["VamosOriMotifFrequencies"] = vamos_ori_data["motif_frequencies"]
+        record["VamosOriMotifCount"] = vamos_ori_data["total_motif_count"]
     
     #if record["ReferenceRegion"] in vamos_eff_motif_frequencies_lookup:
     #    counters["rows_with_vamos_eff_motif_frequencies"] += 1
@@ -587,16 +592,18 @@ if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_
     print(f"WARNING: {len(known_disease_associated_loci) - len(locus_ids_with_added_disease_info)} out of {len(known_disease_associated_loci)} known disease-associated loci were not found in the catalog. "
            "Missing LocusIds:", ", ".join(known_disease_associated_locus_ids - locus_ids_with_added_disease_info))
 
-with open("../index.html", "r") as f:
-    html_content = f.read()
+for html_path in "../website/header_template.html", "../index.html", "../locus.html":
+    print(f"Update TABLE_ID to '{new_table_id}' in {html_path}")
+    with open(html_path, "r") as f:
+        html_content = f.read()
 
-html_content = re.sub(
-    r"const TABLE_ID[\s]*=[\s]*'catalog[^']*'",
-    f"const TABLE_ID = '{new_table_id}'", 
-    html_content)
+    html_content = re.sub(
+        r"const TABLE_ID[\s]*=[\s]*'catalog[^']*'",
+        f"const TABLE_ID = '{new_table_id}'",
+        html_content)
 
-with open("../index.html", "wt") as f:
-    f.write(html_content)
+    with open(html_path, "wt") as f:
+        f.write(html_content)
 
 print("Done!")
 
