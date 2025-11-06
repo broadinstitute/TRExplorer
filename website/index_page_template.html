@@ -277,6 +277,7 @@
     const RESULTS_TABLE_COLUMN_NAMES = [
         'interval',
         'motif',
+        'referenceRepeatPurity',
         'geneRegion',
         'geneName',
         'variationCluster',
@@ -324,8 +325,8 @@
         'variationCluster',  
         'mappability',  
         'trsInRegion',  
-        'isPathogenic',  
-        'polymorphism',  
+        'isPathogenic',
+        'polymorphism',
 
         'gencodeGeneId',  
         'gencodeTranscriptId',  
@@ -353,6 +354,7 @@
         'vamosOriMotifFrequencies',
         'repeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
+        'referenceRepeatPurity',
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -681,6 +683,13 @@
             },
             getSortColumns: () => ['VariationClusterSizeDiff'],
             getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
+        },
+        referenceRepeatPurity: {
+            displayName: 'Purity',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['referenceRepeatPurity'],
+            getValue: (row) => (row['ReferenceRepeatPurity'] ? row['ReferenceRepeatPurity'] : ''),
+            getSortColumns: () => ['ReferenceRepeatPurity'],
+            getRequiredColumns: () => ['ReferenceRepeatPurity']
         },
         trsInRegion: {
             displayName: 'Nearby TRs',
