@@ -2296,7 +2296,7 @@
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
             getValue: (row) => getAlleleHistogramColumnValue(row, columnName),
             getSortColumns: () => [stdevColumnName],
-            getRequiredColumns: () => [columnName, ...ALL_STDEV_COLUMNS]
+            getRequiredColumns: () => [columnName, 'NumRepeatsInReference', ...ALL_STDEV_COLUMNS]
         }
     }
 
