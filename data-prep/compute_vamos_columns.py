@@ -75,7 +75,7 @@ def main():
 
         output_table_rows[reference_region] = {
             "ReferenceRegion": reference_region,
-            "IncludeInVamosCatalog": include_new_interval_in_vamos_catalog,
+            "IncludeInVamosCatalog": 1 if include_new_interval_in_vamos_catalog else 0,
         }
 
         if reference_region in vamos_data_lookup:
