@@ -569,7 +569,7 @@
         // initialize BigQuery client
         const PROJECT_ID = 'cmg-analysis'
         const DATASET_ID = 'tandem_repeat_explorer'
-        const TABLE_ID = 'catalog_20251106_140906'
+        const TABLE_ID = 'catalog_20251106_211641'
 
         const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
 
@@ -928,7 +928,7 @@
             try {
                 const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
                 console.log("Page state:", GLOBAL_PAGE_STATE)
-                console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
+                console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
                 const requestBody = {
                     sql: query,
                     export_to_file_format: exportToFileFormat,
@@ -1014,7 +1014,7 @@
                 let resultMotifs = []
                 for (let motif in motifs) {
                     if (motifs[motif] >= 0.01) {
-                        resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 24 ? (motif.substring(0, 24) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
+                        resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 35 ? (motif.substring(0, 35) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
                     }
                 }
 

@@ -106,15 +106,18 @@ def parse_AoU1027_data_from_tsv(tsv_path):
     return lookup
 
 
-def parse_vamos_motif_frequencies_from_tsv(tsv_path):
+def parse_vamos_unique_motif_frequencies_from_tsv(unique_motif_tsv_path, efficient_motif_tsv_path=None):
     """Parse the Vamos motif frequencies TSV file line by line and create a lookup dictionary."""
-    lookup = {}
-    with gzip.open(tsv_path, 'rt') as f:
+
+    if efficient_motif_tsv_path is not None:
+        vamos_ori_to_efficient_motif_map = parse_vamos_efficient_motif_lookup(args.vamos_eff_motifs_tsv)
+    else:
+        vamos_ori_to_efficient_motif_map = {}
+
+    result = {}
+    with gzip.open(unique_motif_tsv_path, 'rt') as f:
         header = f.readline().strip().split('\t')
-        #if "effMotifs" in header:   # efficient motif table parsing not implemented yet - not clear how to parse counts.
-        #    index_eff_motifs = header.index("effMotifs")
-        #    header[index_eff_motifs] = "motifs"
-            
+
         col_indices = {col: i for i, col in enumerate(header)}
         for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
             fields = line.strip().split('\t')
@@ -149,23 +152,68 @@ def parse_vamos_motif_frequencies_from_tsv(tsv_path):
                 else:
                     canonical_motif_to_count[canonical_motif] += count
 
+            ori_to_efficient_motif_map = vamos_ori_to_efficient_motif_map.get(reference_region, {})
             total_frequent_motifs = 0
             for motif in motif_list:
                 canonical_motif = compute_canonical_motif(motif)
                 count = canonical_motif_to_count[canonical_motif]
-                motif_and_count_list.append(f"{motif}:{count}")
+                if vamos_ori_to_efficient_motif_map:
+                    efficient_motif = ori_to_efficient_motif_map.get(motif, "")
+                    value = f"{motif}:{efficient_motif}:{count}"
+                else:
+                    value = f"{motif}:{count}"
+
+                motif_and_count_list.append(value)
+
 
                 if int(count) / total_counts >= 0.01:
                     total_frequent_motifs += 1
 
-            lookup[reference_region] = {
+            result[reference_region] = {
                 "unique_motifs": ",".join(motif_list),
                 "motif_frequencies": ",".join(motif_and_count_list),
                 "total_frequent_motif_count": total_frequent_motifs,
             }
 
-    return lookup
+    return result
 
+
+def parse_vamos_efficient_motif_lookup(efficient_motif_tsv_path):
+    """Parse table and return a lookup dictionary mapping the reference region interval to a dictionary
+    that maps the original unique motif to its corresponding efficient motif.
+
+    Example row:
+        #1      chr     chr7
+        #2      start   52646623
+        #3      end     52646636
+        #4      effMotifs       TA,TAA
+        #5      effMotifs_counts        3020,317
+        #6      status  OPTIMAL
+        #7      effSet/oriSet   2/5
+        #8      oriMotifs       TA,TAA,TG,AA,TAG
+        #9      effMotif_counterparts   TA,TAA,TA,TA,TA
+        #10     mapping_cost    0,0,1,1,1
+        #11     effMotif_indicator      1,1,0,0,0
+        #12     delta   333
+    """
+    efficient_motif_lookup = {}
+    with gzip.open(efficient_motif_tsv_path, 'rt') as f:
+        header = f.readline().strip().split('\t')
+        col_indices = {col: i for i, col in enumerate(header)}
+        for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
+            fields = line.strip().split('\t')
+            chrom = fields[col_indices['chr']]
+            start_0based = int(fields[col_indices['start']])
+            end_1based = int(fields[col_indices['end']])
+            ori_motifs = fields[col_indices['oriMotifs']].split(",")
+            efficient_motifs_q01 = fields[col_indices['effMotif_counterparts']].split(",")
+
+            assert len(ori_motifs) == len(efficient_motifs_q01), line
+
+            reference_region = f"{chrom}:{start_0based}-{end_1based}"
+            efficient_motif_lookup[reference_region] = dict(zip(ori_motifs, efficient_motifs_q01))
+
+    return efficient_motif_lookup
 
 tenk10k_lookup = {}
 if args.tenk10k_tsv:
@@ -197,8 +245,10 @@ if hprc100_lookup and aou1027_lookup:
         else:
             print(f"Correlation between the {column} at {len(shared_keys):,d} TR loci in HPRC100 and AoU1027 is {pearsonr:0.2f}")
 
-vamos_ori_motif_frequencies_lookup = parse_vamos_motif_frequencies_from_tsv(args.vamos_ori_motifs_tsv)
-#vamos_eff_motif_frequencies_lookup = parse_vamos_motif_frequencies_from_tsv(args.vamos_eff_motifs_tsv)
+vamos_ori_motif_frequencies_lookup = parse_vamos_unique_motif_frequencies_from_tsv(
+    args.vamos_ori_motifs_tsv,
+    args.vamos_eff_motifs_tsv)
+
 
 
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
@@ -366,7 +416,6 @@ schema = [
     bigquery.SchemaField("AoU1027_OE_LengthPercentile", "FLOAT"),
 
     bigquery.SchemaField("RepeatMaskerIntervals", "STRING"),
-    #bigquery.SchemaField("VamosEffMotifs", "STRING"),
     bigquery.SchemaField("VamosOriUniqueMotifs", "STRING"),
     bigquery.SchemaField("VamosOriMotifFrequencies", "STRING"),
     bigquery.SchemaField("VamosOriMotifCount", "INTEGER"),
@@ -577,11 +626,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["VamosOriUniqueMotifs"] = vamos_ori_data["unique_motifs"]
         record["VamosOriMotifFrequencies"] = vamos_ori_data["motif_frequencies"]
         record["VamosOriMotifCount"] = vamos_ori_data["total_frequent_motif_count"]
-    
-    #if record["ReferenceRegion"] in vamos_eff_motif_frequencies_lookup:
-    #    counters["rows_with_vamos_eff_motif_frequencies"] += 1
-    #    record["VamosEffMotifFrequencies"] = vamos_eff_motif_frequencies_lookup[record["ReferenceRegion"]]
-
 
     if record["LocusId"] in repeat_masker_lookup:
         counters["rows_with_repeat_masker_intervals"] += 1

@@ -78,7 +78,11 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None):
         field_delimiter = None
     else:
         destination_format = bigquery.DestinationFormat.CSV
-        print_header = export_to_file_format == "TSV"
+        if tool_name is not None and "vamos" in tool_name.lower():
+            print_header = False
+        else:
+            print_header = export_to_file_format == "TSV"
+
         field_delimiter = '\t'
 
     try:
@@ -203,9 +207,9 @@ def query_db(request):
     
     sql = str(sql).strip()
 
-    pattern = rf"^SELECT\s+([\w\*,\s()\"'=;\.\+\-\*\/]+)\s+FROM[\s`]+{BIGQUERY_PROJECT}\.{BIGQUERY_DATASET}"
+    pattern = rf"^SELECT\s+(.+)\s+FROM[\s`]+{BIGQUERY_PROJECT}\.{BIGQUERY_DATASET}"
     if not re.search(pattern, sql, re.IGNORECASE | re.VERBOSE | re.MULTILINE):
-        response_dict = {"error": f"Invalid SQL query: {sql}. It must be a SELECT from the allowed project and dataset."}
+        response_dict = {"error": f"Invalid SQL query: {sql}. It must be a SELECT from the expected project and dataset and must pass the validation regexp."}
         print(f"ERROR: {response_dict['error']}")
         return jsonify(response_dict), 400, response_headers
 
@@ -218,9 +222,6 @@ def query_db(request):
     if export_to_file_format:
         # Export to file
         tool_name = data.get("tool_name")  # optional tool name to add to the filename
-        if not tool_name or tool_name.lower() not in ("eh", "expansionhunter", "expansion_hunter", "gangstr", "hipstr", "longtr", "trgt"):
-            tool_name = None
-
         response_json, response_status_code = export_to_file(
             client, result_table, export_to_file_format, tool_name=tool_name)
         

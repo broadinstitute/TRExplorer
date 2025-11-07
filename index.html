@@ -569,7 +569,7 @@
         // initialize BigQuery client
         const PROJECT_ID = 'cmg-analysis'
         const DATASET_ID = 'tandem_repeat_explorer'
-        const TABLE_ID = 'catalog_20251106_140906'
+        const TABLE_ID = 'catalog_20251106_211641'
 
         const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
 
@@ -928,7 +928,7 @@
             try {
                 const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
                 console.log("Page state:", GLOBAL_PAGE_STATE)
-                console.log(exportToFileFormat ? `Exporting to ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
+                console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
                 const requestBody = {
                     sql: query,
                     export_to_file_format: exportToFileFormat,
@@ -1014,7 +1014,7 @@
                 let resultMotifs = []
                 for (let motif in motifs) {
                     if (motifs[motif] >= 0.01) {
-                        resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 24 ? (motif.substring(0, 24) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
+                        resultMotifs.push(`<tr><td><i>${(motifs[motif] * 100.0).toFixed(0)}%</i></td><td><span style='white-space: nowrap'>${motif.length > 35 ? (motif.substring(0, 35) + '... (' + motif.length + 'bp)') : motif}</span></td></tr>`)
                     }
                 }
 
@@ -2476,6 +2476,7 @@
                             <div class="item" data-value="hipstr">HipSTR</div>
                             <div class="item" data-value="trgt">TRGT</div>
                             <div class="item" data-value="longtr">LongTR</div>
+                            <div class="item" data-value="vamos">Vamos</div>
                         </div>
                     </div>
                     <i class="question circle icon export-help-icon" data-html="Export all ${totalResults.toLocaleString()} search results to a file in the selected format"></i>
@@ -2628,7 +2629,7 @@
                     fileFormat = 'JSON'
                 } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'bed') {
                     fileFormat = 'BED'
-                } else if (value === 'tsv') {
+                } else if (value === 'tsv' || value == 'vamos') {
                     fileFormat = 'TSV'
                 } else {
                     throw new Error(`Invalid export-dropdown value: ${value}`)
@@ -2648,6 +2649,9 @@
                 } else if(value === 'trgt') {
                     toolName = 'TRGT'
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+                } else if(value === 'vamos') {
+                    toolName = 'vamos'
+                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosOriUniqueMotifs IS NOT NULL THEN VamosOriUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
                 } else if(value === 'bed') {
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
