@@ -24,7 +24,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
 <style>
-    /* Base styles */
     body {
         padding: 0;
         margin: 0;
@@ -32,7 +31,6 @@ gtag('config', 'G-6R8FPBQRFH');
         min-width: 1000px; /* Set a minimum width to prevent content from becoming too narrow */
     }
 
-    /* Header styles */
     #header-stripe {
         background-color: #1b1c1d;
         color: white;
@@ -1519,7 +1517,7 @@ gtag('config', 'G-6R8FPBQRFH');
         LocusId: {
             displayName: 'LocusId',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['LocusId'],
-            getValue: (row, truncateAt=30) => showTruncatedSequence(row['LocusId'], truncateAt=truncateAt, showSize=false),
+            getValue: (row, truncateAt=30) => showTruncatedSequence(row['LocusId'], truncateAt, false),
             getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId'],
             getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId']
         },
@@ -1533,35 +1531,35 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceMotif: {
             displayName: 'Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceMotif'],
-            getValue: (row, truncateAt=12) => showTruncatedSequence(row['ReferenceMotif'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['ReferenceMotif'], truncateAt, true),
             getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
             getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
         },
         CanonicalMotif: {
             displayName: 'Canonical Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['CanonicalMotif'],
-            getValue: (row, truncateAt=12) => showTruncatedSequence(row['CanonicalMotif'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['CanonicalMotif'], truncateAt, true),
             getSortColumns: () => ['MotifSize', 'CanonicalMotif'],
             getRequiredColumns: () => ['MotifSize', 'CanonicalMotif']
         },
         ReferenceRepeatSequence: {
             displayName: 'Repeat Sequence',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRepeatSequence'],
-            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRepeatSequence'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRepeatSequence'], truncateAt, true),
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence']
         },
         ReferenceLeftFlank: {
             displayName: 'Left Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceLeftFlank'],
-            getValue: (row, truncateAt=50) => `<div style='text-align: right'>${showTruncatedSequence(row['ReferenceLeftFlank'], truncateAt=truncateAt, showSize=true, leftTruncate=true)}</div>`,
+            getValue: (row, truncateAt=50) => `<div style='text-align: right'>${showTruncatedSequence(row['ReferenceLeftFlank'], truncateAt, true, true)}</div>`,
             getSortColumns: () => ['ReferenceLeftFlank'],
             getRequiredColumns: () => ['ReferenceLeftFlank']
         },
         ReferenceRightFlank: {
             displayName: 'Right Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRightFlank'],
-            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRightFlank'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRightFlank'], truncateAt, true),
             getSortColumns: () => ['ReferenceRightFlank'],
             getRequiredColumns: () => ['ReferenceRightFlank']
         },
@@ -1991,11 +1989,18 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="six wide column">
-            <div id="locus-page-row2-box1"></div>
+        <div class="twelve wide column">
+            <div id="locus-page-row2-box"></div>
         </div>
-        <div class="six wide column">
-            <div id="locus-page-row2-box2"></div>
+        <div class="two wide column"></div>
+    </div>
+    <div class="ui row">
+        <div class="two wide column"></div>
+        <div class="six wide column center-col" style="min-width: 600px !important;">
+            <div id="locus-page-row3-box1"></div>
+        </div>
+        <div class="six wide column center-col">
+            <div id="locus-page-row3-box2"></div>
         </div>
         <div class="two wide column"></div>
     </div>
@@ -2171,17 +2176,17 @@ gtag('config', 'G-6R8FPBQRFH');
         const getHelpIcon = (columnName) => {
             return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
         }
+
         let locusPageRow1Box1 = '<table class="locus-info-table">'
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, 35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, 35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], truncateAt=30, showSize=false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
-
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
         locusPageRow1Box1 += '</table>'
         $("#locus-page-row1-box1").html(locusPageRow1Box1)
 
@@ -2200,17 +2205,18 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
         /*
-                'ReferenceLeftFlank',
-        'ReferenceRepeatSequence',
-        'ReferenceRightFlank',
-VamosMotifFrequencies
+        VamosMotifFrequencies
          */
-        let locusPageRow2Box1 = ''
-        $("#locus-page-row2-box1").html(locusPageRow2Box1)
+
+        let locusPageRow2Box = `<div style="padding: 0px 12px"><span class="locus-info-label">Repeat sequence in hg38:</span><br />${TABLE_COLUMNS['ReferenceRepeatSequence'].getValue(row, 140)}</div>`
+        $("#locus-page-row2-box").html(locusPageRow2Box)
+
+        let locusPageRow3Box1 = `<div style="padding: 0px 12px"><span class="locus-info-label">Left flank:</span><br />${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true)}</div>`
+        let locusPageRow3Box2 = `<div style="padding: 0px 12px"><span class="locus-info-label">Right flank:</span><br />${TABLE_COLUMNS['ReferenceRightFlank'].getValue(row, 58)}</div>`
+        $("#locus-page-row3-box1").html(locusPageRow3Box1)
+        $("#locus-page-row3-box2").html(locusPageRow3Box2)
 
 
-        let locusPageRow2Box2 = ''
-        $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
         $('#locus-page-results-area').html('')
 

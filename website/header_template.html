@@ -22,7 +22,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
 <style>
-    /* Base styles */
     body {
         padding: 0;
         margin: 0;
@@ -30,7 +29,6 @@ gtag('config', 'G-6R8FPBQRFH');
         min-width: 1000px; /* Set a minimum width to prevent content from becoming too narrow */
     }
 
-    /* Header styles */
     #header-stripe {
         background-color: #1b1c1d;
         color: white;
@@ -1517,7 +1515,7 @@ gtag('config', 'G-6R8FPBQRFH');
         LocusId: {
             displayName: 'LocusId',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['LocusId'],
-            getValue: (row, truncateAt=30) => showTruncatedSequence(row['LocusId'], truncateAt=truncateAt, showSize=false),
+            getValue: (row, truncateAt=30) => showTruncatedSequence(row['LocusId'], truncateAt, false),
             getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId'],
             getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId']
         },
@@ -1531,35 +1529,35 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceMotif: {
             displayName: 'Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceMotif'],
-            getValue: (row, truncateAt=12) => showTruncatedSequence(row['ReferenceMotif'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['ReferenceMotif'], truncateAt, true),
             getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
             getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
         },
         CanonicalMotif: {
             displayName: 'Canonical Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['CanonicalMotif'],
-            getValue: (row, truncateAt=12) => showTruncatedSequence(row['CanonicalMotif'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['CanonicalMotif'], truncateAt, true),
             getSortColumns: () => ['MotifSize', 'CanonicalMotif'],
             getRequiredColumns: () => ['MotifSize', 'CanonicalMotif']
         },
         ReferenceRepeatSequence: {
             displayName: 'Repeat Sequence',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRepeatSequence'],
-            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRepeatSequence'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRepeatSequence'], truncateAt, true),
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence']
         },
         ReferenceLeftFlank: {
             displayName: 'Left Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceLeftFlank'],
-            getValue: (row, truncateAt=50) => `<div style='text-align: right'>${showTruncatedSequence(row['ReferenceLeftFlank'], truncateAt=truncateAt, showSize=true, leftTruncate=true)}</div>`,
+            getValue: (row, truncateAt=50) => `<div style='text-align: right'>${showTruncatedSequence(row['ReferenceLeftFlank'], truncateAt, true, true)}</div>`,
             getSortColumns: () => ['ReferenceLeftFlank'],
             getRequiredColumns: () => ['ReferenceLeftFlank']
         },
         ReferenceRightFlank: {
             displayName: 'Right Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRightFlank'],
-            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRightFlank'], truncateAt=truncateAt, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRightFlank'], truncateAt, true),
             getSortColumns: () => ['ReferenceRightFlank'],
             getRequiredColumns: () => ['ReferenceRightFlank']
         },
