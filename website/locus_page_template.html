@@ -18,11 +18,26 @@
         <div class="three wide column"></div>
     </div>
     <div class="ui row">
+        <div class="two wide column"></div>
+        <div class="ten wide column">
+            <div id="locus-page-row1"></div>
+        </div>
+        <div class="two wide column"></div>
+    </div>
+    <div class="ui row">
+        <div class="two wide column"></div>
+        <div class="five wide column">
+            <div id="locus-page-row2-box1"></div>
+        </div>
+        <div class="five wide column">
+            <div id="locus-page-row2-box2"></div>
+        </div>
+        <div class="two wide column"></div>
+    </div>
+    <div class="ui row">
         <div class="three wide column"></div>
         <div class="ten wide column">
-            <!-- Results Area -->
-            <div id="results-title"></div>
-            <div id="results-area" style="position: relative; z-index: 100;"></div>
+            <div id="locus-page-results-area" style="position: relative; z-index: 100;"></div>
         </div>
         <div class="three wide column"></div>
     </div>
@@ -35,13 +50,15 @@
     const REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE = [
         "LocusId",
         "ReferenceRegion",
-        "DiseaseInfo",
 
         "NumRepeatsInReference",
         "ReferenceMotif",
         "CanonicalMotif",
+
+        "DiseaseInfo",
         "KnownDiseaseAssociatedMotif",
         "KnownDiseaseAssociatedLocus",
+
         "ReferenceRepeatPurity",
         "TRsInRegion",
         "Source",
@@ -189,8 +206,26 @@
         const row = window.searchResults.rows[0]
         console.log("search results row:", row)
 
-        $('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
-        $('#results-area').html('')
+        let locusPageRow1 = ''
+        locusPageRow1 += `<b>Locus Id:</b> ${row.LocusId}<br />`
+        locusPageRow1 += `<b>Source:</b> ${row.Source}<br />`
+        $("#locus-page-row1").html(locusPageRow1)
+
+        let locusPageBox1 = ''
+        locusPageBox1 += `<b>Reference Region:</b> ${row.ReferenceRegion}<br />`
+        locusPageBox1 += `<b>Num Repeats in Reference:</b> ${row.NumRepeatsInReference}<br />`
+        locusPageBox1 += `<b>Reference Repeat Purity:</b> ${(row.ReferenceRepeatPurity * 100).toFixed(2)}%<br />`
+        locusPageBox1 += `<b>Disease Association:</b> ${row.DiseaseInfo ? row.DiseaseInfo : 'N/A'}<br />`
+        $("#locus-page-row2-box1").html(locusPageBox1)
+
+
+        let locusPageBox2 = ''
+        locusPageBox2 += `<b>Reference Motif:</b> ${row.ReferenceMotif}<br />`
+        locusPageBox2 += `<b>Canonical Motif:</b> ${row.CanonicalMotif}<br />`
+        $("#locus-page-row2-box2").html(locusPageBox2)
+
+        //$('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
+        $('#locus-page-results-area').html('')
 
         const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
         const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
@@ -296,7 +331,7 @@
             locusPageContent += '</div></div>'
         }
 
-        $('#results-area').html(locusPageContent.replace(/\s+/g, ' ').trim())
+        $('#locus-page-results-area').html(locusPageContent.replace(/\s+/g, ' ').trim())
 
         let alleleFrequencyChartData = []
         $('.allele-frequency-chart').each(function() {

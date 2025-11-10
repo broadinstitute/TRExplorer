@@ -639,28 +639,28 @@ gtag('config', 'G-6R8FPBQRFH');
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
         interval: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
         motif: 'The repeat motif and motif size. <b>Examples:</b> CAG (3), GGCCCC (6)',
-        geneRegion: 'TR locus gene region. <b>Examples:</b> 5\'UTR, coding, etc.',
-        geneName: 'Gencode gene name',
+        GencodeGeneRegion: 'TR locus gene region. <b>Examples:</b> 5\'UTR, coding, etc.',
+        GencodeGeneName: 'Gencode gene name',
         polymorphism: 'Summary of available sources of polymorphism data for the TR locus',
-        source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
-        trsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
-        numRepeatsInReference: 'Number of repeats in the reference calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
-        referenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89.',
+        Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
+        TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence. <b>Range:</b> 1 to 13 TRs',
+        NumRepeatsInReference: 'Number of repeats in the reference calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
+        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89.',
         variationCluster: 'Summarizes whether the TR locus resides within a variation cluster',
         isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-        repeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
-        vamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
-        mappability: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
-        gencodeGeneId: 'Gencode v46 gene ID (ENSG)',
-        gencodeTranscriptId: 'Gencode v46 transcript ID (ENST)',
-        refSeqGeneRegion: 'RefSeq gene region',
-        refSeqGeneId: 'RefSeq gene ID',
-        refSeqTranscriptId: 'RefSeq transcript ID',
-        refSeqGeneName: 'RefSeq gene name',
-        maneGeneRegion: 'MANE v1.3 gene region',
-        maneGeneId: 'MANE v1.3 gene ID',
-        maneGeneName: 'MANE v1.3 gene name',
+        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
+        VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
+        FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus including +/- 150bp of flanking sequence. <b>Range:</b> 0 to 1',
+        GencodeGeneId: 'Gencode v46 gene ID (ENSG)',
+        GencodeTranscriptId: 'Gencode v46 transcript ID (ENST)',
+        RefSeqGeneRegion: 'RefSeq gene region',
+        RefSeqGeneId: 'RefSeq gene ID',
+        RefSeqTranscriptId: 'RefSeq transcript ID',
+        RefSeqGeneName: 'RefSeq gene name',
+        ManeGeneRegion: 'MANE v1.3 gene region',
+        ManeGeneId: 'MANE v1.3 gene ID',
+        ManeGeneName: 'MANE v1.3 gene name',
         HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
     }
@@ -1001,7 +1001,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
         return `<span class="show-popup cell-action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
     }
-
 
     const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
         if (!frequenciesString) {
@@ -1425,6 +1424,276 @@ gtag('config', 'G-6R8FPBQRFH');
         thisObj.style.maxHeight = chartWidth
     }
 
+    const getGeneRegionColumnValue = (geneRegion) => {
+        if (!geneRegion) return ''
+        //const color = GENE_REGION_COLORS[geneRegion]
+        const regionRename = {
+            'CDS': 'coding',
+            'exon': 'exon (non-coding gene)'
+        }
+        return `${regionRename[geneRegion] || geneRegion}`
+    }
+
+    const getPolymorphismSummaryColumnValue = (row) => {
+        return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
+            <span class="cell-action-link">
+                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
+            </span>
+            <span style="color: #333;">
+                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+            </span>
+            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
+            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
+                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+            </span>` : ''}
+            <span class="cell-action-link">
+                ${row['TenK10K_Stdev'] != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
+            </span>
+        </span>
+        `
+    }
+
+    const getAlleleHistogramColumnValue = (row, columnName) => {
+        if (row[columnName] ) {
+            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>`
+        } else {
+            let otherHistograms = ''
+            for ( const c of ALL_STDEV_COLUMNS ) {
+                if (row[c] != null) {
+                    otherHistograms += `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS[c]}</sub></span>`
+                }
+            }
+
+            let result = `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}><span style="color: #888888; text-align: center; display: block; width: 100%;">`
+            if (otherHistograms) {
+                result += `not available (but has ${otherHistograms})`
+            } else {
+                result += `not available`
+            }
+            result += `</span></span>`
+            return result
+        }
+    }
+
+    let TABLE_COLUMNS = {
+        interval: {
+            displayName: 'Interval (hg38)',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['interval'],
+            getValue: (row) => row['ReferenceRegion'].replace(/^chr/i, ''),
+            getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based'],
+            getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
+        },
+        motif: {
+            displayName: 'Motif',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['motif'],
+            getValue: (row, truncateMotifAt=12) => {
+                const motif = row['ReferenceMotif']
+                if ( motif.length > truncateMotifAt ) {
+                    const truncatedMotif = motif.substring(0, truncateMotifAt) + '...'
+                    return `<span class="show-popup cell-action-link" data-html="<span style='font-family: monospace'>${motif.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">${truncatedMotif} &nbsp (${row['MotifSize']})</span>`
+                } else {
+                    return `${motif} &nbsp (${row['MotifSize']})`
+                }
+            },
+            getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
+            getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
+        },
+        GencodeGeneRegion: {
+            displayName: 'Region',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['GencodeGeneRegion']),
+            getSortColumns: () => ['GencodeGeneRegion'],
+            getRequiredColumns: () => ['GencodeGeneRegion'],
+        },
+        GencodeGeneName: {
+            displayName: 'Gene',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneName'],
+            getValue: (row) => row['GencodeGeneName'],
+            getSortColumns: () => ['GencodeGeneName'],
+            getRequiredColumns: () => ['GencodeGeneName'],
+        },
+        polymorphism: {
+            displayName: 'Polymorphism Summary',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['polymorphism'],
+            getValue: getPolymorphismSummaryColumnValue,
+            getSortColumns: () => ['HPRC100_Stdev'],
+            getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
+        },
+        Source: {
+            displayName: 'Source',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['Source'],
+            getValue: (row) => {
+                const sourceCatalogNameMap = {
+                    KnownDiseaseAssociatedLoci: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
+                    Illumina174kPolymorphicTRs: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
+                    PerfectRepeatsInReference:  "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
+                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
+                    VamosCatalog: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br /><br /><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
+                }
+                const [version, sourceCatalog] = row['Source'].split(':')
+                return sourceCatalogNameMap[sourceCatalog]
+            },
+            getSortColumns: () => ['Source'],
+            getRequiredColumns: () => ['Source'],
+        },
+        AoU1027_OE_LengthPercentile: {
+            displayName: 'Constraint (O/E Length) Percentile',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
+            getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row['AoU1027_OE_LengthPercentile']).toFixed(1)}%` : '',
+            getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
+            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
+        },
+        isPathogenic: {
+            displayName: 'Disease-associated?',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['isPathogenic'],
+            getValue: (row) => row['DiseaseInfo'] ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
+            getSortColumns: () => ['DiseaseInfo'],
+            getRequiredColumns: () => ['DiseaseInfo']
+        },
+        variationCluster: {
+            displayName: 'VC',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['variationCluster'],
+            getValue: (row) => {
+                const hasCluster = row['VariationCluster'] && row['VariationCluster'].trim() !== ''
+                if (hasCluster) {
+                    const refRegionSize = computeIntervalSize(row['ReferenceRegion'])
+                    const clusterDetails = `
+                            <div class="content" style="text-align: center;">
+                                <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row['VariationCluster']}</div>
+                                <br />
+                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
+                            </div>
+                        `.replace(/\s+/g, ' ').trim()
+
+                    return `<span class="cell-with-icon-and-popup cell-in-variation-cluster-column" data-html='${clusterDetails}'>
+                            <i class="check circle icon"></i><span class="cell-action-link">Yes</span>
+                        </span>: +${row['VariationClusterSizeDiff']}bp`
+                }
+                return ''
+            },
+            getSortColumns: () => ['VariationClusterSizeDiff'],
+            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
+        },
+        NumRepeatsInReference: {
+            displayName: '# of Repeats',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NumRepeatsInReference'],
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getSortColumns: () => ['NumRepeatsInReference'],
+            getRequiredColumns: () => ['NumRepeatsInReference']
+        },
+        ReferenceRepeatPurity: {
+            displayName: 'Purity',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRepeatPurity'],
+            getValue: (row) => (row['ReferenceRepeatPurity'] ? row['ReferenceRepeatPurity'] : ''),
+            getSortColumns: () => ['ReferenceRepeatPurity'],
+            getRequiredColumns: () => ['ReferenceRepeatPurity']
+        },
+        TRsInRegion: {
+            displayName: 'Nearby TRs',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TRsInRegion'],
+            getValue: (row) => (row['TRsInRegion'] ? (parseInt(row['TRsInRegion']) - 1) : ''),
+            getSortColumns: () => ['TRsInRegion'],
+            getRequiredColumns: () => ['TRsInRegion']
+        },
+        RepeatMaskerIntervals: {
+            displayName: 'Repeat Masker',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RepeatMaskerIntervals'],
+            getValue: (row) => parseRepeatMaskerIntervals(row['RepeatMaskerIntervals']),
+            getSortColumns: () => ['RepeatMaskerIntervals'],
+            getRequiredColumns: () => ['RepeatMaskerIntervals'],
+        },
+        VamosMotifFrequencies: {
+            displayName: 'Motif Variability',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
+            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 20),
+            getSortColumns: () => ['VamosUniqueMotifs', 'VamosMotifFrequencies'],
+            getRequiredColumns: () => ['VamosUniqueMotifs', 'VamosMotifFrequencies'],
+        },
+        FlanksAndLocusMappability: {
+            displayName: 'Mappability',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['FlanksAndLocusMappability'],
+            getValue: (row) => row['FlanksAndLocusMappability'],
+            getSortColumns: () => ['FlanksAndLocusMappability'],
+            getRequiredColumns: () => ['FlanksAndLocusMappability']
+        },
+        GencodeGeneId: {
+            displayName: 'Gencode Gene Id',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneId'],
+            getValue: (row) => row['GencodeGeneId'],
+            getSortColumns: () => ['GencodeGeneId'],
+            getRequiredColumns: () => ['GencodeGeneId']
+        },
+        GencodeTranscriptId: {
+            displayName: 'Gencode Transcript Id',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeTranscriptId'],
+            getValue: (row) => row['GencodeTranscriptId'],
+            getSortColumns: () => ['GencodeTranscriptId'],
+            getRequiredColumns: () => ['GencodeTranscriptId']
+        },
+        RefSeqGeneRegion: {
+            displayName: 'RefSeq Region',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['RefSeqGeneRegion']),
+            getSortColumns: () => ['RefSeqGeneRegion'],
+            getRequiredColumns: () => ['RefSeqGeneRegion']
+        },
+        RefSeqGeneId: {
+            displayName: 'RefSeq Id',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneId'],
+            getValue: (row) => row['RefSeqGeneId'],
+            getSortColumns: () => ['RefSeqGeneId'],
+            getRequiredColumns: () => ['RefSeqGeneId']
+        },
+        RefSeqTranscriptId: {
+            displayName: 'RefSeq Transcript Id',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqTranscriptId'],
+            getValue: (row) => row['RefseqTranscriptId'],
+            getSortColumns: () => ['RefseqTranscriptId'],
+            getRequiredColumns: () => ['RefseqTranscriptId']
+        },
+        RefSeqGeneName: {
+            displayName: 'RefSeq Gene',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneName'],
+            getValue: (row) => row['RefSeqGeneName'],
+            getSortColumns: () => ['RefSeqGeneName'],
+            getRequiredColumns: () => ['RefSeqGeneName']
+        },
+        ManeGeneRegion: {
+            displayName: 'MANE Region',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['ManeGeneRegion']),
+            getSortColumns: () => ['ManeGeneRegion'],
+            getRequiredColumns: () => ['ManeGeneRegion']
+        },
+        ManeGeneId: {
+            displayName: 'MANE Id',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneId'],
+            getValue: (row) => row['ManeGeneId'],
+            getSortColumns: () => ['ManeGeneId'],
+            getRequiredColumns: () => ['ManeGeneId']
+        },
+        ManeGeneName: {
+            displayName: 'MANE Gene',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneName'],
+            getValue: (row) => row['ManeGeneName'],
+            getSortColumns: () => ['ManeGeneName'],
+            getRequiredColumns: () => ['ManeGeneName']
+        },
+        HPRC100_BiallelicHistogram: {
+            displayName: 'HPRC100 Biallelic Histogram',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC100_BiallelicHistogram'],
+            getValue: (row) => row['HPRC100_BiallelicHistogram'],
+            getSortColumns: () => ['HPRC100_BiallelicHistogram'],
+            getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
+        },
+        TenK10K_BiallelicHistogram: {
+            displayName: 'TenK10K Phase 1 Biallelic Histogram',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TenK10K_BiallelicHistogram'],
+            getValue: (row) => row['TenK10K_BiallelicHistogram'],
+            getSortColumns: () => ['TenK10K_BiallelicHistogram'],
+            getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
+        }
+    }
 </script>
 </head>
 
@@ -1833,25 +2102,25 @@ gtag('config', 'G-6R8FPBQRFH');
     const RESULTS_TABLE_COLUMN_NAMES = [
         'interval',
         'motif',
-        'numRepeatsInReference',
-        'referenceRepeatPurity',
-        'geneRegion',
-        'geneName',
+        'NumRepeatsInReference',
+        'ReferenceRepeatPurity',
+        'GencodeGeneRegion',
+        'GencodeGeneName',
         'variationCluster',
-        'source',
-        'mappability',
-        'trsInRegion',
+        'Source',
+        'FlanksAndLocusMappability',
+        'TRsInRegion',
         'isPathogenic',
 
-        'gencodeGeneId',
-        'gencodeTranscriptId',
-        'refSeqGeneRegion',
-        'refSeqGeneId',
-        'refSeqGeneName',
-        'refSeqTranscriptId',
-        'maneGeneRegion',
-        'maneGeneId',
-        'maneGeneName',
+        'GencodeGeneId',
+        'GencodeTranscriptId',
+        'RefSeqGeneRegion',
+        'RefSeqGeneId',
+        'RefSeqGeneName',
+        'RefSeqTranscriptId',
+        'ManeGeneRegion',
+        'ManeGeneId',
+        'ManeGeneName',
 
         'HPRC100_AlleleHistogram',
         'TenK10K_AlleleHistogram',
@@ -1869,31 +2138,31 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC100_BiallelicHistogram',
         'TenK10K_BiallelicHistogram',
 
-        'vamosMotifFrequencies',
-        'repeatMaskerIntervals',
+        'VamosMotifFrequencies',
+        'RepeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
         'interval',  
         'motif',  
-        'geneRegion',  
-        'geneName',  
+        'GencodeGeneRegion',
+        'GencodeGeneName',
         'variationCluster',  
-        'mappability',  
-        'trsInRegion',  
+        'FlanksAndLocusMappability',  
+        'TRsInRegion',
         'isPathogenic',
         'polymorphism',
 
-        'gencodeGeneId',  
-        'gencodeTranscriptId',  
-        'refSeqGeneRegion',  
-        'refSeqGeneId',  
-        'refSeqGeneName',  
-        'refSeqTranscriptId',  
-        'maneGeneRegion',  
-        'maneGeneId',  
-        'maneGeneName',  
+        'GencodeGeneId',  
+        'GencodeTranscriptId',
+        'RefSeqGeneRegion',
+        'RefSeqGeneId',
+        'RefSeqGeneName',
+        'RefSeqTranscriptId',
+        'ManeGeneRegion',
+        'ManeGeneId',
+        'ManeGeneName',
 
         'HPRC100_AlleleHistogram',  
         'TenK10K_AlleleHistogram',  
@@ -1906,13 +2175,13 @@ gtag('config', 'G-6R8FPBQRFH');
         'StdevFromIllumina174k',  
         'StdevFromT2TAssemblies',
 
-        'source',
+        'Source',
 
-        'vamosMotifFrequencies',
-        'repeatMaskerIntervals',
+        'VamosMotifFrequencies',
+        'RepeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
-        'numRepeatsInReference',
-        'referenceRepeatPurity',
+        'NumRepeatsInReference',
+        'ReferenceRepeatPurity',
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -1975,67 +2244,17 @@ gtag('config', 'G-6R8FPBQRFH');
         showColumns: [
             'interval', 
             'motif',
-            'referenceRepeatPurity',
-            'geneRegion',
-            'geneName', 
+            'ReferenceRepeatPurity',
+            'GencodeGeneRegion',
+            'GencodeGeneName',
             'variationCluster',
-            'source',
+            'Source',
             'HPRC100_AlleleHistogram',
-            'vamosMotifFrequencies',
-            'repeatMaskerIntervals',
+            'VamosMotifFrequencies',
+            'RepeatMaskerIntervals',
         ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
 
-    const getGeneRegionColumnValue = (geneRegion) => {
-        if (!geneRegion) return ''
-        //const color = GENE_REGION_COLORS[geneRegion]
-        const regionRename = {
-            'CDS': 'coding',
-            'exon': 'exon (non-coding gene)'
-        }
-        return `${regionRename[geneRegion] || geneRegion}`
-    }
-
-    const getPolymorphismSummaryColumnValue = (row) => {
-        return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
-            <span class="cell-action-link">
-                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
-            </span>
-            <span style="color: #333;">
-                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
-            </span>
-            ${row.AoU1027_Stdev != null ? `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
-            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
-                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
-            </span>` : ''}
-            <span class="cell-action-link">
-                ${row['TenK10K_Stdev'] != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
-            </span>
-        </span>
-        `
-    }
-
-    const getAlleleHistogramColumnValue = (row, columnName) => {
-        if (row[columnName] ) {
-            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>`
-        } else {
-            let otherHistograms = ''
-            for ( const c of ALL_STDEV_COLUMNS ) {
-                if (row[c] != null) {
-                    otherHistograms += `<span class="cell-action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS[c]}</sub></span>`
-                }
-            }
-
-            let result = `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}><span style="color: #888888; text-align: center; display: block; width: 100%;">`
-            if (otherHistograms) {
-                result += `not available (but has ${otherHistograms})`
-            } else {
-                result += `not available`
-            }
-            result += `</span></span>`
-            return result
-        }
-    }
 
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
         DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
@@ -2140,228 +2359,6 @@ gtag('config', 'G-6R8FPBQRFH');
             }
         }
         return polymorphismDetails
-    }
-
-    // column definitions
-    let TABLE_COLUMNS = {
-        interval: {
-            displayName: 'Interval (hg38)',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['interval'],
-            getValue: (row) => row['ReferenceRegion'].replace(/^chr/i, ''),
-            getSortColumns: () => [DEFAULT_SORT_COLUMN],
-            getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
-        },
-        motif: {
-            displayName: 'Motif',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['motif'],
-            getValue: (row) => {
-                const motif = row['ReferenceMotif']
-                if ( motif.length > 12 ) {
-                    const truncatedMotif = motif.substring(0, 12) + '...'
-                    return `<span class="show-popup cell-action-link" data-html="<span style='font-family: monospace'>${motif.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">${truncatedMotif} &nbsp (${row.MotifSize})</span>`
-                } else {
-                    return `${motif} &nbsp (${row.MotifSize})`
-                }
-            },
-            getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
-            getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
-        },
-        geneRegion: {
-            displayName: 'Region',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['geneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['GencodeGeneRegion']),
-            getSortColumns: () => ['GencodeGeneRegion'],
-            getRequiredColumns: () => ['GencodeGeneRegion'],
-        },
-        geneName: {
-            displayName: 'Gene',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['geneName'],
-            getValue: (row) => row['GencodeGeneName'],
-            getSortColumns: () => ['GencodeGeneName'],
-            getRequiredColumns: () => ['GencodeGeneName'],
-        },
-        polymorphism: {
-            displayName: 'Polymorphism Summary',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['polymorphism'],
-            getValue: getPolymorphismSummaryColumnValue,
-            getSortColumns: () => ['HPRC100_Stdev'],
-            getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
-        },
-        source: {
-            displayName: 'Source',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['source'],
-            getValue: (row) => {
-                const sourceCatalogNameMap = {
-                    KnownDiseaseAssociatedLoci: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
-                    Illumina174kPolymorphicTRs: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
-                    PerfectRepeatsInReference:  "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
-                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br /><br /><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
-                }
-                const [version, sourceCatalog] = row.Source.split(':')
-                return sourceCatalogNameMap[sourceCatalog]
-            },
-            getSortColumns: () => ['Source'],
-            getRequiredColumns: () => ['Source'],
-        },
-        AoU1027_OE_LengthPercentile: {
-            displayName: 'Constraint (O/E Length) Percentile',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
-            getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row.AoU1027_OE_LengthPercentile).toFixed(1)}%` : '',
-            getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
-            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
-        },
-        isPathogenic: {
-            displayName: 'Disease-associated?',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['isPathogenic'],
-            getValue: (row) => row['DiseaseInfo'] ? generateDiseaseAssociatedIcon(row, 'Yes') : '',
-            getSortColumns: () => ['DiseaseInfo'],
-            getRequiredColumns: () => ['DiseaseInfo']
-        },
-        variationCluster: {
-            displayName: 'VC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['variationCluster'],
-            getValue: (row) => {
-                const hasCluster = row.VariationCluster && row.VariationCluster.trim() !== ''
-                if (hasCluster) {
-                    const refRegionSize = computeIntervalSize(row.ReferenceRegion)
-                    const clusterDetails = `
-                            <div class="content" style="text-align: center;">
-                                <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row.VariationCluster}</div>
-                                <br />
-                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row.VariationClusterSizeDiff} bp</div>
-                            </div>
-                        `.replace(/\s+/g, ' ').trim()
-
-                    return `<span class="cell-with-icon-and-popup cell-in-variation-cluster-column" data-html='${clusterDetails}'>
-                            <i class="check circle icon"></i><span class="cell-action-link">Yes</span>
-                        </span>: +${row.VariationClusterSizeDiff}bp`
-                }
-                return ''
-            },
-            getSortColumns: () => ['VariationClusterSizeDiff'],
-            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
-        },
-        numRepeatsInReference: {
-            displayName: 'Repeats',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['numRepeatsInReference'],
-            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
-            getSortColumns: () => ['NumRepeatsInReference'],
-            getRequiredColumns: () => ['NumRepeatsInReference']
-        },
-        referenceRepeatPurity: {
-            displayName: 'Purity',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['referenceRepeatPurity'],
-            getValue: (row) => (row['ReferenceRepeatPurity'] ? row['ReferenceRepeatPurity'] : ''),
-            getSortColumns: () => ['ReferenceRepeatPurity'],
-            getRequiredColumns: () => ['ReferenceRepeatPurity']
-        },
-        trsInRegion: {
-            displayName: 'Nearby TRs',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['trsInRegion'],
-            getValue: (row) => (row['TRsInRegion'] ? (parseInt(row['TRsInRegion']) - 1) : ''),
-            getSortColumns: () => ['TRsInRegion'],
-            getRequiredColumns: () => ['TRsInRegion']
-        },
-        repeatMaskerIntervals: {
-            displayName: 'Repeat Masker',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['repeatMaskerIntervals'],
-            getValue: (row) => parseRepeatMaskerIntervals(row['RepeatMaskerIntervals']),
-            getSortColumns: () => ['RepeatMaskerIntervals'],
-            getRequiredColumns: () => ['RepeatMaskerIntervals'],
-        },
-        vamosMotifFrequencies: {
-            displayName: 'Motif Variability',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
-            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 20),
-            getSortColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
-            getRequiredColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
-        },
-        mappability: {
-            displayName: 'Mappability',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['mappability'],
-            getValue: (row) => row['FlanksAndLocusMappability'],
-            getSortColumns: () => ['FlanksAndLocusMappability'],
-            getRequiredColumns: () => ['FlanksAndLocusMappability']
-        },
-        gencodeGeneId: {
-            displayName: 'Gencode Gene Id',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['gencodeGeneId'],
-            getValue: (row) => row['GencodeGeneId'],
-            getSortColumns: () => ['GencodeGeneId'],
-            getRequiredColumns: () => ['GencodeGeneId']
-        },
-        gencodeTranscriptId: {
-            displayName: 'Gencode Transcript Id',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['gencodeTranscriptId'],
-            getValue: (row) => row['GencodeTranscriptId'],
-            getSortColumns: () => ['GencodeTranscriptId'],
-            getRequiredColumns: () => ['GencodeTranscriptId']
-        },
-        refSeqGeneRegion: {
-            displayName: 'RefSeq Region',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqGeneRegion'],
-            getValue: (row) => getGeneRegionValue(row.RefSeqGeneRegion),
-            getSortColumns: () => ['RefSeqGeneRegion'],
-            getRequiredColumns: () => ['RefSeqGeneRegion']
-        },
-        refSeqGeneId: {
-            displayName: 'RefSeq Id',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqGeneId'],
-            getValue: (row) => row['RefSeqGeneId'],
-            getSortColumns: () => ['RefSeqGeneId'],
-            getRequiredColumns: () => ['RefSeqGeneId']
-        },
-        refSeqTranscriptId: {
-            displayName: 'RefSeq Transcript Id',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqTranscriptId'],
-            getValue: (row) => row['RefseqTranscriptId'],
-            getSortColumns: () => ['RefseqTranscriptId'],
-            getRequiredColumns: () => ['RefseqTranscriptId']
-        },
-        refSeqGeneName: {
-            displayName: 'RefSeq Gene',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['refSeqGeneName'],
-            getValue: (row) => row['RefSeqGeneName'],
-            getSortColumns: () => ['RefSeqGeneName'],
-            getRequiredColumns: () => ['RefSeqGeneName']
-        },
-        maneGeneRegion: {
-            displayName: 'MANE Region',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['maneGeneRegion'],
-            getValue: (row) => getGeneRegionValue(row.MANEGeneRegion),
-            getSortColumns: () => ['MANEGeneRegion'],
-            getRequiredColumns: () => ['MANEGeneRegion']
-        },
-        maneGeneId: {
-            displayName: 'MANE Id',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['maneGeneId'],
-            getValue: (row) => row['MANEGeneId'],
-            getSortColumns: () => ['MANEGeneId'],
-            getRequiredColumns: () => ['MANEGeneId']
-        },
-        maneGeneName: {
-            displayName: 'MANE Gene',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['maneGeneName'],
-            getValue: (row) => row['MANEGeneName'],
-            getSortColumns: () => ['MANEGeneName'],
-            getRequiredColumns: () => ['MANEGeneName']
-        },
-        HPRC100_BiallelicHistogram: {
-            displayName: 'HPRC100 Biallelic Histogram',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC100_BiallelicHistogram'],
-            getValue: (row) => row['HPRC100_BiallelicHistogram'],
-            getSortColumns: () => ['HPRC100_BiallelicHistogram'],
-            getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
-        },
-        TenK10K_BiallelicHistogram: {
-            displayName: 'TenK10K Phase 1 Biallelic Histogram',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TenK10K_BiallelicHistogram'],
-            getValue: (row) => row['TenK10K_BiallelicHistogram'],
-            getSortColumns: () => ['TenK10K_BiallelicHistogram'],
-            getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
-        }
-        
     }
 
     const alleleHistogramColumnToOtherColumns = {
@@ -2710,7 +2707,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     toolName = 'vamos'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
                     conditions.push(`IncludeInVamosCatalog=1`)
-                    alert('Note: The exported Vamos catalog will exclude loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
+                    alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
                 } else if(value === 'bed') {
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
@@ -2991,28 +2988,15 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
-        // get url params
-        let locusPageUrlParamSuffix = ""
-        const hash = window.location.hash.substring(1)
-        if (hash) {
-            const currentPageUrlParams = new URLSearchParams(hash)
-            for (const [key, value] of currentPageUrlParams.entries()) {
-                if (key != 'locusId' & key != 'igvLoc') {
-                    locusPageUrlParamSuffix += `&${key}=${value}`
-                }
-            }
-        }
-
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
 
-            const locusPageUrl = `locus.html?#locusId=${row.LocusId}&igvLoc=${row.ReferenceRegion}${locusPageUrlParamSuffix}`
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: left;">
                 <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
-                    <a href="${locusPageUrl}" target=_blank>#${(startIndex + index + 1).toLocaleString()}:</a>
+                    <a class="row-locus-page-button cell-action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
                 </div>
-                <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
+                <a class="row-igv-button cell-action-link" data-reference-region="${row['ReferenceRegion']}">IGV</a>
                 ${diseaseAssociatedIconHtml}
             </td>`
 
@@ -3031,7 +3015,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     tableHtml += `<td>${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td><a href="${locusPageUrl}" target="_blank"><i class="chevron circle right icon"></i></a></td>`
+            tableHtml += `<td><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -3055,15 +3039,36 @@ gtag('config', 'G-6R8FPBQRFH');
             performSearch(true)
         })
 
+        $('.row-locus-page-button').click(function() {
+            const locusId = $(this).data('locus-id')
+            const referenceRegion = $(this).data('reference-region')
+            if (!locusId || !referenceRegion) return
+
+            // get url params
+            let locusPageUrlArgs = `locusId=${locusId}&igvLoc=${referenceRegion}`
+            const hash = window.location.hash.substring(1)
+            if (hash) {
+                const currentPageUrlParams = new URLSearchParams(hash)
+                for (const [key, value] of currentPageUrlParams.entries()) {
+                    if (key != 'locusId' & key != 'igvLoc') {
+                        locusPageUrlArgs += `&${key}=${value}`
+                    }
+                }
+            }
+
+            const locusPageUrl = `locus.html?#${locusPageUrlArgs}`
+            window.open(locusPageUrl, '_blank')
+        })
+
         // Add click handlers for IGV buttons
         $('.row-igv-button').click(async function() {
-            const locus = $(this).data('locus')
-            if (!locus) return
+            const referenceRegion = $(this).data('reference-region')
+            if (!referenceRegion) return
 
             // Parse the locus to get chrom, start, end
-            const match = locus.match(REFERENCE_REGION_REGEXP)
+            const match = referenceRegion.match(REFERENCE_REGION_REGEXP)
             if (!match) {
-                console.warn(`Unexpected locus format: ${locus}`)
+                console.warn(`Unexpected locus format: ${referenceRegion}`)
                 return
             }
 
@@ -3278,7 +3283,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         case 'tr_explorer_catalog_v2':
                             break   // No additional conditions needed
                         case 'tr_explorer_catalog':
-                            conditions.push("source LIKE 'TRExplorerV1%'")
+                            conditions.push("Source LIKE 'TRExplorerV1%'")
                             break
                         case 'illumina_174k_catalog':
                             conditions.push(

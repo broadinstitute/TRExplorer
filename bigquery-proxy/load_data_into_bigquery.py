@@ -254,6 +254,7 @@ schema = [
     bigquery.SchemaField("end_1based", "INTEGER", mode="REQUIRED"),
     bigquery.SchemaField("ReferenceRegion", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("LocusId", "STRING"),
+    bigquery.SchemaField("ReferenceRegionSize", "INTEGER"),
     bigquery.SchemaField("MotifSize", "INTEGER"),
     bigquery.SchemaField("ReferenceMotif", "STRING"),
     bigquery.SchemaField("CanonicalMotif", "STRING"),
@@ -432,6 +433,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     record["chrom_index"] = chrom_indices[record["chrom"]]
     record["start_0based"] = start_0based
     record["end_1based"] = end_1based
+    record["ReferenceRegionSize"] = end_1based - start_0based
     record["MotifSize"] = len(record["CanonicalMotif"])
     
     # get reference sequence and flanks
