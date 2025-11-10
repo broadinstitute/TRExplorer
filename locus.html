@@ -1060,9 +1060,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
                 motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
                 if (efficientMotifs[motif]) {
-                    motifRow += `<td><span style='white-space: nowrap'>`
-                    if (efficientMotifs[motif].length > truncateMotifAt) {
-                        motifRow += `${efficientMotifs[motif].length > truncateMotifAt ? (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)') : efficientMotifs[motif]}`
+                    motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                    if (efficientMotifs[motif] != motif) {
+                        motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
                     } else {
                         motifRow += '<i>same as motif</i>'
                     }

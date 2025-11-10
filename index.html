@@ -1060,9 +1060,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
                 motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
                 if (efficientMotifs[motif]) {
-                    motifRow += `<td><span style='white-space: nowrap'>`
-                    if (efficientMotifs[motif].length > truncateMotifAt) {
-                        motifRow += `${efficientMotifs[motif].length > truncateMotifAt ? (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)') : efficientMotifs[motif]}`
+                    motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                    if (efficientMotifs[motif] != motif) {
+                        motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
                     } else {
                         motifRow += '<i>same as motif</i>'
                     }
@@ -2273,7 +2273,7 @@ gtag('config', 'G-6R8FPBQRFH');
         vamosMotifFrequencies: {
             displayName: 'Motif Variability',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
-            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 15),
+            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 20),
             getSortColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
             getRequiredColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
         },
@@ -2676,14 +2676,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
                 $('.export-dropdown').dropdown('clear')
 
-                const searchQuerySuffix = window.lastSearchQuerySuffix
-
-                if (!searchQuerySuffix) {
-                    alert('No results to export. Please perform a search first.')
-                    return
-                }
-
-
                 // Format data based on export type
                 let fileFormat
                 if (value === 'expansion_hunter' || value == 'json') {
@@ -2704,6 +2696,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     toolName = 'ExpansionHunter'
                     selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
                     conditions.push(`NsInFlanks<=5`)
+                    alert('Note: The exported catalog will exclude any loci that have > 5 Ns in flanks since ExpansionHunter does not support them.')
                 } else if(value === 'gangstr') {
                     toolName = 'GangSTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
@@ -2717,6 +2710,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     toolName = 'vamos'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
                     conditions.push(`IncludeInVamosCatalog=1`)
+                    alert('Note: The exported Vamos catalog will exclude loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
                 } else if(value === 'bed') {
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
@@ -3465,7 +3459,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 }
             }
 
-            //get all required columns for the visible columns
+            //retrieve all required columns for the visible columns
             let selectedColumns = [
                 'LocusId',
                 'ReferenceRegion',
