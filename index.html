@@ -1006,18 +1006,28 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
     }
 
-    const showNucleotideSequence = (sequence, truncateAt=12, showSize=true) => {
+    const showNucleotideSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false) => {
         let sequenceSizeString = ''
         if (showSize) {
-            sequenceSizeString += ` &nbsp (${sequence.length})`
+            sequenceSizeString += `(${sequence.length})`
         }
         if (sequence.length > truncateAt) {
-            const truncatedSequence = sequence.substring(0, truncateAt) + '...'
-            let result = `<span class="show-popup action-link" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
-            result += `${truncatedSequence}${sequenceSizeString}</span>`
+            let result = `<span class="show-popup action-link" style="font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
+            if (leftTruncate) {
+                const truncatedSequence = sequence.substring(sequence.length - truncateAt, sequence.length)
+                result += `${sequenceSizeString} &nbsp; ...${truncatedSequence}`
+            } else {
+                const truncatedSequence = sequence.substring(0, truncateAt)
+                result += `${truncatedSequence}... &nbsp; ${sequenceSizeString}`
+            }
+            result += `</span>`
             return result
         } else {
-            return `${sequence}${sequenceSizeString}`
+            if (leftTruncate) {
+                return `${sequenceSizeString} &nbsp; ${sequence}`
+            } else {
+                return `${sequence} &nbsp; ${sequenceSizeString}`
+            }
         }
     }
 
@@ -1526,7 +1536,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceLeftFlank: {
             displayName: 'Left Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceLeftFlank'],
-            getValue: (row) => showNucleotideSequence(row['ReferenceLeftFlank'], truncateAt=50, showSize=true),
+            getValue: (row) => `<div style='text-align: right'>${showNucleotideSequence(row['ReferenceLeftFlank'], truncateAt=50, showSize=true, leftTruncate=true)}</div>`,
             getSortColumns: () => ['ReferenceLeftFlank'],
             getRequiredColumns: () => ['ReferenceLeftFlank']
         },
