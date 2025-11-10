@@ -999,9 +999,7 @@ gtag('config', 'G-6R8FPBQRFH');
             return ''
         }
 
-        // show popup
         return `<span class="show-popup cell-action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
-
     }
 
 
@@ -1590,7 +1588,7 @@ gtag('config', 'G-6R8FPBQRFH');
     <div class="ui row" id="header-stripe">
     <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
     <div class="three wide column" id="header-title">
-        <a href="/">
+        <a href="index.html">
             <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
         </a>
     </div>
@@ -1625,13 +1623,13 @@ gtag('config', 'G-6R8FPBQRFH');
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
                         <label style="margin: 0; font-weight: 700 !important;">Search by region, gene, or transcript:</label>
                         <span style="margin-right: 145px; font-weight: 400 !important; color: #888; font-size: 0.9em;">
-                            Examples: &nbsp; <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=chr4%3A3074000-3075000">
+                            Examples: &nbsp; <a href="index.html?#showRs=1&searchQuery=chr4%3A3074000-3075000">
                                 chr4:3074000-3075000
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ATXN1">
+                            </a>, <a href="index.html?#showRs=1&searchQuery=ATXN1">
                                 ATXN1
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENSG00000165060">
+                            </a>, <a href="index.html?#showRs=1&searchQuery=ENSG00000165060">
                                 ENSG00000165060
-                            </a>, <a href="https://trexplorer.broadinstitute.org/#showRs=1&searchQuery=ENST00000370475">
+                            </a>, <a href="index.html?#showRs=1&searchQuery=ENST00000370475">
                                 ENST00000370475
                             </a>
                         </span>
@@ -1970,6 +1968,7 @@ gtag('config', 'G-6R8FPBQRFH');
         showColumns: [
             'interval', 
             'motif',
+            'referenceRepeatPurity',
             'geneRegion',
             'geneName', 
             'variationCluster',
@@ -2126,7 +2125,6 @@ gtag('config', 'G-6R8FPBQRFH');
         return diseaseAssociatedIconHtml
     }
 
-
     const getHtmlAttributesForPolymorphism = (row) => {
         let polymorphismDetails = ``
         for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
@@ -2136,6 +2134,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         return polymorphismDetails
     }
+
     // column definitions
     let TABLE_COLUMNS = {
         interval: {
@@ -3691,6 +3690,15 @@ gtag('config', 'G-6R8FPBQRFH');
 
     function showPolymorphismDialog() {
         const row = $(this).data()
+
+        for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
+            //because data embedded in html data-.. attributes has lower-case keys
+            const lowerCaseKey = key.toLowerCase()
+            if (row[lowerCaseKey] != null) {
+                row[key] = row[lowerCaseKey]
+            }
+        }
+
         $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
         $('#polymorphism-dialog-content').html('')
 
