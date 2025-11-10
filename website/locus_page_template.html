@@ -2,8 +2,20 @@
 <html>
     {% include "header_template.html" %}
 <body>
+<style>
+    .locus-info-label {
+        font-weight: bold;
+        padding-right: 10px;
+        white-space: nowrap;
+    }
 
-<div class="ui grid">
+    .locus-info-table {
+        font-size: 1.12em;
+        border-collapse: separate;
+        border-spacing: 12px 6px;
+    }
+</style>
+<div class="ui stackable grid">
 
     {% include "body_header_template.html" %}
 
@@ -19,17 +31,20 @@
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="ten wide column">
-            <div id="locus-page-row1"></div>
+        <div class="six wide column">
+            <div id="locus-page-row1-box1" style="min-width: 600px !important; width: 600px !important"></div>
+        </div>
+        <div class="six wide column">
+            <div id="locus-page-row1-box2"></div>
         </div>
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="five wide column">
+        <div class="six wide column">
             <div id="locus-page-row2-box1"></div>
         </div>
-        <div class="five wide column">
+        <div class="six wide column">
             <div id="locus-page-row2-box2"></div>
         </div>
         <div class="two wide column"></div>
@@ -175,7 +190,6 @@
         await performSearch()
     }
 
-
     $('#show-igv-divider').click(async () => {
         GLOBAL_PAGE_STATE['showIGV'] = (GLOBAL_PAGE_STATE['showIGV'] === 1) ? 0 : 1
         writePersistentPageStateToUrl()
@@ -202,28 +216,51 @@
 
     const displaySearchResults = () => {
         // display the search results in the results-table div
-
         const row = window.searchResults.rows[0]
-        console.log("search results row:", row)
 
-        let locusPageRow1 = ''
-        locusPageRow1 += `<b>Locus Id:</b> ${row.LocusId}<br />`
-        locusPageRow1 += `<b>Source:</b> ${row.Source}<br />`
+        const getHelpIcon = (columnName) => {
+            return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
+        }
+        let locusPageRow1Box1 = '<table class="locus-info-table">'
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference Region:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], truncateAt=30, showSize=false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
 
-        $("#locus-page-row1").html(locusPageRow1)
+        locusPageRow1Box1 += '</table>'
+        $("#locus-page-row1-box1").html(locusPageRow1Box1)
 
-        let locusPageBox1 = ''
-        locusPageBox1 += `<b>Reference Region:</b> ${row.ReferenceRegion}<br />`
-        locusPageBox1 += `<b>Repeats in Reference:</b> ${row.NumRepeatsInReference}<br />`
-        locusPageBox1 += `<b>Repeat Purity:</b> ${row['ReferenceRepeatPurity'].toFixed(2)}<br />`
-        locusPageBox1 += `<b>Disease Association:</b> ${row.DiseaseInfo ? row.DiseaseInfo : 'N/A'}<br />`
-        $("#locus-page-row2-box1").html(locusPageBox1)
+        let locusPageRow1Box2 = '<table class="locus-info-table">'
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Source:</td><td>${TABLE_COLUMNS['Source'].getValue(row)}</td><td>${getHelpIcon('Source')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row)}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene:</td><td>${TABLE_COLUMNS['GencodeGeneName'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Region:</td><td>${TABLE_COLUMNS['GencodeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene Id:</td><td>${TABLE_COLUMNS['GencodeGeneId'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene:</td><td>${TABLE_COLUMNS['ManeGeneName'].getValue(row)}</td><td>${getHelpIcon('ManeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row)}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row)}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
+        locusPageRow1Box2 += '</table>'
+        $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
 
-        let locusPageBox2 = ''
-        locusPageBox2 += `<b>Reference Motif:</b> ${row.ReferenceMotif}<br />`
-        locusPageBox2 += `<b>Canonical Motif:</b> ${row.CanonicalMotif}<br />`
-        $("#locus-page-row2-box2").html(locusPageBox2)
+        /*
+                'ReferenceLeftFlank',
+        'ReferenceRepeatSequence',
+        'ReferenceRightFlank',
+VamosMotifFrequencies
+         */
+        let locusPageRow2Box1 = ''
+        $("#locus-page-row2-box1").html(locusPageRow2Box1)
+
+
+        let locusPageRow2Box2 = ''
+        $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
         $('#locus-page-results-area').html('')
 
@@ -396,6 +433,24 @@
         })
 
         $('.question').popup({ on: 'click' })
+        $('.show-popup').popup({ on: 'click', hoverable: true })
+        $('#show-igv-button').click(async () => {
+            const row = window.searchResults.rows[0]
+            GLOBAL_PAGE_STATE['igvLoc'] = row['ReferenceRegion']
+
+            if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
+                $('#show-igv-divider').click()
+            } else {
+                writePersistentPageStateToUrl()
+
+                if (!window.igvBrowser) {
+                    console.error("WARNING: IGV browser not initialized yet")
+                    await updateIgv()
+                }
+                await window.igvBrowser.search(row['ReferenceRegion'])
+            }
+        })
+
 
     }
 

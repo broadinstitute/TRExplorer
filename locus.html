@@ -548,7 +548,7 @@ gtag('config', 'G-6R8FPBQRFH');
     REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
 
     const REFERENCE_TRACKS = [
-        ["igv_gencode", "Gencode v46", `${REFERENCE_BASE_URL}/gencode_v46/gencode.v46.GRCh38.sorted.txt.gz`],
+        ["igv_gencode", "Gencode v49", `${REFERENCE_BASE_URL}/gencode_v49/gencode.v49.GRCh38.sorted.txt.gz`],
         ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
         ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
         ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
@@ -637,34 +637,36 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
+        LocusId: 'A unique id of this TR locus in hg38',
         ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
         ReferenceRepeatSequence: 'The repeat sequence in hg38',
         ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
         ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
         ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs. <b>Examples:</b> CAG (3), GGCCCC (6)',
         CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
-        GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus',
-        GencodeGeneName: 'Gencode gene name',
         polymorphism: 'Summary of available polymorphism data for the TR locus',
         Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
-        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89.',
+        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. <b>Range:</b> 0 to 1',
         variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
         isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
         RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. <b>Range:</b> 0 to 1',
-        GencodeGeneId: 'Gencode v46 gene ID (ENSG)',
-        GencodeTranscriptId: 'Gencode v46 transcript ID (ENST)',
+        GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus in Gencode v48',
+        GencodeGeneName: 'Gencode v48 gene name',
+        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
+        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
         RefSeqGeneRegion: 'RefSeq gene region',
         RefSeqGeneId: 'RefSeq gene ID',
         RefSeqTranscriptId: 'RefSeq transcript ID',
         RefSeqGeneName: 'RefSeq gene name',
-        ManeGeneRegion: 'MANE v1.3 gene region',
-        ManeGeneId: 'MANE v1.3 gene ID',
-        ManeGeneName: 'MANE v1.3 gene name',
+        ManeGeneRegion: 'MANE v1.4 gene region',
+        ManeGeneId: 'MANE v1.4 gene ID',
+        ManeGeneName: 'MANE v1.4 gene name',
+        ManeTranscriptId: 'MANE v1.4 transcript id',
         HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
     }
@@ -1006,7 +1008,7 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
     }
 
-    const showNucleotideSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false) => {
+    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false) => {
         let sequenceSizeString = ''
         if (showSize) {
             sequenceSizeString += `(${sequence.length})`
@@ -1023,11 +1025,14 @@ gtag('config', 'G-6R8FPBQRFH');
             result += `</span>`
             return result
         } else {
+            let result = `<span style="font-family: monospace">`
             if (leftTruncate) {
-                return `${sequenceSizeString} &nbsp; ${sequence}`
+                result += `${sequenceSizeString} &nbsp; ${sequence}`
             } else {
-                return `${sequence} &nbsp; ${sequenceSizeString}`
+                result += `${sequence} &nbsp; ${sequenceSizeString}`
             }
+            result += `</span>`
+            return result
         }
     }
 
@@ -1505,6 +1510,13 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     let TABLE_COLUMNS = {
+        LocusId: {
+            displayName: 'LocusId',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['LocusId'],
+            getValue: (row, truncateAt=30) => showTruncatedSequence(row['LocusId'], truncateAt=truncateAt, showSize=false),
+            getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId'],
+            getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'LocusId']
+        },
         ReferenceRegion: {
             displayName: 'Interval (hg38)',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRegion'],
@@ -1515,35 +1527,35 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceMotif: {
             displayName: 'Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceMotif'],
-            getValue: (row) => showNucleotideSequence(row['ReferenceMotif'], truncateAt=12, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['ReferenceMotif'], truncateAt=truncateAt, showSize=true),
             getSortColumns: () => ['MotifSize', 'ReferenceMotif'],
             getRequiredColumns: () => ['MotifSize', 'ReferenceMotif']
         },
         CanonicalMotif: {
             displayName: 'Canonical Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['CanonicalMotif'],
-            getValue: (row) => showNucleotideSequence(row['CanonicalMotif'], truncateAt=12, showSize=true),
+            getValue: (row, truncateAt=12) => showTruncatedSequence(row['CanonicalMotif'], truncateAt=truncateAt, showSize=true),
             getSortColumns: () => ['MotifSize', 'CanonicalMotif'],
             getRequiredColumns: () => ['MotifSize', 'CanonicalMotif']
         },
         ReferenceRepeatSequence: {
             displayName: 'Repeat Sequence',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRepeatSequence'],
-            getValue: (row) => showNucleotideSequence(row['ReferenceRepeatSequence'], truncateAt=50, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRepeatSequence'], truncateAt=truncateAt, showSize=true),
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence']
         },
         ReferenceLeftFlank: {
             displayName: 'Left Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceLeftFlank'],
-            getValue: (row) => `<div style='text-align: right'>${showNucleotideSequence(row['ReferenceLeftFlank'], truncateAt=50, showSize=true, leftTruncate=true)}</div>`,
+            getValue: (row, truncateAt=50) => `<div style='text-align: right'>${showTruncatedSequence(row['ReferenceLeftFlank'], truncateAt=truncateAt, showSize=true, leftTruncate=true)}</div>`,
             getSortColumns: () => ['ReferenceLeftFlank'],
             getRequiredColumns: () => ['ReferenceLeftFlank']
         },
         ReferenceRightFlank: {
             displayName: 'Right Flank',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRightFlank'],
-            getValue: (row) => showNucleotideSequence(row['ReferenceRightFlank'], truncateAt=50, showSize=true),
+            getValue: (row, truncateAt=50) => showTruncatedSequence(row['ReferenceRightFlank'], truncateAt=truncateAt, showSize=true),
             getSortColumns: () => ['ReferenceRightFlank'],
             getRequiredColumns: () => ['ReferenceRightFlank']
         },
@@ -1684,7 +1696,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['GencodeGeneId']
         },
         GencodeTranscriptId: {
-            displayName: 'Gencode Transcript Id',
+            displayName: 'Gencode Transcript',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeTranscriptId'],
             getValue: (row) => row['GencodeTranscriptId'],
@@ -1732,12 +1744,20 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ManeGeneRegion']
         },
         ManeGeneId: {
-            displayName: 'MANE Id',
+            displayName: 'MANE Gene Id',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneId'],
             getValue: (row) => row['ManeGeneId'],
             getSortColumns: () => ['ManeGeneId'],
             getRequiredColumns: () => ['ManeGeneId']
+        },
+        ManeTranscriptId: {
+            displayName: 'MANE Transcript',
+            defaultSortDirection: 'DESC',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeTranscriptId'],
+            getValue: (row) => row['ManeTranscriptId'],
+            getSortColumns: () => ['ManeTranscriptId'],
+            getRequiredColumns: () => ['ManeTranscriptId']
         },
         ManeGeneName: {
             displayName: 'MANE Gene',
@@ -1897,8 +1917,20 @@ gtag('config', 'G-6R8FPBQRFH');
 </div>
 
 <body>
+<style>
+    .locus-info-label {
+        font-weight: bold;
+        padding-right: 10px;
+        white-space: nowrap;
+    }
 
-<div class="ui grid">
+    .locus-info-table {
+        font-size: 1.12em;
+        border-collapse: separate;
+        border-spacing: 12px 6px;
+    }
+</style>
+<div class="ui stackable grid">
 
     <div class="ui row" id="header-stripe">
     <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
@@ -1937,17 +1969,20 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="ten wide column">
-            <div id="locus-page-row1"></div>
+        <div class="six wide column">
+            <div id="locus-page-row1-box1" style="min-width: 600px !important; width: 600px !important"></div>
+        </div>
+        <div class="six wide column">
+            <div id="locus-page-row1-box2"></div>
         </div>
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="five wide column">
+        <div class="six wide column">
             <div id="locus-page-row2-box1"></div>
         </div>
-        <div class="five wide column">
+        <div class="six wide column">
             <div id="locus-page-row2-box2"></div>
         </div>
         <div class="two wide column"></div>
@@ -2093,7 +2128,6 @@ gtag('config', 'G-6R8FPBQRFH');
         await performSearch()
     }
 
-
     $('#show-igv-divider').click(async () => {
         GLOBAL_PAGE_STATE['showIGV'] = (GLOBAL_PAGE_STATE['showIGV'] === 1) ? 0 : 1
         writePersistentPageStateToUrl()
@@ -2120,28 +2154,51 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const displaySearchResults = () => {
         // display the search results in the results-table div
-
         const row = window.searchResults.rows[0]
-        console.log("search results row:", row)
 
-        let locusPageRow1 = ''
-        locusPageRow1 += `<b>Locus Id:</b> ${row.LocusId}<br />`
-        locusPageRow1 += `<b>Source:</b> ${row.Source}<br />`
+        const getHelpIcon = (columnName) => {
+            return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
+        }
+        let locusPageRow1Box1 = '<table class="locus-info-table">'
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference Region:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], truncateAt=30, showSize=false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
 
-        $("#locus-page-row1").html(locusPageRow1)
+        locusPageRow1Box1 += '</table>'
+        $("#locus-page-row1-box1").html(locusPageRow1Box1)
 
-        let locusPageBox1 = ''
-        locusPageBox1 += `<b>Reference Region:</b> ${row.ReferenceRegion}<br />`
-        locusPageBox1 += `<b>Repeats in Reference:</b> ${row.NumRepeatsInReference}<br />`
-        locusPageBox1 += `<b>Repeat Purity:</b> ${row['ReferenceRepeatPurity'].toFixed(2)}<br />`
-        locusPageBox1 += `<b>Disease Association:</b> ${row.DiseaseInfo ? row.DiseaseInfo : 'N/A'}<br />`
-        $("#locus-page-row2-box1").html(locusPageBox1)
+        let locusPageRow1Box2 = '<table class="locus-info-table">'
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Source:</td><td>${TABLE_COLUMNS['Source'].getValue(row)}</td><td>${getHelpIcon('Source')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row)}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene:</td><td>${TABLE_COLUMNS['GencodeGeneName'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Region:</td><td>${TABLE_COLUMNS['GencodeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene Id:</td><td>${TABLE_COLUMNS['GencodeGeneId'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene:</td><td>${TABLE_COLUMNS['ManeGeneName'].getValue(row)}</td><td>${getHelpIcon('ManeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row)}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row)}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
+        locusPageRow1Box2 += '</table>'
+        $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
 
-        let locusPageBox2 = ''
-        locusPageBox2 += `<b>Reference Motif:</b> ${row.ReferenceMotif}<br />`
-        locusPageBox2 += `<b>Canonical Motif:</b> ${row.CanonicalMotif}<br />`
-        $("#locus-page-row2-box2").html(locusPageBox2)
+        /*
+                'ReferenceLeftFlank',
+        'ReferenceRepeatSequence',
+        'ReferenceRightFlank',
+VamosMotifFrequencies
+         */
+        let locusPageRow2Box1 = ''
+        $("#locus-page-row2-box1").html(locusPageRow2Box1)
+
+
+        let locusPageRow2Box2 = ''
+        $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
         $('#locus-page-results-area').html('')
 
@@ -2314,6 +2371,24 @@ gtag('config', 'G-6R8FPBQRFH');
         })
 
         $('.question').popup({ on: 'click' })
+        $('.show-popup').popup({ on: 'click', hoverable: true })
+        $('#show-igv-button').click(async () => {
+            const row = window.searchResults.rows[0]
+            GLOBAL_PAGE_STATE['igvLoc'] = row['ReferenceRegion']
+
+            if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
+                $('#show-igv-divider').click()
+            } else {
+                writePersistentPageStateToUrl()
+
+                if (!window.igvBrowser) {
+                    console.error("WARNING: IGV browser not initialized yet")
+                    await updateIgv()
+                }
+                await window.igvBrowser.search(row['ReferenceRegion'])
+            }
+        })
+
 
     }
 
