@@ -443,7 +443,7 @@ gtag('config', 'G-6R8FPBQRFH');
         position: relative;
     }
 
-    .cell-with-icon-and-popup {
+    .action-cell {
         cursor: pointer;
         color: #2185d0;
         transition: all 0.2s;
@@ -1633,11 +1633,11 @@ gtag('config', 'G-6R8FPBQRFH');
                             <div class="content" style="text-align: center;">
                                 <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row['VariationCluster']}</div>
                                 <br />
-                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
+                                <div><span style="font-weight: bold">Variation Cluster Interval Size:</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
-                    return `<span class="cell-with-icon-and-popup show-popup" data-html='${clusterDetails}'>
+                    return `<span class="action-cell show-popup" data-html='${clusterDetails}'>
                             <i class="check circle icon"></i><span class="action-link">Yes</span>
                         </span>: +${row['VariationClusterSizeDiff']}bp`
                 }
@@ -2167,12 +2167,12 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         let locusPageRow1Box1 = '<table class="locus-info-table">'
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference Region:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference Region:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], truncateAt=30, showSize=false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
 

@@ -500,7 +500,7 @@
             diseaseDescription = '<i>An error occurred while loading this information.</i>'
             console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
         }
-        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon cell-with-icon-and-popup user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
+        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
         if (linkText) {
             diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
         }

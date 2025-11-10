@@ -441,7 +441,7 @@ gtag('config', 'G-6R8FPBQRFH');
         position: relative;
     }
 
-    .cell-with-icon-and-popup {
+    .action-cell {
         cursor: pointer;
         color: #2185d0;
         transition: all 0.2s;
@@ -1631,11 +1631,11 @@ gtag('config', 'G-6R8FPBQRFH');
                             <div class="content" style="text-align: center;">
                                 <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row['VariationCluster']}</div>
                                 <br />
-                                <div><span style="font-weight: bold">Variation Cluster Interval Size =</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
+                                <div><span style="font-weight: bold">Variation Cluster Interval Size:</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
-                    return `<span class="cell-with-icon-and-popup show-popup" data-html='${clusterDetails}'>
+                    return `<span class="action-cell show-popup" data-html='${clusterDetails}'>
                             <i class="check circle icon"></i><span class="action-link">Yes</span>
                         </span>: +${row['VariationClusterSizeDiff']}bp`
                 }
