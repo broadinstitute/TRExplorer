@@ -252,8 +252,9 @@
     const DEFAULT_SORT_DIRECTION = 'ASC'
 
     const RESULTS_TABLE_COLUMN_NAMES = [
-        'interval',
-        'motif',
+        'ReferenceRegion',
+        'ReferenceMotif',
+        'CanonicalMotif',
         'NumRepeatsInReference',
         'ReferenceRepeatPurity',
         'GencodeGeneRegion',
@@ -293,20 +294,27 @@
         'VamosMotifFrequencies',
         'RepeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
+        'ReferenceLeftFlank',
+        'ReferenceRepeatSequence',
+        'ReferenceRightFlank',
     ]
 
     const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
-        'interval',  
-        'motif',  
-        'GencodeGeneRegion',
-        'GencodeGeneName',
-        'variationCluster',  
-        'FlanksAndLocusMappability',  
+        'ReferenceRegion',
+        'ReferenceMotif',
+        'CanonicalMotif',
+        'NumRepeatsInReference',
+        'ReferenceRepeatPurity',
+        'FlanksAndLocusMappability',
+        'variationCluster',
         'TRsInRegion',
-        'isPathogenic',
-        'polymorphism',
+        'ReferenceRepeatSequence',
+        'ReferenceLeftFlank',
+        'ReferenceRightFlank',
 
-        'GencodeGeneId',  
+        'GencodeGeneName',
+        'GencodeGeneRegion',
+        'GencodeGeneId',
         'GencodeTranscriptId',
         'RefSeqGeneRegion',
         'RefSeqGeneId',
@@ -316,7 +324,10 @@
         'ManeGeneId',
         'ManeGeneName',
 
-        'HPRC100_AlleleHistogram',  
+        'VamosMotifFrequencies',
+        'polymorphism',
+
+        'HPRC100_AlleleHistogram',
         'TenK10K_AlleleHistogram',  
         'AlleleFrequenciesFromIllumina174k',  
         'AlleleFrequenciesFromT2TAssemblies',  
@@ -328,12 +339,10 @@
         'StdevFromT2TAssemblies',
 
         'Source',
-
-        'VamosMotifFrequencies',
         'RepeatMaskerIntervals',
+        'isPathogenic',
         'AoU1027_OE_LengthPercentile',
-        'NumRepeatsInReference',
-        'ReferenceRepeatPurity',
+
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
@@ -394,8 +403,8 @@
         igv_custom_track_url_3: '',
 
         showColumns: [
-            'interval', 
-            'motif',
+            'ReferenceRegion',
+            'ReferenceMotif',
             'ReferenceRepeatPurity',
             'GencodeGeneRegion',
             'GencodeGeneName',
@@ -1146,9 +1155,9 @@
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: left;">
                 <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
-                    <a class="row-locus-page-button cell-action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
+                    <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
                 </div>
-                <a class="row-igv-button cell-action-link" data-reference-region="${row['ReferenceRegion']}">IGV</a>
+                <a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}">IGV</a>
                 ${diseaseAssociatedIconHtml}
             </td>`
 
@@ -1185,7 +1194,7 @@
                 }
             } else {
                 GLOBAL_PAGE_STATE['sc'] = column
-                GLOBAL_PAGE_STATE['sd'] = 'ASC'
+                GLOBAL_PAGE_STATE['sd'] = TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC'
             }
 
             performSearch(true)
@@ -1291,7 +1300,7 @@
             // Clear existing checkboxes
             $('.results-table-column-settings-checkboxes tr').remove()
 
-            // Create a flex container div instead of using table rows
+            // Create a flex container div
             $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-flex-container"></div>')
 
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
@@ -1302,9 +1311,9 @@
                     <div class="results-table-column-settings-checkbox-item">
                         <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
                             <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
-                            <label>${TABLE_COLUMNS[columnName].displayName}</label>
+                            <label>${TABLE_COLUMNS[columnName]?.displayName || ''}</label>
                         </div>
-                        ${TABLE_COLUMNS[columnName].helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
+                        ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
                     </div>`
             }).join('')
 

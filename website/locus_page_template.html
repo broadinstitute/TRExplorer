@@ -209,12 +209,13 @@
         let locusPageRow1 = ''
         locusPageRow1 += `<b>Locus Id:</b> ${row.LocusId}<br />`
         locusPageRow1 += `<b>Source:</b> ${row.Source}<br />`
+
         $("#locus-page-row1").html(locusPageRow1)
 
         let locusPageBox1 = ''
         locusPageBox1 += `<b>Reference Region:</b> ${row.ReferenceRegion}<br />`
-        locusPageBox1 += `<b>Num Repeats in Reference:</b> ${row.NumRepeatsInReference}<br />`
-        locusPageBox1 += `<b>Reference Repeat Purity:</b> ${(row.ReferenceRepeatPurity * 100).toFixed(2)}%<br />`
+        locusPageBox1 += `<b>Repeats in Reference:</b> ${row.NumRepeatsInReference}<br />`
+        locusPageBox1 += `<b>Repeat Purity:</b> ${row['ReferenceRepeatPurity'].toFixed(2)}<br />`
         locusPageBox1 += `<b>Disease Association:</b> ${row.DiseaseInfo ? row.DiseaseInfo : 'N/A'}<br />`
         $("#locus-page-row2-box1").html(locusPageBox1)
 
@@ -224,7 +225,6 @@
         locusPageBox2 += `<b>Canonical Motif:</b> ${row.CanonicalMotif}<br />`
         $("#locus-page-row2-box2").html(locusPageBox2)
 
-        //$('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
         $('#locus-page-results-area').html('')
 
         const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
