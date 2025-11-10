@@ -1117,7 +1117,7 @@
                     toolName = 'ExpansionHunter'
                     selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
                     conditions.push(`NsInFlanks<=5`)
-                    alert('Note: The exported catalog will exclude any loci that have > 5 Ns in flanks since ExpansionHunter does not support them.')
+                    alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
                 } else if(value === 'gangstr') {
                     toolName = 'GangSTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
