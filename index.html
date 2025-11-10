@@ -1003,7 +1003,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
 
-    const parseMotifFrequenciesString = (frequenciesString) => {
+    const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
         if (!frequenciesString) {
             return ''
         }
@@ -1075,10 +1075,17 @@ gtag('config', 'G-6R8FPBQRFH');
                 resultMotifs.push(motifRow)
             }
 
+            const totalMotifs = resultMotifs.length
+
+            if (maxRowsToShow && resultMotifs.length > maxRowsToShow) {
+                resultMotifs = resultMotifs.slice(0, maxRowsToShow)
+                resultMotifs.push(`<tr><td colspan='3' style='text-align:center; color:#AAAAAA'><i>... ${Object.keys(motifCounts).length - maxRowsToShow} more motifs. See locus page ...</i></td></tr>`)
+            }
+
             let data_html = `<table style='border-spacing: 20px 3px'><tr><td><b>Frequency</b></td><td><b>Motif</b></td><td><span style='white-space: nowrap'><b>Efficient Motif</b></span></td></tr>${resultMotifs.join('')}</table><br />`
             data_html += `<b>Details:</b> Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies. Percentages represent what fraction of the 94 haplotype sequences that is covered by each motif.<br /><br />`
 
-            return `<span class="show-popup cell-action-link" data-html="${data_html}">${resultMotifs.length} motifs</span>`
+            return `<span class="show-popup cell-action-link" data-html="${data_html}">${totalMotifs} motifs</span>`
         } catch (e) {
             console.error('Error parsing motif frequencies string:', e)
             return ''
@@ -2266,7 +2273,7 @@ gtag('config', 'G-6R8FPBQRFH');
         vamosMotifFrequencies: {
             displayName: 'Motif Variability',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
-            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies']),
+            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 15),
             getSortColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
             getRequiredColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
         },

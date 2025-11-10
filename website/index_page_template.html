@@ -694,7 +694,7 @@
         vamosMotifFrequencies: {
             displayName: 'Motif Variability',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
-            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies']),
+            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 15),
             getSortColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
             getRequiredColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
         },
