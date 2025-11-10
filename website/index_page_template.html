@@ -467,11 +467,6 @@
         */
     ].join(', ')
 
-    const computeIntervalSize = (interval) => {
-        const [chrom, start_end] = interval.split(':')
-        const [start, end] = start_end.split('-')
-        return parseInt(end) - parseInt(start)
-    }
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -1286,8 +1281,6 @@
 
 
         // Initialize popups for variation cluster cells
-        $('.cell-in-variation-cluster-column').popup({ position: 'right center', on: 'click', hoverable: true })
-
         $('.show-popup').popup({ on: 'click', hoverable: true })
 
         // Initialize popups for polymorphism cells

@@ -703,6 +703,12 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    const computeIntervalSize = (interval) => {
+        const [chrom, start_end] = interval.split(':')
+        const [start, end] = start_end.split('-')
+        return parseInt(end) - parseInt(start)
+    }
+
     const generateIgvConfig = (addSelectedTracks) => {
 
         // specify IGV tracks and the data to display in them
@@ -1631,7 +1637,7 @@ gtag('config', 'G-6R8FPBQRFH');
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
-                    return `<span class="cell-with-icon-and-popup cell-in-variation-cluster-column" data-html='${clusterDetails}'>
+                    return `<span class="cell-with-icon-and-popup show-popup" data-html='${clusterDetails}'>
                             <i class="check circle icon"></i><span class="action-link">Yes</span>
                         </span>: +${row['VariationClusterSizeDiff']}bp`
                 }
