@@ -1020,7 +1020,7 @@ gtag('config', 'G-6R8FPBQRFH');
             sequenceSizeString += `(${sequence.length})`
         }
         if (sequence.length > truncateAt) {
-            let result = `<span class="show-popup action-link" style="font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
+            let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
             if (leftTruncate) {
                 const truncatedSequence = sequence.substring(sequence.length - truncateAt, sequence.length)
                 result += `${sequenceSizeString} &nbsp; ...${truncatedSequence}`
@@ -1031,7 +1031,7 @@ gtag('config', 'G-6R8FPBQRFH');
             result += `</span>`
             return result
         } else {
-            let result = `<span style="font-family: monospace">`
+            let result = `<span style="white-space: nowrap; font-family: monospace">`
             if (leftTruncate) {
                 result += `${sequenceSizeString} &nbsp; ${sequence}`
             } else {
@@ -1935,6 +1935,12 @@ gtag('config', 'G-6R8FPBQRFH');
         border-collapse: separate;
         border-spacing: 12px 6px;
     }
+
+    .center-col {
+        display: flex;
+        justify-content: center;   /* horizontal centering */
+        align-items: center;       /* optional vertical centering */
+    }
 </style>
 <div class="ui stackable grid">
 
@@ -1975,10 +1981,10 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="six wide column">
-            <div id="locus-page-row1-box1" style="min-width: 600px !important; width: 600px !important"></div>
+        <div class="six wide column center-col" style="min-width: 600px !important;">
+            <div id="locus-page-row1-box1"></div>
         </div>
-        <div class="six wide column">
+        <div class="six wide column center-col">
             <div id="locus-page-row1-box2"></div>
         </div>
         <div class="two wide column"></div>
@@ -2169,11 +2175,11 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, truncateAt=35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference Region:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], truncateAt=30, showSize=false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
 
         locusPageRow1Box1 += '</table>'

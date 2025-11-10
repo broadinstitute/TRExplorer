@@ -1020,7 +1020,7 @@ gtag('config', 'G-6R8FPBQRFH');
             sequenceSizeString += `(${sequence.length})`
         }
         if (sequence.length > truncateAt) {
-            let result = `<span class="show-popup action-link" style="font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
+            let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
             if (leftTruncate) {
                 const truncatedSequence = sequence.substring(sequence.length - truncateAt, sequence.length)
                 result += `${sequenceSizeString} &nbsp; ...${truncatedSequence}`
@@ -1031,7 +1031,7 @@ gtag('config', 'G-6R8FPBQRFH');
             result += `</span>`
             return result
         } else {
-            let result = `<span style="font-family: monospace">`
+            let result = `<span style="white-space: nowrap; font-family: monospace">`
             if (leftTruncate) {
                 result += `${sequenceSizeString} &nbsp; ${sequence}`
             } else {
