@@ -75,7 +75,7 @@ def main():
 
         output_table_rows[reference_region] = {
             "ReferenceRegion": reference_region,
-            "IncludeInVamosCatalog": 1 if include_new_interval_in_vamos_catalog else 0,
+            "IncludeInVamosCatalog": include_new_interval_in_vamos_catalog,
         }
 
         if reference_region in vamos_data_lookup:
@@ -88,7 +88,10 @@ def main():
             })
             
     print(f"Kept {len(output_table_rows):,d} out of {counters['total']:,d} ({100 * len(output_table_rows) / counters['total']:.2f}%) rows")
-    
+
+    for row in output_table_rows.values():
+        row["IncludeInVamosCatalog"] = int(row["IncludeInVamosCatalog"])  # convert to int for easier parsing later
+
     print(f"Writing {len(output_table_rows):,d} rows to {args.output_tsv}")
     header = [
         "ReferenceRegion",

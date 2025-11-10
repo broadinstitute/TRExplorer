@@ -15,9 +15,7 @@
         </div>
     </div>
     <div class="actions">
-        <div class="ui deny button">
-            Cancel
-        </div>
+        <div id="results-table-column-settings-cancel-button" class="ui deny button">Cancel</div>
         <div id="results-table-column-settings-apply-button" class="ui positive right labeled icon button">
             Apply
             <i class="checkmark icon"></i>
@@ -292,7 +290,7 @@
         'HPRC100_BiallelicHistogram',
         'TenK10K_BiallelicHistogram',
 
-        'vamosOriMotifFrequencies',
+        'vamosMotifFrequencies',
         'repeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
     ]
@@ -331,7 +329,7 @@
 
         'source',
 
-        'vamosOriMotifFrequencies',
+        'vamosMotifFrequencies',
         'repeatMaskerIntervals',
         'AoU1027_OE_LengthPercentile',
         'numRepeatsInReference',
@@ -339,21 +337,20 @@
     ]
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
-        'AoU1027_Stdev',
+        'ReferenceRegion',
+        'NumRepeatsInReference',
+        'ReferenceMotif',
         'StdevFromIllumina174k',
         'AlleleFrequenciesFromIllumina174k',
         'StdevFromT2TAssemblies',
         'AlleleFrequenciesFromT2TAssemblies',
-        'ReferenceRegion',
-        'NumRepeatsInReference',
-        'ReferenceMotif',
         'HPRC100_Stdev',
         'HPRC100_AlleleHistogram',
         'HPRC100_BiallelicHistogram',
-        'AoU1027_Stdev',
         'TenK10K_AlleleHistogram',
         'TenK10K_BiallelicHistogram',
         'TenK10K_Stdev',
+        'AoU1027_Stdev',
         'AoU1027_OE_LengthPercentile',
     ]
 
@@ -404,7 +401,7 @@
             'variationCluster',
             'source',
             'HPRC100_AlleleHistogram',
-            'vamosOriMotifFrequencies',
+            'vamosMotifFrequencies',
             'repeatMaskerIntervals',
         ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER),
     }
@@ -578,10 +575,10 @@
             displayName: 'Motif',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['motif'],
             getValue: (row) => {
-                const motif = row.ReferenceMotif
+                const motif = row['ReferenceMotif']
                 if ( motif.length > 12 ) {
                     const truncatedMotif = motif.substring(0, 12) + '...'
-                    return `<span class="show-popup" data-html="${motif}">${truncatedMotif} &nbsp (${row.MotifSize})</span>`
+                    return `<span class="show-popup cell-action-link" data-html="<span style='font-family: monospace'>${motif.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">${truncatedMotif} &nbsp (${row.MotifSize})</span>`
                 } else {
                     return `${motif} &nbsp (${row.MotifSize})`
                 }
@@ -615,11 +612,11 @@
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['source'],
             getValue: (row) => {
                 const sourceCatalogNameMap = {
-                    KnownDiseaseAssociatedLoci: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
-                    Illumina174kPolymorphicTRs: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
-                    PerfectRepeatsInReference:  "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
-                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v1<br/><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br/><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
+                    KnownDiseaseAssociatedLoci: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
+                    Illumina174kPolymorphicTRs: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
+                    PerfectRepeatsInReference:  "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
+                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
+                    VamosCatalog: "<span class='show-popup cell-action-link' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br /><br /><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
                 }
                 const [version, sourceCatalog] = row.Source.split(':')
                 return sourceCatalogNameMap[sourceCatalog]
@@ -689,16 +686,16 @@
         repeatMaskerIntervals: {
             displayName: 'Repeat Masker',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['repeatMaskerIntervals'],
-            getValue: (row) => row['RepeatMaskerIntervals'] ? [... new Set(row.RepeatMaskerIntervals.split(', ').map( s => s.split(':')[0].trim() ).filter( s => !'Simple_repeat|Low_complexity'.includes(s) ))].join(', ') : '',
+            getValue: (row) => parseRepeatMaskerIntervals(row['RepeatMaskerIntervals']),
             getSortColumns: () => ['RepeatMaskerIntervals'],
             getRequiredColumns: () => ['RepeatMaskerIntervals'],
         },
-        vamosOriMotifFrequencies: {
+        vamosMotifFrequencies: {
             displayName: 'Motif Variability',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['vamosOriMotifFrequencies'],
-            getValue: (row) => parseMotifFrequenciesString(row.VamosOriMotifFrequencies),
-            getSortColumns: () => ['VamosOriMotifCount', 'VamosOriMotifFrequencies'],
-            getRequiredColumns: () => ['VamosOriMotifFrequencies', 'VamosOriMotifCount'],
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
+            getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies']),
+            getSortColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
+            getRequiredColumns: () => ['VamosNumUniqueMotifsAbove1Percent', 'VamosMotifFrequencies'],
         },
         mappability: {
             displayName: 'Mappability',
@@ -1121,9 +1118,12 @@
 
                 let toolName
                 let selectClause
+                let conditions = [...window.lastSearchConditions]
+                let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
                 if (value === 'expansion_hunter') {
                     toolName = 'ExpansionHunter'
                     selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
+                    conditions.push(`NsInFlanks<=5`)
                 } else if(value === 'gangstr') {
                     toolName = 'GangSTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
@@ -1135,7 +1135,8 @@
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
                 } else if(value === 'vamos') {
                     toolName = 'vamos'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosOriUniqueMotifs IS NOT NULL THEN VamosOriUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
+                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
+                    conditions.push(`IncludeInVamosCatalog=1`)
                 } else if(value === 'bed') {
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
@@ -1208,9 +1209,10 @@
                         'AoU1027_OE_LengthPercentile',
 
                         'RepeatMaskerIntervals',
-                        'VamosOriMotifFrequencies',
+                        'VamosMotifFrequencies',
                     ]
                     selectClause = tsv_columns.join(', ')
+                    sortClause = window.lastSearchSortClause
                 } else {
                     throw new Error(`Invalid export-dropdown value: ${value}`)
                 }
@@ -1218,7 +1220,8 @@
                 try {
                     $('body').css('cursor', 'wait')
 
-                    const query = `SELECT ${selectClause} FROM ${searchQuerySuffix}`
+                    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+                    const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
                     const results = await queryBigQuery(query, null, null, fileFormat, toolName)
 
                     if (results.public_urls) {
@@ -1410,16 +1413,31 @@
             }
         })
 
-        tableHtml += '</tr></thead><tbody>'
+        tableHtml += '<th></th></tr></thead><tbody>'
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
+
+        // get url params
+        let locusPageUrlParamSuffix = ""
+        const hash = window.location.hash.substring(1)
+        if (hash) {
+            const currentPageUrlParams = new URLSearchParams(hash)
+            for (const [key, value] of currentPageUrlParams.entries()) {
+                if (key != 'locusId' & key != 'igvLoc') {
+                    locusPageUrlParamSuffix += `&${key}=${value}`
+                }
+            }
+        }
 
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
 
+            const locusPageUrl = `locus.html?#locusId=${row.LocusId}&igvLoc=${row.ReferenceRegion}${locusPageUrlParamSuffix}`
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: left;">
-                <div style="min-width: 25px; padding-right: 5px; display: inline-block;"><a href="locus.html?#locusId=${row.LocusId}">#${(startIndex + index + 1).toLocaleString()}:</a></div>
+                <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
+                    <a href="${locusPageUrl}" target=_blank>#${(startIndex + index + 1).toLocaleString()}:</a>
+                </div>
                 <a class="row-igv-button cell-action-link" data-locus="${row.ReferenceRegion}">IGV</a>
                 ${diseaseAssociatedIconHtml}
             </td>`
@@ -1439,6 +1457,7 @@
                     tableHtml += `<td>${value != null ? value : ''}</td>`
                 }
             })
+            tableHtml += `<td><a href="${locusPageUrl}" target="_blank"><i class="chevron circle right icon"></i></a></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -1468,13 +1487,15 @@
             if (!locus) return
 
             // Parse the locus to get chrom, start, end
-            const match = locus.match(/^(?:chr)?([XYMTt0-9]+):(\d+)-(\d+)$/i)
-            if (!match) return
+            const match = locus.match(REFERENCE_REGION_REGEXP)
+            if (!match) {
+                console.warn(`Unexpected locus format: ${locus}`)
+                return
+            }
 
             const [_, chrom, start, end] = match
-            const padding = 150
-            const paddedStart = Math.max(0, parseInt(start) - padding)
-            const paddedEnd = parseInt(end) + padding
+            const paddedStart = Math.max(0, parseInt(start.replace(',', '')) - IGV_LOCUS_PADDING)
+            const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
             const paddedLocus = `${chrom}:${paddedStart}-${paddedEnd}`
 
 
@@ -1581,6 +1602,10 @@
             $('#results-table-column-settings-dialog').modal('hide')
         })
 
+        $('#results-table-column-settings-cancel-button').click(() => {
+            $('#results-table-column-settings-dialog').modal('hide')
+        })
+
         GLOBAL_PAGE_STATE['showRs'] = 1
         writePersistentPageStateToUrl()
     }
@@ -1619,7 +1644,6 @@
             $('body').css('cursor', 'wait')
 
             let conditions = []
-
             let searchQuery = $('#search-query').val()
             if (searchQuery) {
 
@@ -1641,12 +1665,12 @@
                     } else {
                         const locusIdMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i)
                         if (locusIdMatch) {
-                            let [_, chrom, start, end, motif] = locusIdMatch
-                            start = parseInt(start.replace(/,/g, ''))
-                            end = parseInt(end.replace(/,/g, ''))
-                            return `
-                                (chrom = '${chrom}' AND start_0based < ${end - motif.length} AND end_1based >= ${start + motif.length} AND MotifSize = ${motif.length})
-                            `
+                            //let [_, chrom, start, end, motif] = locusIdMatch
+                            //start = parseInt(start.replace(/,/g, ''))
+                            //end = parseInt(end.replace(/,/g, ''))
+                            //return `(chrom = '${chrom}' AND start_0based < ${end - motif.length} AND end_1based >= ${start + motif.length} AND MotifSize = ${motif.length})`
+                            return `LocusId = '${queryValue.trim()}'`
+
                         } else {
                             // Try other fields
                             return `
@@ -1687,8 +1711,7 @@
                                 "(FoundInIllumina174kPolymorphicTRs = 'Yes' OR (FoundInKnownDiseaseAssociatedLoci = 'Yes' AND FoundInIllumina174kPolymorphicTRs LIKE '%Yes%'))")
                             break
                         case 'known_disease_loci':
-                            conditions.push(
-                                "KnownDiseaseAssociatedLocus IS NOT NULL")
+                            conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL")
                             break
                     }
                 }
@@ -1889,13 +1912,14 @@
             const sortColumns = TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom', 'start_0based']
             const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
 
-            const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause} ORDER BY ${sortClause}`
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
+            const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
 
             const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
             const pageSize = GLOBAL_PAGE_STATE['pageSize']
 
-            window.lastSearchQuerySuffix = querySuffix
+            window.lastSearchConditions = conditions
+            window.lastSearchSortClause = sortClause
+
             window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
 
             // Remove loading indicator and placeholder before showing results
@@ -2093,13 +2117,6 @@
 
     function showPolymorphismDialog() {
         const row = $(this).data()
-        for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-            const lowerCaseKey = key.toLowerCase()
-            if (row[lowerCaseKey] != null) {
-                row[key] = row[lowerCaseKey]
-            }
-        }
-                    
         $('#polymorphism-dialog-header').html(`Polymorphism: &nbsp; ${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
         $('#polymorphism-dialog-content').html('')
 

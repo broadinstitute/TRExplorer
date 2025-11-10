@@ -18,13 +18,13 @@
         <div class="three wide column"></div>
     </div>
     <div class="ui row">
-        <div class="one wide column"></div>
-        <div class="fourteen wide column">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
             <!-- Results Area -->
             <div id="results-title"></div>
             <div id="results-area" style="position: relative; z-index: 100;"></div>
         </div>
-        <div class="one wide column"></div>
+        <div class="three wide column"></div>
     </div>
 </div>
 
@@ -32,23 +32,71 @@
 
     $('body').css('cursor', 'wait')
 
-    const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
-        'AoU1027_Stdev',
-        'StdevFromIllumina174k',
-        'AlleleFrequenciesFromIllumina174k',
-        'StdevFromT2TAssemblies',
-        'AlleleFrequenciesFromT2TAssemblies',
-        'ReferenceRegion',
-        'NumRepeatsInReference',
-        'ReferenceMotif',
-        'HPRC100_Stdev',
-        'HPRC100_AlleleHistogram',
-        'HPRC100_BiallelicHistogram',
-        'AoU1027_Stdev',
-        'TenK10K_AlleleHistogram',
-        'TenK10K_BiallelicHistogram',
-        'TenK10K_Stdev',
-        'AoU1027_OE_LengthPercentile',
+    const REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE = [
+        "LocusId",
+        "ReferenceRegion",
+        "DiseaseInfo",
+
+        "NumRepeatsInReference",
+        "ReferenceMotif",
+        "CanonicalMotif",
+        "KnownDiseaseAssociatedMotif",
+        "KnownDiseaseAssociatedLocus",
+        "ReferenceRepeatPurity",
+        "TRsInRegion",
+        "Source",
+        "LeftFlankMappability",
+        "RightFlankMappability",
+        "FlanksAndLocusMappability",
+        "VariationCluster",
+        "VariationClusterSizeDiff",
+        "RepeatMaskerIntervals",
+
+        "GencodeGeneRegion",
+        "GencodeGeneName",
+        "GencodeGeneId",
+        "GencodeTranscriptId",
+        "RefseqGeneRegion",
+        "RefseqGeneName",
+        "RefseqGeneId",
+        "RefseqTranscriptId",
+        "ManeGeneRegion",
+        "ManeGeneName",
+        "ManeGeneId",
+        "ManeTranscriptId",
+
+        "StdevFromIllumina174k",
+        "AlleleFrequenciesFromIllumina174k",
+
+        "StdevFromT2TAssemblies",
+        "AlleleFrequenciesFromT2TAssemblies",
+
+        "HPRC100_Stdev",
+        "HPRC100_AlleleHistogram",
+        "HPRC100_BiallelicHistogram",
+
+        "TenK10K_AlleleHistogram",
+        "TenK10K_BiallelicHistogram",
+        "TenK10K_Stdev",
+
+        "AoU1027_MinAllele",
+        "AoU1027_ModeAllele",
+        "AoU1027_Stdev",
+        "AoU1027_Median",
+        "AoU1027_99thPercentile",
+        "AoU1027_MaxAllele",
+        "AoU1027_UniqueAlleles",
+        "AoU1027_NumCalledAlleles",
+        "AoU1027_OE_LengthPercentile",
+
+        "VamosUniqueMotifs",
+        "VamosEfficientMotifs",
+        "VamosMotifFrequencies",
+        "VamosNumUniqueMotifsAbove1Percent",
+
+        "ReferenceRepeatSequence",
+        "ReferenceLeftFlank",
+        "ReferenceRightFlank",
     ]
 
     // persistent page state (added to the URL)
@@ -75,8 +123,6 @@
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
-
-
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
         
@@ -91,9 +137,6 @@
                 GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
-                if (key === 'showColumns') {
-                    GLOBAL_PAGE_STATE['showColumns'] = `${value}` // convert to string
-                }
             }
         }
         console.log("Starting to initialize page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)
@@ -105,12 +148,6 @@
             $('#show-igv-divider-text').hide()
             $('#hide-igv-divider-text').show()
             await updateIgv()
-        }
-
-        // advanced search wrapper
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
-            $('#advanced-search-form').show()
-            $('#filter-button .filter.icon').removeClass('rotated')
         }
 
         // Restore custom track URLs
@@ -140,7 +177,6 @@
 
     })
 
-
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
@@ -153,13 +189,6 @@
         const row = window.searchResults.rows[0]
         console.log("search results row:", row)
 
-        for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-            const lowerCaseKey = key.toLowerCase()
-            if (row[lowerCaseKey] != null) {
-                row[key] = row[lowerCaseKey]
-            }
-        }
-
         $('#results-title').html(`<h3 style="text-align: center">${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}</h3><br />`)
         $('#results-area').html('')
 
@@ -168,17 +197,17 @@
 
         const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
 
-        let polymorphismDialogContent = `
+        let locusPageContent = `
             <div class="content" style="text-align: center">
         `
 
         if (nStdevsNotAvailable == stdevColumns.length) {
-            polymorphismDialogContent += `
+            locusPageContent += `
                     <span style="color: #686868;">No polymorphism data available.</span>
                     <br /><br />
             `
         } else {
-            polymorphismDialogContent += `
+            locusPageContent += `
                 <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
                     <div style="margin-top: 5px">
                         <table style="margin: 0 auto">
@@ -187,7 +216,7 @@
 
         for (const key of stdevColumns) {
             if (row[key] != null) {
-                polymorphismDialogContent += `
+                locusPageContent += `
                     <tr>
                         <td style="text-align: left;">
                             <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
@@ -202,40 +231,40 @@
                 `
             }
         }
-        polymorphismDialogContent += "</table>"
+        locusPageContent += "</table>"
 
         if (nStdevsNotAvailable > 0) {
-            polymorphismDialogContent += "<br />"
+            locusPageContent += "<br />"
             let namesOfMissingSigmas = []
             for (const key of stdevColumns) {
                 if (row[key] == null) {
                     namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
                 }
             }
-            polymorphismDialogContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+            locusPageContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
         }
 
         if (row.AoU1027_OE_LengthPercentile != null) {
-            polymorphismDialogContent += `
+            locusPageContent += `
                 <div style="margin-top: 25px">
                     Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
                 </div>
             `
         }
 
-        polymorphismDialogContent += "</div>"
+        locusPageContent += "</div>"
         // check if any of the allele frequency columns are available
         const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
         if (alleleFrequencyColumnsAvailable) {
             // calculate the height of the allele frequency charts
-            polymorphismDialogContent += `
+            locusPageContent += `
                 <div style="margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
             `
 
             for (const column of alleleFrequencyColumns) {
                 if (row[column] != null) {
-                    polymorphismDialogContent += `
+                    locusPageContent += `
 
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
@@ -244,19 +273,19 @@
                     `
                 }
             }
-            polymorphismDialogContent += '</div></div>'
+            locusPageContent += '</div></div>'
         }
 
         const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
         const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
         if (biallelicHistogramColumnsAvailable) {
-            polymorphismDialogContent += `
+            locusPageContent += `
                 <div style="margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
             `
             for (const column of biallelicHistogramColumns) {
                 if (row[column] != null) {
-                    polymorphismDialogContent += `
+                    locusPageContent += `
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
                             <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
@@ -264,13 +293,11 @@
                     `
                 }
             }
-            polymorphismDialogContent += '</div></div>'
+            locusPageContent += '</div></div>'
         }
 
-        $('#results-area').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
+        $('#results-area').html(locusPageContent.replace(/\s+/g, ' ').trim())
 
-
-        // prepare chart data
         let alleleFrequencyChartData = []
         $('.allele-frequency-chart').each(function() {
             const frequenciesColumn = $(this).data('frequencies-column')
@@ -345,28 +372,15 @@
         try {
             $('body').css('cursor', 'wait')
 
-            let conditions = []
-
             let locusId = GLOBAL_PAGE_STATE['locusId']
-            if (locusId) {
-                conditions.push(`LocusId = '${locusId}'`)
-            } else {
-                displayError('Missing locusId URL parameter')
+            if (!locusId) {
+                displayError('Missing locusId URL parameter (eg. ?locusId=4-3074876-3074933-CAG)')
                 return
             }
 
-            //get all required columns for the visible columns
-            let selectedColumns = [
-                'LocusId',
-                'ReferenceRegion',
-                'DiseaseInfo',
-                ...REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
-            ]
-
-            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-
-            const querySuffix = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\` ${whereClause}`
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${querySuffix}`
+            let selectedColumns = REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE
+            const whereClause = `WHERE LocusId = '${locusId}'`
+            const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause}`
 
             window.searchResults = await queryBigQuery(query, 0, 1, null, null)
 
