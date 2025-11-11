@@ -177,6 +177,10 @@ gtag('config', 'G-6R8FPBQRFH');
         transition: transform 0.2s;
     }
 
+    .info-font-size {
+        font-size: 1.12em;
+    }
+
     #search-query {
         margin-right: 5px;
         border: 1px solid rgba(34, 36, 38, 0.15) !important;
@@ -565,7 +569,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251107_140924'
+    const TABLE_ID = 'catalog_20251110_172817'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -662,7 +666,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ManeGeneRegion: 'MANE v1.4 gene region',
         ManeGeneId: 'MANE v1.4 gene ID',
         ManeGeneName: 'MANE v1.4 gene name',
-        ManeTranscriptId: 'MANE v1.4 transcript id',
+        ManeTranscriptId: 'MANE v1.4 transcript ID',
         HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
     }
@@ -1581,6 +1585,180 @@ gtag('config', 'G-6R8FPBQRFH');
             </span>
         </span>
         `
+    }
+
+    const generatePolymorphismDialogContent1 = (row) => {
+        const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+
+        const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+
+        let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
+
+        if (nStdevsNotAvailable == stdevColumns.length) {
+            polymorphismDialogContent1 += `
+                    <span style="color: #686868;">No polymorphism data available.</span>
+                    <br /><br />
+            `
+        } else {
+            polymorphismDialogContent1 += `
+                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
+                    <div style="margin-top: 5px">
+                        <table style="margin: 0 auto">
+            `
+        }
+
+        for (const key of stdevColumns) {
+            if (row[key] != null) {
+                polymorphismDialogContent1 += `
+                    <tr>
+                        <td style="text-align: left;">
+                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
+                        </td>
+                        <td style="text-align: right;">
+                            = ${row[key].toFixed(3)}
+                        </td>
+                        <td style="text-align: right;">
+                            <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                        </td>
+                    </tr>
+                `
+            }
+        }
+        polymorphismDialogContent1 += "</table>"
+
+        if (nStdevsNotAvailable > 0) {
+            polymorphismDialogContent1 += "<br />"
+            let namesOfMissingSigmas = []
+            for (const key of stdevColumns) {
+                if (row[key] == null) {
+                    namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
+                }
+            }
+            polymorphismDialogContent1 += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+        }
+
+        if (row.AoU1027_OE_LengthPercentile != null) {
+            polymorphismDialogContent1 += `
+                <div style="margin-top: 25px">
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+                </div>
+            `
+        }
+
+        polymorphismDialogContent1 += "</div>"
+
+        // check if any of the allele frequency columns are available
+        const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
+        if (alleleFrequencyColumnsAvailable) {
+            // calculate the height of the allele frequency charts
+            polymorphismDialogContent1 += `
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            `
+
+            for (const column of alleleFrequencyColumns) {
+                if (row[column] != null) {
+                    polymorphismDialogContent1 += `
+
+                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
+                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                        </div>
+                    `
+                }
+            }
+            polymorphismDialogContent1 += '</div></div>'
+        }
+
+        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
+        if (biallelicHistogramColumnsAvailable) {
+            polymorphismDialogContent1 += `
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            `
+            for (const column of biallelicHistogramColumns) {
+                if (row[column] != null) {
+                    polymorphismDialogContent1 += `
+                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
+                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                        </div>
+                    `
+                }
+            }
+            polymorphismDialogContent1 += '</div></div>'
+        }
+
+        return polymorphismDialogContent1
+    }
+
+
+    const renderChartsInPolymorphismDialog = (row) => {
+
+        let alleleFrequencyChartData = []
+        $('.allele-frequency-chart').each(function() {
+            const frequenciesColumn = $(this).data('frequencies-column')
+            const frequenciesString = row[frequenciesColumn]
+            if (!frequenciesString) return   // Skip if no data
+
+            const frequencies = parseAlleleFrequenciesString(frequenciesString)
+
+            alleleFrequencyChartData.push({
+                frequencies: frequencies,
+                thisObj: this,
+                refAlleleSize: $(this).data('ref-allele-size'),
+                chartWidth: $(this).data('chart-width'),
+                chartHeight: $(this).data('chart-height'),
+                label: $(this).data('label'),
+                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
+                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+            })
+        })
+
+        //compute overall min, max for all charts and then create the charts
+        let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
+        let overallMaxAlleleSize = Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize))
+
+        alleleFrequencyChartData.forEach((chartData) => {
+            chartData.minAlleleSize = overallMinAlleleSize
+            chartData.maxAlleleSize = overallMaxAlleleSize
+
+            createAlleleFrequencyChart(chartData)
+        })
+
+        let biallelicHistogramChartData = []
+        $('.biallelic-histogram-chart').each(function() {
+            const frequenciesColumn = $(this).data('frequencies-column')
+            let frequenciesString = row[frequenciesColumn]
+            if (!frequenciesString) return   // Skip if no data
+
+            let [data, lookup] = parseBiallelicHistogramString(frequenciesString)
+
+            biallelicHistogramChartData.push({
+                data: data,
+                lookup: lookup,
+                thisObj: this,
+                refAlleleSize: $(this).data('ref-allele-size'),
+                chartWidth: $(this).data('chart-width'),
+                chartHeight: $(this).data('chart-height'),
+                label: $(this).data('label'),
+                minAlleleSize: Math.min(...data.map(f => Math.min(f.x, f.y))),
+                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y)))
+            })
+        })
+
+        overallMinAlleleSize = Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize))
+        overallMaxAlleleSize = Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize))
+
+        biallelicHistogramChartData.forEach((chartData) => {
+            chartData.minAlleleSize = overallMinAlleleSize
+            chartData.maxAlleleSize = overallMaxAlleleSize
+
+            createBiallelicHistogramChart(chartData)
+        })
+
     }
 
     const getAlleleHistogramColumnValue = (row, columnName) => {

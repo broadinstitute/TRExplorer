@@ -9,10 +9,6 @@
         white-space: nowrap;
     }
 
-    .info-font-size {
-        font-size: 1.12em;
-    }
-
     .locus-info-table {
         font-size: 1.12em;
         border-collapse: separate;
@@ -210,13 +206,14 @@
     }
 
     const displaySearchResults = () => {
-        // display the search results in the results-table div
+
         const row = window.searchResults.rows[0]
 
         const getHelpIcon = (columnName) => {
             return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
         }
 
+        // Generate the tables at the top of the page
         let locusPageRow1Box1 = '<table class="locus-info-table">'
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, 35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
@@ -250,11 +247,6 @@
 
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
-
-        /*
-        VamosMotifFrequencies
-         */
-
         // get url params
         const urlArgs = window.location.hash.substring(1)
         const homePageUrl = `index.html?#${urlArgs}`
@@ -270,173 +262,14 @@
         locusPageRow2Box2 += `</div>`
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
+
+        // Generate the rest of the page
         $('#locus-page-results-area').html('')
 
-        const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-        const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
-
-        const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
-
-        let locusPageContent = `<div class="content" style="text-align: center">`
-
-        if (nStdevsNotAvailable == stdevColumns.length) {
-            locusPageContent += `
-                    <span style="color: #686868;">No polymorphism data available.</span>
-                    <br /><br />
-            `
-        } else {
-            locusPageContent += `
-                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
-                    <div style="margin-top: 5px">
-                        <table style="margin: 0 auto">
-            `
-        }
-
-        for (const key of stdevColumns) {
-            if (row[key] != null) {
-                locusPageContent += `
-                    <tr>
-                        <td style="text-align: left;">
-                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
-                        </td>
-                        <td style="text-align: right;">
-                            = ${row[key].toFixed(3)}
-                        </td>
-                        <td style="text-align: right;">
-                            <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
-                        </td>
-                    </tr>
-                `
-            }
-        }
-        locusPageContent += "</table>"
-
-        if (nStdevsNotAvailable > 0) {
-            locusPageContent += "<br />"
-            let namesOfMissingSigmas = []
-            for (const key of stdevColumns) {
-                if (row[key] == null) {
-                    namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
-                }
-            }
-            locusPageContent += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
-        }
-
-        if (row.AoU1027_OE_LengthPercentile != null) {
-            locusPageContent += `
-                <div style="margin-top: 25px">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
-                </div>
-            `
-        }
-
-        locusPageContent += "</div>"
-        // check if any of the allele frequency columns are available
-        const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
-        if (alleleFrequencyColumnsAvailable) {
-            // calculate the height of the allele frequency charts
-            locusPageContent += `
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-            `
-
-            for (const column of alleleFrequencyColumns) {
-                if (row[column] != null) {
-                    locusPageContent += `
-
-                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
-                        </div>
-                    `
-                }
-            }
-            locusPageContent += '</div></div>'
-        }
-
-        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
-        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
-        if (biallelicHistogramColumnsAvailable) {
-            locusPageContent += `
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-            `
-            for (const column of biallelicHistogramColumns) {
-                if (row[column] != null) {
-                    locusPageContent += `
-                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
-                        </div>
-                    `
-                }
-            }
-            locusPageContent += '</div></div>'
-        }
-
+        const locusPageContent = generatePolymorphismDialogContent1(row)
         $('#locus-page-results-area').html(locusPageContent.replace(/\s+/g, ' ').trim())
 
-        let alleleFrequencyChartData = []
-        $('.allele-frequency-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')
-            const frequenciesString = row[frequenciesColumn]
-            if (!frequenciesString) return   // Skip if no data
-
-            const frequencies = parseAlleleFrequenciesString(frequenciesString)
-
-            alleleFrequencyChartData.push({
-                frequencies: frequencies,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
-            })
-        })
-
-        //compute overall min, max for all charts and then create the charts
-        let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
-        let overallMaxAlleleSize = Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize))
-
-        alleleFrequencyChartData.forEach((chartData) => {
-            chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize
-
-            createAlleleFrequencyChart(chartData)
-        })
-
-        let biallelicHistogramChartData = []
-        $('.biallelic-histogram-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')
-            let frequenciesString = row[frequenciesColumn]
-            if (!frequenciesString) return   // Skip if no data
-
-            let [data, lookup] = parseBiallelicHistogramString(frequenciesString)
-
-            biallelicHistogramChartData.push({
-                data: data,
-                lookup: lookup,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...data.map(f => Math.min(f.x, f.y))),
-                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y)))
-            })
-        })
-
-        overallMinAlleleSize = Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize))
-        overallMaxAlleleSize = Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize))
-
-        biallelicHistogramChartData.forEach((chartData) => {
-            chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize
-
-            createBiallelicHistogramChart(chartData)
-        })
+        renderChartsInPolymorphismDialog(row);
 
         $('.question').popup({ on: 'click' })
         $('.show-popup').popup({ on: 'click', hoverable: true })
@@ -464,7 +297,7 @@
         // Remove any error messages and no results message
         $('#error-message').hide()
         $('#loading-container').show()      // Show loading indicator
-        
+
         try {
             $('body').css('cursor', 'wait')
 
