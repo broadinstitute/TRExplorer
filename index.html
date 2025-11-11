@@ -571,7 +571,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251110_172817'
+    const TABLE_ID = 'catalog_20251110_195333'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -644,19 +644,19 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceRepeatSequence: 'The repeat sequence in hg38',
         ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
         ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
-        ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs. <b>Examples:</b> CAG (3), GGCCCC (6)',
+        ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
         CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
         polymorphism: 'Summary of available polymorphism data for the TR locus',
         Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
-        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. <b>Range:</b> 0 to 1',
+        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
         variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
         isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
         RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
-        FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. <b>Range:</b> 0 to 1',
+        FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus in Gencode v48',
         GencodeGeneName: 'Gencode v48 gene name',
         GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
@@ -1138,78 +1138,108 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    const computeMotifFrequenciesTableRows = (frequenciesString) => {
+        if (!frequenciesString) {
+            return []
+        }
+        const items = frequenciesString.split(',')
+        let total = 0
+        let motifCounts = {}
+        let efficientMotifs = {}
+        for (let i = 0; i < items.length; i++) {
+            let motif, efficientMotif, count
+            if (items[i].indexOf(':') < 3) {
+                [motif, count] = items[i].split(':')
+                efficientMotif = ''
+            } else {
+                [motif, efficientMotif, count] = items[i].split(':')
+            }
+            count = parseInt(count)
+            motif = motif.trim()
+            motifCounts[motif] = count
+            efficientMotifs[motif] = efficientMotif.trim()
+            total += count
+        }
+
+        // convert counts to fractions
+        let motifCount = 0
+        let homopolymerMotifCount = 0
+        for (let motif in motifCounts) {
+            motifCounts[motif] /= total
+            if (motifCounts[motif] >= 0.01) {
+                motifCount += 1
+                if (motif.length == 1) {
+                    homopolymerMotifCount += 1
+                }
+            }
+        }
+
+        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
+            return []
+        }
+
+        const truncateMotifAt = 35
+        let resultMotifs = []
+        for (let motif in motifCounts) {
+            let motifRow
+            let motifPercentString
+            if (motifCounts[motif] >= 0.01) {
+                motifRow = '<tr>'
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
+            } else {
+                motifRow = `<tr style='color:#AAAAAA'>`
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
+            }
+            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
+            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
+            if (efficientMotifs[motif]) {
+                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                if (efficientMotifs[motif] != motif) {
+                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
+                } else {
+                    motifRow += '<i>same as motif</i>'
+                }
+                motifRow += `</span></td>`
+            } else {
+                motifRow += `<td><i>unavailable</i></td>`
+            }
+            motifRow += '</tr>'
+
+            resultMotifs.push(motifRow)
+        }
+
+        return resultMotifs
+    }
+
+    const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
+        const helpText = `
+        Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies.
+        Percentages represent what fraction of the 94 haplotype sequences is covered by each motif.
+        `
+
+        let result = ''
+        result += `<div class='info-font-size' style='display: flex; flex-direction: column; align-items: center'>`
+        if (showTitle) {
+            result += `<span style='font-weight: bold; margin-bottom: 20px'>Motif Variability <i class='question circle icon link' style='margin-left: 15px;' data-html='${helpText}'></i></span>`
+        }
+        result += `<table style='border-spacing: 20px 3px'>`
+        result += `<tr><td><b>Frequency</b></td><td><b>Motif</b></td><td><span style='white-space: nowrap'><b>Efficient Motif</b></span></td></tr>`
+        result += `${motifFrequencyTableRows.join('')}`
+        result += `</table>`
+        result += '</div>'
+        if (!showTitle) {
+            result += `<br /><div style='text-align: justify; color: #555555' ><b>Details:</b> ${helpText}</div>`
+        }
+        return result
+    }
+
     const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
         if (!frequenciesString) {
             return ''
         }
 
         try {
-            const items = frequenciesString.split(',')
-            let total = 0
-            let motifCounts = {}
-            let efficientMotifs = {}
-            for (let i = 0; i < items.length; i++) {
-                let motif, efficientMotif, count
-                if (items[i].indexOf(':') < 3) {
-                    [motif, count] = items[i].split(':')
-                    efficientMotif = ''
-                } else {
-                    [motif, efficientMotif, count] = items[i].split(':')
-                }
-                count = parseInt(count)
-                motif = motif.trim()
-                motifCounts[motif] = count
-                efficientMotifs[motif] = efficientMotif.trim()
-                total += count
-            }
-
-            // convert counts to fractions
-            let motifCount = 0
-            let homopolymerMotifCount = 0
-            for (let motif in motifCounts) {
-                motifCounts[motif] /= total
-                if (motifCounts[motif] >= 0.01) {
-                    motifCount += 1
-                    if (motif.length == 1) {
-                        homopolymerMotifCount += 1
-                    }
-                }
-            }
-
-            if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
-                return ''
-            }
-
-            const truncateMotifAt = 35
-            let resultMotifs = []
-            for (let motif in motifCounts) {
-                let motifRow
-                let motifPercentString
-                if (motifCounts[motif] >= 0.01) {
-                    motifRow = '<tr>'
-                    motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
-                } else {
-                    motifRow = `<tr style='color:#AAAAAA'>`
-                    motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
-                }
-                motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
-                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
-                if (efficientMotifs[motif]) {
-                    motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
-                    if (efficientMotifs[motif] != motif) {
-                        motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
-                    } else {
-                        motifRow += '<i>same as motif</i>'
-                    }
-                    motifRow += `</span></td>`
-                } else {
-                    motifRow += `<td><i>unavailable</i></td>`
-                }
-                motifRow += '</tr>'
-
-                resultMotifs.push(motifRow)
-            }
-
+            let resultMotifs = computeMotifFrequenciesTableRows(frequenciesString)
             const totalMotifs = resultMotifs.length
 
             if (maxRowsToShow && resultMotifs.length > maxRowsToShow) {
@@ -1217,10 +1247,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 resultMotifs.push(`<tr><td colspan='3' style='text-align:center; color:#AAAAAA'><i>... ${Object.keys(motifCounts).length - maxRowsToShow} more motifs. See locus page ...</i></td></tr>`)
             }
 
-            let data_html = `<table style='border-spacing: 20px 3px'><tr><td><b>Frequency</b></td><td><b>Motif</b></td><td><span style='white-space: nowrap'><b>Efficient Motif</b></span></td></tr>${resultMotifs.join('')}</table><br />`
-            data_html += `<b>Details:</b> Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies. Percentages represent what fraction of the 94 haplotype sequences that is covered by each motif.<br /><br />`
-
-            return `<span class="show-popup action-link" data-html="${data_html}">${totalMotifs} motifs</span>`
+            if (totalMotifs > 0) {
+                const dataHtml = computeMotifFrequenciesTableHtml(resultMotifs)
+                return `<span class="show-popup action-link" data-html="${dataHtml}">${totalMotifs} motifs</span>`
+            } else {
+                return ''
+            }
         } catch (e) {
             console.error('Error parsing motif frequencies string:', e)
             return ''
@@ -1598,10 +1630,7 @@ gtag('config', 'G-6R8FPBQRFH');
         let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
 
         if (nStdevsNotAvailable == stdevColumns.length) {
-            polymorphismDialogContent1 += `
-                    <span style="color: #686868;">No polymorphism data available.</span>
-                    <br /><br />
-            `
+            polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
         } else {
             polymorphismDialogContent1 += `
                 <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>

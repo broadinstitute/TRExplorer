@@ -61,16 +61,23 @@
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
+        <div class="four wide column"></div>
+        <div class="eight wide column" style="display: flex; justify-content: center">
+            <div id="locus-page-efficient-motifs"></div>
+        </div>
+        <div class="four wide column"></div>
+    </div>
+    <div class="ui row">
         <div class="three wide column"></div>
         <div class="ten wide column">
-            <div id="locus-page-results-area" style="position: relative; z-index: 100;"></div>
+            <div id="locus-page-polymorphism-data" style="position: relative; z-index: 100;"></div>
         </div>
         <div class="three wide column"></div>
     </div>
 </div>
+<div style="min-height: 50px;"></div>
 
 <script>
-
     $('body').css('cursor', 'wait')
 
     const REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE = [
@@ -196,7 +203,6 @@
                 $('#show-igv-divider-text').show()
             })
         }
-
     })
 
     const displayError = (message) => {
@@ -227,7 +233,7 @@
         locusPageRow1Box1 += `<tr><td colspan="3" style="padding-top: 30px"></td></tr>`
         locusPageRow1Box1 += `<tr><td colspan="3" style="position: relative"><div style="position: absolute; top: 0px; left: 0px; z-index: 1000">`
         locusPageRow1Box1 += `<div class="locus-info-label" style="padding-bottom: 10px">Repeat sequence in hg38:</div>`
-        locusPageRow1Box1 += `${showTruncatedSequence(row['ReferenceRepeatSequence'], 140, true, false, true)}`
+        locusPageRow1Box1 += `${showTruncatedSequence(row['ReferenceRepeatSequence'], 100, true, false, true)}`
         locusPageRow1Box1 += `</div></td></tr>`
         locusPageRow1Box1 += '</table>'
 
@@ -252,22 +258,33 @@
         const homePageUrl = `index.html?#${urlArgs}`
 
         let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left Flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
+        locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
         locusPageRow2Box1 += `<div style="padding-top: 20px"><a href="${homePageUrl}" style="font-size: 1.1em">&lt; Back to search page</a></div>`
         locusPageRow2Box1 += `</div>`
         $("#locus-page-row2-box1").html(locusPageRow2Box1)
 
         let locusPageRow2Box2 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box2 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Right Flank:</div>${showTruncatedSequence(row['ReferenceRightFlank'], 58, true, false, true)}`
+        locusPageRow2Box2 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Right flank:</div>${showTruncatedSequence(row['ReferenceRightFlank'], 58, true, false, true)}`
         locusPageRow2Box2 += `</div>`
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
 
-        // Generate the rest of the page
-        $('#locus-page-results-area').html('')
+        const motifFrequencyTableRows = computeMotifFrequenciesTableRows(row['VamosMotifFrequencies'])
+        let motifFrequencyTableHtml
+        if (motifFrequencyTableRows.length > 1) {
+            motifFrequencyTableHtml = computeMotifFrequenciesTableHtml(motifFrequencyTableRows, true)
+            motifFrequencyTableHtml = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${motifFrequencyTableHtml}</div>`
+        } else {
+            motifFrequencyTableHtml = ''
+        }
+        $('#locus-page-efficient-motifs').html(motifFrequencyTableHtml)
 
-        const locusPageContent = generatePolymorphismDialogContent1(row)
-        $('#locus-page-results-area').html(locusPageContent.replace(/\s+/g, ' ').trim())
+        // Generate the rest of the page
+        $('#locus-page-polymorphism-data').html('')
+
+        let polymorphismContent1 = generatePolymorphismDialogContent1(row)
+        polymorphismContent1 = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent1}</div>`
+        $('#locus-page-polymorphism-data').html(polymorphismContent1.replace(/\s+/g, ' ').trim())
 
         renderChartsInPolymorphismDialog(row);
 
