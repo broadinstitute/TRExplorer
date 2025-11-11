@@ -94,7 +94,7 @@
         }
     }
 
-    const drawPeriodicityMatrix = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
 
         const separatorPositions = []
         const filteredSequenceChars = []
@@ -290,7 +290,7 @@
     const useBackwardLook = false
 
     const periodicityCanvas = document.getElementById("periodicityMatrixCanvas")
-    const periodicityMatrix = drawPeriodicityMatrix(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
+    const periodicityMatrix = plotPeriodicityPlot(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
 
     const barPlotContainer = document.getElementById("barPlotContainer")
     buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)

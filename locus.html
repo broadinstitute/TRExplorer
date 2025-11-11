@@ -1001,7 +1001,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    const drawPeriodicityMatrix = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
 
         const separatorPositions = []
         const filteredSequenceChars = []
@@ -1197,7 +1197,7 @@ gtag('config', 'G-6R8FPBQRFH');
     const useBackwardLook = false
 
     const periodicityCanvas = document.getElementById("periodicityMatrixCanvas")
-    const periodicityMatrix = drawPeriodicityMatrix(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
+    const periodicityMatrix = plotPeriodicityPlot(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
 
     const barPlotContainer = document.getElementById("barPlotContainer")
     buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)
@@ -1727,7 +1727,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ManeTranscriptId: 'MANE v1.4 transcript ID',
         HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
-        dotPlot: 'Dot plot visualization of the reference sequence and flanking sequences',
+        dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
 
     /*
@@ -1785,13 +1785,12 @@ gtag('config', 'G-6R8FPBQRFH');
         igv_custom_track_url_3: '',
     }
 
-
+    // set default IGV.js tracks
     ALL_AVAILABLE_TRACKS.forEach((rt) => {
         DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
     })
-
     DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
-    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
+    DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
 
 
     // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
@@ -2066,7 +2065,7 @@ gtag('config', 'G-6R8FPBQRFH');
         `
     }
 
-    const generatePolymorphismDialogContent1 = (row) => {
+    const generatePolymorphismDialogContent = (row) => {
         const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
         const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
 
@@ -2538,16 +2537,17 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Dot Plot',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
-                const flankSize = Math.max(24, parseInt(row["MotifSize"]) * 5)
+                const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
                 const inputSequence = [
                     row["ReferenceLeftFlank"].slice(-flankSize),
                     row["ReferenceRepeatSequence"],
                     row["ReferenceRightFlank"].slice(0, flankSize),
                 ].join('|')
-                return `<canvas class="dotPlot" data-seq="${inputSequence}" style="width:48px; height:48px"></canvas>`
+
+                return `<canvas class="dotPlot" data-seq="${inputSequence}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
             },
             getSortColumns: () => ['ReferenceRepeatSequence'],
-            getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'MotifSize'],
+            getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         }
     }
 </script>
@@ -2925,7 +2925,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Generate the tables at the top of the page
         let locusPageRow1Box1 = '<table class="locus-info-table">'
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV.js</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, 35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, 35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
@@ -2944,8 +2944,6 @@ gtag('config', 'G-6R8FPBQRFH');
         $("#locus-page-row1-box1").html(locusPageRow1Box1)
 
         let locusPageRow1Box2 = '<table class="locus-info-table">'
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Source:</td><td>${TABLE_COLUMNS['Source'].getValue(row)}</td><td>${getHelpIcon('Source')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row) || ''}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene:</td><td>${TABLE_COLUMNS['GencodeGeneName'].getValue(row) || ''}</td><td>${getHelpIcon('GencodeGeneName')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Region:</td><td>${TABLE_COLUMNS['GencodeGeneRegion'].getValue(row)  || ''}</td><td>${getHelpIcon('GencodeGeneRegion')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene Id:</td><td>${TABLE_COLUMNS['GencodeGeneId'].getValue(row) || ''}</td><td>${getHelpIcon('GencodeGeneId')}</td></tr>`
@@ -2953,6 +2951,8 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row) || ''}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row) || ''}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row) || ''}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row) || ''}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Source:</td><td>${TABLE_COLUMNS['Source'].getValue(row)}</td><td>${getHelpIcon('Source')}</td></tr>`
         locusPageRow1Box2 += '</table> <br />'
 
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
@@ -2986,7 +2986,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // Generate the rest of the page
         $('#locus-page-polymorphism-data').html('')
 
-        let polymorphismContent1 = generatePolymorphismDialogContent1(row)
+        let polymorphismContent1 = generatePolymorphismDialogContent(row)
         polymorphismContent1 = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent1}</div>`
         $('#locus-page-polymorphism-data').html(polymorphismContent1.replace(/\s+/g, ' ').trim())
 
