@@ -596,10 +596,10 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const AXIS_UNITS = {
-        'HPRC100_AlleleHistogram': 'Repeats: LPS',
-        'TenK10K_AlleleHistogram': 'Repeats',
-        'AlleleFrequenciesFromIllumina174k': 'Repeats',
-        'AlleleFrequenciesFromT2TAssemblies': 'Repeats',
+        'HPRC100_AlleleHistogram': 'Repeat Count: LPS',
+        'TenK10K_AlleleHistogram': 'Repeat Count',
+        'AlleleFrequenciesFromIllumina174k': 'Repeat Count',
+        'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
         'HPRC100_BiallelicHistogram': 'Repeat Count: LPS',
         'TenK10K_BiallelicHistogram': 'Repeat Count',
     }
@@ -2483,7 +2483,7 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td style="font-size:0.9em !important">${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
         locusPageRow1Box1 += `<tr><td colspan="3" style="padding-top: 30px"></td></tr>`
         locusPageRow1Box1 += `<tr><td colspan="3" style="position: relative"><div style="position: absolute; top: 0px; left: 0px; z-index: 1000">`
         locusPageRow1Box1 += `<div class="locus-info-label" style="padding-bottom: 10px">Repeat sequence in hg38:</div>`
@@ -2495,14 +2495,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
         let locusPageRow1Box2 = '<table class="locus-info-table">'
         locusPageRow1Box2 += `<tr><td class="locus-info-label">Source:</td><td>${TABLE_COLUMNS['Source'].getValue(row)}</td><td>${getHelpIcon('Source')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row)}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene:</td><td>${TABLE_COLUMNS['GencodeGeneName'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneName')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Region:</td><td>${TABLE_COLUMNS['GencodeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneRegion')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene Id:</td><td>${TABLE_COLUMNS['GencodeGeneId'].getValue(row)}</td><td>${getHelpIcon('GencodeGeneId')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene:</td><td>${TABLE_COLUMNS['ManeGeneName'].getValue(row)}</td><td>${getHelpIcon('ManeGeneName')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row)}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
-        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row)}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Repeat Masker:</td><td>${TABLE_COLUMNS['RepeatMaskerIntervals'].getValue(row) || ''}</td><td>${getHelpIcon('RepeatMaskerIntervals')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene:</td><td>${TABLE_COLUMNS['GencodeGeneName'].getValue(row) || ''}</td><td>${getHelpIcon('GencodeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Region:</td><td>${TABLE_COLUMNS['GencodeGeneRegion'].getValue(row)  || ''}</td><td>${getHelpIcon('GencodeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">Gencode Gene Id:</td><td>${TABLE_COLUMNS['GencodeGeneId'].getValue(row) || ''}</td><td>${getHelpIcon('GencodeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene:</td><td>${TABLE_COLUMNS['ManeGeneName'].getValue(row) || ''}</td><td>${getHelpIcon('ManeGeneName')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row) || ''}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row) || ''}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
+        locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row) || ''}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
         locusPageRow1Box2 += '</table> <br />'
 
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
