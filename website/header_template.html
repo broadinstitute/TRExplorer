@@ -593,6 +593,15 @@ gtag('config', 'G-6R8FPBQRFH');
         'StdevFromT2TAssemblies': 'T2T',
     }
 
+    const AXIS_UNITS = {
+        'HPRC100_AlleleHistogram': 'Repeats: LPS',
+        'TenK10K_AlleleHistogram': 'Repeats',
+        'AlleleFrequenciesFromIllumina174k': 'Repeats',
+        'AlleleFrequenciesFromT2TAssemblies': 'Repeats',
+        'HPRC100_BiallelicHistogram': 'Repeat Count: LPS',
+        'TenK10K_BiallelicHistogram': 'Repeat Count',
+    }
+
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
         'HPRC100_AlleleHistogram': 'HPRC100',
         'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
@@ -791,7 +800,6 @@ gtag('config', 'G-6R8FPBQRFH');
         // Get current hash to check if state has changed
         const currentHash = window.location.hash
         if (currentHash !== hash) {
-            console.log('setting hash from', currentHash, 'to', hash)
             // Update URL and add to browser history
             window.history.pushState(null, '', hash)
         }
@@ -1265,6 +1273,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const chartHeight = chartData.chartHeight
         const minAlleleSize = chartData.minAlleleSize
         const maxAlleleSize = chartData.maxAlleleSize
+        const axisUnits = chartData.axisUnits
 
         const chartLabel = chartData.label
 
@@ -1345,7 +1354,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     x: {
                         title: {
                             display: true,
-                            text: 'Repeat Count',
+                            text: axisUnits,
                             font: {
                                 size: 13
                             },
@@ -1420,7 +1429,6 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const createBiallelicHistogramChart = (chartData) => {
-        let data = chartData.data
         let lookup = chartData.lookup
         const thisObj = chartData.thisObj
         const refAlleleSize = chartData.refAlleleSize
@@ -1428,10 +1436,12 @@ gtag('config', 'G-6R8FPBQRFH');
         const chartHeight = chartData.chartHeight
         const minAlleleSize = chartData.minAlleleSize - 1
         const maxAlleleSize = chartData.maxAlleleSize + 1
+        const axisUnits = chartData.axisUnits
 
         // Find the range of allele sizes
-        const allShortAlleles = data.map(d => d.y)
-        const allLongAlleles = data.map(d => d.x)
+        //let data = chartData.data
+        //const allShortAlleles = data.map(d => d.y)
+        //const allLongAlleles = data.map(d => d.x)
 
         // Calculate bin size if range exceeds 30
         const maxBins = 20
@@ -1519,7 +1529,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         labels: longAlleleLabels,
                         title: {
                             display: true,
-                            text: 'Long allele (repeats)',
+                            text: `Long allele (${axisUnits})`,
                             font: {
                                 size: 12
                             }
@@ -1535,7 +1545,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         labels: shortAlleleLabels,
                         title: {
                             display: true,
-                            text: 'Short allele (repeats)',
+                            text: `Short allele (${axisUnits})`,
                             font: {
                                 size: 12
                             }
@@ -1686,13 +1696,12 @@ gtag('config', 'G-6R8FPBQRFH');
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
             `
 
-            for (const column of alleleFrequencyColumns) {
-                if (row[column] != null) {
+            for (const columnName of alleleFrequencyColumns) {
+                if (row[columnName] != null) {
                     polymorphismDialogContent1 += `
-
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
+                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${row.NumRepeatsInReference}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
                         </div>
                     `
                 }
@@ -1707,12 +1716,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 <div style="margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
             `
-            for (const column of biallelicHistogramColumns) {
-                if (row[column] != null) {
+            for (const columnName of biallelicHistogramColumns) {
+                if (row[columnName] != null) {
                     polymorphismDialogContent1 += `
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[column]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[column]}</span></div>
-                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[column]}" data-frequencies-column="${column}" data-ref-allele-size="${row.NumRepeatsInReference}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
+                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${row.NumRepeatsInReference}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
                         </div>
                     `
                 }
@@ -1738,6 +1747,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 frequencies: frequencies,
                 thisObj: this,
                 refAlleleSize: $(this).data('ref-allele-size'),
+                axisUnits: $(this).data('axis-units'),
                 chartWidth: $(this).data('chart-width'),
                 chartHeight: $(this).data('chart-height'),
                 label: $(this).data('label'),
@@ -1770,6 +1780,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 lookup: lookup,
                 thisObj: this,
                 refAlleleSize: $(this).data('ref-allele-size'),
+                axisUnits: $(this).data('axis-units'),
                 chartWidth: $(this).data('chart-width'),
                 chartHeight: $(this).data('chart-height'),
                 label: $(this).data('label'),
@@ -1792,7 +1803,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const getAlleleHistogramColumnValue = (row, columnName) => {
         if (row[columnName] ) {
-            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" style="width: 100%; height: 100px"></canvas>`
+            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${row['NumRepeatsInReference']}" data-axis-units="${AXIS_UNITS[columnName]}" style="width: 100%; height: 100px"></canvas>`
         } else {
             let otherHistograms = ''
             for ( const c of ALL_STDEV_COLUMNS ) {
