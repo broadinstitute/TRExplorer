@@ -2539,13 +2539,10 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
                 const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
-                const inputSequence = [
-                    row["ReferenceLeftFlank"].slice(-flankSize),
-                    row["ReferenceRepeatSequence"],
-                    row["ReferenceRightFlank"].slice(0, flankSize),
-                ].join('|')
+                const leftFlank = row["ReferenceLeftFlank"].slice(-flankSize)
+                const rightFlank = row["ReferenceRightFlank"].slice(0, flankSize)
 
-                return `<canvas class="dotPlot" data-seq="${inputSequence}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
+                return `<canvas class="dotPlot" data-repeat-seq="${row["ReferenceRepeatSequence"]}" data-left-flank="${leftFlank}" data-right-flank="${rightFlank}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
             },
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
@@ -2739,6 +2736,8 @@ gtag('config', 'G-6R8FPBQRFH');
             <br /><br />
             <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
             <div id="dot-plot-dialog-bar-plot"></div>
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Sequences</b></div>
+            <div id="dot-plot-dialog-sequences"></div>
         </div>
     </div>
 </div>
@@ -3861,11 +3860,16 @@ gtag('config', 'G-6R8FPBQRFH');
             const flankWidth = $(this).data('flank-width')
             const motif = $(this).data('motif')
 
-            const sequence = $(this).data('seq')
+            const leftFlank = $(this).data('left-flank')
+            const repeatSeq = $(this).data('repeat-seq')
+            const rightFlank = $(this).data('right-flank')
+            const sequence = [leftFlank, repeatSeq, rightFlank].join('|')
+
             const pixelsPerCell = 2 // higher number increases resolution
             plotDotPlot(this, sequence, pixelsPerCell, false)
             $(this).click(() => {
                 $('#dot-plot-dialog-header').html(`${referenceRegion} locus: ${referenceRegionSize}bp repeat +/- ${flankWidth}bp flanks; ${numRepeatsInReference} x ${motif}`)
+
                 const dotPlotPixelsPerCell = 10
                 const dotPlotDialogCanvas = $('#dot-plot-dialog-canvas').get(0)
                 plotDotPlot(dotPlotDialogCanvas, sequence, dotPlotPixelsPerCell, false)
@@ -3888,6 +3892,13 @@ gtag('config', 'G-6R8FPBQRFH');
                 const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
                 buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)
 
+                $('#dot-plot-dialog-sequences').html(`
+                <table>
+                <tr><td style="padding-right:50px">Left Flank:</td><td><span style="font-family: monospace">${leftFlank}</span></td></tr>
+                <tr><td>Repeat Sequence:</td><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
+                <tr><td>Right Flank:</td><td><span style="font-family: monospace">${rightFlank}</span></td></tr>
+                </table>
+                `)
                 $('#dot-plot-dialog').modal('show')
             })
         })

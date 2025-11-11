@@ -2538,13 +2538,10 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
                 const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
-                const inputSequence = [
-                    row["ReferenceLeftFlank"].slice(-flankSize),
-                    row["ReferenceRepeatSequence"],
-                    row["ReferenceRightFlank"].slice(0, flankSize),
-                ].join('|')
+                const leftFlank = row["ReferenceLeftFlank"].slice(-flankSize)
+                const rightFlank = row["ReferenceRightFlank"].slice(0, flankSize)
 
-                return `<canvas class="dotPlot" data-seq="${inputSequence}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
+                return `<canvas class="dotPlot" data-repeat-seq="${row["ReferenceRepeatSequence"]}" data-left-flank="${leftFlank}" data-right-flank="${rightFlank}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
             },
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
