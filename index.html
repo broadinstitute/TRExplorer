@@ -1002,7 +1002,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false, startWithPeriod=1, endWithPeriod=24) => {
 
         const separatorPositions = []
         const filteredSequenceChars = []
@@ -1017,9 +1017,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
         let matrix
         if (useBackwardLook) {
-            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, 1, 24)
+            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, startWithPeriod, endWithPeriod)
         } else {
-            matrix = generatePeriodicityMatrix(filteredSequence, 1, 24)
+            matrix = generatePeriodicityMatrix(filteredSequence, startWithPeriod, endWithPeriod)
         }
 
 
@@ -3874,12 +3874,16 @@ gtag('config', 'G-6R8FPBQRFH');
                 const periodicityPlotPixelsPerCell = 10
                 const minRunLength = 3
                 const useBackwardLook = false
+                const endWithPeriod = Math.max(motif.length * 2, 12)
                 const periodicityMatrix = plotPeriodicityPlot(
                     dotPlotDialogPeriodicityPlotCanvas,
                     sequence,
                     periodicityPlotPixelsPerCell,
                     minRunLength,
-                    useBackwardLook)
+                    useBackwardLook,
+                    1,
+                    endWithPeriod,
+                )
 
                 const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
                 buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)

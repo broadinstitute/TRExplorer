@@ -1170,12 +1170,16 @@
                 const periodicityPlotPixelsPerCell = 10
                 const minRunLength = 3
                 const useBackwardLook = false
+                const endWithPeriod = Math.max(motif.length * 2, 12)
                 const periodicityMatrix = plotPeriodicityPlot(
                     dotPlotDialogPeriodicityPlotCanvas,
                     sequence,
                     periodicityPlotPixelsPerCell,
                     minRunLength,
-                    useBackwardLook)
+                    useBackwardLook,
+                    1,
+                    endWithPeriod,
+                )
 
                 const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
                 buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)

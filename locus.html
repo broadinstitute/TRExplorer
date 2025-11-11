@@ -1001,7 +1001,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false, startWithPeriod=1, endWithPeriod=24) => {
 
         const separatorPositions = []
         const filteredSequenceChars = []
@@ -1016,9 +1016,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
         let matrix
         if (useBackwardLook) {
-            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, 1, 24)
+            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, startWithPeriod, endWithPeriod)
         } else {
-            matrix = generatePeriodicityMatrix(filteredSequence, 1, 24)
+            matrix = generatePeriodicityMatrix(filteredSequence, startWithPeriod, endWithPeriod)
         }
 
 
