@@ -1,0 +1,340 @@
+<script>
+    /** --------- START of utils for polymorphism charts  ---------- */
+
+    const createAlleleFrequencyChart = (chartData) => {
+        const frequencies = chartData.frequencies
+        const thisObj = chartData.thisObj
+        const refAlleleSize = chartData.refAlleleSize
+        const chartWidth = chartData.chartWidth
+        const chartHeight = chartData.chartHeight
+        const minAlleleSize = chartData.minAlleleSize
+        const maxAlleleSize = chartData.maxAlleleSize
+        const axisUnits = chartData.axisUnits
+
+        const chartLabel = chartData.label
+
+        //frequencies.sort((a, b) => a.size - b.size)
+
+        const yLookup = {}
+        const xLabels =  []
+        const colors = []
+        const borderColors = []
+        for (let i = minAlleleSize - 1; i <= maxAlleleSize + 1; i++) {
+            xLabels.push(i)
+            yLookup[i] = 0
+        }
+        for (let x of xLabels) {
+            yLookup[x] = frequencies.find(f => f.size === x)?.count || 0
+            colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
+            borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
+        }
+
+        // Destroy any existing chart on this canvas
+        const existingChart = Chart.getChart(thisObj);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+
+        //set y-limit to the nearest whole power of 10 divided by 2, rounding up
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...frequencies.map(f => f.count))))) / 2
+        new Chart(thisObj, {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: xLabels.map(d => yLookup[d]),
+                    backgroundColor: colors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'end',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 5,
+                            font: {
+                                size: 12
+                            },
+                            generateLabels: function(chart) {
+                                return [{
+                                    text: `Ref. Allele: ${refAlleleSize} repeats`,
+                                    fillStyle: 'rgba(255, 165, 0, 0.7)',
+                                    strokeStyle: 'rgba(255, 165, 0, 1)',
+                                    lineWidth: 1,
+                                    hidden: false,
+                                    index: 0
+                                }]
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Count: ${context.raw}`
+                            }
+                        },
+                        position: 'nearest',
+                        yAlign: 'bottom'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: axisUnits,
+                            font: {
+                                size: 13
+                            },
+                        },
+                        ticks: {
+                            font: {
+                                size: 13
+                            },
+                        }
+                    },
+                    y: {
+                        type: 'logarithmic',
+                        min: 0,
+                        max: parseInt(yLimit),
+                        title: {
+                            display: true,
+                            text: '# of alleles',
+                            font: {
+                                size: 13
+                            },
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (Math.floor(value) === value) {
+                                    return parseInt(value)
+                                }
+                            },
+                            font: {
+                                size: 13
+                            },
+                        },
+                        afterBuildTicks: (axis) => {
+                            const ticks = [0, 3, 10, 30, 100, 300, 1000, 3000, 10000]
+                            axis.ticks = ticks.filter(t => t <= axis.max).map(t => ({value: t}))
+                        }
+                    }
+                }
+            }
+        })
+
+        thisObj.style.minWidth = chartWidth
+
+        thisObj.style.height = chartHeight
+        thisObj.style.minHeight = chartHeight
+        thisObj.style.maxHeight = chartHeight
+    }
+
+    const parseBiallelicHistogramString = function(frequenciesString) {
+        // example: frequencies = "2/2:58,2/3:34,3/3:4"
+        const data = []
+        const lookup = {}
+        const items = frequenciesString.split(',')
+        for (let i = 0; i < items.length; i++) {
+            try {
+                const value = items[i].split(':')
+                const genotype = value[0].split('/')
+                const allele1 = parseInt(genotype[0])
+                const allele2 = parseInt(genotype[1])
+                const shortAlleleSize = Math.min(allele1, allele2)
+                const longAlleleSize = Math.max(allele1, allele2)
+                const count = parseInt(value[1])
+                data.push({ x: longAlleleSize, y: shortAlleleSize, v: count})
+                lookup[`${shortAlleleSize}/${longAlleleSize}`] = count
+            } catch (e) {
+                console.error('Error parsing biallelic histogram string:', e)
+                return [[], {}]
+            }
+        }
+
+        return [data, lookup]
+    }
+
+    const createBiallelicHistogramChart = (chartData) => {
+        let lookup = chartData.lookup
+        const thisObj = chartData.thisObj
+        const refAlleleSize = chartData.refAlleleSize
+        const chartWidth = chartData.chartWidth
+        const chartHeight = chartData.chartHeight
+        const minAlleleSize = chartData.minAlleleSize - 1
+        const maxAlleleSize = chartData.maxAlleleSize + 1
+        const axisUnits = chartData.axisUnits
+
+        // Find the range of allele sizes
+        let data = chartData.data
+        //const allShortAlleles = data.map(d => d.y)
+        //const allLongAlleles = data.map(d => d.x)
+
+        // Calculate bin size if range exceeds 30
+        const maxBins = 20
+        const needsBinning = (maxAlleleSize - minAlleleSize) > maxBins
+        const binSize = needsBinning ? Math.ceil((maxAlleleSize - minAlleleSize) / maxBins) : 1
+
+        // Create labels for both axes
+        const shortAlleleLabels = []
+        const longAlleleLabels = []
+
+        // Create binned or regular labels
+        for (let i = Math.max(0, minAlleleSize - binSize); i <= maxAlleleSize + binSize; i += binSize) {
+            const binEnd = i + binSize
+            const label = needsBinning ? `${i}-${binEnd}` : i
+            shortAlleleLabels.push(label)
+            longAlleleLabels.push(label)
+        }
+
+        if (needsBinning) {
+            data = []
+            for (const shortAlleleLabel of shortAlleleLabels) {
+                for (const longAlleleLabel of longAlleleLabels) {
+                    let binCount = 0
+                    const shortAlleleStart = parseInt(shortAlleleLabel.split('-')[0])
+                    const shortAlleleEnd = parseInt(shortAlleleLabel.split('-')[1])
+                    const longAlleleStart = parseInt(longAlleleLabel.split('-')[0])
+                    const longAlleleEnd = parseInt(longAlleleLabel.split('-')[1])
+                    for (let short = shortAlleleStart; short < shortAlleleEnd; short++) {
+                        for (let long = longAlleleStart; long < longAlleleEnd; long++) {
+                            const value = lookup[`${short}/${long}`]
+                            if (value) {
+                                binCount += value
+                            }
+                        }
+                    }
+                    data.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCount})
+                }
+            }
+
+            lookup = {}
+            for (const d of data) {
+                if (d.v > 0) {
+                    lookup[`${d.y}/${d.x}`] = d.v
+                }
+            }
+        }
+
+        // Calculate maxCount from the binned data
+        const maxCount = Math.max(...data.map(d => d.v))
+
+        // Destroy any existing chart
+        const existingChart = Chart.getChart(thisObj)
+        if (existingChart) {
+            existingChart.destroy()
+        }
+
+        // Create the chart
+        new Chart(thisObj, {
+            type: 'matrix',
+            data: {
+                datasets: [{
+                    data: data,
+                    backgroundColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex].v
+                        if (value === 0) return 'rgba(255, 255, 255, 0)'
+                        const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
+                        return `rgba(33, 133, 208, ${alpha})`
+                    },
+                    borderColor: 'rgba(0, 0, 0, 0.5)',
+                    borderWidth: function(context) {
+                        const value = context.dataset.data[context.dataIndex].v
+                        if (value === 0) return 0
+                        return 1
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        type: 'category',
+                        offset: false,  // Remove offset to center labels
+                        labels: longAlleleLabels,
+                        title: {
+                            display: true,
+                            text: `Long allele (${axisUnits})`,
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: true
+                        }
+                    },
+                    y: {
+                        type: 'category',
+                        offset: false,  // Remove offset to center labels
+                        reverse: true,  // Reverse y-axis
+                        labels: shortAlleleLabels,
+                        title: {
+                            display: true,
+                            text: `Short allele (${axisUnits})`,
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: true
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        displayColors: false,
+                        callbacks: {
+                            title: function(context) {
+                                const c = context[0]
+                                const value = c.dataset.data[c.dataIndex].v
+                                if (value === 0) return ''
+                                const shortLabel = shortAlleleLabels[c.parsed.y]
+                                const longLabel = longAlleleLabels[c.parsed.x]
+                                // if it's a bin, show the range
+                                if (typeof shortLabel === 'string' && typeof longLabel === 'string' && shortLabel.includes('-') && longLabel.includes('-')) {
+                                    const shortStart = parseInt(shortLabel.split('-')[0])
+                                    const shortEnd = parseInt(shortLabel.split('-')[1])
+                                    const longStart = parseInt(longLabel.split('-')[0])
+                                    const longEnd = parseInt(longLabel.split('-')[1])
+                                    return `Genotype Bin:\n${longStart} ≤ long  allele < ${longEnd}\n${shortStart} ≤ short allele < ${shortEnd}`
+                                } else {
+                                    return `Genotype: ${shortLabel}/${longLabel}`
+                                }
+                            },
+                            label: function(context) {
+                                const c = context
+                                const value = c.dataset.data[c.dataIndex].v
+                                if (value === 0) return null
+                                const shortLabel = shortAlleleLabels[c.parsed.y]
+                                const longLabel = longAlleleLabels[c.parsed.x]
+                                const genotype = `${shortLabel}/${longLabel}`
+                                return `Individuals: ${lookup[genotype] || 0}`
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        })
+
+        thisObj.style.minWidth = chartWidth
+        thisObj.style.height = chartWidth
+        thisObj.style.minHeight = chartWidth
+        thisObj.style.maxHeight = chartWidth
+    }
+
+    /** --------- END of utils for polymorphism charts  ---------- */
+</script>

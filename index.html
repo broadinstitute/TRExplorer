@@ -22,7 +22,6 @@ gtag('js', new Date());
 gtag('config', 'G-6R8FPBQRFH');
 </script>
 
-
 <style>
     body {
         padding: 0;
@@ -500,318 +499,127 @@ gtag('config', 'G-6R8FPBQRFH');
 </style>
 
 <script>
-
-    const TR_CATALOG_BASE_URL = "https://storage.googleapis.com/tandem-repeat-catalog"
-
-    const SHARED_TR_CATALOG_SIZES = {
-        known_disease_loci: 63,
-        illumina_174k_catalog: 174300,
-        tr_explorer_catalog: 4863041,
-        tr_explorer_catalog_v2: 5543507,
+    /** --------- START of utils for dot plots  ---------- */
+    const dotPlotGenerateMatrix = (sequence) => {
+        const sequenceArray = Array.from(sequence);
+        return sequenceArray.map((baseJ) =>
+            sequenceArray.map((baseI) => (baseI === baseJ ? 1 : 0))
+        );
     }
 
-    const TR_EXPLORER_SOURCE_CATALOGS = [
-        ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
-        ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
-        ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
-        ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
-    ]
-
-    const TR_EXPLORER_CATALOG  = [
-        ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
-    ]
-
-    const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-    ];
-
-    const KNOWN_TR_LOCI_TRACK = [
-        ["igv_kd_loci", "Disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci.bed.gz`, 68],
-        ["igv_trgt_kd_loci", "TRGT repo: disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.pathogenic_repeats.hg38.bed.gz`, 56],
-        ["igv_strchive_kd_loci", "STRchive catalog for TRGT (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/STRchive-disease-loci-v2.4.0.hg38.TRGT.B2FLLAlV.bed.gz`, 73],
-    ]
-
-    const GENOME_WIDE_TR_CATALOGS = [
-        ["igv_illumina_174k", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
-        ["igv_trgt", "TRGT", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.bed.gz`, 171146, "Genome-wide catalog provided in the <a href='https://github.com/PacificBiosciences/trgt/tree/3d10c75/repeats' target='_blank'>TRGT repo</a> (downloaded March, 2025)"],
-        ["igv_ucsc_sr", "UCSC simple repeat track", `${TR_CATALOG_BASE_URL}/other_catalogs/UCSC_SimpleRepeatTrack.bed.gz`, 965511],
-        ["igv_vamos", "VAMOS v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
-        ["igv_gangstr", "GangSTR v17", `${TR_CATALOG_BASE_URL}/other_catalogs/GangSTR_v17.bed.gz`, 1340266],
-        ["igv_hipstr", "HipSTR", `${TR_CATALOG_BASE_URL}/other_catalogs/HipSTR.bed.gz`, 1638945],
-        ["igv_adotto", "Adotto v1.2", `${TR_CATALOG_BASE_URL}/other_catalogs/Adotto_v1.2.bed.gz`, 2934805],
-        ["igv_popstr", "PopSTR v2", `${TR_CATALOG_BASE_URL}/other_catalogs/PopSTR_v2.bed.gz`, 5401401],
-        ["igv_platinum_trs", "Platinum TRs", `${TR_CATALOG_BASE_URL}/other_catalogs/PlatinumTRs.bed.gz`, 7524815, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/39149261/' target=_blank>Porubsky et al. 2024</a>]"],
-        ["igv_chiu", "Chiu et al.", `${TR_CATALOG_BASE_URL}/other_catalogs/Chiu_et_al.bed.gz`, 18759399, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/38947075/' target=_blank>Chiu et al. 2024</a>]"],
-    ]
-
-    REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
-
-    const REFERENCE_TRACKS = [
-        ["igv_gencode", "Gencode v49", `${REFERENCE_BASE_URL}/gencode_v49/gencode.v49.GRCh38.sorted.txt.gz`],
-        ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
-        ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
-        ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
-        ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
-        ["igv_triplosens", "ClinGen triplosensitivity track", `${REFERENCE_BASE_URL}/clingen/ClinGen_triplosensitivity_gene_GRCh38.sorted.bed.gz`],
-        ["igv_repeatmask", "UCSC RepeatMasker", `${REFERENCE_BASE_URL}/hg38.RepeatMasker.bed.gz`],
-    ]
-
-    const ALL_AVAILABLE_TRACKS = [
-        ...TR_EXPLORER_SOURCE_CATALOGS,
-        ...TR_EXPLORER_CATALOG,
-        ...TR_VARIATION_CLUSTERS,
-        ...GENOME_WIDE_TR_CATALOGS,
-        ...KNOWN_TR_LOCI_TRACK,
-        ...REFERENCE_TRACKS,
-    ]
-
-    // initialize BigQuery client
-    const PROJECT_ID = 'cmg-analysis'
-    const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251110_195333'
-    const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
-
-    const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
-
-    const IGV_LOCUS_PADDING = 150
-    const REFERENCE_REGION_REGEXP = /^(?:chr)?([XYMTt0-9]+):([\d,]+)-([\d,]+)$/i
-
-    const ALL_STDEV_COLUMNS = [
-        'HPRC100_Stdev',
-        'AoU1027_Stdev',
-        'TenK10K_Stdev',
-        'StdevFromIllumina174k',
-        'StdevFromT2TAssemblies',
-    ]
-
-    const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC100_Stdev': 'Hprc100',
-        'AoU1027_Stdev': 'AoU1027',
-        'TenK10K_Stdev': '10k10k',
-        'StdevFromIllumina174k': '1kGP',
-        'StdevFromT2TAssemblies': 'T2T',
+    const dotPlotIsNoise = (matrix, i, j, minDiagonalRun = 3) => {
+        const size = matrix.length;
+        for (const directionJ of [1, -1]) {
+            let runLength = 0;
+            for (const direction of [1, -1]) {
+                let currentI = i;
+                let currentJ = j;
+                while (
+                    currentI >= 0 &&
+                    currentJ >= 0 &&
+                    currentI < size &&
+                    currentJ < size &&
+                    matrix[currentI][currentJ] > 0
+                    ) {
+                    currentI += direction;
+                    currentJ += direction * directionJ;
+                    runLength += 1;
+                    if (runLength >= minDiagonalRun) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
-    const AXIS_UNITS = {
-        'HPRC100_AlleleHistogram': 'Repeat Count: LPS',
-        'TenK10K_AlleleHistogram': 'Repeat Count',
-        'AlleleFrequenciesFromIllumina174k': 'Repeat Count',
-        'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
-        'HPRC100_BiallelicHistogram': 'Repeat Count: LPS',
-        'TenK10K_BiallelicHistogram': 'Repeat Count',
+    const dotPlotFilterOutNoise = (matrix, minDiagonalRun = 3, setNoiseToDifferentColor = false) => {
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix.length; j++) {
+                if (matrix[i][j] > 0 && dotPlotIsNoise(matrix, i, j, minDiagonalRun)) {
+                    matrix[i][j] = setNoiseToDifferentColor ? 2 : 0;
+                }
+            }
+        }
     }
 
-    const ALLELE_HISTOGRAM_SHORT_NAMES = {
-        'HPRC100_AlleleHistogram': 'HPRC100',
-        'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
-        'AlleleFrequenciesFromIllumina174k': '1kGP',
-        'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-        'HPRC100_BiallelicHistogram': 'HPRC100',
-        'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
-    }
-    const ALLELE_FREQUENCY_CHART_TITLES = {
-        'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
-        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
-        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
-        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
-        'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
-        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
-    }
+    function plotDotPlot(dotPlotCanvas, sequence, pixelsPerCell = 1, setNoiseToDifferentColor = false) {
 
-    const ALLELE_FREQUENCY_CHART_SUBTITLES = {
-        'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
-        'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
-        'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
-        'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
-    }
+        if (!sequence) {
+            console.warn("Sequence is empty")
+            return
+        }
+        const separatorPositions = []
+        const filteredSequenceChars = []
+        for (const c of sequence) {
+            if (c === "|") {
+                separatorPositions.push(filteredSequenceChars.length)
+            } else {
+                filteredSequenceChars.push(c)
+            }
+        }
+        const filteredSequence = filteredSequenceChars.join("")
 
-    const STDEV_HELP_TEXTS = {
-        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
-        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
-        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
-        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
-    }
-
-    const ALLELE_HISTOGRAM_HELP_TEXTS = {
-        'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
-        'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
-        'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
-        'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
-        'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
-        'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
-    }
-
-    const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
-        LocusId: 'A unique id of this TR locus in hg38',
-        ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
-        ReferenceRepeatSequence: 'The repeat sequence in hg38',
-        ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
-        ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
-        ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
-        CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
-        polymorphism: 'Summary of available polymorphism data for the TR locus',
-        Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
-        TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
-        NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
-        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
-        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
-        AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
-        VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
-        FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
-        GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus in Gencode v48',
-        GencodeGeneName: 'Gencode v48 gene name',
-        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
-        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
-        RefSeqGeneRegion: 'RefSeq gene region',
-        RefSeqGeneId: 'RefSeq gene ID',
-        RefSeqTranscriptId: 'RefSeq transcript ID',
-        RefSeqGeneName: 'RefSeq gene name',
-        ManeGeneRegion: 'MANE v1.4 gene region',
-        ManeGeneId: 'MANE v1.4 gene ID',
-        ManeGeneName: 'MANE v1.4 gene name',
-        ManeTranscriptId: 'MANE v1.4 transcript ID',
-        HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
-        TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
-    }
-
-    /*
-    const GENE_REGION_COLORS = {
-        'CDS': 'rgb(208,5,5)',
-        'exon': 'rgb(255,168,0)',
-        'intron': 'rgb(40,126,40)',
-        'intergenic': 'rgb(0,178,255)',
-        '5\' UTR': 'rgb(0,72,255)',
-        '3\' UTR': 'rgb(0,72,255)',
-        'promoter': 'rgb(93,1,196)',
-    }
-    */
-
-    const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
-    const DEFAULT_SORT_DIRECTION = 'ASC'
+        const matrix = dotPlotGenerateMatrix(filteredSequence)
+        dotPlotFilterOutNoise(matrix, 6, setNoiseToDifferentColor)
 
 
-    // persistent page state (added to the URL)
-    let DEFAULT_GLOBAL_PAGE_STATE = {
-        currentPage: 1,
-        pageSize: 100,
-
-        sc: DEFAULT_SORT_COLUMN,
-        sd: DEFAULT_SORT_DIRECTION,
-
-        showIGV: 0,
-        igvLoc: 'chr4:3074821-3074990',
-
-        showRs: 0,  //show results table
-        searchQuery: '',
-        showAdvFilters: 0,
-
-        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
-        keepMotifSize: '',
-        keepMotif: '',
-
-        keepCodingLoci: 0,
-        keepFiveUTRLoci: 0,
-        keepThreeUTRLoci: 0,
-        keepPromoterLoci: 0,
-        keepIntronLoci: 0,
-        keepIntergenicLoci: 0,
-        keepNonCodingExonLoci: 0,
-
-        polymorphismFilter: 0,
-        polymorphismFilterType: '',
-        polymorphismThreshold: '',
-        vcFilter: 0,
-        vcFilterType: '',
-
-        // Custom track URLs
-        igv_custom_track_url_1: '',
-        igv_custom_track_url_2: '',
-        igv_custom_track_url_3: '',
-    }
-
-
-    ALL_AVAILABLE_TRACKS.forEach((rt) => {
-        DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
-    })
-
-    DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
-    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
-
-
-    // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
-    const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
-        'CAG',
-        'GCC',
-        'GAA',
-        'GTC',
-        'CAGG',
-        'TTTG',
-        'GGGCC',
-        'ATTCT',
-        'GGCCCC',
-        'GGCCTG',
-        'GGCGCGGAGC',
-        'CGCGGGGCGGGG',
-        'CCTCGCTGTGCCGCTGCCGA',
-        'CCTCATGGTGGTGGCTGGGGGCAG',
-
-        /*
-        //BEAN1
-        "TAGAA",
-        "TGGAA",
-
-        //DAB1
-        "GAAAT",
-
-        //MARCHF6
-        "ATTTC",
-
-        //RAPGEF2,
-        "TTTCA",
-
-        //RFC1
-        "AAGGC",
-        "AAGGG",
-        "ACAGG",
-        "AGAGG",
-        "AGGGC",
-        */
-    ].join(', ')
-
-
-    const writePersistentPageStateToUrl = () => {
-        // Create object with only non-default values
-        const nonDefaultParams = {}
-        for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
-            if (value !== DEFAULT_GLOBAL_PAGE_STATE[key]) {
-                nonDefaultParams[key] = value
+        const size = matrix.length;
+        const scaledSize = size * pixelsPerCell;
+        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const value = matrix[i][j];
+                let r = 255, g = 255, b = 255, a = 255;
+                if (value === 1) {
+                    r = 0
+                    g = 0
+                    b = 0
+                } else if (value === 2) {
+                    r = 255
+                    g = 0
+                    b = 0
+                }
+                for (let dy = 0; dy < pixelsPerCell; dy++) {
+                    for (let dx = 0; dx < pixelsPerCell; dx++) {
+                        const scaledRow = i * pixelsPerCell + dy
+                        const scaledCol = j * pixelsPerCell + dx
+                        const pixelIndex = (scaledRow * scaledSize + scaledCol) * 4
+                        pixelData[pixelIndex] = r
+                        pixelData[pixelIndex + 1] = g
+                        pixelData[pixelIndex + 2] = b
+                        pixelData[pixelIndex + 3] = a
+                    }
+                }
             }
         }
 
-        // Convert to URL hash using jQuery's param method
-        const hash = '#' + $.param(nonDefaultParams)
+        dotPlotCanvas.width = matrix.length * pixelsPerCell
+        dotPlotCanvas.height = matrix.length * pixelsPerCell
 
-        // Get current hash to check if state has changed
-        const currentHash = window.location.hash
-        if (currentHash !== hash) {
-            // Update URL and add to browser history
-            window.history.pushState(null, '', hash)
+        const context = dotPlotCanvas.getContext("2d")
+        context.putImageData(new ImageData(pixelData, scaledSize, scaledSize), 0, 0)
+        context.fillStyle = "rgba(0, 0, 255, 1)"
+        for (const position of separatorPositions) {
+            const x = position * pixelsPerCell
+            context.fillRect(x, 0, 1.5, dotPlotCanvas.height)
         }
     }
 
-    const computeIntervalSize = (interval) => {
-        const [chrom, start_end] = interval.split(':')
-        const [start, end] = start_end.split('-')
-        return parseInt(end) - parseInt(start)
-    }
+    /*
+    Example:
+
+    const pixelsPerCell = 2 // higher number increases resolution
+    const dotPlotCanvas = document.getElementById("dotPlotCanvas")
+    plotDotPlot(dotPlotCanvas, inputSequence, pixelsPerCell, false)
+    dotPlotCanvas.style.width = "100px"
+    dotPlotCanvas.style.height = "100px"
+
+     */
+    /** --------- END of utils for dot plots  ---------- */
+</script>
+<script>
+    /** --------- START of utils for IGV.js  ---------- */
 
     const generateIgvConfig = (addSelectedTracks) => {
 
@@ -1042,182 +850,10 @@ gtag('config', 'G-6R8FPBQRFH');
             await window.igvBrowser.loadSessionObject(igvConfig)
         }
     }
-
-    const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
-        try {
-            const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
-            console.log("Page state:", GLOBAL_PAGE_STATE)
-            console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
-            const requestBody = {
-                sql: query,
-                export_to_file_format: exportToFileFormat,
-                tool_name: toolName,
-                start_index: startIndex,
-                page_size: pageSize,
-            }
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody),
-            })
-
-            if (!response.ok) {
-                throw new Error(`BigQuery API error: ${response.status} ${response.statusText}`)
-            }
-
-            return await response.json()
-        } catch (error) {
-            console.error('Error querying BigQuery:', error)
-            throw new Error(`BigQuery query error: ${error.message || 'Unknown error'}`)
-        }
-    }
-
-
-    const parseAlleleFrequenciesString = (frequenciesString) => {
-        try {
-            const data = []
-            const items = frequenciesString.split(',')
-            for (let i = 0; i < items.length; i++) {
-                const [size, count] = items[i].split(':')
-                data.push({
-                    size: parseInt(size.replace('x', '')),
-                    count: parseInt(count)
-                })
-            }
-            return data
-        } catch (e) {
-            console.error('Error parsing allele frequencies string:', e)
-            return []
-        }
-    }
-
-    const parseRepeatMaskerIntervals = (repeatMaskerIntervals) => {
-        if (!repeatMaskerIntervals) {
-            return ''
-        }
-
-        let values = new Set()
-        let count = 0
-        let details = []
-        for (let token of repeatMaskerIntervals.split(', ')) {
-            const tokenEntries = token.split(':')
-            if (!'Simple_repeat|Low_complexity'.includes(tokenEntries[0])) {
-                values.add(tokenEntries[0])
-                count += 1
-                details.push(`<span style='font-family: monospace'>${tokenEntries[0]}: ${tokenEntries[1]}</span>`)
-            }
-        }
-
-        if (count == 0) {
-            return ''
-        }
-
-        return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
-    }
-
-    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
-        let sequenceSizeString = ''
-        if (showSize) {
-            sequenceSizeString += `(${sequence.length}${addBpSuffix? 'bp' : ''})`
-        }
-        if (sequence.length > truncateAt) {
-            let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
-            if (leftTruncate) {
-                const truncatedSequence = sequence.substring(sequence.length - truncateAt, sequence.length)
-                result += `${sequenceSizeString} &nbsp; ...${truncatedSequence}`
-            } else {
-                const truncatedSequence = sequence.substring(0, truncateAt)
-                result += `${truncatedSequence}... &nbsp; ${sequenceSizeString}`
-            }
-            result += `</span>`
-            return result
-        } else {
-            let result = `<span style="white-space: nowrap; font-family: monospace">`
-            if (leftTruncate) {
-                result += `${sequenceSizeString} &nbsp; ${sequence}`
-            } else {
-                result += `${sequence} &nbsp; ${sequenceSizeString}`
-            }
-            result += `</span>`
-            return result
-        }
-    }
-
-    const computeMotifFrequenciesTableRows = (frequenciesString) => {
-        if (!frequenciesString) {
-            return []
-        }
-        const items = frequenciesString.split(',')
-        let total = 0
-        let motifCounts = {}
-        let efficientMotifs = {}
-        for (let i = 0; i < items.length; i++) {
-            let motif, efficientMotif, count
-            if (items[i].indexOf(':') < 3) {
-                [motif, count] = items[i].split(':')
-                efficientMotif = ''
-            } else {
-                [motif, efficientMotif, count] = items[i].split(':')
-            }
-            count = parseInt(count)
-            motif = motif.trim()
-            motifCounts[motif] = count
-            efficientMotifs[motif] = efficientMotif.trim()
-            total += count
-        }
-
-        // convert counts to fractions
-        let motifCount = 0
-        let homopolymerMotifCount = 0
-        for (let motif in motifCounts) {
-            motifCounts[motif] /= total
-            if (motifCounts[motif] >= 0.01) {
-                motifCount += 1
-                if (motif.length == 1) {
-                    homopolymerMotifCount += 1
-                }
-            }
-        }
-
-        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
-            return []
-        }
-
-        const truncateMotifAt = 35
-        let resultMotifs = []
-        for (let motif in motifCounts) {
-            let motifRow
-            let motifPercentString
-            if (motifCounts[motif] >= 0.01) {
-                motifRow = '<tr>'
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
-            } else {
-                motifRow = `<tr style='color:#AAAAAA'>`
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
-            }
-            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
-            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
-            if (efficientMotifs[motif]) {
-                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
-                if (efficientMotifs[motif] != motif) {
-                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
-                } else {
-                    motifRow += '<i>same as motif</i>'
-                }
-                motifRow += `</span></td>`
-            } else {
-                motifRow += `<td><i>unavailable</i></td>`
-            }
-            motifRow += '</tr>'
-
-            resultMotifs.push(motifRow)
-        }
-
-        return resultMotifs
-    }
+    /** --------- END of utils for IGV.js  ---------- */
+</script>
+<script>
+    /** --------- START of utils for motif frequency  ---------- */
 
     const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
         const helpText = `
@@ -1266,6 +902,311 @@ gtag('config', 'G-6R8FPBQRFH');
             return ''
         }
     }
+
+    /** --------- END of utils for motif frequency  ---------- */
+</script>
+<script>
+    /** --------- START of utils for periodicity plots  ---------- */
+    const shiftStringBy = (string, shift) => {
+        if (shift === 0 || string.length === 0) {
+            return string
+        }
+        const normalizedShift = shift % string.length
+        return string.slice(-normalizedShift) + string.slice(0, string.length - normalizedShift)
+    }
+
+    const hashString = (string) => {
+        let hash = 0
+        for (let i = 0; i < string.length; i++) {
+            hash = (hash << 5) - hash + string.charCodeAt(i)
+            hash |= 0
+        }
+        return Math.abs(hash)
+    }
+
+    const generatePeriodicityMatrixWithBackwardLook = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
+        const clampedMin = Math.max(minMotifSize, 1)
+        const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
+        const rowCount = Math.max(clampedMax, clampedMin)
+        const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
+
+        let hashCache = new Map()
+        for (let row = clampedMin - 1; row < clampedMax; row++) {
+            const period = row + 1
+            let prevShiftedMotif
+            for (let column = 0; column < sequence.length; column++) {
+                const motifEndingAtThisLetter = sequence.slice(column - period + 1, column + 1)
+                const shiftedMotifEndingAtThisLetter = shiftStringBy(motifEndingAtThisLetter, (column + 1) % period)
+                let shiftedMotif
+                if (prevShiftedMotif === shiftedMotifEndingAtThisLetter) {
+                    shiftedMotif = shiftedMotifEndingAtThisLetter
+                } else if (column + period < sequence.length && sequence[column] === sequence[column + period]) {
+                    const motifStartingAtThisLetter = sequence.slice(column, column + period)
+                    const shiftedMotifStartingAtThisLetter = shiftStringBy(motifStartingAtThisLetter, column % period)
+                    shiftedMotif = shiftedMotifStartingAtThisLetter
+                    prevShiftedMotif = shiftedMotif
+                } else {
+                    prevShiftedMotif = null
+                    continue
+                }
+
+                if (hashCache.has(shiftedMotif)) {
+                    matrix[row][column] = hashCache.get(shiftedMotif)
+                } else {
+                    const hash = hashString(shiftedMotif)
+                    hashCache.set(shiftedMotif, hash)
+                    matrix[row][column] = hash
+                }
+            }
+        }
+
+        return matrix
+    }
+
+    const generatePeriodicityMatrix = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
+        const clampedMin = Math.max(minMotifSize, 1)
+        const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
+        const rowCount = Math.max(clampedMax, clampedMin)
+        const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
+
+        let hashCache = new Map()
+        for (let row = clampedMin - 1; row < clampedMax; row++) {
+            const period = row + 1
+            for (let column = 0; column < sequence.length - period; column++) {
+                if (sequence[column] !== sequence[column + period]) {
+                    continue
+                }
+                const motif = sequence.slice(column, column + period)
+                const shiftedMotif = shiftStringBy(motif, column % period)
+                if (hashCache.has(shiftedMotif)) {
+                    matrix[row][column] = hashCache.get(shiftedMotif)
+                } else {
+                    const hash = hashString(shiftedMotif)
+                    hashCache.set(shiftedMotif, hash)
+                    matrix[row][column] = hash
+                }
+            }
+        }
+
+        return matrix
+    }
+
+    const hexToRgb = (hex) => {
+        const normalized = hex.replace("#", "")
+        const bigint = parseInt(normalized, 16)
+        return {
+            r: (bigint >> 16) & 255,
+            g: (bigint >> 8) & 255,
+            b: bigint & 255,
+        }
+    }
+
+    const drawPeriodicityMatrix = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+
+        const separatorPositions = []
+        const filteredSequenceChars = []
+        for (const c of sequence) {
+            if (c === "|") {
+                separatorPositions.push(filteredSequenceChars.length)
+            } else {
+                filteredSequenceChars.push(c)
+            }
+        }
+        const filteredSequence = filteredSequenceChars.join("")
+
+        let matrix
+        if (useBackwardLook) {
+            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, 1, 24)
+        } else {
+            matrix = generatePeriodicityMatrix(filteredSequence, 1, 24)
+        }
+
+
+        // zip matrix[2] with the filteredSequence
+        //console.log(Array.from(filteredSequence).map((value, index) => `${value}:  ${matrix[2][index]}`).join("\n"))
+
+        filterOutNoiseInPeriodicityMatrix(matrix, minRunLength)
+
+        const rowCount = matrix.length
+        const columnCount = matrix[0]?.length || 0
+        if (rowCount === 0 || columnCount === 0) {
+            return
+        }
+
+        const backgroundColor = hexToRgb("#FFFFFF")
+        const motifPalette = ['#24f2a5', '#f27124', '#d8f224', '#24f257', '#d824f2', '#247ef2', '#64f224', '#2431f2', '#6424f2', '#f29824', '#f2e524', '#8b24f2', '#f224e5', '#24f27e', '#3ef224', '#f22424', '#24f2cb', '#f22471', '#24f2f2', '#f2be24', '#b124f2', '#24cbf2', '#8bf224', '#b1f224', '#3e24f2', '#f224be', '#24a5f2', '#f24a24', '#2457f2', '#f22498', '#24f231']
+
+        const width = columnCount * pixelsPerCell
+        const height = rowCount * pixelsPerCell
+        const fontSize = 11
+        const labelOffset = Math.ceil(fontSize * 2)
+        const pixelData = new Uint8ClampedArray(width * height * 4)
+
+        for (let row = 0; row < rowCount; row++) {
+            for (let column = 0; column < columnCount; column++) {
+                const value = matrix[row][column]
+                const paletteIndex = value === 0 ? -1 : value % motifPalette.length
+                const color = paletteIndex >= 0 ? hexToRgb(motifPalette[paletteIndex]) : backgroundColor
+
+                for (let dy = 0; dy < pixelsPerCell; dy++) {
+                    for (let dx = 0; dx < pixelsPerCell; dx++) {
+                        const pixelRow = row * pixelsPerCell + dy
+                        const pixelCol = column * pixelsPerCell + dx
+                        const pixelIndex = (pixelRow * width + pixelCol) * 4
+                        pixelData[pixelIndex] = color.r
+                        pixelData[pixelIndex + 1] = color.g
+                        pixelData[pixelIndex + 2] = color.b
+                        pixelData[pixelIndex + 3] = 255
+                    }
+                }
+            }
+        }
+
+        canvas.width = width + labelOffset
+        canvas.height = height
+        const context = canvas.getContext("2d")
+        context.putImageData(new ImageData(pixelData, width, height), labelOffset, 0)
+        canvas.style.height = `${1 * pixelsPerCell * rowCount}px`
+        context.fillStyle = "rgba(0, 0, 255, 1)"
+        for (const position of separatorPositions) {
+            const x = labelOffset + position * pixelsPerCell
+            context.fillRect(x, 0, 1.5, height)
+        }
+
+        context.fillStyle = "rgba(0, 0, 0, 1)"
+        context.textAlign = "left"
+        context.textBaseline = "middle"
+        context.font = `${fontSize}px monospace`
+
+        let lastLabelY = -Infinity
+        const minSpacing = fontSize * 1.2
+
+        for (let row = 0; row < rowCount; row++) {
+            const y = row * pixelsPerCell + pixelsPerCell / 2
+            //const isBoundary = row === 0 || row === rowCount - 1
+            const drawLabel = (row + 1) % 3 === 0
+            const hasSpace = (y - lastLabelY >= minSpacing)
+            if (drawLabel && hasSpace) {
+                context.fillText(`${row + 1}`, 2, y)
+                lastLabelY = y
+            }
+        }
+
+        return matrix
+    }
+
+    const computeBarScores = (matrix) => {
+        if (matrix.length === 0 || matrix[0].length === 0) {
+            return []
+        }
+        const width = matrix[0].length
+        return matrix.map((row, index) => {
+            const matches = row.reduce((count, value) => count + (value > 0 ? 1 : 0), 0)
+            const period = index + 1
+            const denominator = Math.max(width - period + 1, 1)
+            return matches / denominator
+        })
+    }
+
+    const isNoiseInPeriodicityMatrix = (matrix, i, j, minRunLength = 3) => {
+        // check if the horizontal run starting at (i, j) is at least minRunLength of the same value
+        let runLength = 1
+        const width = matrix[0].length
+        const value = matrix[i][j]
+        for (let dx = 1; j + dx < width; dx++) {
+            if (matrix[i][j + dx] !== value) {
+                break
+            }
+
+            runLength += 1
+            if (runLength >= minRunLength) {
+                return false
+            }
+        }
+        for (let dx = 1; j - dx >= 0; dx++) {
+            if (matrix[i][j - dx] !== value) {
+                break
+            }
+
+            runLength += 1
+            if (runLength >= minRunLength) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    const filterOutNoiseInPeriodicityMatrix = (matrix, minRunLength = 3) => {
+        const matrixRows = matrix.length
+        const matrixColumns = matrix[0].length
+        for (let i = 0; i < matrixRows; i++) {
+            for (let j = 0; j < matrixColumns; j++) {
+                if (matrix[i][j] > 0 && isNoiseInPeriodicityMatrix(matrix, i, j, minRunLength)) {
+                    matrix[i][j] = 0
+                }
+            }
+        }
+    }
+
+    const buildPeriodicityMatrixBarChart = (container, periodicityMatrix) => {
+        container.innerHTML = ""
+        container.style.display = "flex"
+        container.style.alignItems = "flex-end"
+        container.style.gap = "6px"
+        container.style.height = "160px"
+        container.style.marginTop = "16px"
+
+        const scores = computeBarScores(periodicityMatrix)
+        const maxScore = Math.max(...scores, 0)
+
+        scores.forEach((score, index) => {
+            const wrapper = document.createElement("div")
+            wrapper.style.display = "flex"
+            wrapper.style.flexDirection = "column"
+            wrapper.style.alignItems = "center"
+            wrapper.style.font = "11px monospace"
+
+            const bar = document.createElement("div")
+            const normalized = maxScore === 0 ? 0 : (score / maxScore)
+            bar.style.height = `${normalized * 120}px`
+            bar.style.width = "10px"
+            bar.style.backgroundColor = "#4cc9f0" //"#6366F1" //"#4cc9f0"
+            bar.style.borderRadius = "2px 2px 0 0"
+            //bar.title = `Period ${index + 1}: ${(score * 100).toFixed(1)}%`
+
+            const label = document.createElement("span")
+            label.style.paddingTop = "5px"
+            label.textContent = `${index + 1}`
+
+            wrapper.appendChild(bar)
+            wrapper.appendChild(label)
+            container.appendChild(wrapper)
+        })
+    }
+
+
+    /*
+    Example:
+    <canvas id="periodicityMatrixCanvas"></canvas>
+    <div id="barPlotContainer"></div>
+
+
+    const pixelsPerCell = 10
+    const minRunLength = 3
+    const useBackwardLook = false
+
+    const periodicityCanvas = document.getElementById("periodicityMatrixCanvas")
+    const periodicityMatrix = drawPeriodicityMatrix(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
+
+    const barPlotContainer = document.getElementById("barPlotContainer")
+    buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)
+    */
+
+    /** --------- END of utils for periodicity plots  ---------- */
+</script>
+<script>
+    /** --------- START of utils for polymorphism charts  ---------- */
 
     const createAlleleFrequencyChart = (chartData) => {
         const frequencies = chartData.frequencies
@@ -1600,6 +1541,500 @@ gtag('config', 'G-6R8FPBQRFH');
         thisObj.style.height = chartWidth
         thisObj.style.minHeight = chartWidth
         thisObj.style.maxHeight = chartWidth
+    }
+
+    /** --------- END of utils for polymorphism charts  ---------- */
+</script>
+
+<script>
+
+    const TR_CATALOG_BASE_URL = "https://storage.googleapis.com/tandem-repeat-catalog"
+
+    const SHARED_TR_CATALOG_SIZES = {
+        known_disease_loci: 63,
+        illumina_174k_catalog: 174300,
+        tr_explorer_catalog: 4863041,
+        tr_explorer_catalog_v2: 5543507,
+    }
+
+    const TR_EXPLORER_SOURCE_CATALOGS = [
+        ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
+        ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
+        ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
+        ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
+    ]
+
+    const TR_EXPLORER_CATALOG  = [
+        ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
+        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+    ]
+
+    const TR_VARIATION_CLUSTERS = [
+        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+    ];
+
+    const KNOWN_TR_LOCI_TRACK = [
+        ["igv_kd_loci", "Disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci.bed.gz`, 68],
+        ["igv_trgt_kd_loci", "TRGT repo: disease-associated loci (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.pathogenic_repeats.hg38.bed.gz`, 56],
+        ["igv_strchive_kd_loci", "STRchive catalog for TRGT (March 2025)", `${TR_CATALOG_BASE_URL}/other_catalogs/STRchive-disease-loci-v2.4.0.hg38.TRGT.B2FLLAlV.bed.gz`, 73],
+    ]
+
+    const GENOME_WIDE_TR_CATALOGS = [
+        ["igv_illumina_174k", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
+        ["igv_trgt", "TRGT", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.bed.gz`, 171146, "Genome-wide catalog provided in the <a href='https://github.com/PacificBiosciences/trgt/tree/3d10c75/repeats' target='_blank'>TRGT repo</a> (downloaded March, 2025)"],
+        ["igv_ucsc_sr", "UCSC simple repeat track", `${TR_CATALOG_BASE_URL}/other_catalogs/UCSC_SimpleRepeatTrack.bed.gz`, 965511],
+        ["igv_vamos", "VAMOS v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
+        ["igv_gangstr", "GangSTR v17", `${TR_CATALOG_BASE_URL}/other_catalogs/GangSTR_v17.bed.gz`, 1340266],
+        ["igv_hipstr", "HipSTR", `${TR_CATALOG_BASE_URL}/other_catalogs/HipSTR.bed.gz`, 1638945],
+        ["igv_adotto", "Adotto v1.2", `${TR_CATALOG_BASE_URL}/other_catalogs/Adotto_v1.2.bed.gz`, 2934805],
+        ["igv_popstr", "PopSTR v2", `${TR_CATALOG_BASE_URL}/other_catalogs/PopSTR_v2.bed.gz`, 5401401],
+        ["igv_platinum_trs", "Platinum TRs", `${TR_CATALOG_BASE_URL}/other_catalogs/PlatinumTRs.bed.gz`, 7524815, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/39149261/' target=_blank>Porubsky et al. 2024</a>]"],
+        ["igv_chiu", "Chiu et al.", `${TR_CATALOG_BASE_URL}/other_catalogs/Chiu_et_al.bed.gz`, 18759399, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/38947075/' target=_blank>Chiu et al. 2024</a>]"],
+    ]
+
+    REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
+
+    const REFERENCE_TRACKS = [
+        ["igv_gencode", "Gencode v49", `${REFERENCE_BASE_URL}/gencode_v49/gencode.v49.GRCh38.sorted.txt.gz`],
+        ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
+        ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
+        ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
+        ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
+        ["igv_triplosens", "ClinGen triplosensitivity track", `${REFERENCE_BASE_URL}/clingen/ClinGen_triplosensitivity_gene_GRCh38.sorted.bed.gz`],
+        ["igv_repeatmask", "UCSC RepeatMasker", `${REFERENCE_BASE_URL}/hg38.RepeatMasker.bed.gz`],
+    ]
+
+    const ALL_AVAILABLE_TRACKS = [
+        ...TR_EXPLORER_SOURCE_CATALOGS,
+        ...TR_EXPLORER_CATALOG,
+        ...TR_VARIATION_CLUSTERS,
+        ...GENOME_WIDE_TR_CATALOGS,
+        ...KNOWN_TR_LOCI_TRACK,
+        ...REFERENCE_TRACKS,
+    ]
+
+    // initialize BigQuery client
+    const PROJECT_ID = 'cmg-analysis'
+    const DATASET_ID = 'tandem_repeat_explorer'
+    const TABLE_ID = 'catalog_20251110_195333'
+    const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
+
+    const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
+
+    const IGV_LOCUS_PADDING = 150
+    const REFERENCE_REGION_REGEXP = /^(?:chr)?([XYMTt0-9]+):([\d,]+)-([\d,]+)$/i
+
+    const ALL_STDEV_COLUMNS = [
+        'HPRC100_Stdev',
+        'AoU1027_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
+        'StdevFromT2TAssemblies',
+    ]
+
+    const STDEV_SIGMA_SUBSCRIPTS = {
+        'HPRC100_Stdev': 'Hprc100',
+        'AoU1027_Stdev': 'AoU1027',
+        'TenK10K_Stdev': '10k10k',
+        'StdevFromIllumina174k': '1kGP',
+        'StdevFromT2TAssemblies': 'T2T',
+    }
+
+    const AXIS_UNITS = {
+        'HPRC100_AlleleHistogram': 'Repeat Count: LPS',
+        'TenK10K_AlleleHistogram': 'Repeat Count',
+        'AlleleFrequenciesFromIllumina174k': 'Repeat Count',
+        'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
+        'HPRC100_BiallelicHistogram': 'Repeat Count: LPS',
+        'TenK10K_BiallelicHistogram': 'Repeat Count',
+    }
+
+    const ALLELE_HISTOGRAM_SHORT_NAMES = {
+        'HPRC100_AlleleHistogram': 'HPRC100',
+        'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
+        'AlleleFrequenciesFromIllumina174k': '1kGP',
+        'AlleleFrequenciesFromT2TAssemblies': 'T2T',
+        'HPRC100_BiallelicHistogram': 'HPRC100',
+        'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
+    }
+    const ALLELE_FREQUENCY_CHART_TITLES = {
+        'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
+        'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
+        'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
+        'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
+        'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
+        'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
+    }
+
+    const ALLELE_FREQUENCY_CHART_SUBTITLES = {
+        'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+        'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
+        'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
+        'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+    }
+
+    const STDEV_HELP_TEXTS = {
+        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
+        'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
+        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
+        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
+    }
+
+    const ALLELE_HISTOGRAM_HELP_TEXTS = {
+        'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
+        'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
+        'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
+        'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
+        'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
+        'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
+    }
+
+    const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
+        LocusId: 'A unique id of this TR locus in hg38',
+        ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
+        ReferenceRepeatSequence: 'The repeat sequence in hg38',
+        ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
+        ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
+        ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
+        CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
+        polymorphism: 'Summary of available polymorphism data for the TR locus',
+        Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
+        TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
+        NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
+        ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
+        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
+        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
+        AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
+        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
+        VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
+        FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
+        GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus in Gencode v48',
+        GencodeGeneName: 'Gencode v48 gene name',
+        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
+        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
+        RefSeqGeneRegion: 'RefSeq gene region',
+        RefSeqGeneId: 'RefSeq gene ID',
+        RefSeqTranscriptId: 'RefSeq transcript ID',
+        RefSeqGeneName: 'RefSeq gene name',
+        ManeGeneRegion: 'MANE v1.4 gene region',
+        ManeGeneId: 'MANE v1.4 gene ID',
+        ManeGeneName: 'MANE v1.4 gene name',
+        ManeTranscriptId: 'MANE v1.4 transcript ID',
+        HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
+        TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
+        dotPlot: 'Dot plot visualization of the reference sequence and flanking sequences',
+    }
+
+    /*
+    const GENE_REGION_COLORS = {
+        'CDS': 'rgb(208,5,5)',
+        'exon': 'rgb(255,168,0)',
+        'intron': 'rgb(40,126,40)',
+        'intergenic': 'rgb(0,178,255)',
+        '5\' UTR': 'rgb(0,72,255)',
+        '3\' UTR': 'rgb(0,72,255)',
+        'promoter': 'rgb(93,1,196)',
+    }
+    */
+
+    const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
+    const DEFAULT_SORT_DIRECTION = 'ASC'
+
+
+    // persistent page state (added to the URL)
+    let DEFAULT_GLOBAL_PAGE_STATE = {
+        currentPage: 1,
+        pageSize: 100,
+
+        sc: DEFAULT_SORT_COLUMN,
+        sd: DEFAULT_SORT_DIRECTION,
+
+        showIGV: 0,
+        igvLoc: 'chr4:3074821-3074990',
+
+        showRs: 0,  //show results table
+        searchQuery: '',
+        showAdvFilters: 0,
+
+        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
+        keepMotifSize: '',
+        keepMotif: '',
+
+        keepCodingLoci: 0,
+        keepFiveUTRLoci: 0,
+        keepThreeUTRLoci: 0,
+        keepPromoterLoci: 0,
+        keepIntronLoci: 0,
+        keepIntergenicLoci: 0,
+        keepNonCodingExonLoci: 0,
+
+        polymorphismFilter: 0,
+        polymorphismFilterType: '',
+        polymorphismThreshold: '',
+        vcFilter: 0,
+        vcFilterType: '',
+
+        // Custom track URLs
+        igv_custom_track_url_1: '',
+        igv_custom_track_url_2: '',
+        igv_custom_track_url_3: '',
+    }
+
+
+    ALL_AVAILABLE_TRACKS.forEach((rt) => {
+        DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
+    })
+
+    DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
+    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
+
+
+    // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
+    const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
+        'CAG',
+        'GCC',
+        'GAA',
+        'GTC',
+        'CAGG',
+        'TTTG',
+        'GGGCC',
+        'ATTCT',
+        'GGCCCC',
+        'GGCCTG',
+        'GGCGCGGAGC',
+        'CGCGGGGCGGGG',
+        'CCTCGCTGTGCCGCTGCCGA',
+        'CCTCATGGTGGTGGCTGGGGGCAG',
+
+        /*
+        //BEAN1
+        "TAGAA",
+        "TGGAA",
+
+        //DAB1
+        "GAAAT",
+
+        //MARCHF6
+        "ATTTC",
+
+        //RAPGEF2,
+        "TTTCA",
+
+        //RFC1
+        "AAGGC",
+        "AAGGG",
+        "ACAGG",
+        "AGAGG",
+        "AGGGC",
+        */
+    ].join(', ')
+
+
+    const writePersistentPageStateToUrl = () => {
+        // Create object with only non-default values
+        const nonDefaultParams = {}
+        for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
+            if (value !== DEFAULT_GLOBAL_PAGE_STATE[key]) {
+                nonDefaultParams[key] = value
+            }
+        }
+
+        // Convert to URL hash using jQuery's param method
+        const hash = '#' + $.param(nonDefaultParams)
+
+        // Get current hash to check if state has changed
+        const currentHash = window.location.hash
+        if (currentHash !== hash) {
+            // Update URL and add to browser history
+            window.history.pushState(null, '', hash)
+        }
+    }
+
+    const computeIntervalSize = (interval) => {
+        const [chrom, start_end] = interval.split(':')
+        const [start, end] = start_end.split('-')
+        return parseInt(end) - parseInt(start)
+    }
+
+
+    const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
+        try {
+            const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
+            console.log("Page state:", GLOBAL_PAGE_STATE)
+            console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
+            const requestBody = {
+                sql: query,
+                export_to_file_format: exportToFileFormat,
+                tool_name: toolName,
+                start_index: startIndex,
+                page_size: pageSize,
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody),
+            })
+
+            if (!response.ok) {
+                throw new Error(`BigQuery API error: ${response.status} ${response.statusText}`)
+            }
+
+            return await response.json()
+        } catch (error) {
+            console.error('Error querying BigQuery:', error)
+            throw new Error(`BigQuery query error: ${error.message || 'Unknown error'}`)
+        }
+    }
+
+    const parseAlleleFrequenciesString = (frequenciesString) => {
+        try {
+            const data = []
+            const items = frequenciesString.split(',')
+            for (let i = 0; i < items.length; i++) {
+                const [size, count] = items[i].split(':')
+                data.push({
+                    size: parseInt(size.replace('x', '')),
+                    count: parseInt(count)
+                })
+            }
+            return data
+        } catch (e) {
+            console.error('Error parsing allele frequencies string:', e)
+            return []
+        }
+    }
+
+    const parseRepeatMaskerIntervals = (repeatMaskerIntervals) => {
+        if (!repeatMaskerIntervals) {
+            return ''
+        }
+
+        let values = new Set()
+        let count = 0
+        let details = []
+        for (let token of repeatMaskerIntervals.split(', ')) {
+            const tokenEntries = token.split(':')
+            if (!'Simple_repeat|Low_complexity'.includes(tokenEntries[0])) {
+                values.add(tokenEntries[0])
+                count += 1
+                details.push(`<span style='font-family: monospace'>${tokenEntries[0]}: ${tokenEntries[1]}</span>`)
+            }
+        }
+
+        if (count == 0) {
+            return ''
+        }
+
+        return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
+    }
+
+    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
+        let sequenceSizeString = ''
+        if (showSize) {
+            sequenceSizeString += `(${sequence.length}${addBpSuffix? 'bp' : ''})`
+        }
+        if (sequence.length > truncateAt) {
+            let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
+            if (leftTruncate) {
+                const truncatedSequence = sequence.substring(sequence.length - truncateAt, sequence.length)
+                result += `${sequenceSizeString} &nbsp; ...${truncatedSequence}`
+            } else {
+                const truncatedSequence = sequence.substring(0, truncateAt)
+                result += `${truncatedSequence}... &nbsp; ${sequenceSizeString}`
+            }
+            result += `</span>`
+            return result
+        } else {
+            let result = `<span style="white-space: nowrap; font-family: monospace">`
+            if (leftTruncate) {
+                result += `${sequenceSizeString} &nbsp; ${sequence}`
+            } else {
+                result += `${sequence} &nbsp; ${sequenceSizeString}`
+            }
+            result += `</span>`
+            return result
+        }
+    }
+
+    const computeMotifFrequenciesTableRows = (frequenciesString) => {
+        if (!frequenciesString) {
+            return []
+        }
+        const items = frequenciesString.split(',')
+        let total = 0
+        let motifCounts = {}
+        let efficientMotifs = {}
+        for (let i = 0; i < items.length; i++) {
+            let motif, efficientMotif, count
+            if (items[i].indexOf(':') < 3) {
+                [motif, count] = items[i].split(':')
+                efficientMotif = ''
+            } else {
+                [motif, efficientMotif, count] = items[i].split(':')
+            }
+            count = parseInt(count)
+            motif = motif.trim()
+            motifCounts[motif] = count
+            efficientMotifs[motif] = efficientMotif.trim()
+            total += count
+        }
+
+        // convert counts to fractions
+        let motifCount = 0
+        let homopolymerMotifCount = 0
+        for (let motif in motifCounts) {
+            motifCounts[motif] /= total
+            if (motifCounts[motif] >= 0.01) {
+                motifCount += 1
+                if (motif.length == 1) {
+                    homopolymerMotifCount += 1
+                }
+            }
+        }
+
+        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
+            return []
+        }
+
+        const truncateMotifAt = 35
+        let resultMotifs = []
+        for (let motif in motifCounts) {
+            let motifRow
+            let motifPercentString
+            if (motifCounts[motif] >= 0.01) {
+                motifRow = '<tr>'
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
+            } else {
+                motifRow = `<tr style='color:#AAAAAA'>`
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
+            }
+            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
+            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
+            if (efficientMotifs[motif]) {
+                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                if (efficientMotifs[motif] != motif) {
+                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
+                } else {
+                    motifRow += '<i>same as motif</i>'
+                }
+                motifRow += `</span></td>`
+            } else {
+                motifRow += `<td><i>unavailable</i></td>`
+            }
+            motifRow += '</tr>'
+
+            resultMotifs.push(motifRow)
+        }
+
+        return resultMotifs
     }
 
     const getGeneRegionColumnValue = (geneRegion) => {
@@ -2098,6 +2533,21 @@ gtag('config', 'G-6R8FPBQRFH');
             getValue: (row) => row['TenK10K_BiallelicHistogram'],
             getSortColumns: () => ['TenK10K_BiallelicHistogram'],
             getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
+        },
+        dotPlot: {
+            displayName: 'Dot Plot',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
+            getValue: (row) => {
+                const flankSize = Math.max(24, parseInt(row["MotifSize"]) * 5)
+                const inputSequence = [
+                    row["ReferenceLeftFlank"].slice(-flankSize),
+                    row["ReferenceRepeatSequence"],
+                    row["ReferenceRightFlank"].slice(0, flankSize),
+                ].join('|')
+                return `<canvas class="dotPlot" data-seq="${inputSequence}" style="width:48px; height:48px"></canvas>`
+            },
+            getSortColumns: () => ['ReferenceRepeatSequence'],
+            getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'MotifSize'],
         }
     }
 </script>
@@ -2548,6 +2998,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'ReferenceLeftFlank',
         'ReferenceRepeatSequence',
         'ReferenceRightFlank',
+
+        'dotPlot',
     ]
 
     //index page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
@@ -2610,6 +3062,7 @@ gtag('config', 'G-6R8FPBQRFH');
         'RepeatMaskerIntervals',
         'isPathogenic',
         'AoU1027_OE_LengthPercentile',
+        'dotPlot',
 
     ]
 
@@ -3333,10 +3786,10 @@ gtag('config', 'G-6R8FPBQRFH');
                         value = columnObject.getValue(row)
                     }
 
-                    tableHtml += `<td>${value != null ? value : ''}</td>`
+                    tableHtml += `<td style="padding: 3px 5px 3px 10px">${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
+            tableHtml += `<td style="padding:15px"><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -3369,6 +3822,13 @@ gtag('config', 'G-6R8FPBQRFH');
             performSearch(true)
         })
 
+        resultsTableElement.find('.dotPlot').each(function() {
+            const sequence = $(this).data('seq')
+            const pixelsPerCell = 2 // higher number increases resolution
+            plotDotPlot(this, sequence, pixelsPerCell, false)
+        })
+
+        // add click handler for locus page buttons
         $('.row-locus-page-button').click(function() {
             const locusId = $(this).data('locus-id')
             const referenceRegion = $(this).data('reference-region')
@@ -3390,7 +3850,7 @@ gtag('config', 'G-6R8FPBQRFH');
             window.open(locusPageUrl, '_blank')
         })
 
-        // Add click handlers for IGV buttons
+        // add click handlers for IGV buttons
         $('.row-igv-button').click(async function() {
             const referenceRegion = $(this).data('reference-region')
             if (!referenceRegion) return
@@ -3450,19 +3910,16 @@ gtag('config', 'G-6R8FPBQRFH');
             }
         })
 
-        // Init charts
+        // init charts
         $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
 
 
-        // Initialize popups for variation cluster cells
+        // init popups
         $('.show-popup').popup({ on: 'click', hoverable: true })
-
-        // Initialize popups for polymorphism cells
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
-
         $('.disease-associated-icon').popup({ on: 'click' })
 
-        // "Column settings" modal
+        // init click handler for "Column settings" modal
         $('#results-table-settings-button').click((e) => {
             e.preventDefault()
 
@@ -3494,7 +3951,7 @@ gtag('config', 'G-6R8FPBQRFH');
             $('.question').popup({ on: 'click' })
         })
 
-        // Handle Apply button click in column settings dialog
+        // handle Apply button click in column settings dialog
         $('#results-table-column-settings-apply-button').click(() => {
             const selectedColumns = []
             $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {

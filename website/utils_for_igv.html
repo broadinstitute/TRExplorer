@@ -1,0 +1,234 @@
+<script>
+    /** --------- START of utils for IGV.js  ---------- */
+
+    const generateIgvConfig = (addSelectedTracks) => {
+
+        // specify IGV tracks and the data to display in them
+        const tracks = []
+
+
+        if (addSelectedTracks) {
+            tracks.push({
+                name: "Refseq",
+                format: "refgene",
+                url: `${REFERENCE_BASE_URL}/ncbiRefSeq.txt.gz`,
+                indexed: true,
+                indexURL: `${REFERENCE_BASE_URL}/ncbiRefSeq.txt.gz.tbi`,
+                infoURL: "https://www.ncbi.nlm.nih.gov/gene/?term=$$",
+                height: 150,
+            })
+
+            ALL_AVAILABLE_TRACKS.forEach((rt) => {
+                const trackName = rt[0]
+                const trackDisplayName = rt[1]
+                const trackURL = rt[2]
+                if (!GLOBAL_PAGE_STATE[trackName]) {
+                    return
+                }
+
+                if (trackName == 'igv_gencode') {
+                    tracks.push({
+                        name: trackDisplayName,
+                        format: 'refgene',
+                        url: trackURL,
+                        indexURL: `${trackURL}.tbi`,
+                        indexed: true,
+                        searchable: true,
+                        height: 350,
+                        visibilityWindow: -1,
+                        displayMode: 'EXPANDED',
+                        color: 'rgb(76,171,225)',
+                    })
+                } else if (trackURL.endsWith('.bed.gz')) {
+                    tracks.push({
+                        format: 'bed',
+                        name: trackDisplayName,
+                        url: trackURL,
+                        indexURL: `${trackURL}.tbi`,
+                        indexed: true,
+                        searchable: false,
+                        displayMode: 'EXPANDED',
+                    })
+                } else if (trackURL.endsWith('.gtf.gz')) {
+                    tracks.push({
+                        format: 'gtf',
+                        name: trackDisplayName,
+                        url: trackURL,
+                        indexed: true,
+                        searchable: false,
+                        displayMode: 'EXPANDED',
+                    })
+                } else {
+                    tracks.push({
+                        name: trackDisplayName,
+                        url: trackURL,
+                    })
+                }
+
+            })
+
+            // Add custom tracks if they have URLs
+            for (let i = 1; i <= 3; i++) {
+                const url = GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`]
+                if (url && url.trim() !== '') {
+                    tracks.push({
+                        name: url.split('/').pop(),
+                        url: url.trim()
+                    })
+                }
+            }
+        }
+
+        const reference = {
+            "id": "hg38",
+            "name": "Human (GRCh38/hg38)",
+            "fastaURL": "https://igv-genepattern-org.s3.amazonaws.com/genomes/seq/hg38/hg38.fa",
+            "indexURL": "https://igv-genepattern-org.s3.amazonaws.com/genomes/seq/hg38/hg38.fa.fai",
+            "cytobandURL": "https://s3.amazonaws.com/igv.org.genomes/hg38/annotations/cytoBandIdeo.txt.gz",
+            "aliasURL": "https://s3.amazonaws.com/igv.org.genomes/hg38/hg38_alias.tab",
+            "chromosomeOrder": "chr1, chr2, chr3, chr4, chr5, chr6, chr7, chr8, chr9, chr10, chr11, chr12, chr13, chr14, chr15, chr16, chr17, chr18, chr19, chr20, chr21, chr22, chrX, chrY",
+            "tracks": tracks,
+        }
+
+        const locus = GLOBAL_PAGE_STATE['igvLoc']
+        return {
+            reference: reference,
+            showCursorTrackingGuide: true,
+            minimumBases: 40,  //required for https://github.com/igvteam/igv.js/issues/2046
+            locus: locus,
+        }
+    }
+
+    async function updateIgv() {
+
+        // create igv.js browser object if it hasn't been created yet
+        if (!window.igvBrowser) {
+            const config = generateIgvConfig(false)
+            window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
+
+            //window.igvBrowser.trackViews.forEach((trackView) => { monkeyPatchPopupData(trackView.track) }
+            window.igvBrowser.on('trackremoved', (track) => {
+                // get the track id that matches the url
+                ALL_AVAILABLE_TRACKS.forEach((rt) => {
+                    if (track.url === rt[2]) {
+                        const trackName = rt[0]
+                        $(`input[name="${trackName}"]`).prop('checked', false)
+                        GLOBAL_PAGE_STATE[trackName] = 0
+                        writePersistentPageStateToUrl()
+                    }
+                })
+            })
+
+            window.igvBrowser.on('locuschange', (locus) => {
+                if (locus[0] && locus[0].chr && locus[0].start && locus[0].end) {
+                    GLOBAL_PAGE_STATE['igvLoc'] = `${locus[0].chr}:${parseInt(locus[0].start)}-${parseInt(locus[0].end)}`
+                    writePersistentPageStateToUrl()
+                }
+            })
+
+            // add the IGV tracks selection button
+            $($('#igv-viewport')[0].shadowRoot).find('.igv-navbar-left-container').after(
+                //$('.igv-navbar-left-container').after(
+                `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-color:#06359d !important; border-width: 1px !important; border-radius:5px; color:#06359d !important; background-color: white !important; cursor: pointer;">
+               Select IGV Tracks
+               <i class="setting icon" style="margin-left:10px" />
+            </button>`
+            )
+
+            $('#igv-tr-explorer-catalog-tracks-checkboxes').html($('#igv-tr-explorer-catalog-tracks-checkboxes').html() +
+                TR_EXPLORER_CATALOG.map((rt) => `
+                <tr><td>
+                    <div class="inline-field"><div class="ui checkbox igv-track-checkbox"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div> ${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '" ></i>' : ''}
+                </td><td class="igv-number-of-loci-column">
+                     ${rt[3].toLocaleString()}
+                </td></tr>
+            `).join(' ') + `
+                <tr>
+                    <td style="padding: 5px 0px !important">
+                        <i>Source Catalogs:</i>
+                        <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
+                    </td>
+                    <td></td>
+                </tr>
+            ` +
+                TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
+                <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
+            `).join(' '))
+
+            $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
+                TR_VARIATION_CLUSTERS.map((rt) => `
+                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
+            `).join(' ')
+            )
+
+            $('#igv-other-tr-catalog-tracks-checkboxes').html($('#igv-other-tr-catalog-tracks-checkboxes').html() +
+                GENOME_WIDE_TR_CATALOGS.map((rt) => `
+                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
+            `).join(' ')
+            )
+
+            $('#igv-known-disease-loci-checkboxes').html($('#igv-known-disease-loci-checkboxes').html() +
+                KNOWN_TR_LOCI_TRACK.map((rt) => `
+                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
+            `).join(' ')
+            )
+
+            $('#igv-reference-tracks-checkboxes').html($('#igv-reference-tracks-checkboxes').html() +
+                `<tr><td>` +
+                REFERENCE_TRACKS.map((rt) => `
+                <div class="ui checkbox igv-track-checkbox"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>
+            `).join(' ')
+                + `</td></tr>`
+            )
+
+            $('#igv-custom-tracks').html($('#igv-custom-tracks').html() +
+                `<tr>
+                <td colspan="2">
+                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-1" placeholder="Enter a public data file URL for custom track #1. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
+                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-2" placeholder="Enter a public data file URL for custom track #2. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
+                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-3" placeholder="Enter a public data file URL for custom track #3. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
+                </td>
+            </tr>`
+            )
+
+            $(".ui.checkbox").checkbox()
+
+            $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
+                //$('#igv-select-tracks-button').click(() => {
+                ALL_AVAILABLE_TRACKS.forEach((rt) => {
+                    const trackName = rt[0]
+                    const isChecked = GLOBAL_PAGE_STATE[trackName] === 1
+                    $(`input[name="${trackName}"]`).prop('checked', isChecked)
+                })
+
+                $('#igv-track-selection-dialog').modal('show')
+                $('.question').popup({ on: 'click' })
+            })
+            $('#igv-tracks-modal-apply-button').click(async() => {
+                // update GLOBAL_PAGE_STATE with selected tracks
+                ALL_AVAILABLE_TRACKS.forEach((rt) => {
+                    const trackName = rt[0]
+                    const isChecked = $(`input[name="${trackName}"]`).is(':checked')
+                    GLOBAL_PAGE_STATE[trackName] = isChecked ? 1 : 0
+                })
+
+                // update custom track URLs
+                for (let i = 1; i <= 3; i++) {
+                    const url = $(`#igv-custom-track-url-${i}`).val()
+                    GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] = url || ''
+                }
+
+                writePersistentPageStateToUrl()
+                await updateIgv()
+            })
+        }
+
+        if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
+            const igvConfig = generateIgvConfig(true)
+
+            console.log("Updating igv config to", igvConfig)
+            await window.igvBrowser.loadSessionObject(igvConfig)
+        }
+    }
+    /** --------- END of utils for IGV.js  ---------- */
+</script>

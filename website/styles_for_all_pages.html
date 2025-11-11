@@ -1,0 +1,475 @@
+<style>
+    body {
+        padding: 0;
+        margin: 0;
+        overflow-x: auto;  /* Enable horizontal scrolling for the entire page */
+        min-width: 1000px; /* Set a minimum width to prevent content from becoming too narrow */
+    }
+
+    #header-stripe {
+        background-color: #1b1c1d;
+        color: white;
+        text-decoration: none;
+        padding-top: 20px;
+        padding-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+
+    #header-title a {
+        color: white;
+        font-size: 22px;
+        font-family: 'Arial Narrow Bold', sans-serif;
+        white-space: nowrap;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
+    #header-title a:hover {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    #header-nav {
+        display: flex;
+        justify-content: right;
+        vertical-align: middle;
+        gap: 1.5em;
+        font-size: 1.15em;
+        font-family: Lato, "Helvetica Neue", Arial, Helvetica, sans-serif;
+    }
+
+    #header-nav a {
+        color: rgba(255, 255, 255, 0.9);
+        transition: color 0.2s;
+    }
+
+    #header-nav a:hover {
+        color: white;
+    }
+
+    #github-icon {
+        font-size: 1.3em;
+    }
+
+    /* IGV.js styles */
+    #igv-row {
+        display: none;
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+
+    #advanced-search-form .checkbox {
+        padding-right: 20px;
+    }
+
+    .igv-checkbox-container-table td {
+        padding: 0px !important;
+        width: 100%;
+        border-top-width: 0px !important;
+    }
+
+    .igv-checkbox-container-header-row {
+        padding: 7px 0px 7px 0px !important;
+        border: 0px;
+    }
+    .igv-track-selection-table {
+        border: 0px !important;
+        padding: 0px;
+    }
+
+    .igv-track-selection-table td {
+        vertical-align: top;
+    }
+
+    .igv-track-selection-table th {
+        background: white;
+    }
+
+    .igv-number-of-loci-column {
+        text-align: right !important;
+        white-space: nowrap;
+    }
+
+    .igv-track-checkbox {
+        margin-right: 15px;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    .question, .disease-associated-icon {
+        margin-left: 10px;
+        cursor: pointer;
+    }
+
+    .igv-row-sidebar-title {
+        font-family: Lato, "Helvetica Neue", Arial, Helvetica, sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .igv-row-sidebar-text {
+        display: block;
+        font-family: Lato, "Helvetica Neue", Arial, Helvetica, sans-serif;
+        font-size: 14px;
+    }
+
+    #show-igv-divider {
+        text-align: center;
+        margin: 1.5em 0;
+        position: relative;
+        cursor: pointer;
+    }
+
+    #show-igv-divider::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        border-top: 1px solid #ddd;
+        z-index: 0;
+    }
+
+    #show-igv-divider span {
+        position: relative;
+        display: inline-block;
+        background-color: white;
+        padding: 0 15px;
+        color: #1a3c6d;
+        font-weight: 500;
+        font-size: 0.95em;
+        z-index: 1;
+        transition: color 0.2s;
+    }
+
+    #show-igv-divider:hover span {
+        color: #2185d0;
+    }
+
+    #show-igv-divider i {
+        font-size: 0.8em;
+        margin-left: 5px;
+        transition: transform 0.2s;
+    }
+
+    .info-font-size {
+        font-size: 1.12em;
+    }
+
+    #search-query {
+        margin-right: 5px;
+        border: 1px solid rgba(34, 36, 38, 0.15) !important;
+        border-radius: 4px !important;
+    }
+
+    #filter-button {
+        border-radius: 4px !important;
+        margin-right: 10px;
+    }
+
+    #filter-button .chevron.icon {
+        margin-left: 2px;
+    }
+
+    #filter-button .chevron.icon.rotated {
+        transform: rotate(90deg);
+    }
+
+    #filter-button:hover {
+        background-color: #f8f8f8 !important;
+    }
+
+    #search-button {
+        border-radius: 4px !important;
+    }
+
+    /* Results table */
+    #results-table {
+        margin-top: 1em;
+        position: relative;  /* Add this to establish a positioning context */
+    }
+
+    #results-table.loading {
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    #results-table table.ui.table {
+        border-left: none;
+        border-right: none;
+    }
+
+    #results-table table.ui.table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: white;  /* Ensure header has solid background */
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);  /* Add subtle shadow for depth */
+    }
+
+    #results-table table.ui.table th,
+    #results-table table.ui.table td {
+        border-left: none;
+        border-right: none;
+    }
+
+    #results-table table.ui.table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    #results-table table.ui.table tr:nth-child(odd) {
+        background-color: white;
+    }
+
+    #results-table table.ui.table tr:hover {
+        background-color: #e6f0ff;
+    }
+
+    #results-table table.ui.table td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .show-popup {
+        cursor: pointer;
+    }
+
+    /* Loading indicators */
+    .ui.loader {
+        margin-top: 2em;
+    }
+
+    #loading-container {
+        background: white;
+        padding: 0.5em 0;
+        margin-top: 3.7em;
+        margin-bottom: 1em;
+        border-radius: 4px;
+        height: 40px;
+    }
+
+    .loading-indicator {
+        display: flex;
+        align-items: center;
+        color: #888;
+        font-size: 1.1em;
+        font-weight: 300;
+        height: 100%;
+    }
+
+    .disease-associated-row {
+        background-color: #ffdddd !important;
+    }
+
+    .disease-associated-row:hover {
+        background-color: #eae9fc !important;
+    }
+
+    .loading-indicator .ui.loader {
+        margin: 0;
+        margin-right: 20px;
+    }
+
+    /* Pagination */
+    .top-pagination {
+        margin-top: 2.5em !important;
+    }
+
+    .pagination-container {
+        margin-top: 1em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        gap: 1em;
+        flex-wrap: wrap;
+    }
+
+    .total-results {
+        color: #666;
+        font-size: 1.1em;
+        white-space: nowrap;
+        margin-right: 1em;
+        order: 1;
+    }
+
+    .export-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        color: #666;
+        font-size: 1em;
+        white-space: nowrap;
+        order: 2;
+        flex-grow: 1;
+    }
+
+    /* Make export dropdown menu tall enough to show all options */
+    .export-selector .ui.selection.dropdown .menu {
+        max-height: none !important;
+    }
+
+    .page-size-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        color: #666;
+        font-size: 1em;
+        white-space: nowrap;
+        order: 3;
+    }
+
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        order: 4;
+    }
+
+    .pagination-controls .ui.button {
+        padding: 8px;
+        min-width: 36px;
+        background: white;
+        border: 1px solid #ddd;
+        box-shadow: none;
+    }
+
+    .pagination-controls .ui.button:hover {
+        background: #f8f8f8;
+    }
+
+    .pagination-controls .ui.button.disabled {
+        opacity: 0.5;
+        background: white;
+    }
+
+    .page-input-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 4px;
+        white-space: nowrap;
+    }
+
+    .page-input-container input {
+        width: 60px;
+        height: 36px;
+        text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 4px;
+    }
+
+    .page-input-container .total-pages {
+        color: #666;
+    }
+
+    /* Responsive adjustments */
+    @media screen and (max-width: 1030px) {
+        .page-grid-margin {
+            max-width: 20px !important;
+            width: 20px !important;
+        }
+    }
+
+    @media screen and (max-width: 991px) {
+        .pagination-container {
+            justify-content: flex-start;
+        }
+
+        .total-results {
+            flex-basis: 100%;
+            margin-bottom: 0.5em;
+        }
+
+        .export-selector {
+            margin: 0;
+            margin-right: 1em;
+        }
+    }
+
+    @media screen and (max-width: 767px) {
+        .pagination-container {
+            gap: 0.75em;
+        }
+
+        .export-selector, .page-size-selector {
+            flex-basis: 100%;
+            margin: 0;
+        }
+
+        .pagination-controls {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    /* Misc UI elements */
+    .no-results {
+        margin-top: 2em;
+        text-align: left;
+        color: #888;
+        font-size: 1.2em;
+    }
+
+    #results-area {
+        position: relative;
+    }
+
+    .action-cell {
+        cursor: pointer;
+        color: #2185d0;
+        transition: all 0.2s;
+    }
+
+    .cell-in-polymorphism-column {
+        cursor: pointer;
+        color: #2185d0;
+    }
+
+    .action-link {
+        color: #2185d0;
+        cursor: pointer;
+        border-bottom: 1px dotted #2185d0;
+        transition: all 0.2s;
+    }
+
+    .action-link:hover {
+        opacity: 0.8;
+    }
+
+    /* Style for disabled export dropdown */
+    .export-selector .ui.selection.dropdown.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    /* Style for disabled export label */
+    .export-selector .export-label {
+        transition: opacity 0.2s;
+    }
+    .export-selector .ui.selection.dropdown.disabled + .export-label {
+        opacity: 0.5;
+    }
+
+    .results-table-column-settings-checkbox-flex-container {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        max-height: calc(11 * 35px);
+        gap: 5px 20px;
+    }
+
+    .results-table-column-settings-checkbox-item {
+        min-width: 200px;
+        padding: 5px 0;
+    }
+
+    #results-table-column-settings-dialog.ui.modal, #faq-modal.ui.modal, #downloads-modal.ui.modal, #whats-new-modal.ui.modal {
+        width: 70% !important;
+    }
+</style>

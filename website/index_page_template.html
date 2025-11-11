@@ -294,6 +294,8 @@
         'ReferenceLeftFlank',
         'ReferenceRepeatSequence',
         'ReferenceRightFlank',
+
+        'dotPlot',
     ]
 
     //index page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
@@ -356,6 +358,7 @@
         'RepeatMaskerIntervals',
         'isPathogenic',
         'AoU1027_OE_LengthPercentile',
+        'dotPlot',
 
     ]
 
@@ -1079,10 +1082,10 @@
                         value = columnObject.getValue(row)
                     }
 
-                    tableHtml += `<td>${value != null ? value : ''}</td>`
+                    tableHtml += `<td style="padding: 3px 5px 3px 10px">${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
+            tableHtml += `<td style="padding:15px"><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -1115,6 +1118,13 @@
             performSearch(true)
         })
 
+        resultsTableElement.find('.dotPlot').each(function() {
+            const sequence = $(this).data('seq')
+            const pixelsPerCell = 2 // higher number increases resolution
+            plotDotPlot(this, sequence, pixelsPerCell, false)
+        })
+
+        // add click handler for locus page buttons
         $('.row-locus-page-button').click(function() {
             const locusId = $(this).data('locus-id')
             const referenceRegion = $(this).data('reference-region')
@@ -1136,7 +1146,7 @@
             window.open(locusPageUrl, '_blank')
         })
 
-        // Add click handlers for IGV buttons
+        // add click handlers for IGV buttons
         $('.row-igv-button').click(async function() {
             const referenceRegion = $(this).data('reference-region')
             if (!referenceRegion) return
@@ -1196,19 +1206,16 @@
             }
         })
 
-        // Init charts
+        // init charts
         $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
 
 
-        // Initialize popups for variation cluster cells
+        // init popups
         $('.show-popup').popup({ on: 'click', hoverable: true })
-
-        // Initialize popups for polymorphism cells
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
-
         $('.disease-associated-icon').popup({ on: 'click' })
 
-        // "Column settings" modal
+        // init click handler for "Column settings" modal
         $('#results-table-settings-button').click((e) => {
             e.preventDefault()
 
@@ -1240,7 +1247,7 @@
             $('.question').popup({ on: 'click' })
         })
 
-        // Handle Apply button click in column settings dialog
+        // handle Apply button click in column settings dialog
         $('#results-table-column-settings-apply-button').click(() => {
             const selectedColumns = []
             $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {

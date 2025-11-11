@@ -1,0 +1,53 @@
+<script>
+    /** --------- START of utils for motif frequency  ---------- */
+
+    const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
+        const helpText = `
+        Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies.
+        Percentages represent what fraction of the 94 haplotype sequences is covered by each motif.
+        `
+
+        let result = ''
+        result += `<div class='info-font-size' style='display: flex; flex-direction: column; align-items: center'>`
+        if (showTitle) {
+            result += `<span style='font-weight: bold; margin-bottom: 20px'>Motif Variability <i class='question circle icon link' style='margin-left: 15px;' data-html='${helpText}'></i></span>`
+        }
+        result += `<table style='border-spacing: 20px 3px'>`
+        result += `<tr><td><b>Frequency</b></td><td><b>Motif</b></td><td><span style='white-space: nowrap'><b>Efficient Motif</b></span></td></tr>`
+        result += `${motifFrequencyTableRows.join('')}`
+        result += `</table>`
+        result += '</div>'
+        if (!showTitle) {
+            result += `<br /><div style='text-align: justify; color: #555555' ><b>Details:</b> ${helpText}</div>`
+        }
+        return result
+    }
+
+    const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
+        if (!frequenciesString) {
+            return ''
+        }
+
+        try {
+            let resultMotifs = computeMotifFrequenciesTableRows(frequenciesString)
+            const totalMotifs = resultMotifs.length
+
+            if (maxRowsToShow && resultMotifs.length > maxRowsToShow) {
+                resultMotifs = resultMotifs.slice(0, maxRowsToShow)
+                resultMotifs.push(`<tr><td colspan='3' style='text-align:center; color:#AAAAAA'><i>... ${Object.keys(motifCounts).length - maxRowsToShow} more motifs. See locus page ...</i></td></tr>`)
+            }
+
+            if (totalMotifs > 0) {
+                const dataHtml = computeMotifFrequenciesTableHtml(resultMotifs)
+                return `<span class="show-popup action-link" data-html="${dataHtml}">${totalMotifs} motifs</span>`
+            } else {
+                return ''
+            }
+        } catch (e) {
+            console.error('Error parsing motif frequencies string:', e)
+            return ''
+        }
+    }
+
+    /** --------- END of utils for motif frequency  ---------- */
+</script>

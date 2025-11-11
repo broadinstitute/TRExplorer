@@ -1,0 +1,120 @@
+<script>
+    /** --------- START of utils for dot plots  ---------- */
+    const dotPlotGenerateMatrix = (sequence) => {
+        const sequenceArray = Array.from(sequence);
+        return sequenceArray.map((baseJ) =>
+            sequenceArray.map((baseI) => (baseI === baseJ ? 1 : 0))
+        );
+    }
+
+    const dotPlotIsNoise = (matrix, i, j, minDiagonalRun = 3) => {
+        const size = matrix.length;
+        for (const directionJ of [1, -1]) {
+            let runLength = 0;
+            for (const direction of [1, -1]) {
+                let currentI = i;
+                let currentJ = j;
+                while (
+                    currentI >= 0 &&
+                    currentJ >= 0 &&
+                    currentI < size &&
+                    currentJ < size &&
+                    matrix[currentI][currentJ] > 0
+                    ) {
+                    currentI += direction;
+                    currentJ += direction * directionJ;
+                    runLength += 1;
+                    if (runLength >= minDiagonalRun) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    const dotPlotFilterOutNoise = (matrix, minDiagonalRun = 3, setNoiseToDifferentColor = false) => {
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix.length; j++) {
+                if (matrix[i][j] > 0 && dotPlotIsNoise(matrix, i, j, minDiagonalRun)) {
+                    matrix[i][j] = setNoiseToDifferentColor ? 2 : 0;
+                }
+            }
+        }
+    }
+
+    function plotDotPlot(dotPlotCanvas, sequence, pixelsPerCell = 1, setNoiseToDifferentColor = false) {
+
+        if (!sequence) {
+            console.warn("Sequence is empty")
+            return
+        }
+        const separatorPositions = []
+        const filteredSequenceChars = []
+        for (const c of sequence) {
+            if (c === "|") {
+                separatorPositions.push(filteredSequenceChars.length)
+            } else {
+                filteredSequenceChars.push(c)
+            }
+        }
+        const filteredSequence = filteredSequenceChars.join("")
+
+        const matrix = dotPlotGenerateMatrix(filteredSequence)
+        dotPlotFilterOutNoise(matrix, 6, setNoiseToDifferentColor)
+
+
+        const size = matrix.length;
+        const scaledSize = size * pixelsPerCell;
+        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const value = matrix[i][j];
+                let r = 255, g = 255, b = 255, a = 255;
+                if (value === 1) {
+                    r = 0
+                    g = 0
+                    b = 0
+                } else if (value === 2) {
+                    r = 255
+                    g = 0
+                    b = 0
+                }
+                for (let dy = 0; dy < pixelsPerCell; dy++) {
+                    for (let dx = 0; dx < pixelsPerCell; dx++) {
+                        const scaledRow = i * pixelsPerCell + dy
+                        const scaledCol = j * pixelsPerCell + dx
+                        const pixelIndex = (scaledRow * scaledSize + scaledCol) * 4
+                        pixelData[pixelIndex] = r
+                        pixelData[pixelIndex + 1] = g
+                        pixelData[pixelIndex + 2] = b
+                        pixelData[pixelIndex + 3] = a
+                    }
+                }
+            }
+        }
+
+        dotPlotCanvas.width = matrix.length * pixelsPerCell
+        dotPlotCanvas.height = matrix.length * pixelsPerCell
+
+        const context = dotPlotCanvas.getContext("2d")
+        context.putImageData(new ImageData(pixelData, scaledSize, scaledSize), 0, 0)
+        context.fillStyle = "rgba(0, 0, 255, 1)"
+        for (const position of separatorPositions) {
+            const x = position * pixelsPerCell
+            context.fillRect(x, 0, 1.5, dotPlotCanvas.height)
+        }
+    }
+
+    /*
+    Example:
+
+    const pixelsPerCell = 2 // higher number increases resolution
+    const dotPlotCanvas = document.getElementById("dotPlotCanvas")
+    plotDotPlot(dotPlotCanvas, inputSequence, pixelsPerCell, false)
+    dotPlotCanvas.style.width = "100px"
+    dotPlotCanvas.style.height = "100px"
+
+     */
+    /** --------- END of utils for dot plots  ---------- */
+</script>

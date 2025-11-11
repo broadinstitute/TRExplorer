@@ -1,0 +1,300 @@
+<script>
+    /** --------- START of utils for periodicity plots  ---------- */
+    const shiftStringBy = (string, shift) => {
+        if (shift === 0 || string.length === 0) {
+            return string
+        }
+        const normalizedShift = shift % string.length
+        return string.slice(-normalizedShift) + string.slice(0, string.length - normalizedShift)
+    }
+
+    const hashString = (string) => {
+        let hash = 0
+        for (let i = 0; i < string.length; i++) {
+            hash = (hash << 5) - hash + string.charCodeAt(i)
+            hash |= 0
+        }
+        return Math.abs(hash)
+    }
+
+    const generatePeriodicityMatrixWithBackwardLook = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
+        const clampedMin = Math.max(minMotifSize, 1)
+        const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
+        const rowCount = Math.max(clampedMax, clampedMin)
+        const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
+
+        let hashCache = new Map()
+        for (let row = clampedMin - 1; row < clampedMax; row++) {
+            const period = row + 1
+            let prevShiftedMotif
+            for (let column = 0; column < sequence.length; column++) {
+                const motifEndingAtThisLetter = sequence.slice(column - period + 1, column + 1)
+                const shiftedMotifEndingAtThisLetter = shiftStringBy(motifEndingAtThisLetter, (column + 1) % period)
+                let shiftedMotif
+                if (prevShiftedMotif === shiftedMotifEndingAtThisLetter) {
+                    shiftedMotif = shiftedMotifEndingAtThisLetter
+                } else if (column + period < sequence.length && sequence[column] === sequence[column + period]) {
+                    const motifStartingAtThisLetter = sequence.slice(column, column + period)
+                    const shiftedMotifStartingAtThisLetter = shiftStringBy(motifStartingAtThisLetter, column % period)
+                    shiftedMotif = shiftedMotifStartingAtThisLetter
+                    prevShiftedMotif = shiftedMotif
+                } else {
+                    prevShiftedMotif = null
+                    continue
+                }
+
+                if (hashCache.has(shiftedMotif)) {
+                    matrix[row][column] = hashCache.get(shiftedMotif)
+                } else {
+                    const hash = hashString(shiftedMotif)
+                    hashCache.set(shiftedMotif, hash)
+                    matrix[row][column] = hash
+                }
+            }
+        }
+
+        return matrix
+    }
+
+    const generatePeriodicityMatrix = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
+        const clampedMin = Math.max(minMotifSize, 1)
+        const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
+        const rowCount = Math.max(clampedMax, clampedMin)
+        const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
+
+        let hashCache = new Map()
+        for (let row = clampedMin - 1; row < clampedMax; row++) {
+            const period = row + 1
+            for (let column = 0; column < sequence.length - period; column++) {
+                if (sequence[column] !== sequence[column + period]) {
+                    continue
+                }
+                const motif = sequence.slice(column, column + period)
+                const shiftedMotif = shiftStringBy(motif, column % period)
+                if (hashCache.has(shiftedMotif)) {
+                    matrix[row][column] = hashCache.get(shiftedMotif)
+                } else {
+                    const hash = hashString(shiftedMotif)
+                    hashCache.set(shiftedMotif, hash)
+                    matrix[row][column] = hash
+                }
+            }
+        }
+
+        return matrix
+    }
+
+    const hexToRgb = (hex) => {
+        const normalized = hex.replace("#", "")
+        const bigint = parseInt(normalized, 16)
+        return {
+            r: (bigint >> 16) & 255,
+            g: (bigint >> 8) & 255,
+            b: bigint & 255,
+        }
+    }
+
+    const drawPeriodicityMatrix = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false) => {
+
+        const separatorPositions = []
+        const filteredSequenceChars = []
+        for (const c of sequence) {
+            if (c === "|") {
+                separatorPositions.push(filteredSequenceChars.length)
+            } else {
+                filteredSequenceChars.push(c)
+            }
+        }
+        const filteredSequence = filteredSequenceChars.join("")
+
+        let matrix
+        if (useBackwardLook) {
+            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, 1, 24)
+        } else {
+            matrix = generatePeriodicityMatrix(filteredSequence, 1, 24)
+        }
+
+
+        // zip matrix[2] with the filteredSequence
+        //console.log(Array.from(filteredSequence).map((value, index) => `${value}:  ${matrix[2][index]}`).join("\n"))
+
+        filterOutNoiseInPeriodicityMatrix(matrix, minRunLength)
+
+        const rowCount = matrix.length
+        const columnCount = matrix[0]?.length || 0
+        if (rowCount === 0 || columnCount === 0) {
+            return
+        }
+
+        const backgroundColor = hexToRgb("#FFFFFF")
+        const motifPalette = ['#24f2a5', '#f27124', '#d8f224', '#24f257', '#d824f2', '#247ef2', '#64f224', '#2431f2', '#6424f2', '#f29824', '#f2e524', '#8b24f2', '#f224e5', '#24f27e', '#3ef224', '#f22424', '#24f2cb', '#f22471', '#24f2f2', '#f2be24', '#b124f2', '#24cbf2', '#8bf224', '#b1f224', '#3e24f2', '#f224be', '#24a5f2', '#f24a24', '#2457f2', '#f22498', '#24f231']
+
+        const width = columnCount * pixelsPerCell
+        const height = rowCount * pixelsPerCell
+        const fontSize = 11
+        const labelOffset = Math.ceil(fontSize * 2)
+        const pixelData = new Uint8ClampedArray(width * height * 4)
+
+        for (let row = 0; row < rowCount; row++) {
+            for (let column = 0; column < columnCount; column++) {
+                const value = matrix[row][column]
+                const paletteIndex = value === 0 ? -1 : value % motifPalette.length
+                const color = paletteIndex >= 0 ? hexToRgb(motifPalette[paletteIndex]) : backgroundColor
+
+                for (let dy = 0; dy < pixelsPerCell; dy++) {
+                    for (let dx = 0; dx < pixelsPerCell; dx++) {
+                        const pixelRow = row * pixelsPerCell + dy
+                        const pixelCol = column * pixelsPerCell + dx
+                        const pixelIndex = (pixelRow * width + pixelCol) * 4
+                        pixelData[pixelIndex] = color.r
+                        pixelData[pixelIndex + 1] = color.g
+                        pixelData[pixelIndex + 2] = color.b
+                        pixelData[pixelIndex + 3] = 255
+                    }
+                }
+            }
+        }
+
+        canvas.width = width + labelOffset
+        canvas.height = height
+        const context = canvas.getContext("2d")
+        context.putImageData(new ImageData(pixelData, width, height), labelOffset, 0)
+        canvas.style.height = `${1 * pixelsPerCell * rowCount}px`
+        context.fillStyle = "rgba(0, 0, 255, 1)"
+        for (const position of separatorPositions) {
+            const x = labelOffset + position * pixelsPerCell
+            context.fillRect(x, 0, 1.5, height)
+        }
+
+        context.fillStyle = "rgba(0, 0, 0, 1)"
+        context.textAlign = "left"
+        context.textBaseline = "middle"
+        context.font = `${fontSize}px monospace`
+
+        let lastLabelY = -Infinity
+        const minSpacing = fontSize * 1.2
+
+        for (let row = 0; row < rowCount; row++) {
+            const y = row * pixelsPerCell + pixelsPerCell / 2
+            //const isBoundary = row === 0 || row === rowCount - 1
+            const drawLabel = (row + 1) % 3 === 0
+            const hasSpace = (y - lastLabelY >= minSpacing)
+            if (drawLabel && hasSpace) {
+                context.fillText(`${row + 1}`, 2, y)
+                lastLabelY = y
+            }
+        }
+
+        return matrix
+    }
+
+    const computeBarScores = (matrix) => {
+        if (matrix.length === 0 || matrix[0].length === 0) {
+            return []
+        }
+        const width = matrix[0].length
+        return matrix.map((row, index) => {
+            const matches = row.reduce((count, value) => count + (value > 0 ? 1 : 0), 0)
+            const period = index + 1
+            const denominator = Math.max(width - period + 1, 1)
+            return matches / denominator
+        })
+    }
+
+    const isNoiseInPeriodicityMatrix = (matrix, i, j, minRunLength = 3) => {
+        // check if the horizontal run starting at (i, j) is at least minRunLength of the same value
+        let runLength = 1
+        const width = matrix[0].length
+        const value = matrix[i][j]
+        for (let dx = 1; j + dx < width; dx++) {
+            if (matrix[i][j + dx] !== value) {
+                break
+            }
+
+            runLength += 1
+            if (runLength >= minRunLength) {
+                return false
+            }
+        }
+        for (let dx = 1; j - dx >= 0; dx++) {
+            if (matrix[i][j - dx] !== value) {
+                break
+            }
+
+            runLength += 1
+            if (runLength >= minRunLength) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    const filterOutNoiseInPeriodicityMatrix = (matrix, minRunLength = 3) => {
+        const matrixRows = matrix.length
+        const matrixColumns = matrix[0].length
+        for (let i = 0; i < matrixRows; i++) {
+            for (let j = 0; j < matrixColumns; j++) {
+                if (matrix[i][j] > 0 && isNoiseInPeriodicityMatrix(matrix, i, j, minRunLength)) {
+                    matrix[i][j] = 0
+                }
+            }
+        }
+    }
+
+    const buildPeriodicityMatrixBarChart = (container, periodicityMatrix) => {
+        container.innerHTML = ""
+        container.style.display = "flex"
+        container.style.alignItems = "flex-end"
+        container.style.gap = "6px"
+        container.style.height = "160px"
+        container.style.marginTop = "16px"
+
+        const scores = computeBarScores(periodicityMatrix)
+        const maxScore = Math.max(...scores, 0)
+
+        scores.forEach((score, index) => {
+            const wrapper = document.createElement("div")
+            wrapper.style.display = "flex"
+            wrapper.style.flexDirection = "column"
+            wrapper.style.alignItems = "center"
+            wrapper.style.font = "11px monospace"
+
+            const bar = document.createElement("div")
+            const normalized = maxScore === 0 ? 0 : (score / maxScore)
+            bar.style.height = `${normalized * 120}px`
+            bar.style.width = "10px"
+            bar.style.backgroundColor = "#4cc9f0" //"#6366F1" //"#4cc9f0"
+            bar.style.borderRadius = "2px 2px 0 0"
+            //bar.title = `Period ${index + 1}: ${(score * 100).toFixed(1)}%`
+
+            const label = document.createElement("span")
+            label.style.paddingTop = "5px"
+            label.textContent = `${index + 1}`
+
+            wrapper.appendChild(bar)
+            wrapper.appendChild(label)
+            container.appendChild(wrapper)
+        })
+    }
+
+
+    /*
+    Example:
+    <canvas id="periodicityMatrixCanvas"></canvas>
+    <div id="barPlotContainer"></div>
+
+
+    const pixelsPerCell = 10
+    const minRunLength = 3
+    const useBackwardLook = false
+
+    const periodicityCanvas = document.getElementById("periodicityMatrixCanvas")
+    const periodicityMatrix = drawPeriodicityMatrix(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
+
+    const barPlotContainer = document.getElementById("barPlotContainer")
+    buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)
+    */
+
+    /** --------- END of utils for periodicity plots  ---------- */
+</script>
