@@ -1194,9 +1194,12 @@
 
                 $('#dot-plot-dialog-sequences').html(`
                 <table>
-                <tr><td style="padding-right:50px">Left Flank:</td><td><span style="font-family: monospace">${leftFlank}</span></td></tr>
-                <tr><td>Repeat Sequence:</td><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
-                <tr><td>Right Flank:</td><td><span style="font-family: monospace">${rightFlank}</span></td></tr>
+                <tr><td><b>Left Flank:</b></td></tr>
+                <td><span style="font-family: monospace">${leftFlank}</span></td></tr>
+                <tr><td><b>Repeat Sequence:</b></td></tr>
+                <tr><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
+                <tr><td><b>Right Flank:</b></td></tr>
+                <tr><td><span style="font-family: monospace">${rightFlank}</span></td></tr>
                 </table>
                 `)
                 $('#dot-plot-dialog').modal('show')
