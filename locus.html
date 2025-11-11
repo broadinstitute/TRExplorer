@@ -681,6 +681,99 @@ gtag('config', 'G-6R8FPBQRFH');
     }
     */
 
+    const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
+    const DEFAULT_SORT_DIRECTION = 'ASC'
+
+
+    // persistent page state (added to the URL)
+    let DEFAULT_GLOBAL_PAGE_STATE = {
+        currentPage: 1,
+        pageSize: 100,
+
+        sc: DEFAULT_SORT_COLUMN,
+        sd: DEFAULT_SORT_DIRECTION,
+
+        showIGV: 0,
+        igvLoc: 'chr4:3074821-3074990',
+
+        showRs: 0,  //show results table
+        searchQuery: '',
+        showAdvFilters: 0,
+
+        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
+        keepMotifSize: '',
+        keepMotif: '',
+
+        keepCodingLoci: 0,
+        keepFiveUTRLoci: 0,
+        keepThreeUTRLoci: 0,
+        keepPromoterLoci: 0,
+        keepIntronLoci: 0,
+        keepIntergenicLoci: 0,
+        keepNonCodingExonLoci: 0,
+
+        polymorphismFilter: 0,
+        polymorphismFilterType: '',
+        polymorphismThreshold: '',
+        vcFilter: 0,
+        vcFilterType: '',
+
+        // Custom track URLs
+        igv_custom_track_url_1: '',
+        igv_custom_track_url_2: '',
+        igv_custom_track_url_3: '',
+    }
+
+
+    ALL_AVAILABLE_TRACKS.forEach((rt) => {
+        DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
+    })
+
+    DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
+    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
+
+
+    // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
+    const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
+        'CAG',
+        'GCC',
+        'GAA',
+        'GTC',
+        'CAGG',
+        'TTTG',
+        'GGGCC',
+        'ATTCT',
+        'GGCCCC',
+        'GGCCTG',
+        'GGCGCGGAGC',
+        'CGCGGGGCGGGG',
+        'CCTCGCTGTGCCGCTGCCGA',
+        'CCTCATGGTGGTGGCTGGGGGCAG',
+
+        /*
+        //BEAN1
+        "TAGAA",
+        "TGGAA",
+
+        //DAB1
+        "GAAAT",
+
+        //MARCHF6
+        "ATTTC",
+
+        //RAPGEF2,
+        "TTTCA",
+
+        //RFC1
+        "AAGGC",
+        "AAGGG",
+        "ACAGG",
+        "AGAGG",
+        "AGGGC",
+        */
+    ].join(', ')
+
+
     const writePersistentPageStateToUrl = () => {
         // Create object with only non-default values
         const nonDefaultParams = {}
@@ -696,6 +789,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // Get current hash to check if state has changed
         const currentHash = window.location.hash
         if (currentHash !== hash) {
+            console.log('setting hash from', currentHash, 'to', hash)
             // Update URL and add to browser history
             window.history.pushState(null, '', hash)
         }
@@ -1012,10 +1106,10 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
     }
 
-    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false) => {
+    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
         let sequenceSizeString = ''
         if (showSize) {
-            sequenceSizeString += `(${sequence.length})`
+            sequenceSizeString += `(${sequence.length}${addBpSuffix? 'bp' : ''})`
         }
         if (sequence.length > truncateAt) {
             let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`
@@ -1928,16 +2022,25 @@ gtag('config', 'G-6R8FPBQRFH');
         white-space: nowrap;
     }
 
+    .info-font-size {
+        font-size: 1.12em;
+    }
+
     .locus-info-table {
         font-size: 1.12em;
         border-collapse: separate;
         border-spacing: 12px 6px;
     }
 
-    .center-col {
+    .left-col {
         display: flex;
-        justify-content: center;   /* horizontal centering */
-        align-items: center;       /* optional vertical centering */
+        padding-right: 20px;
+        justify-content: flex-end;    /* horizontal centering */
+    }
+    .right-col {
+        display: flex;
+        padding-left: 20px;
+        justify-content: flex-start;    /* horizontal centering */
     }
 </style>
 <div class="ui stackable grid">
@@ -1979,28 +2082,21 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="six wide column center-col" style="min-width: 600px !important;">
-            <div id="locus-page-row1-box1"></div>
+        <div class="six wide column" style="min-width: 600px !important;">
+            <div id="locus-page-row1-box1" class="left-col"></div>
         </div>
-        <div class="six wide column center-col">
-            <div id="locus-page-row1-box2"></div>
-        </div>
-        <div class="two wide column"></div>
-    </div>
-    <div class="ui row">
-        <div class="two wide column"></div>
-        <div class="twelve wide column">
-            <div id="locus-page-row2-box"></div>
+        <div class="six wide column">
+            <div id="locus-page-row1-box2" class="right-col"></div>
         </div>
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
         <div class="two wide column"></div>
-        <div class="six wide column center-col" style="min-width: 600px !important;">
-            <div id="locus-page-row3-box1"></div>
+        <div class="six wide column" style="min-width: 600px !important;">
+            <div id="locus-page-row2-box1" class="left-col"></div>
         </div>
-        <div class="six wide column center-col">
-            <div id="locus-page-row3-box2"></div>
+        <div class="six wide column">
+            <div id="locus-page-row2-box2" class="right-col"></div>
         </div>
         <div class="two wide column"></div>
     </div>
@@ -2079,45 +2175,25 @@ gtag('config', 'G-6R8FPBQRFH');
         "VamosUniqueMotifs",
         "VamosEfficientMotifs",
         "VamosMotifFrequencies",
-        "VamosNumUniqueMotifsAbove1Percent",
+        //"VamosNumUniqueMotifs",
 
         "ReferenceRepeatSequence",
         "ReferenceLeftFlank",
         "ReferenceRightFlank",
     ]
 
-    // persistent page state (added to the URL)
-    let DEFAULT_GLOBAL_PAGE_STATE = {
+    //locus page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
+    DEFAULT_GLOBAL_PAGE_STATE['locusId'] = ''
 
-        locusId: '',
-
-        showIGV: 0,
-        igvLoc: 'chr4:3074821-3074990',
-
-        // Custom track URLs
-        igv_custom_track_url_1: '',
-        igv_custom_track_url_2: '',
-        igv_custom_track_url_3: '',
-    }
-
-    ALL_AVAILABLE_TRACKS.forEach((rt) => {
-        DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
-    })
-
-    DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
-    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
-
-    //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
         
-        const hash = window.location.hash.substring(1)
-        if (!hash) return
+        const urlArgs = window.location.hash.substring(1)
+        if (!urlArgs) return
         
-        const params = new URLSearchParams(hash)
-        
+        const params = new URLSearchParams(urlArgs)
         for (const [key, value] of params.entries()) {
             if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
@@ -2187,7 +2263,13 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td>${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td colspan="3" style="padding-top: 30px"></td></tr>`
+        locusPageRow1Box1 += `<tr><td colspan="3" style="position: relative"><div style="position: absolute; top: 0px; left: 0px; z-index: 1000">`
+        locusPageRow1Box1 += `<div class="locus-info-label" style="padding-bottom: 10px">Repeat sequence in hg38:</div>`
+        locusPageRow1Box1 += `${showTruncatedSequence(row['ReferenceRepeatSequence'], 140, true, false, true)}`
+        locusPageRow1Box1 += `</div></td></tr>`
         locusPageRow1Box1 += '</table>'
+
         $("#locus-page-row1-box1").html(locusPageRow1Box1)
 
         let locusPageRow1Box2 = '<table class="locus-info-table">'
@@ -2200,7 +2282,8 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Region:</td><td>${TABLE_COLUMNS['ManeGeneRegion'].getValue(row)}</td><td>${getHelpIcon('ManeGeneRegion')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Gene Id:</td><td>${TABLE_COLUMNS['ManeGeneId'].getValue(row)}</td><td>${getHelpIcon('ManeGeneId')}</td></tr>`
         locusPageRow1Box2 += `<tr><td class="locus-info-label">MANE Transcript Id:</td><td>${TABLE_COLUMNS['ManeTranscriptId'].getValue(row)}</td><td>${getHelpIcon('ManeTranscriptId')}</td></tr>`
-        locusPageRow1Box2 += '</table>'
+        locusPageRow1Box2 += '</table> <br />'
+
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
 
@@ -2208,15 +2291,20 @@ gtag('config', 'G-6R8FPBQRFH');
         VamosMotifFrequencies
          */
 
-        let locusPageRow2Box = `<div style="padding: 0px 12px"><span class="locus-info-label">Repeat sequence in hg38:</span><br />${TABLE_COLUMNS['ReferenceRepeatSequence'].getValue(row, 140)}</div>`
-        $("#locus-page-row2-box").html(locusPageRow2Box)
+        // get url params
+        const urlArgs = window.location.hash.substring(1)
+        const homePageUrl = `index.html?#${urlArgs}`
 
-        let locusPageRow3Box1 = `<div style="padding: 0px 12px"><span class="locus-info-label">Left flank:</span><br />${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true)}</div>`
-        let locusPageRow3Box2 = `<div style="padding: 0px 12px"><span class="locus-info-label">Right flank:</span><br />${TABLE_COLUMNS['ReferenceRightFlank'].getValue(row, 58)}</div>`
-        $("#locus-page-row3-box1").html(locusPageRow3Box1)
-        $("#locus-page-row3-box2").html(locusPageRow3Box2)
+        let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
+        locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left Flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
+        locusPageRow2Box1 += `<div style="padding-top: 20px"><a href="${homePageUrl}" style="font-size: 1.1em">&lt; Back to search page</a></div>`
+        locusPageRow2Box1 += `</div>`
+        $("#locus-page-row2-box1").html(locusPageRow2Box1)
 
-
+        let locusPageRow2Box2 = `<div style="padding: 40px 12px 0px 12px">`
+        locusPageRow2Box2 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Right Flank:</div>${showTruncatedSequence(row['ReferenceRightFlank'], 58, true, false, true)}`
+        locusPageRow2Box2 += `</div>`
+        $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
         $('#locus-page-results-area').html('')
 
@@ -2225,9 +2313,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
 
-        let locusPageContent = `
-            <div class="content" style="text-align: center">
-        `
+        let locusPageContent = `<div class="content" style="text-align: center">`
 
         if (nStdevsNotAvailable == stdevColumns.length) {
             locusPageContent += `

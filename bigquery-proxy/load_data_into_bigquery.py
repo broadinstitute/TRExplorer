@@ -333,7 +333,7 @@ schema = [
     bigquery.SchemaField("VamosUniqueMotifs", "STRING"),
     bigquery.SchemaField("VamosEfficientMotifs", "STRING"),
     bigquery.SchemaField("VamosMotifFrequencies", "STRING"),
-    bigquery.SchemaField("VamosNumUniqueMotifsAbove1Percent", "INTEGER"),
+    bigquery.SchemaField("VamosNumUniqueMotifs", "INTEGER"),
     bigquery.SchemaField("IncludeInVamosCatalog", "INTEGER"),
 
     bigquery.SchemaField("ReferenceRepeatSequence", "STRING"),
@@ -563,7 +563,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         for c in "VamosUniqueMotifs", "VamosEfficientMotifs", "VamosMotifFrequencies":
             if vamos_data[c] is not None and vamos_data[c] != '':
                 record[c] = vamos_data[c]
-        for c in "VamosNumUniqueMotifsAbove1Percent", "IncludeInVamosCatalog":
+        for c in "VamosNumUniqueMotifs", "IncludeInVamosCatalog":
             if vamos_data[c] is not None and vamos_data[c] != '':
                 record[c] = int(vamos_data[c])
 

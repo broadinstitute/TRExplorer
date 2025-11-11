@@ -679,6 +679,99 @@ gtag('config', 'G-6R8FPBQRFH');
     }
     */
 
+    const DEFAULT_SORT_COLUMN = 'chrom_index, start_0based'
+    const DEFAULT_SORT_DIRECTION = 'ASC'
+
+
+    // persistent page state (added to the URL)
+    let DEFAULT_GLOBAL_PAGE_STATE = {
+        currentPage: 1,
+        pageSize: 100,
+
+        sc: DEFAULT_SORT_COLUMN,
+        sd: DEFAULT_SORT_DIRECTION,
+
+        showIGV: 0,
+        igvLoc: 'chr4:3074821-3074990',
+
+        showRs: 0,  //show results table
+        searchQuery: '',
+        showAdvFilters: 0,
+
+        sourceCatalog: 'tr_explorer_catalog_v2', // Source catalog filter
+        keepMotifSize: '',
+        keepMotif: '',
+
+        keepCodingLoci: 0,
+        keepFiveUTRLoci: 0,
+        keepThreeUTRLoci: 0,
+        keepPromoterLoci: 0,
+        keepIntronLoci: 0,
+        keepIntergenicLoci: 0,
+        keepNonCodingExonLoci: 0,
+
+        polymorphismFilter: 0,
+        polymorphismFilterType: '',
+        polymorphismThreshold: '',
+        vcFilter: 0,
+        vcFilterType: '',
+
+        // Custom track URLs
+        igv_custom_track_url_1: '',
+        igv_custom_track_url_2: '',
+        igv_custom_track_url_3: '',
+    }
+
+
+    ALL_AVAILABLE_TRACKS.forEach((rt) => {
+        DEFAULT_GLOBAL_PAGE_STATE[rt[0]] = 0
+    })
+
+    DEFAULT_GLOBAL_PAGE_STATE['igv_kd_loci'] = 1
+    //DEFAULT_GLOBAL_PAGE_STATE['igv_tr_explorer_catalog_v2'] = 1
+
+
+    // based on https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json
+    const MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI =  [
+        'CAG',
+        'GCC',
+        'GAA',
+        'GTC',
+        'CAGG',
+        'TTTG',
+        'GGGCC',
+        'ATTCT',
+        'GGCCCC',
+        'GGCCTG',
+        'GGCGCGGAGC',
+        'CGCGGGGCGGGG',
+        'CCTCGCTGTGCCGCTGCCGA',
+        'CCTCATGGTGGTGGCTGGGGGCAG',
+
+        /*
+        //BEAN1
+        "TAGAA",
+        "TGGAA",
+
+        //DAB1
+        "GAAAT",
+
+        //MARCHF6
+        "ATTTC",
+
+        //RAPGEF2,
+        "TTTCA",
+
+        //RFC1
+        "AAGGC",
+        "AAGGG",
+        "ACAGG",
+        "AGAGG",
+        "AGGGC",
+        */
+    ].join(', ')
+
+
     const writePersistentPageStateToUrl = () => {
         // Create object with only non-default values
         const nonDefaultParams = {}
@@ -694,6 +787,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // Get current hash to check if state has changed
         const currentHash = window.location.hash
         if (currentHash !== hash) {
+            console.log('setting hash from', currentHash, 'to', hash)
             // Update URL and add to browser history
             window.history.pushState(null, '', hash)
         }
@@ -1010,10 +1104,10 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
     }
 
-    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false) => {
+    const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
         let sequenceSizeString = ''
         if (showSize) {
-            sequenceSizeString += `(${sequence.length})`
+            sequenceSizeString += `(${sequence.length}${addBpSuffix? 'bp' : ''})`
         }
         if (sequence.length > truncateAt) {
             let result = `<span class="show-popup action-link" style="white-space: nowrap; font-family: monospace" data-html="<span style='font-family: monospace'>${sequence.replace(/.{1,100}/g, chunk => chunk + ' ')}</span>">`

@@ -84,7 +84,7 @@ def main():
                 "VamosUniqueMotifs": vamos_data["unique_motifs"],
                 "VamosEfficientMotifs": vamos_data["efficient_motifs"],
                 "VamosMotifFrequencies": vamos_data["motif_frequencies"],
-                "VamosNumUniqueMotifsAbove1Percent": vamos_data["num_unique_motifs_above_1_percent"],
+                "VamosNumUniqueMotifs": vamos_data["num_unique_motifs"],
             })
             
     print(f"Kept {len(output_table_rows):,d} out of {counters['total']:,d} ({100 * len(output_table_rows) / counters['total']:.2f}%) rows")
@@ -99,7 +99,7 @@ def main():
         "VamosUniqueMotifs",
         "VamosEfficientMotifs",
         "VamosMotifFrequencies",
-        "VamosNumUniqueMotifsAbove1Percent",
+        "VamosNumUniqueMotifs",
     ]
 
     fopen = gzip.open if args.output_tsv.endswith(".gz") else open
@@ -166,7 +166,6 @@ def parse_vamos_data(unique_motif_tsv_path, efficient_motif_tsv_path=None):
 
                 ori_to_efficient_motif_map = vamos_ori_to_efficient_motif_map[reference_region]
 
-            total_frequent_motifs = 0
             efficient_motif_list = []
             for motif in unique_motif_list:
                 canonical_motif = compute_canonical_motif(motif)
@@ -186,15 +185,11 @@ def parse_vamos_data(unique_motif_tsv_path, efficient_motif_tsv_path=None):
 
                 motif_and_count_list.append(value)
 
-
-                if int(count) / total_counts >= 0.01:
-                    total_frequent_motifs += 1
-
             result[reference_region] = {
                 "unique_motifs": ",".join(unique_motif_list),
                 "efficient_motifs": ",".join(efficient_motif_list),
                 "motif_frequencies": ",".join(motif_and_count_list),
-                "num_unique_motifs_above_1_percent": total_frequent_motifs,
+                "num_unique_motifs": len(motif_and_count_list),
             }
 
     return result
