@@ -31,10 +31,9 @@
         try {
             let resultMotifs = computeMotifFrequenciesTableRows(frequenciesString)
             const totalMotifs = resultMotifs.length
-
             if (maxRowsToShow && resultMotifs.length > maxRowsToShow) {
                 resultMotifs = resultMotifs.slice(0, maxRowsToShow)
-                resultMotifs.push(`<tr><td colspan='3' style='text-align:center; color:#AAAAAA'><i>... ${Object.keys(motifCounts).length - maxRowsToShow} more motifs. See locus page ...</i></td></tr>`)
+                resultMotifs.push(`<tr><td colspan='3' style='text-align:center; color:#AAAAAA'><i>... ${totalMotifs - maxRowsToShow} more motifs. See locus page ...</i></td></tr>`)
             }
 
             if (totalMotifs > 0) {
