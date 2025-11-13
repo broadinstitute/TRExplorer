@@ -16,7 +16,7 @@ The following JSON files contain annotations for loci in the TRExplorer catalog:
             <th>Version</th>
             <th style="text-align: center; white-space: nowrap;">Date Updated</th>
             <th>Description</th>
-            <th></th>
+            <th>Download Links</th>
         </tr>
     </thead>
     
@@ -24,8 +24,10 @@ The following JSON files contain annotations for loci in the TRExplorer catalog:
     <tr class="ui table row" style="vertical-align: top;">
         <td style="text-align: center; font-weight: bold;">latest</td>
         <td style="text-align: center;">2025-10-21</td>
-        <td style="vertical-align: top;">This JSON file contains the latest annotations for the TRExplorer catalog. It will be updated periodically.<br />
+        <td style="vertical-align: top;">The latest annotations for the TRExplorer catalog<br />
             <br />
+            <a href="#" class="show-details-button" id="show-details-for-2025-10-21">Show details</a>
+            <div class="show-details-content" id="details-for-2025-10-21" style="display: none;">
             It includes the following new JSON fields added after the v1.0 release:<br />
             <table class="ui basic table" style="width: 100%; border-collapse: collapse; border: 0px;">
                 <thead class="ui table header">
@@ -93,18 +95,26 @@ The following JSON files contain annotations for loci in the TRExplorer catalog:
                     <td style="vertical-align: top;">Not sufficiently useful</td>
                 </tr>
             </table>
+            </div>
         </td>
-        <td style="text-align: center; vertical-align: top;">
-            <b><a href="https://storage.googleapis.com/tandem-repeat-catalog/2025-10-21_export/TR_catalog.4863041_loci.20251021_200733.json.gz" target="_blank"><button class="ui blue basic button" style="white-space: nowrap;">Download &nbsp; <i class="download icon"></i></button></a></b>
+        <td style="text-align: left; vertical-align: top;">
+            <b><a href="https://storage.googleapis.com/tandem-repeat-catalog/2025-10-21_export/TR_catalog.4863041_loci.20251021_200733.json.gz" target="_blank"><i class="download icon"></i> &nbsp; JSON</a></b>
         </td>
     </tr>
 
     <tr class="ui table row" style="vertical-align: top;">
         <td style="text-align: center; font-weight: bold;">v1.0</td>
         <td style="text-align: center;">2024-10-04</td>
-        <td>TRExplorer catalog annotations described on the <a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/tag/v1.0" target="_blank">release v1.0</a> page.</td>
-        <td style="text-align: center;">
-            <b><a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz" target="_blank"><button class="ui blue basic button" style="white-space: nowrap;">Download &nbsp; <i class="download icon"></i></button></a></b>
+        <td>Initial release of the TRExplorer catalog and annotations described in [<a href="https://www.biorxiv.org/content/10.1101/2024.10.04.615514v1" target="_blank">Weisburd, Dolzhenko et al 2024</a>].<br />
+            <br />
+            See the <a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/tag/v1.0" target="_blank">release v1.0</a> GitHub page for more details.</td>
+        <td style="text-align: left;">
+            <div style="padding-top: 10px">
+                <b><a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz" target="_blank" style="white-space: nowrap"><i class="download icon"></i> &nbsp; JSON</a></b>
+            </div>
+            <div style="padding-top: 10px">
+                <b><a href="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz" target="_blank" style="white-space: nowrap"><i class="download icon"></i> &nbsp; BED</a></b>
+            </div>
         </td>
     </tr>
     
@@ -117,6 +127,12 @@ $(document).ready(() => {
         on: 'click',
         hoverable: true,
     });
+
+    $("#show-details-for-2025-10-21").click(() => {
+        // toggle the visibility of the details div
+        $("#details-for-2025-10-21").show();
+        $("#show-details-for-2025-10-21").hide();
+    })
 });
 </script>
 
