@@ -1029,6 +1029,62 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         }
     }
+
+
+    const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
+        'ReferenceRegion',
+        'NumRepeatsInReference',
+        'ReferenceMotif',
+        'StdevFromIllumina174k',
+        'AlleleFrequenciesFromIllumina174k',
+        'StdevFromT2TAssemblies',
+        'AlleleFrequenciesFromT2TAssemblies',
+        'HPRC100_Stdev',
+        'HPRC100_AlleleHistogram',
+        'HPRC100_BiallelicHistogram',
+        'TenK10K_AlleleHistogram',
+        'TenK10K_BiallelicHistogram',
+        'TenK10K_Stdev',
+        'AoU1027_Stdev',
+        'AoU1027_OE_LengthPercentile',
+    ]
+
+
+    const alleleHistogramColumnToOtherColumns = {
+        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
+        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
+        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
+        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
+    }
+
+
+    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
+        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
+        TABLE_COLUMNS[columnName] = {
+            displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
+            getValue: (row) => getAlleleHistogramColumnValue(row, columnName),
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [stdevColumnName, 'NumRepeatsInReference'],
+            getRequiredColumns: () => [columnName, 'NumRepeatsInReference', ...REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN]
+        }
+    }
+
+    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
+        TABLE_COLUMNS[columnName] = {
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
+            helpText: STDEV_HELP_TEXTS[columnName],
+            getValue: (row) => row[columnName],
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName]
+        }
+    }
+
+    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
+        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
+    }
+
 </script>
 </head>
 

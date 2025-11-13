@@ -2547,6 +2547,62 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         }
     }
+
+
+    const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
+        'ReferenceRegion',
+        'NumRepeatsInReference',
+        'ReferenceMotif',
+        'StdevFromIllumina174k',
+        'AlleleFrequenciesFromIllumina174k',
+        'StdevFromT2TAssemblies',
+        'AlleleFrequenciesFromT2TAssemblies',
+        'HPRC100_Stdev',
+        'HPRC100_AlleleHistogram',
+        'HPRC100_BiallelicHistogram',
+        'TenK10K_AlleleHistogram',
+        'TenK10K_BiallelicHistogram',
+        'TenK10K_Stdev',
+        'AoU1027_Stdev',
+        'AoU1027_OE_LengthPercentile',
+    ]
+
+
+    const alleleHistogramColumnToOtherColumns = {
+        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
+        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
+        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
+        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
+    }
+
+
+    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
+        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
+        TABLE_COLUMNS[columnName] = {
+            displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
+            helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
+            getValue: (row) => getAlleleHistogramColumnValue(row, columnName),
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [stdevColumnName, 'NumRepeatsInReference'],
+            getRequiredColumns: () => [columnName, 'NumRepeatsInReference', ...REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN]
+        }
+    }
+
+    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
+        TABLE_COLUMNS[columnName] = {
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
+            helpText: STDEV_HELP_TEXTS[columnName],
+            getValue: (row) => row[columnName],
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName]
+        }
+    }
+
+    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
+        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
+    }
+
 </script>
 </head>
 
@@ -2846,8 +2902,8 @@ gtag('config', 'G-6R8FPBQRFH');
                     </div>
 
                     <div class="field" style="padding-top: 5px">
-                        <label>Gene Region(s)</label>
-                        <div class="checkbox-group">
+                        <label>Gene Region(s) or Locus Sets</label>
+                        <div class="checkbox-group" style="padding-bottom: 15px">
                             <div class="ui checkbox">
                                 <input type="checkbox" name="keepCodingLoci">
                                 <label>Coding</label>
@@ -2875,6 +2931,12 @@ gtag('config', 'G-6R8FPBQRFH');
                             <div class="ui checkbox">
                                 <input type="checkbox" name="keepNonCodingExonLoci">
                                 <label>Exon (non-coding transcript)</label>
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="ui checkbox">
+                                <input type="checkbox" name="keepLociThatOverlapDiseaseAssociatedLoci">
+                                <label>Overlaps known disease-associated loci</label>
                             </div>
                         </div>
                     </div>
@@ -3094,26 +3156,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
     ]
 
-    const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
-        'ReferenceRegion',
-        'NumRepeatsInReference',
-        'ReferenceMotif',
-        'StdevFromIllumina174k',
-        'AlleleFrequenciesFromIllumina174k',
-        'StdevFromT2TAssemblies',
-        'AlleleFrequenciesFromT2TAssemblies',
-        'HPRC100_Stdev',
-        'HPRC100_AlleleHistogram',
-        'HPRC100_BiallelicHistogram',
-        'TenK10K_AlleleHistogram',
-        'TenK10K_BiallelicHistogram',
-        'TenK10K_Stdev',
-        'AoU1027_Stdev',
-        'AoU1027_OE_LengthPercentile',
-    ]
-
-
-
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
             return ''
@@ -3163,38 +3205,6 @@ gtag('config', 'G-6R8FPBQRFH');
         return polymorphismDetails
     }
 
-    const alleleHistogramColumnToOtherColumns = {
-        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
-        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
-        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
-        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
-    }
-
-
-    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
-        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
-        TABLE_COLUMNS[columnName] = {
-            displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
-            helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
-            getValue: (row) => getAlleleHistogramColumnValue(row, columnName),
-            getSortColumns: () => [stdevColumnName],
-            getRequiredColumns: () => [columnName, 'NumRepeatsInReference', ...REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN]
-        }
-    }
-
-    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
-        TABLE_COLUMNS[columnName] = {
-            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
-            helpText: STDEV_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName],
-            getSortColumns: () => [columnName],
-            getRequiredColumns: () => [columnName]
-        }
-    }
-
-    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
-        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
-    }
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
@@ -3248,6 +3258,7 @@ gtag('config', 'G-6R8FPBQRFH');
         $('input[name="keepIntronLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntronLoci'] === 1)
         $('input[name="keepIntergenicLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntergenicLoci'] === 1)
         $('input[name="keepNonCodingExonLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] === 1)
+        $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] === 1)
 
         $('input[name="polymorphismFilter"]').prop('checked', GLOBAL_PAGE_STATE['polymorphismFilter'] === 1)
         $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
@@ -4321,6 +4332,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 if ($('input[name="keepNonCodingExonLoci"]').prop('checked')) {
                     regionConditions.push("UPPER(GencodeGeneRegion) = UPPER('exon')")
                 }
+                if ($('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked')) {
+                    regionConditions.push("DiseaseInfo IS NOT NULL")
+                }
 
                 if (regionConditions.length > 0) {
                     conditions.push(`(${regionConditions.join(' OR ')})`)
@@ -4381,6 +4395,7 @@ gtag('config', 'G-6R8FPBQRFH');
             GLOBAL_PAGE_STATE['keepIntronLoci'] = $('input[name="keepIntronLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
+            GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked') ? 1 : 0
 
             GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
