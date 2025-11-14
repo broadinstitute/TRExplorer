@@ -336,6 +336,10 @@
         'ReferenceRightFlank',
     ]
 
+    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
+        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
+    }
+
     //index page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
     DEFAULT_GLOBAL_PAGE_STATE['showColumns'] = [
         'ReferenceRegion',

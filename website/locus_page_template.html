@@ -142,7 +142,7 @@
         "VamosUniqueMotifs",
         "VamosEfficientMotifs",
         "VamosMotifFrequencies",
-        //"VamosNumUniqueMotifs",
+        "VamosNumUniqueMotifs",
 
         "ReferenceRepeatSequence",
         "ReferenceLeftFlank",
@@ -214,6 +214,8 @@
     const displaySearchResults = () => {
 
         const row = window.searchResults.rows[0]
+
+        console.log("Locus data row:", row)
 
         const getHelpIcon = (columnName) => {
             return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
@@ -330,7 +332,7 @@
 
             window.searchResults = await queryBigQuery(query, 0, 1, null, null)
 
-            console.log("search results:", window.searchResults)
+            console.log("Search results:", window.searchResults)
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
 

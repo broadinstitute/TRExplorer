@@ -1973,14 +1973,19 @@ gtag('config', 'G-6R8FPBQRFH');
         let motifCounts = {}
         let efficientMotifs = {}
         for (let i = 0; i < items.length; i++) {
-            let motif, efficientMotif, count
-            if (items[i].indexOf(':') < 3) {
-                [motif, count] = items[i].split(':')
-                efficientMotif = ''
-            } else {
+            let motif = '', efficientMotif = '', count = '0'
+            const numTokens = items[i].split(':').length
+            if (numTokens == 3) {
                 [motif, efficientMotif, count] = items[i].split(':')
+            } else if(numTokens == 2) {
+                [motif, count] = items[i].split(':')
             }
+
             count = parseInt(count)
+            if (Number.isNaN(count)) {
+                console.warn(`Unable to parse the count for motif ${motif} in ${frequenciesString}. Skipping...`)
+                continue
+            }
             motif = motif.trim()
             motifCounts[motif] = count
             efficientMotifs[motif] = efficientMotif.trim()
@@ -2602,9 +2607,6 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
-        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
-    }
 
 </script>
 </head>
@@ -3094,6 +3096,10 @@ gtag('config', 'G-6R8FPBQRFH');
         'ReferenceRepeatSequence',
         'ReferenceRightFlank',
     ]
+
+    if (!RESULTS_TABLE_COLUMN_NAMES.every(columnName => Object.keys(TABLE_COLUMNS).includes(columnName))) {
+        throw new Error('RESULTS_TABLE_COLUMN_NAMES is missing columns from TABLE_COLUMNS: ' + RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !Object.keys(TABLE_COLUMNS).includes(columnName)).join(', '))
+    }
 
     //index page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
     DEFAULT_GLOBAL_PAGE_STATE['showColumns'] = [
