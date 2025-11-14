@@ -1693,6 +1693,7 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
+    const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
         LocusId: 'A unique id of this TR locus in hg38',
         ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
@@ -1712,15 +1713,15 @@ gtag('config', 'G-6R8FPBQRFH');
         RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
-        GencodeGeneRegion: 'The most significant gene region that overlaps the TR locus in Gencode v48',
+        GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v48 ${gene_region_priority}`,
         GencodeGeneName: 'Gencode v48 gene name',
         GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
         GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
-        RefSeqGeneRegion: 'RefSeq gene region',
+        RefSeqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
         RefSeqGeneId: 'RefSeq gene ID',
         RefSeqTranscriptId: 'RefSeq transcript ID',
         RefSeqGeneName: 'RefSeq gene name',
-        ManeGeneRegion: 'MANE v1.4 gene region',
+        ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
         ManeGeneId: 'MANE v1.4 gene ID',
         ManeGeneName: 'MANE v1.4 gene name',
         ManeTranscriptId: 'MANE v1.4 transcript ID',
@@ -1985,12 +1986,14 @@ gtag('config', 'G-6R8FPBQRFH');
             total += count
         }
 
+        const minimumFrequencyThreshold = 0  // 0.01
+
         // convert counts to fractions
         let motifCount = 0
         let homopolymerMotifCount = 0
         for (let motif in motifCounts) {
             motifCounts[motif] /= total
-            if (motifCounts[motif] >= 0.01) {
+            if (motifCounts[motif] >= minimumFrequencyThreshold) {
                 motifCount += 1
                 if (motif.length == 1) {
                     homopolymerMotifCount += 1
@@ -2425,8 +2428,8 @@ gtag('config', 'G-6R8FPBQRFH');
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['VamosMotifFrequencies'],
             getValue: (row) => parseMotifFrequenciesString(row['VamosMotifFrequencies'], 20),
-            getSortColumns: () => ['VamosUniqueMotifs', 'VamosMotifFrequencies'],
-            getRequiredColumns: () => ['VamosUniqueMotifs', 'VamosMotifFrequencies'],
+            getSortColumns: () => ['VamosNumUniqueMotifs', 'VamosMotifFrequencies'],
+            getRequiredColumns: () => ['VamosNumUniqueMotifs', 'VamosMotifFrequencies'],
         },
         FlanksAndLocusMappability: {
             displayName: 'Mappability',
