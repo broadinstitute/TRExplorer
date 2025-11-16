@@ -17,7 +17,6 @@ import tqdm
 import scipy.stats
 import sys
 
-
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from intervaltree import IntervalTree
@@ -268,6 +267,7 @@ schema = [
     bigquery.SchemaField("FoundInIllumina174kPolymorphicTRs", "STRING"),
     bigquery.SchemaField("FoundInPerfectRepeatsInReference", "STRING"),
     bigquery.SchemaField("FoundInPolymorphicTRsInT2TAssemblies", "STRING"),
+    bigquery.SchemaField("FoundInGangSTRCatalog", "INTEGER"),
 
     bigquery.SchemaField("LeftFlankMappability", "FLOAT"),
     bigquery.SchemaField("RightFlankMappability", "FLOAT"),
@@ -313,6 +313,7 @@ schema = [
     bigquery.SchemaField("HPRC100_Stdev", "FLOAT"),
     bigquery.SchemaField("HPRC100_Median", "INTEGER"),
     bigquery.SchemaField("HPRC100_99thPercentile", "INTEGER"),
+
 
     # AoU1027 data
     bigquery.SchemaField("AoU1027_MinAllele", "INTEGER"),
@@ -376,7 +377,7 @@ dataset_ref = client.dataset(DATASET_ID)
 try:
     client.get_dataset(dataset_ref)
     print(f"BigQuery dataset {DATASET_ID} already exists")
-except Exception:
+except:
     dataset = bigquery.Dataset(dataset_ref)
     dataset.location = "US-CENTRAL1"
     client.create_dataset(dataset)
