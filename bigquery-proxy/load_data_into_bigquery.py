@@ -247,6 +247,7 @@ gangstr_df = pd.read_table(
 print(f"Parsed {len(gangstr_df):,d} records from the    hg38_ver17.bed.gz GangSTR catalog")
 
 
+gangstr_interval_set = set()
 gangstr_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
 for index, row in gangstr_df.iterrows():
     chrom = row["chrom"].replace("chr", "")
@@ -254,6 +255,7 @@ for index, row in gangstr_df.iterrows():
     end_1based = row["end_1based"]
     canonical_motif = compute_canonical_motif(row["motif"])
     gangstr_interval_trees[chrom].addi(start_0based, end_1based, data=canonical_motif)
+    gangstr_interval_set.add((chrom, start_0based, end_1based, canonical_motif))
 
 ## Compute repeat_masker_lookup
 repeat_masker_lookup = {}
@@ -581,13 +583,18 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     for gangstr_interval in gangstr_catalog_overlap:
         gangstr_canonical_motif = gangstr_interval.data
         if gangstr_canonical_motif == record["CanonicalMotif"] and (
-            (gangstr_interval.begin == record["start_0based"] and gangstr_interval.end == record["end_1based"])
-            or
-            (gangstr_interval.overlap_size(record["start_0based"], record["end_1based"]) >= 2*record["MotifSize"])
+            (
+                gangstr_interval.begin == record["start_0based"]
+                and gangstr_interval.end == record["end_1based"]
+            ) or (
+                gangstr_interval.overlap_size(record["start_0based"], record["end_1based"]) >= 2*record["MotifSize"]
+            )
         ):
             record["FoundInGangSTRCatalog"] = 1
             # remove all intervals in the GangSTR catalog that overlap and match TRExplorer interval
-            gangstr_interval_tree.remove(gangstr_interval)
+            key = (record["chrom"], gangstr_interval.begin, gangstr_interval.end, gangstr_canonical_motif)
+            if key in gangstr_interval_set:
+                gangstr_interval_set.remove(key)
 
     if record["ReferenceRegion"] in vamos_columns_lookup:
         counters["rows_with_vamos_data"] += 1
@@ -604,7 +611,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["RepeatMaskerIntervals"] = repeat_masker_lookup[record["LocusId"]]
         
     counters["total_rows"] += 1
-    
+
     # Convert any None values to None (BigQuery will handle NULL)
     row = {k: v for k, v in record.items() if k in field_names}
     rows_to_insert.append(row)
@@ -635,11 +642,14 @@ for html_path in "../website/header_template.html", "../index.html", "../locus.h
 print("Done!")
 
 # print any GangSTR loci that unexpectedly were not found in the TRExplorer catalog
-counter = 0
-for chrom, gangstr_interval_tree in gangstr_interval_trees.items():
-    for gangstr_interval in gangstr_interval_tree:
-        counter += 1
-        print(f"  {counter:3d}: GangSTR locus not found in TRExplorer catalog: {chrom}:{gangstr_interval.begin}-{gangstr_interval.end}  {gangstr_interval.data}")
+if len(gangstr_interval_set) > 0:
+    print_N = 100
+    for i, (chrom, start_0based, end_1based, canonical_motif) in enumerate(sorted(gangstr_interval_set)):
+        if i >= print_N:
+            print(f" ... and {len(gangstr_interval_set) - print_N:,d} other loci")
+            break
+        print(f"{i+1:3d}: GangSTR locus not found in TRExplorer catalog: {chrom}:{start_0based}-{end_1based}  {canonical_motif}")
+    print(f"WARNING: {len(gangstr_interval_set):,d} GangSTR catalog loci were not found in the TRExplorer catalog")
 
 print("\nCounters:")
 total_rows = counters["total_rows"]
