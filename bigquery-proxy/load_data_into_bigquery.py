@@ -6,11 +6,13 @@ import datetime
 import gzip
 import json
 import ijson
+import intervaltree
 import os
 from pprint import pformat
 import re
 import requests
 from google.cloud import bigquery
+import pandas as pd
 import pyfaidx
 import time
 import tqdm
@@ -19,7 +21,6 @@ import sys
 
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
-from intervaltree import IntervalTree
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -41,6 +42,8 @@ parser.add_argument("--vamos-tsv", default="../data-prep/vamos_ori_and_eff_motif
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 args = parser.parse_args()
 
+
+## Define utility functions
 def get_json_iterator(content, is_gzipped=False):
     """Helper function to get an ijson iterator from content."""
     if is_gzipped:
@@ -119,6 +122,7 @@ def parse_vamos_tsv(vamos_tsv):
     return vamos_columns_lookup
 
 
+## Parse population allele frequency data from different sources
 # check that files exist
 for name in "reference_fasta", "tenk10k_tsv", "hprc100_tsv", "aou1027_tsv", "vamos_tsv":
     path = getattr(args, name)
@@ -163,6 +167,7 @@ if hprc100_lookup and aou1027_lookup:
 
 vamos_columns_lookup = parse_vamos_tsv(args.vamos_tsv)
 
+## Parse known disease-associated loci from gnomAD, STRchive and STRipy
 print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
 if os.path.isfile(args.known_disease_associated_loci):
     fopen = gzip.open if args.known_disease_associated_loci.endswith(".gz") else open
@@ -212,7 +217,7 @@ for locus_id in known_disease_associated_locus_ids:
 for locus_id in set(strchive_id_lookup.keys()) - {x["LocusId"] for x in known_disease_associated_loci.values()}:
     print(f"WARNING: {locus_id} is in STRchive but not in {args.known_disease_associated_loci}")
 
-known_disease_associated_loci_interval_trees = collections.defaultdict(IntervalTree)
+known_disease_associated_loci_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
 for reference_region, locus_info in known_disease_associated_loci.items():
     if locus_info["LocusId"] in strchive_id_lookup:
         locus_info["STRchiveId"] = strchive_id_lookup[locus_info["LocusId"]]
@@ -232,6 +237,25 @@ for reference_region, locus_info in known_disease_associated_loci.items():
         key: locus_info[key] for key in ["LocusId", "STRchiveId", "STRipyId", "Diseases", "RepeatUnit"] if key in locus_info
     }
 
+## Compute GangSTR catalog lookup
+
+# Example row: chr11	98522293	98522307	3	AAC	AACAACAACAACAAC
+gangstr_df = pd.read_table(
+    "https://s3.amazonaws.com/gangstr/hg38/genomewide/hg38_ver17.bed.gz",
+    names=["chrom", "start_1based", "end_1based", "motif_size", "motif", "seq"]
+)
+print(f"Parsed {len(gangstr_df):,d} records from the    hg38_ver17.bed.gz GangSTR catalog")
+
+
+gangstr_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
+for index, row in gangstr_df.iterrows():
+    chrom = row["chrom"].replace("chr", "")
+    start_0based = row["start_1based"] - 1
+    end_1based = row["end_1based"]
+    canonical_motif = compute_canonical_motif(row["motif"])
+    gangstr_interval_trees[chrom].addi(start_0based, end_1based, data=canonical_motif)
+
+## Compute repeat_masker_lookup
 repeat_masker_lookup = {}
 if args.repeat_masker_lookup_json:
     print(f"Parsing repeat masker lookup from {args.repeat_masker_lookup_json}")
@@ -244,7 +268,7 @@ if args.repeat_masker_lookup_json:
         repeat_masker_lookup[locus_id] = ", ".join([f"{interval['repFamily']}:{interval['repName']}" for interval in repeat_masker_intervals])  # {interval['repClass']}:
     print(f"Done converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
 
-# Define the schema
+## Define the BigQuery table schema
 schema = [
     bigquery.SchemaField("id", "INTEGER", mode="REQUIRED"),
     bigquery.SchemaField("chrom_index", "INTEGER", mode="REQUIRED"),
@@ -383,23 +407,19 @@ except:
     client.create_dataset(dataset)
     print(f"Created dataset {DATASET_ID}")
 
-
+## Create BigQuery table
 new_table_id = f"{TABLE_ID}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-# Check if table exists
 new_table_ref = dataset_ref.table(new_table_id)
 
-# Delete table if it exists
 if does_table_exist(new_table_ref):
     print(f"ERROR: Table {new_table_id} already exists")
     sys.exit(1)
 
-    
-# Create table if it doesn't exist
 new_table = bigquery.Table(new_table_ref, schema=schema)
 client.create_table(new_table)
 print(f"Created table {new_table_id}")
 
-# Read catalog data
+## Read and load TRExplorer catalog
 print(f"Reading catalog from {args.catalog_path}")
 is_gzipped = args.catalog_path.endswith('gz')
 if args.catalog_path.startswith("http"):
@@ -416,7 +436,6 @@ chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
 
 fasta_obj = pyfaidx.Fasta(args.reference_fasta, one_based_attributes=False, as_raw=True, sequence_always_upper=True)
 
-# Prepare data for loading
 rows_to_insert = []
 batch_size = 1000
 locus_ids_with_added_disease_info = set()
@@ -557,6 +576,18 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         if len(allele_set) > 1 and record["AoU1027_Stdev"] == 0:
             print(f"WARNING: For {record['LocusId']}, AoU1027 Stdev == 0 while {allele_set_string}")
 
+    gangstr_interval_tree = gangstr_interval_trees[record["chrom"]]
+    gangstr_catalog_overlap = gangstr_interval_tree.overlap(record["start_0based"], record["end_1based"])
+    for gangstr_interval in gangstr_catalog_overlap:
+        gangstr_canonical_motif = gangstr_interval.data
+        if gangstr_canonical_motif == record["CanonicalMotif"] and (
+            (gangstr_interval.begin == record["start_0based"] and gangstr_interval.end == record["end_1based"])
+            or
+            (gangstr_interval.overlap_size(record["start_0based"], record["end_1based"]) >= 2*record["MotifSize"])
+        ):
+            record["FoundInGangSTRCatalog"] = 1
+            # remove all intervals in the GangSTR catalog that overlap and match TRExplorer interval
+            gangstr_interval_tree.remove(gangstr_interval)
 
     if record["ReferenceRegion"] in vamos_columns_lookup:
         counters["rows_with_vamos_data"] += 1
@@ -602,6 +633,13 @@ for html_path in "../website/header_template.html", "../index.html", "../locus.h
         f.write(html_content)
 
 print("Done!")
+
+# print any GangSTR loci that unexpectedly were not found in the TRExplorer catalog
+counter = 0
+for chrom, gangstr_interval_tree in gangstr_interval_trees.items():
+    for gangstr_interval in gangstr_interval_tree:
+        counter += 1
+        print(f"  {counter:3d}: GangSTR locus not found in TRExplorer catalog: {chrom}:{gangstr_interval.begin}-{gangstr_interval.end}  {gangstr_interval.data}")
 
 print("\nCounters:")
 total_rows = counters["total_rows"]
