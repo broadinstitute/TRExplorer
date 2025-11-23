@@ -21,7 +21,7 @@ def get_individual_repeat_id_that_matches_longest_pure_segment_motif(row):
 
     return trid2
 
-df = pd.read_table("AoULR_phase1_TRGT_Weisburd_v1.0.1_lpsStats.txt.gz")
+df = pd.read_table("AoULR_phase1_TRGT_Weisburd_v1_lpsStats.txt.gz")
 df = df[df.Stdev.notna()]
 #df = df.sample(10**6)
 

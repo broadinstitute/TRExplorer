@@ -73,11 +73,15 @@ def process_group(locus_id, motif, allele_sizes, alleles_for_current_key_by_samp
         motif, 
         allele_size_histogram, 
         biallelic_histogram,
+        int(min(allele_sizes)),
         mode_allele, 
         f"{np.mean(allele_sizes):.3f}",
         f"{np.std(allele_sizes):.3f}", 
-        int(np.median(allele_sizes)), 
-        int(np.percentile(allele_sizes, 99)), 
+        int(np.median(allele_sizes)),
+        int(np.percentile(allele_sizes, 99)),
+        int(max(allele_sizes)),
+        len(set(allele_sizes)),
+        len(allele_sizes),
     ])) + "\n")
 
 
@@ -85,7 +89,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", type=int, default=None, help="Number of samples to process")
     args = parser.parse_args()
-
 
     input_paths = list(sorted(glob.glob(INPUT_PATHS)))
     
@@ -156,11 +159,15 @@ def main():
         "motif", 
         "allele_size_histogram", 
         "biallelic_histogram",
+        "min_allele",
         "mode_allele", 
         "mean",
         "stdev", 
         "median", 
         "99th_percentile",
+        "max_allele",
+        "unique_alleles",
+        "num_called_alleles",
     ]) + "\n")
 
 

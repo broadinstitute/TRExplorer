@@ -89,28 +89,29 @@ def write_to_output(output_row_data, output_tsv, counters):
         allele_array_counts = list(sorted(allele_array_counts, key=lambda x: x["key"]))
 
         # Extract values and weights for numpy operations
-        values = np.array([d["key"] for d in allele_array_counts])
-        weights = np.array([d["value"] for d in allele_array_counts])
+        allele_sizes = np.array([d["key"] for d in allele_array_counts])
+        allele_counts = np.array([d["value"] for d in allele_array_counts])
 
         # Compute mode (most common value)
-        mode_idx = np.argmax(weights)
-        recomputed_mode_allele = values[mode_idx]
+        mode_idx = np.argmax(allele_counts)
+        recomputed_mode_allele = allele_sizes[mode_idx]
 
         if output_row["mode_allele"] is not None and recomputed_mode_allele != output_row["mode_allele"]:
             print(f"WARNING: Recomputed mode allele = {recomputed_mode_allele} does not match the original mode allele {output_row['mode_allele']} for {tenk10k_locus_id}")
+        
+        # compute different stats
         output_row["mode_allele"] = int(recomputed_mode_allele)
-
-        # Compute median using weighted statistics
-        output_row["median"] = int(np.median(np.repeat(values, weights)))
-
-        # Compute 99th percentile using weighted statistics
-        output_row["99th_percentile"] = int(np.percentile(np.repeat(values, weights), 99))
-
-        # Compute standard deviation
-        mean = np.average(values, weights=weights)
-        variance = np.average((values - mean) ** 2, weights=weights)
+        np_repeat_result = np.repeat(allele_sizes, allele_counts)
+        output_row["median"] = int(np.median(np_repeat_result))
+        output_row["99th_percentile"] = int(np.percentile(np_repeat_result, 99))
+        mean = np.average(np_repeat_result)
+        variance = np.var(np_repeat_result)
         output_row["stdev"] = f"{np.sqrt(variance):.3f}"
         output_row["mean"] = f"{mean:.3f}"
+        output_row["min_allele"] = int(np.min(allele_sizes))
+        output_row["max_allele"] = int(np.max(allele_sizes))
+        output_row["unique_alleles"] = len(set(allele_sizes))
+        output_row["num_called_alleles"] = sum(allele_counts)
 
         output_row["tenk_10k_vs_catalog_overlap_size"] = output_row["found_interval_overlap_size"]
         output_row["tenk_10k_vs_catalog_size_diff"] = output_row["found_interval_size_diff"]
@@ -122,7 +123,7 @@ def write_to_output(output_row_data, output_tsv, counters):
         else:
             counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1        
             if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
-                output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in zip(values, weights)])
+                output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in zip(allele_sizes, allele_counts)])
                 try:
                     # convert {"diploid_allele_array_counts":[{"key":"20/150","value":2}, ...]} to  biallelic_histogram : 6/6:4,6/12:1,12/15:1,15/15:2,
                     biallelic_histogram = []
