@@ -50,36 +50,84 @@ def get_json_iterator(content, is_gzipped=False):
         if isinstance(content, bytes):
             content = gzip.decompress(content)
         else:
-            content = gzip.open(content, 'rb')
+            content = gzip.open(content, "rb")
 
     return ijson.items(content, "item", use_float=True)
 
-def parse_allele_histograms_from_tsv(tsv_path):
+
+def population_data_sanity_check(row, dataset_name):
+    """Perform consistency checks on the population data for a single locus. Compare the following columns:
+
+    min_allele
+    mode_allele
+    median
+    99th_percentile
+    max_allele
+
+    stdev
+    unique_alleles
+    num_called_alleles
+    stdev_rank_by_motif
+    stdev_rank_total_number_by_motif
+    """
+
+    if row["min_allele"] > row["mode_allele"]:
+        print(f"WARNING: {dataset_name}: min_allele > mode_allele for {row['locus_id']}: min_allele == {row['min_allele']} and mode_allele == {row['mode_allele']}")
+    if row["min_allele"] > row["median"]:
+        print(f"WARNING: {dataset_name}: min_allele > median for {row['locus_id']}: min_allele == {row['min_allele']} and median == {row['median']}")
+    if row["mode_allele"] > row["max_allele"]:
+        print(f"WARNING: {dataset_name}: mode_allele > max_allele for {row['locus_id']}: mode_allele == {row['mode_allele']} and max_allele == {row['max_allele']}")
+    if row["median"] > row["99th_percentile"]:
+        print(f"WARNING: {dataset_name}: median > 99th_percentile for {row['locus_id']}: median == {row['median']} and 99thPercentile == {row['99th_percentile']}")
+    if row["99th_percentile"] > row["max_allele"]:
+        print(f"WARNING: {dataset_name}: 99th_percentile > max_allele for {row['locus_id']}: 99th_percentile == {row['99th_percentile']} and max_allele == {row['max_allele']}")
+
+    if row["stdev_rank_by_motif"] > row["stdev_rank_total_number_by_motif"]:
+        print(f"WARNING: {dataset_name}: stdev_rank_by_motif > stdev_rank_total_number_by_motif for {row['locus_id']}: stdev_rank_by_motif == {row['stdev_rank_by_motif']} and stdev_rank_total_number_by_motif == {row['stdev_rank_total_number_by_motif']}")
+    
+    allele_set = set([row["min_allele"], row["mode_allele"], row["max_allele"]])
+    if row["unique_alleles"] < len(allele_set):
+        print(f"WARNING: {dataset_name}: unique_alleles < len({allele_set}) for {row['locus_id']}: unique_alleles == {row['unique_alleles']}")
+    if row["num_called_alleles"] < row["unique_alleles"]:
+        print(f"WARNING: {dataset_name}: num_called_alleles < unique_alleles for {row['locus_id']}: num_called_alleles == {row['num_called_alleles']}, unique_alleles == {row['unique_alleles']}")
+    if row["stdev"] > 0 and row["num_called_alleles"] == 1:
+        print(f"WARNING: {dataset_name}: stdev > 0 and num_called_alleles == 1 for {row['locus_id']}: stdev == {row['stdev']}, num_called_alleles == {row['num_called_alleles']}")
+    if len(allele_set) > 1 and row["stdev"] == 0:
+        print(f"WARNING: {dataset_name}: len({allele_set}) > 1 and stdev == 0 for {row['locus_id']}: len({allele_set}) == {len(allele_set)}, stdev == {row['stdev']}")
+
+    if row["stdev_rank_by_motif"] > row["stdev_rank_total_number_by_motif"]:
+        print(f"WARNING: {dataset_name}: stdev_rank_by_motif > stdev_rank_total_number_by_motif for {row['locus_id']}: stdev_rank_by_motif == {row['stdev_rank_by_motif']} and stdev_rank_total_number_by_motif == {row['stdev_rank_total_number_by_motif']}")
+
+def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     """Parse the tenk10k TSV file line by line and create a lookup dictionary."""
     
     lookup = {}
     df = pd.read_table(tsv_path)
-    df['canonical_motif'] = df["motif"].apply(compute_canonical_motif)
+    df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
+    df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
     df_grouped_by_motif = df.groupby("canonical_motif")
-    df['stdev_rank_by_motif'] = df_grouped_by_motif["stdev"].rank(ascending=False)
-    df['stdev_rank_total_number_by_motif'] = df_grouped_by_motif["locus_id"].transform("count")
-
+    df["stdev_rank_by_motif"] = df_grouped_by_motif["stdev"].rank(ascending=False)
+    df["stdev_rank_total_number_by_motif"] = df_grouped_by_motif["locus_id"].transform("count")
 
     for _, row in tqdm.tqdm(df.iterrows(), unit=" loci", unit_scale=True, total=len(df)):
-        locus_id = row['locus_id']
+        locus_id = row["locus_id"]
         lookup[locus_id] = {
-            'allele_size_histogram': row['allele_size_histogram'],
-            'biallelic_histogram': row['biallelic_histogram'],
-            'mode_allele': int(row['mode_allele']),
-            'stdev': float(row['stdev']),
-            'median': float(row['median']),
-            '99th_percentile': float(row['99th_percentile']),
-            'max_allele': int(row['max_allele']),
-            'unique_alleles': int(row['unique_alleles']),
-            'num_called_alleles': int(row['num_called_alleles']),
-            'stdev_rank_by_motif': int(row['stdev_rank_by_motif']),
-            'stdev_rank_total_number_by_motif': int(row['stdev_rank_total_number_by_motif']),
+            "locus_id": locus_id,
+            "allele_size_histogram": row["allele_size_histogram"],
+            "min_allele": int(row["min_allele"]),
+            "mode_allele": int(row["mode_allele"]),
+            "stdev": float(row["stdev"]),
+            "median": float(row["median"]),
+            "99th_percentile": float(row["99th_percentile"]),
+            "max_allele": int(row["max_allele"]),
+            "unique_alleles": int(row["unique_alleles"]),
+            "num_called_alleles": int(row["num_called_alleles"]),
+            "stdev_rank_by_motif": int(row["stdev_rank_by_motif"]),
+            "stdev_rank_total_number_by_motif": int(row["stdev_rank_total_number_by_motif"]),
         }
+        if not pd.isna(row["biallelic_histogram"]):
+            lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
+        population_data_sanity_check(lookup[locus_id], dataset_name)
     
     return lookup
 
@@ -87,40 +135,44 @@ def parse_allele_histograms_from_tsv(tsv_path):
 def parse_AoU1027_data_from_tsv(tsv_path):
     """Parse the AoU1027 TSV file line by line and create a lookup dictionary."""
     lookup = {}
-    with gzip.open(tsv_path, 'rt') as f:
-        header = f.readline().rstrip('\n').split('\t')
+    with gzip.open(tsv_path, "rt") as f:
+        header = f.readline().rstrip("\n").split("\t")
         col_indices = {col: i for i, col in enumerate(header)}
         for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
-            fields = line.rstrip('\n').split('\t')
-            locus_id = fields[col_indices['TRID2']]
-            motif_size = len(fields[col_indices['longestPureSegmentMotif']])
+            fields = line.rstrip("\n").split("\t")
+            locus_id = fields[col_indices["TRID2"]]
+            motif_size = len(fields[col_indices["longestPureSegmentMotif"]])
             lookup[locus_id] = {
-                'min_allele': int(float(fields[col_indices['0thPercentile']]))//motif_size,
-                'mode_allele': int(float(fields[col_indices['Mode']]))//motif_size,  # mode allele is in the table as number of repeats
-                'stdev': float(fields[col_indices['Stdev']])/motif_size,
-                'median': int(float(fields[col_indices['50thPercentile']]))//motif_size,
-                '99th_percentile': int(float(fields[col_indices['99thPercentile']]))//motif_size,
+                'locus_id': locus_id,
+                "min_allele": int(float(fields[col_indices["0thPercentile"]]))//motif_size,
+                "mode_allele": int(float(fields[col_indices["Mode"]]))//motif_size,  # mode allele is in the table as number of repeats
+                "stdev": float(fields[col_indices["Stdev"]])/motif_size,
+                "median": float(fields[col_indices["50thPercentile"]])//motif_size,
+                "99th_percentile": float(fields[col_indices["99thPercentile"]])//motif_size,
+                "max_allele": int(float(fields[col_indices["100thPercentile"]]))//motif_size,
+                "unique_alleles": int(fields[col_indices["numAlleles"]]),
+                "num_called_alleles": int(fields[col_indices["numCalledAlleles"]]),
 
-                'max_allele': int(float(fields[col_indices['100thPercentile']]))//motif_size,
-                'unique_alleles': int(fields[col_indices['numAlleles']]),
-                'num_called_alleles': int(fields[col_indices['numCalledAlleles']]),
-
-                #"combined_lps_stdev": float(fields[col_indices['combinedLPSStdev']]),
-                #"expected_lps_stdev": float(fields[col_indices['expectedCombinedLPSStdev']]),
-                "oe_length": float(fields[col_indices['OE_len']]) if fields[col_indices['OE_len']] is not None else None,
-                "oe_length_percentile": float(fields[col_indices['OE_len_percentile']]) if fields[col_indices['OE_len_percentile']] is not None else None,
+                "stdev_rank_by_motif": int(fields[col_indices["StdevRankByMotif"]]),
+                "stdev_rank_total_number_by_motif": int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
+                #"combined_lps_stdev": float(fields[col_indices["combinedLPSStdev"]]),
+                #"expected_lps_stdev": float(fields[col_indices["expectedCombinedLPSStdev"]]),
+                "oe_length": float(fields[col_indices["OE_len"]]) if fields[col_indices["OE_len"]] != "" else None,
+                "oe_length_percentile": float(fields[col_indices["OE_len_percentile"]]) if fields[col_indices["OE_len_percentile"]] != "" else None,
             }
+
+            population_data_sanity_check(lookup[locus_id], "AoU1027")
 
     return lookup
 
 def parse_vamos_tsv(vamos_tsv):
     print(f"Parsing {vamos_tsv}")
     vamos_columns_lookup = {}
-    fopen = gzip.open if vamos_tsv.endswith('gz') else open
-    with fopen(vamos_tsv, 'rt') as f:
-        header = f.readline().rstrip("\n").split('\t')
+    fopen = gzip.open if vamos_tsv.endswith("gz") else open
+    with fopen(vamos_tsv, "rt") as f:
+        header = f.readline().rstrip("\n").split("\t")
         for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
-            fields = line.rstrip("\n").split('\t')
+            fields = line.rstrip("\n").split("\t")
             data = dict(zip(header, fields))
             reference_region = data.pop("ReferenceRegion")
             vamos_columns_lookup[reference_region] = data
@@ -144,13 +196,13 @@ for name in "reference_fasta", "tenk10k_tsv", "hprc100_tsv", "aou1027_tsv", "vam
 tenk10k_lookup = {}
 if args.tenk10k_tsv:
     print(f"Parsing Tenk10k data from {args.tenk10k_tsv}")
-    tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv)
+    tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv, "TenK10K")
     print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
     
 hprc100_lookup = {}
 if args.hprc100_tsv:
     print(f"Parsing HPRC100 data from {args.hprc100_tsv}")
-    hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv)
+    hprc100_lookup = parse_allele_histograms_from_tsv(args.hprc100_tsv, "HPRC100")
     print(f"Parsed {len(hprc100_lookup):,d} records from the hprc100 table: {args.hprc100_tsv}")
 
 aou1027_lookup = {}
@@ -162,7 +214,7 @@ if args.aou1027_tsv:
 if hprc100_lookup and aou1027_lookup:
     # compute correlation between medians, stdevs, 
     shared_keys = set(hprc100_lookup.keys()) & set(aou1027_lookup.keys())
-    for column in "mode_allele", "stdev", "median", "99th_percentile":
+    for column in "min_allele", "mode_allele", "stdev", "median", "99th_percentile", "max_allele", "unique_alleles":
         pearsonr, _ = scipy.stats.pearsonr(
             [hprc100_lookup[k][column] for k in shared_keys], 
             [aou1027_lookup[k][column] for k in shared_keys])
@@ -266,7 +318,7 @@ for index, row in gangstr_df.iterrows():
 repeat_masker_lookup = {}
 if args.repeat_masker_lookup_json:
     print(f"Parsing repeat masker lookup from {args.repeat_masker_lookup_json}")
-    with gzip.open(args.repeat_masker_lookup_json, 'rt') as f:
+    with gzip.open(args.repeat_masker_lookup_json, "rt") as f:
         repeat_masker_lookup = json.load(f)
     print(f"Parsed {len(repeat_masker_lookup):,d} records from the repeat masker lookup: {args.repeat_masker_lookup_json}")
     # convert to repeat masker lookup entries to string format
@@ -335,8 +387,8 @@ schema = [
     bigquery.SchemaField("TenK10K_MinAllele", "INTEGER"),
     bigquery.SchemaField("TenK10K_ModeAllele", "INTEGER"),
     bigquery.SchemaField("TenK10K_Stdev", "FLOAT"),
-    bigquery.SchemaField("TenK10K_Median", "INTEGER"),
-    bigquery.SchemaField("TenK10K_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("TenK10K_Median", "FLOAT"),
+    bigquery.SchemaField("TenK10K_99thPercentile", "FLOAT"),
     bigquery.SchemaField("TenK10K_MaxAllele", "INTEGER"),
     bigquery.SchemaField("TenK10K_UniqueAlleles", "INTEGER"),
     bigquery.SchemaField("TenK10K_NumCalledAlleles", "INTEGER"),
@@ -349,8 +401,8 @@ schema = [
     bigquery.SchemaField("HPRC100_MinAllele", "INTEGER"),
     bigquery.SchemaField("HPRC100_ModeAllele", "INTEGER"),
     bigquery.SchemaField("HPRC100_Stdev", "FLOAT"),
-    bigquery.SchemaField("HPRC100_Median", "INTEGER"),
-    bigquery.SchemaField("HPRC100_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("HPRC100_Median", "FLOAT"),
+    bigquery.SchemaField("HPRC100_99thPercentile", "FLOAT"),
     bigquery.SchemaField("HPRC100_MaxAllele", "INTEGER"),
     bigquery.SchemaField("HPRC100_UniqueAlleles", "INTEGER"),
     bigquery.SchemaField("HPRC100_NumCalledAlleles", "INTEGER"),
@@ -363,8 +415,8 @@ schema = [
     bigquery.SchemaField("AoU1027_MinAllele", "INTEGER"),
     bigquery.SchemaField("AoU1027_ModeAllele", "INTEGER"),
     bigquery.SchemaField("AoU1027_Stdev", "FLOAT"),
-    bigquery.SchemaField("AoU1027_Median", "INTEGER"),
-    bigquery.SchemaField("AoU1027_99thPercentile", "INTEGER"),
+    bigquery.SchemaField("AoU1027_Median", "FLOAT"),
+    bigquery.SchemaField("AoU1027_99thPercentile", "FLOAT"),
     bigquery.SchemaField("AoU1027_MaxAllele", "INTEGER"),
     bigquery.SchemaField("AoU1027_UniqueAlleles", "INTEGER"),
     bigquery.SchemaField("AoU1027_NumCalledAlleles", "INTEGER"),
@@ -443,7 +495,7 @@ print(f"Created table {new_table_id}")
 
 ## Read and load TRExplorer catalog
 print(f"Reading catalog from {args.catalog_path}")
-is_gzipped = args.catalog_path.endswith('gz')
+is_gzipped = args.catalog_path.endswith("gz")
 if args.catalog_path.startswith("http"):
     response = requests.get(args.catalog_path)
     catalog = get_json_iterator(response.content, is_gzipped)
@@ -540,13 +592,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["TenK10K_Median"] = tenk10k_record["median"]
         record["TenK10K_99thPercentile"] = tenk10k_record["99th_percentile"]
 
-        # sanity checks: 
-        if record["TenK10K_Median"] > record["TenK10K_99thPercentile"]:
-            print(f"WARNING: TenK10K_Median > TenK10K_99thPercentile for {record['LocusId']}: Median == {record['TenK10K_Median']} and 99thPercentile == {record['TenK10K_99thPercentile']}")
-        allele_set = set([record["TenK10K_ModeAllele"], record["TenK10K_Median"], record["TenK10K_99thPercentile"]])
-        if len(allele_set) > 1 and record["TenK10K_Stdev"] == 0:
-            print(f"WARNING: len({allele_set}) > 1 and TenK10K_Stdev == 0 for {record['LocusId']}: len({allele_set}) == {len(allele_set)}")
-
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
         hprc100_record = hprc100_lookup[record["LocusId"]]
@@ -561,13 +606,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["HPRC100_NumCalledAlleles"] = hprc100_record["num_called_alleles"]
         record["HPRC100_StdevRankByMotif"] = hprc100_record["stdev_rank_by_motif"]
         record["HPRC100_StdevRankTotalNumberByMotif"] = hprc100_record["stdev_rank_total_number_by_motif"]
-
-        # sanity checks: 
-        if record["HPRC100_Median"] > record["HPRC100_99thPercentile"]:
-            print(f"WARNING: HPRC100_Median > HPRC100_99thPercentile for {record['LocusId']}: Median == {record['HPRC100_Median']} and 99thPercentile == {record['HPRC100_99thPercentile']}")
-        allele_set = set([record["HPRC100_ModeAllele"], record["HPRC100_Median"], record["HPRC100_99thPercentile"]])
-        if len(allele_set) > 1 and record["HPRC100_Stdev"] == 0:
-            print(f"WARNING: len({allele_set}) > 1 and HPRC100_Stdev == 0 for {record['LocusId']}: len({allele_set}) == {len(allele_set)}")
 
     if record["LocusId"] in aou1027_lookup:
         counters["rows_with_aou1027_data"] += 1
@@ -588,23 +626,6 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         record["AoU1027_OE_Length"] = aou1027_record["oe_length"]
         record["AoU1027_OE_LengthPercentile"] = aou1027_record["oe_length_percentile"]
 
-        # sanity checks: 
-        if record["AoU1027_Median"] > record["AoU1027_MaxAllele"]:
-            print(f"WARNING: For {record['LocusId']}, AoU1027 Median > 100thPercentile: Median == {record['AoU1027_Median']} and MaxAllele == {record['AoU1027_MaxAllele']}")
-        if record["AoU1027_Median"] > record["AoU1027_99thPercentile"]:
-            print(f"WARNING: For {record['LocusId']}, AoU1027 Median > 99thPercentile: Median == {record['AoU1027_Median']} and 99thPercentile == {record['AoU1027_99thPercentile']}")
-        if record["AoU1027_99thPercentile"] > record["AoU1027_MaxAllele"]:
-            print(f"WARNING: For {record['LocusId']}, AoU1027 99thPercentile > 100thPercentile: 99thPercentile == {record['AoU1027_99thPercentile']} and MaxAllele == {record['AoU1027_MaxAllele']}")
-        if record["AoU1027_ModeAllele"] > record["AoU1027_MaxAllele"]:
-            print(f"WARNING: For {record['LocusId']}, AoU1027 Mode > 100thPercentile: Mode == {record['AoU1027_ModeAllele']} and MaxAllele == {record['AoU1027_MaxAllele']}")
-        allele_set = set([record["AoU1027_MinAllele"], record["AoU1027_ModeAllele"], record["AoU1027_Median"], record["AoU1027_99thPercentile"], record["AoU1027_MaxAllele"]])
-        allele_set_string = f"0thPercentile == {record['AoU1027_MinAllele']}, Mode == {record['AoU1027_ModeAllele']}, Median == {record['AoU1027_Median']}, 99thPercentile == {record['AoU1027_99thPercentile']}, 100thPercentile == {record['AoU1027_MaxAllele']}"
-        #if record["AoU1027_UniqueAlleles"] < len(allele_set):
-        #    print(f"WARNING: For {record['LocusId']}, AoU1027 numAlleles == {record['AoU1027_UniqueAlleles']} while {allele_set_string}")
-        #if record["AoU1027_Stdev"] > 0 and record["AoU1027_UniqueAlleles"] == 1:
-        #    print(f"WARNING: For {record['LocusId']}, AoU1027 Stdev > 0 while numAlleles == 1: Stdev == {record['AoU1027_Stdev']}")
-        if len(allele_set) > 1 and record["AoU1027_Stdev"] == 0:
-            print(f"WARNING: For {record['LocusId']}, AoU1027 Stdev == 0 while {allele_set_string}")
 
     gangstr_interval_tree = gangstr_interval_trees[record["chrom"]]
     gangstr_catalog_overlap = gangstr_interval_tree.overlap(record["start_0based"], record["end_1based"])
@@ -628,10 +649,10 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         counters["rows_with_vamos_data"] += 1
         vamos_data = vamos_columns_lookup[record["ReferenceRegion"]]
         for c in "VamosUniqueMotifs", "VamosEfficientMotifs", "VamosMotifFrequencies":
-            if vamos_data[c] is not None and vamos_data[c] != '':
+            if vamos_data[c] is not None and vamos_data[c] != "":
                 record[c] = vamos_data[c]
         for c in "VamosNumUniqueMotifs", "IncludeInVamosCatalog":
-            if vamos_data[c] is not None and vamos_data[c] != '':
+            if vamos_data[c] is not None and vamos_data[c] != "":
                 record[c] = int(vamos_data[c])
 
     if record["LocusId"] in repeat_masker_lookup:

@@ -63,11 +63,15 @@ OUTPUT_HEADER_FIELDS = [
     "motif", 
     "allele_size_histogram", 
     "biallelic_histogram",
+    "min_allele",
     "mode_allele",
     "mean",
     "stdev",
     "median",
     "99th_percentile",
+    "max_allele",
+    "unique_alleles",
+    "num_called_alleles",
     "tenk_10k_vs_catalog_overlap_size",
     "tenk_10k_vs_catalog_size_diff",
     "binom_hwep",
@@ -102,8 +106,8 @@ def write_to_output(output_row_data, output_tsv, counters):
         # compute different stats
         output_row["mode_allele"] = int(recomputed_mode_allele)
         np_repeat_result = np.repeat(allele_sizes, allele_counts)
-        output_row["median"] = int(np.median(np_repeat_result))
-        output_row["99th_percentile"] = int(np.percentile(np_repeat_result, 99))
+        output_row["median"] = np.median(np_repeat_result)
+        output_row["99th_percentile"] = np.percentile(np_repeat_result, 99)
         mean = np.average(np_repeat_result)
         variance = np.var(np_repeat_result)
         output_row["stdev"] = f"{np.sqrt(variance):.3f}"
