@@ -2618,14 +2618,15 @@ gtag('config', 'G-6R8FPBQRFH');
                         } else {
                             tag = ' (rank)'
                         }
-                    }
+                    
 
-                    if (tag) {
-                        tag = ` &nbsp; <span class="show-popup action-link" data-html="`
-                        tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
-                        tag += `analyzed loci with this motif<br />`
-                        tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}">`
-                        tag += `${tag}</span>`
+                        if (tag) {
+                            tag = ` &nbsp; <span class="show-popup action-link" data-html="`
+                            tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
+                            tag += `analyzed loci with this motif<br />`
+                            tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}">`
+                            tag += `${tag}</span>`
+                        }
                     }
                     return `${row[columnName].toFixed(2)}${tag}`
                 } else {
