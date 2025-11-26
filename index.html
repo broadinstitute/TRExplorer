@@ -2603,30 +2603,30 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: STDEV_HELP_TEXTS[columnName],
             getValue: (row) => {
                 if (row[columnName]) {
-                    let tag = ''
-                    if (row[`${columnName}RankTotalNumberByMotif`] !== null && row[`${columnName}RankTotalNumberByMotif`] !== null) {
+                    let tagText = ''
+                    if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
                         const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
                         if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
-                            tag = ' (rank: only)'
+                            tagText = ' (rank: only)'
                         } else if (percentByMotif <= 0.001) {
-                            tag = ' (top 0.1% by motif)'
+                            tagText = ' (top 0.1% by motif)'
                         } else if (percentByMotif <= 0.01) {
-                            tag = ' (top 1% by motif)'
+                            tagText = ' (top 1% by motif)'
                         } else if (percentByMotif <= 0.05) {
-                            tag = ' (95th % by motif)'
+                            tagText = ' (95th % by motif)'
                         } else if (percentByMotif <= 0.1) {
-                            tag = ' (90th % by motif)'
+                            tagText = ' (90th % by motif)'
                         } else {
-                            tag = ' (rank)'
+                            tagText = ' (rank)'
                         }
                     
 
-                        if (tag) {
+                        if (tagText) {
                             tag = ` &nbsp; <span class="show-popup action-link" data-html="`
-                            tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
+                            tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`]?.toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
                             tag += `analyzed loci with this motif<br />`
                             tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}">`
-                            tag += `${tag}</span>`
+                            tag += `${tagText}</span>`
                         }
                     }
                     return `${row[columnName].toFixed(2)}${tag}`
