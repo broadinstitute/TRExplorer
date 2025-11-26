@@ -2603,24 +2603,30 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: STDEV_HELP_TEXTS[columnName],
             getValue: (row) => {
                 if (row[columnName]) {
-                    const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
                     let tag = ''
-                    if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
-                        tag = ' (rank: only)'
-                    } else if (percentByMotif <= 0.001) {
-                        tag = ' (top 0.1% by motif)'
-                    } else if (percentByMotif <= 0.01) {
-                        tag = ' (top 1% by motif)'
-                    } else if (percentByMotif <= 0.05) {
-                        tag = ' (95th % by motif)'
-                    } else if (percentByMotif <= 0.1) {
-                        tag = ' (90th % by motif)'
-                    } else {
-                        tag = ' (rank)'
+                    if (row[`${columnName}RankTotalNumberByMotif`] !== null && row[`${columnName}RankTotalNumberByMotif`] !== null) {
+                        const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
+                        if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
+                            tag = ' (rank: only)'
+                        } else if (percentByMotif <= 0.001) {
+                            tag = ' (top 0.1% by motif)'
+                        } else if (percentByMotif <= 0.01) {
+                            tag = ' (top 1% by motif)'
+                        } else if (percentByMotif <= 0.05) {
+                            tag = ' (95th % by motif)'
+                        } else if (percentByMotif <= 0.1) {
+                            tag = ' (90th % by motif)'
+                        } else {
+                            tag = ' (rank)'
+                        }
                     }
 
                     if (tag) {
-                        tag = ` &nbsp; <span class="show-popup action-link" data-html="<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} analyzed loci with this motif<br /><b>Fraction:</b> ${percentByMotif.toFixed(4)}">${tag}</span>`
+                        tag = ` &nbsp; <span class="show-popup action-link" data-html="`
+                        tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
+                        tag += `analyzed loci with this motif<br />`
+                        tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}">`
+                        tag += `${tag}</span>`
                     }
                     return `${row[columnName].toFixed(2)}${tag}`
                 } else {
