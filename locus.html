@@ -1772,6 +1772,7 @@ gtag('config', 'G-6R8FPBQRFH');
         keepIntronLoci: 0,
         keepIntergenicLoci: 0,
         keepNonCodingExonLoci: 0,
+        keepLociThatOverlapDiseaseAssociatedLoci: 0,
 
         polymorphismFilter: 0,
         polymorphismFilterType: '',
@@ -2595,7 +2596,43 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
+    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev']) {
+        TABLE_COLUMNS[columnName] = {
+            displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
+            helpText: STDEV_HELP_TEXTS[columnName],
+            getValue: (row) => {
+                if (row[columnName]) {
+                    const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
+                    let tag = ''
+                    if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
+                        tag = ' (rank: only)'
+                    } else if (percentByMotif <= 0.001) {
+                        tag = ' (top 0.1% by motif)'
+                    } else if (percentByMotif <= 0.01) {
+                        tag = ' (top 1% by motif)'
+                    } else if (percentByMotif <= 0.05) {
+                        tag = ' (95th % by motif)'
+                    } else if (percentByMotif <= 0.1) {
+                        tag = ' (90th % by motif)'
+                    } else {
+                        tag = ' (rank)'
+                    }
+
+                    if (tag) {
+                        tag = ` &nbsp; <span class="show-popup action-link" data-html="<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} analyzed loci with this motif">${tag}</span>`
+                    }
+                    return `${row[columnName].toFixed(2)}${tag}`
+                } else {
+                    return ''
+                }
+            },
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName, `${columnName}RankByMotif`, `${columnName}RankTotalNumberByMotif`]
+        }
+    }
+
+    for (const columnName of ['StdevFromIllumina174k', 'StdevFromT2TAssemblies']) {
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
