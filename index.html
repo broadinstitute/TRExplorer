@@ -2620,7 +2620,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     }
 
                     if (tag) {
-                        tag = ` &nbsp; <span class="show-popup action-link" data-html="<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} analyzed loci with this motif (fraction: ${percentByMotif.toFixed(4)})">${tag}</span>`
+                        tag = ` &nbsp; <span class="show-popup action-link" data-html="<b>Rank:</b> ${row[`${columnName}RankByMotif`].toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} analyzed loci with this motif<br /><b>Fraction:</b> ${percentByMotif.toFixed(4)}">${tag}</span>`
                     }
                     return `${row[columnName].toFixed(2)}${tag}`
                 } else {
