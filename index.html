@@ -2795,10 +2795,10 @@ gtag('config', 'G-6R8FPBQRFH');
             <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
             <br /><br />
             <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
-            <div id="dot-plot-dialog-bar-plot"></div>
+            <div id="dot-plot-dialog-bar-plot" style="width: 100%; max-width: 100%"></div>
             <br /><br />
             <div style="font-size:1.5em; padding: 10px 10px"><b>Sequences</b></div>
-            <div id="dot-plot-dialog-sequences"></div>
+            <div id="dot-plot-dialog-sequences" style="width: 100%; max-width: 100%"></div>
         </div>
     </div>
 </div>
@@ -3355,8 +3355,10 @@ gtag('config', 'G-6R8FPBQRFH');
                             <div class="item" data-value="gangstr">GangSTR</div>
                             <div class="item" data-value="hipstr">HipSTR</div>
                             <div class="item" data-value="trgt">TRGT</div>
-                            <div class="item" data-value="longtr">LongTR</div>
                             <div class="item" data-value="vamos">Vamos</div>
+                            <div class="item" data-value="longtr">LongTR</div>
+                            <div class="item" data-value="medaka">Medaka Tandem</div>
+                            <div class="item" data-value="strdust">STRdust</div>
                         </div>
                     </div>
                     <i class="question circle icon export-help-icon" data-html="Export all ${totalResults.toLocaleString()} search results to a file in the selected format"></i>
@@ -3499,7 +3501,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 let fileFormat
                 if (value === 'expansion_hunter' || value == 'json') {
                     fileFormat = 'JSON'
-                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'bed') {
+                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
                     fileFormat = 'BED'
                 } else if (value === 'tsv' || value == 'vamos') {
                     fileFormat = 'TSV'
@@ -3519,8 +3521,8 @@ gtag('config', 'G-6R8FPBQRFH');
                 } else if(value === 'gangstr') {
                     toolName = 'GangSTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
-                } else if(value === 'hipstr' || value === 'longtr') {
-                    toolName = value === 'hipstr' ? 'HipSTR' : 'LongTR'
+                } else if(value === 'hipstr') {
+                    toolName = 'HipSTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
                 } else if(value === 'trgt') {
                     toolName = 'TRGT'
@@ -3530,6 +3532,15 @@ gtag('config', 'G-6R8FPBQRFH');
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
                     conditions.push(`IncludeInVamosCatalog=1`)
                     alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
+                } else if(value === 'longtr') {
+                    toolName = 'LongTR'
+                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
+                } else if(value === 'medaka') {
+                    toolName = 'Medaka'
+                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+                } else if(value === 'strdust') {
+                    toolName = 'STRdust'
+                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
                 } else if(value === 'bed') {
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
                 } else if(value === 'tsv' || value === 'json') {
@@ -3540,6 +3551,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         'end_1based',
                         'ReferenceRegion',
                         'LocusId',
+                        'ReferenceRegionSize',
                         'ReferenceMotif',
                         'MotifSize',
                         'CanonicalMotif',
@@ -3578,17 +3590,18 @@ gtag('config', 'G-6R8FPBQRFH');
                         'AlleleFrequenciesFromT2TAssemblies',
                         'StdevFromT2TAssemblies',
 
-                        'TenK10K_AlleleHistogram',
-                        'TenK10K_ModeAllele',
-                        'TenK10K_Stdev',
-                        'TenK10K_Median',
-                        'TenK10K_99thPercentile',
-
                         'HPRC100_AlleleHistogram',
+                        'HPRC100_BiallelicHistogram',
+                        'HPRC100_MinAllele',
                         'HPRC100_ModeAllele',
                         'HPRC100_Stdev',
                         'HPRC100_Median',
                         'HPRC100_99thPercentile',
+                        'HPRC100_MaxAllele',
+                        'HPRC100_UniqueAlleles',
+                        'HPRC100_NumCalledAlleles',
+                        'HPRC100_StdevRankByMotif',
+                        'HPRC100_StdevRankTotalNumberByMotif',
 
                         'AoU1027_MinAllele',
                         'AoU1027_ModeAllele',
@@ -3596,13 +3609,34 @@ gtag('config', 'G-6R8FPBQRFH');
                         'AoU1027_Median',
                         'AoU1027_99thPercentile',
                         'AoU1027_MaxAllele',
-                        //'AoU1027_UniqueAlleles',   // TODO restore this field when I get new data table with bug fix
+                        'AoU1027_UniqueAlleles',
+                        'AoU1027_NumCalledAlleles',
+                        'AoU1027_StdevRankByMotif',
+                        'AoU1027_StdevRankTotalNumberByMotif',
+
+                        'TenK10K_AlleleHistogram',
+                        'TenK10K_BiallelicHistogram',
+                        'TenK10K_MinAllele',
+                        'TenK10K_ModeAllele',
+                        'TenK10K_Stdev',
+                        'TenK10K_Median',
+                        'TenK10K_99thPercentile',
+                        'TenK10K_MaxAllele',
+                        'TenK10K_UniqueAlleles',
+                        'TenK10K_NumCalledAlleles',
+                        'TenK10K_StdevRankByMotif',
+                        'TenK10K_StdevRankTotalNumberByMotif',
 
                         'AoU1027_OE_Length',
                         'AoU1027_OE_LengthPercentile',
 
                         'RepeatMaskerIntervals',
+
                         'VamosMotifFrequencies',
+                        'VamosUniqueMotifs',
+                        'VamosEfficientMotifs',
+                        'VamosNumUniqueMotifs',
+                        'IncludeInVamosCatalog',
                     ]
                     selectClause = tsv_columns.join(', ')
                     sortClause = window.lastSearchSortClause
@@ -4635,7 +4669,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // Initialize source catalog dropdown
     $('#source-catalog-dropdown').dropdown()
     
-    // polymorphism filter dropdown
+    // Polymorphism filter dropdown
     $('#polymorphism-filter-dropdown').dropdown({
         onShow: function() {
             $(this).css('z-index', 10001)
