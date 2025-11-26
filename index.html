@@ -2627,7 +2627,7 @@ gtag('config', 'G-6R8FPBQRFH');
                             tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`]?.toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
                             tag += `analyzed loci with this motif<br /><br />`
                             tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}<br /><br />` 
-                            tag += `<i>NOTE:</i> The rank indicates how variable the allele lengths are at this locus within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset, compared to other loci with the same motif. When calculated using the longest pure segment (LPS), as it was here, this metric strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>])`
+                            tag += `<i>NOTE:</i> The rank indicates how variable the allele lengths are within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset - at this locus compared to other loci with the same motif. When calculated using the longest pure segment (LPS), as it was here, this metric strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>])`
                             tag += `">` 
                             tag += `${tagText}</span>`
                         }
