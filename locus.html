@@ -1677,11 +1677,11 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const STDEV_HELP_TEXTS = {
-        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 330.7`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br /><br /><b>Range:</b> 0 to 932.1`,
+        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
         'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
-        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br /><br /><b>Range:</b> 0 to 31.5`,
-        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br /><br /><b>Range:</b> 0 to 1267.3`
+        'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br />`,
+        'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br />`
     }
 
     const ALLELE_HISTOGRAM_HELP_TEXTS = {
@@ -2606,15 +2606,15 @@ gtag('config', 'G-6R8FPBQRFH');
                     if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
                         const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
                         if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
-                            tagText = ' (rank: only)'
+                            tagText = ' (only)'
                         } else if (percentByMotif <= 0.001) {
-                            tagText = ' (top 0.1% by motif)'
+                            tagText = ' (top 0.1%)'
                         } else if (percentByMotif <= 0.01) {
-                            tagText = ' (top 1% by motif)'
+                            tagText = ' (top 1%)'
                         } else if (percentByMotif <= 0.05) {
-                            tagText = ' (95th % by motif)'
+                            tagText = ' (top 5%)'
                         } else if (percentByMotif <= 0.1) {
-                            tagText = ' (90th % by motif)'
+                            tagText = ' (top 10%)'
                         } else {
                             tagText = ' (rank)'
                         }
@@ -2623,8 +2623,10 @@ gtag('config', 'G-6R8FPBQRFH');
                         if (tagText) {
                             tag = ` &nbsp; <span class="show-popup action-link" data-html="`
                             tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`]?.toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
-                            tag += `analyzed loci with this motif<br />`
-                            tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}">`
+                            tag += `analyzed loci with this motif<br /><br />`
+                            tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}<br /><br />` 
+                            tag += `NOTE: The rank indicates how variable the allele lengths within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset, compared to otherloci with the same motif. When calculated using the longest pure segment (LPS), as it was here, this metric strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>])`
+                            tag += `">` 
                             tag += `${tagText}</span>`
                         }
                     }
