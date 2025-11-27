@@ -95,9 +95,6 @@ def population_data_sanity_check(row, dataset_name):
     if len(allele_set) > 1 and row["stdev"] == 0:
         print(f"WARNING: {dataset_name}: len({allele_set}) > 1 and stdev == 0 for {row['locus_id']}: len({allele_set}) == {len(allele_set)}, stdev == {row['stdev']}")
 
-    if row["stdev_rank_by_motif"] > row["stdev_rank_total_number_by_motif"]:
-        print(f"WARNING: {dataset_name}: stdev_rank_by_motif > stdev_rank_total_number_by_motif for {row['locus_id']}: stdev_rank_by_motif == {row['stdev_rank_by_motif']} and stdev_rank_total_number_by_motif == {row['stdev_rank_total_number_by_motif']}")
-
 def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     """Parse the tenk10k TSV file line by line and create a lookup dictionary."""
     
@@ -587,10 +584,16 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         tenk10k_record = tenk10k_lookup[record["LocusId"]]
         record["TenK10K_AlleleHistogram"] = tenk10k_record["allele_size_histogram"]
         record["TenK10K_BiallelicHistogram"] = tenk10k_record.get("biallelic_histogram")
+        record["TenK10K_MinAllele"] = tenk10k_record["min_allele"]
         record["TenK10K_ModeAllele"] = tenk10k_record["mode_allele"]
         record["TenK10K_Stdev"] = tenk10k_record["stdev"]
         record["TenK10K_Median"] = tenk10k_record["median"]
         record["TenK10K_99thPercentile"] = tenk10k_record["99th_percentile"]
+        record["TenK10K_MaxAllele"] = tenk10k_record["max_allele"]
+        record["TenK10K_UniqueAlleles"] = tenk10k_record["unique_alleles"]
+        record["TenK10K_NumCalledAlleles"] = tenk10k_record["num_called_alleles"]
+        record["TenK10K_StdevRankByMotif"] = tenk10k_record["stdev_rank_by_motif"]
+        record["TenK10K_StdevRankTotalNumberByMotif"] = tenk10k_record["stdev_rank_total_number_by_motif"]
 
     if record["LocusId"] in hprc100_lookup:
         counters["rows_with_hprc100_data"] += 1
@@ -672,7 +675,7 @@ if rows_to_insert:
     insert_with_retries(new_table_ref, rows_to_insert)
 
 if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_ids):
-    print(f"WARNING: {len(known_disease_associated_loci) - len(locus_ids_with_added_disease_info)} out of {len(known_disease_associated_loci)} known disease-associated loci were not found in the catalog. "
+    print(f"WARNING: {len(known_disease_associated_locus_ids) - len(locus_ids_with_added_disease_info)} out of {len(known_disease_associated_locus_ids)} known disease-associated loci were not found in the catalog. "
            "Missing LocusIds:", ", ".join(known_disease_associated_locus_ids - locus_ids_with_added_disease_info))
 
 for html_path in "../website/header_template.html", "../index.html", "../locus.html":
