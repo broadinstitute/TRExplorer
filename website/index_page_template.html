@@ -4,13 +4,6 @@
 {% include "header_template.html" %}
 
 <body>
-<style>
-    .dotPlot {
-        cursor: pointer;
-        width: 48px;
-        height: 48px;
-    }
-</style>
 <!-- modal dialog for selecting results table columns -->
 <div class="ui modal" id="results-table-column-settings-dialog">
     <i class="close icon"></i>
@@ -39,29 +32,6 @@
     </div>
     <div class="content scrolling">
         <div id="polymorphism-dialog-content"></div>
-    </div>
-</div>
-
-<!-- modal dialog for displaying the dot plot and periodicity plot -->
-<div class="ui modal" id="dot-plot-dialog">
-    <i class="close icon"></i>
-    <div class="header" id="dot-plot-dialog-header" style="text-align: center">
-        Dot Plot
-    </div>
-    <div class="content scrolling">
-        <div id="dot-plot-dialog-content" style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
-            <div style="font-size:1.5em; padding: 10px 10px"><b>Dot Plot</b></div>
-            <canvas id="dot-plot-dialog-canvas" style="width: 100%; height: 100%"></canvas>
-            <br /><br />
-            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot</b></div>
-            <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
-            <br /><br />
-            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
-            <div id="dot-plot-dialog-bar-plot" style="width: 100%; max-width: 100%"></div>
-            <br /><br />
-            <div style="font-size:1.5em; padding: 10px 10px"><b>Sequences</b></div>
-            <div id="dot-plot-dialog-sequences" style="width: 100%; max-width: 100%"></div>
-        </div>
     </div>
 </div>
 
@@ -1150,58 +1120,14 @@
             performSearch(true)
         })
 
-        // render dot plot and add click handler
-        resultsTableElement.find('.dotPlot').each(function() {
-            const referenceRegion = $(this).data('reference-region')
-            const referenceRegionSize = $(this).data('reference-region-size')
-            const numRepeatsInReference = $(this).data('repeats-in-reference')
-            const flankWidth = $(this).data('flank-width')
-            const motif = $(this).data('motif')
+        Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
+            if (visibleColumns.includes(columnId)) {
+                const initValueFunc = TABLE_COLUMNS[columnName].initializeValue
+                if (initValueFunc) {
+                    initValueFunc()
+                }
 
-            const leftFlank = $(this).data('left-flank')
-            const repeatSeq = $(this).data('repeat-seq')
-            const rightFlank = $(this).data('right-flank')
-            const sequence = [leftFlank, repeatSeq, rightFlank].join('|')
-
-            const pixelsPerCell = 2 // higher number increases resolution
-            plotDotPlot(this, sequence, pixelsPerCell, false)
-            $(this).click(() => {
-                $('#dot-plot-dialog-header').html(`${referenceRegion} locus: ${referenceRegionSize}bp repeat +/- ${flankWidth}bp flanks; ${numRepeatsInReference} x ${motif}`)
-
-                const dotPlotPixelsPerCell = 10
-                const dotPlotDialogCanvas = $('#dot-plot-dialog-canvas').get(0)
-                plotDotPlot(dotPlotDialogCanvas, sequence, dotPlotPixelsPerCell, false)
-
-                const dotPlotDialogPeriodicityPlotCanvas = $('#dot-plot-dialog-periodicity-plot-canvas').get(0)
-                const periodicityPlotPixelsPerCell = 10
-                const minRunLength = 5
-                const useBackwardLook = false
-                const endWithPeriod = Math.max(motif.length * 2, 12)
-                const periodicityMatrix = plotPeriodicityPlot(
-                    dotPlotDialogPeriodicityPlotCanvas,
-                    sequence,
-                    periodicityPlotPixelsPerCell,
-                    minRunLength,
-                    useBackwardLook,
-                    1,
-                    endWithPeriod,
-                )
-
-                const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
-                buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)
-
-                $('#dot-plot-dialog-sequences').html(`
-                <table>
-                <tr><td><b>Left Flank:</b></td></tr>
-                <td><span style="font-family: monospace">${leftFlank}</span></td></tr>
-                <tr><td><b>Repeat Sequence:</b></td></tr>
-                <tr><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
-                <tr><td><b>Right Flank:</b></td></tr>
-                <tr><td><span style="font-family: monospace">${rightFlank}</span></td></tr>
-                </table>
-                `)
-                $('#dot-plot-dialog').modal('show')
-            })
+            }
         })
 
         // add click handler for locus page buttons
@@ -1288,7 +1214,6 @@
 
         // init charts
         $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
-
 
         // init popups
         $('.show-popup').popup({ on: 'click', hoverable: true })

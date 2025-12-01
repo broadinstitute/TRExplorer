@@ -101,7 +101,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251201_031452'
+    const TABLE_ID = 'catalog_20251201_054019'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -775,7 +775,68 @@ gtag('config', 'G-6R8FPBQRFH');
 
             createBiallelicHistogramChart(chartData)
         })
+    }
 
+
+    function renderSmallDotPlot() {
+        const leftFlank = $(this).data('left-flank')
+        const repeatSeq = $(this).data('repeat-seq')
+        const rightFlank = $(this).data('right-flank')
+        const sequence = [leftFlank, repeatSeq, rightFlank].join('|')
+
+        const pixelsPerCell = 2 // higher number increases resolution
+        plotDotPlot(this, sequence, pixelsPerCell, false)
+    }
+
+    function addClickHandlerToShowDotPlotDialog() {
+        const referenceRegion = $(this).data('reference-region')
+        const referenceRegionSize = $(this).data('reference-region-size')
+        const numRepeatsInReference = $(this).data('repeats-in-reference')
+        const flankWidth = $(this).data('flank-width')
+        const motif = $(this).data('motif')
+
+        const leftFlank = $(this).data('left-flank')
+        const repeatSeq = $(this).data('repeat-seq')
+        const rightFlank = $(this).data('right-flank')
+        const sequence = [leftFlank, repeatSeq, rightFlank].join('|')
+
+        $(this).click(() => {
+            $('#dot-plot-dialog-header').html(`${referenceRegion} locus: ${referenceRegionSize}bp repeat +/- ${flankWidth}bp flanks; ${numRepeatsInReference} x ${motif}`)
+
+            const dotPlotPixelsPerCell = 10
+            const dotPlotDialogCanvas = $('#dot-plot-dialog-canvas').get(0)
+            plotDotPlot(dotPlotDialogCanvas, sequence, dotPlotPixelsPerCell, false)
+
+            const dotPlotDialogPeriodicityPlotCanvas = $('#dot-plot-dialog-periodicity-plot-canvas').get(0)
+            const periodicityPlotPixelsPerCell = 10
+            const minRunLength = 5
+            const useBackwardLook = false
+            const endWithPeriod = Math.max(motif.length * 2, 12)
+            const periodicityMatrix = plotPeriodicityPlot(
+                dotPlotDialogPeriodicityPlotCanvas,
+                sequence,
+                periodicityPlotPixelsPerCell,
+                minRunLength,
+                useBackwardLook,
+                1,
+                endWithPeriod,
+            )
+
+            const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
+            buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)
+
+            $('#dot-plot-dialog-sequences').html(`
+                    <table>
+                    <tr><td><b>Left Flank:</b></td></tr>
+                    <td><span style="font-family: monospace">${leftFlank}</span></td></tr>
+                    <tr><td><b>Repeat Sequence:</b></td></tr>
+                    <tr><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
+                    <tr><td><b>Right Flank:</b></td></tr>
+                    <tr><td><span style="font-family: monospace">${rightFlank}</span></td></tr>
+                    </table>
+                `)
+            $('#dot-plot-dialog').modal('show')
+        })
     }
 
     const getAlleleHistogramColumnValue = (row, columnName) => {
@@ -1092,6 +1153,10 @@ gtag('config', 'G-6R8FPBQRFH');
 
                 return `<canvas class="dotPlot" data-repeat-seq="${row["ReferenceRepeatSequence"]}" data-left-flank="${leftFlank}" data-right-flank="${rightFlank}" data-reference-region="${row['ReferenceRegion']}" data-reference-region-size="${row['ReferenceRegionSize']}" data-flank-width="${flankSize}" data-repeats-in-reference="${row['NumRepeatsInReference']}" data-motif="${row['ReferenceMotif']}" style="width:48px; height:48px"></canvas>`
             },
+            initializeValue: () => {
+                // render dot plot and add click handler
+                $('.dotPlot').each(renderSmallDotPlot).each(addClickHandlerToShowDotPlotDialog)
+            },
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         }
@@ -1163,12 +1228,13 @@ gtag('config', 'G-6R8FPBQRFH');
 
                         if (tagText) {
                             tag = ` &nbsp; <span class="show-popup action-link" data-html="`
-                            tag += `<b>Standard Deviation:</b> ${row[columnName].toFixed(2)}<br /><br />`
+                            tag += `<div style=&quot;min-width:250px&quot;><b>Standard Deviation:</b> ${row[columnName].toFixed(2)}<br /><br />`
                             tag += `<b>Rank:</b> ${row[`${columnName}RankByMotif`]?.toLocaleString()} out of ${row[`${columnName}RankTotalNumberByMotif`].toLocaleString()} `
                             tag += `analyzed loci with this motif<br /><br />`
                             tag += `<b>Fraction:</b> ${percentByMotif.toFixed(4)}<br /><br />` 
                             tag += `<i>NOTE:</i> The rank indicates how variable the allele lengths are within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset - at this locus compared to other loci with the same motif. When calculated using the longest pure segment (LPS), as it was here, this ranking strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>])`
-                            tag += `">` 
+                            tag += `</div>`
+                            tag += `">`
                             tag += `${tagText}</span>`
                         }
                     }
@@ -1326,4 +1392,28 @@ gtag('config', 'G-6R8FPBQRFH');
         <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px;"></iframe>
     </div>
 </div>
+
+<!-- modal dialog for displaying the dot plot and periodicity plot -->
+<div class="ui modal" id="dot-plot-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="dot-plot-dialog-header" style="text-align: center">
+        Dot Plot
+    </div>
+    <div class="content scrolling">
+        <div id="dot-plot-dialog-content" style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Dot Plot</b></div>
+            <canvas id="dot-plot-dialog-canvas" style="width: 100%; height: 100%"></canvas>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot</b></div>
+            <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
+            <div id="dot-plot-dialog-bar-plot" style="width: 100%; max-width: 100%"></div>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Sequences</b></div>
+            <div id="dot-plot-dialog-sequences" style="width: 100%; max-width: 100%"></div>
+        </div>
+    </div>
+</div>
+
 
