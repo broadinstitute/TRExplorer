@@ -100,7 +100,6 @@
         "FlanksAndLocusMappability",
         "VariationCluster",
         "VariationClusterSizeDiff",
-        "RepeatMaskerIntervals",
 
         "GencodeGeneRegion",
         "GencodeGeneName",
@@ -121,13 +120,31 @@
         "StdevFromT2TAssemblies",
         "AlleleFrequenciesFromT2TAssemblies",
 
-        "HPRC100_Stdev",
         "HPRC100_AlleleHistogram",
         "HPRC100_BiallelicHistogram",
+        "HPRC100_MinAllele",
+        "HPRC100_ModeAllele",
+        "HPRC100_Stdev",
+        "HPRC100_Median",
+        "HPRC100_99thPercentile",
+        "HPRC100_MaxAllele",
+        "HPRC100_UniqueAlleles",
+        "HPRC100_NumCalledAlleles",
+        "HPRC100_StdevRankByMotif",
+        "HPRC100_StdevRankTotalNumberByMotif",
 
         "TenK10K_AlleleHistogram",
         "TenK10K_BiallelicHistogram",
+        "TenK10K_MinAllele",
+        "TenK10K_ModeAllele",
         "TenK10K_Stdev",
+        "TenK10K_Median",
+        "TenK10K_99thPercentile",
+        "TenK10K_MaxAllele",
+        "TenK10K_UniqueAlleles",
+        "TenK10K_NumCalledAlleles",
+        "TenK10K_StdevRankByMotif",
+        "TenK10K_StdevRankTotalNumberByMotif",
 
         "AoU1027_MinAllele",
         "AoU1027_ModeAllele",
@@ -137,7 +154,12 @@
         "AoU1027_MaxAllele",
         "AoU1027_UniqueAlleles",
         "AoU1027_NumCalledAlleles",
+        "AoU1027_StdevRankByMotif",
+        "AoU1027_StdevRankTotalNumberByMotif",
         "AoU1027_OE_LengthPercentile",
+
+        "RepeatMaskerIntervals",
+        'NonCodingAnnotations',
 
         "VamosUniqueMotifs",
         "VamosEfficientMotifs",
@@ -151,6 +173,7 @@
 
     //locus page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
     DEFAULT_GLOBAL_PAGE_STATE['locusId'] = ''
+    DEFAULT_GLOBAL_PAGE_STATE['refRegion'] = ''
 
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
@@ -214,8 +237,6 @@
     const displaySearchResults = () => {
 
         const row = window.searchResults.rows[0]
-
-        console.log("Locus data row:", row)
 
         const getHelpIcon = (columnName) => {
             return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
@@ -284,9 +305,9 @@
         // Generate the rest of the page
         $('#locus-page-polymorphism-data').html('')
 
-        let polymorphismContent1 = generatePolymorphismDialogContent(row)
-        polymorphismContent1 = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent1}</div>`
-        $('#locus-page-polymorphism-data').html(polymorphismContent1.replace(/\s+/g, ' ').trim())
+        let polymorphismContent = generatePolymorphismDialogContent(row)
+        polymorphismContent = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`
+        $('#locus-page-polymorphism-data').html(polymorphismContent.replace(/\s+/g, ' ').trim())
 
         renderChartsInPolymorphismDialog(row);
 
@@ -326,15 +347,26 @@
                 return
             }
 
+            // the BigQuery table is partitioned on chrom_index and clustered by start_0based, so include these in the W
+            const locusIdMatch = locusId.match(LOCUS_ID_REGEXP)
+            let [_, chrom, start_0based, __, ___] = locusIdMatch
+            start_0based = parseInt(start_0based.replace(/,/g, ''))
+            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
             let selectedColumns = REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE
-            const whereClause = `WHERE LocusId = '${locusId}'`
+            const whereClause = `WHERE (chrom_index=${chromIndex} AND start_0based=${start_0based} AND LocusId = '${locusId}')`
             const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause}`
 
             window.searchResults = await queryBigQuery(query, 0, 1, null, null)
 
             console.log("Search results:", window.searchResults)
+
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
+
+            if (!window.searchResults.rows || window.searchResults.rows.length == 0) {
+                console.log("ERROR: row not found", whereClause)
+                return
+            }
 
             displaySearchResults()
 

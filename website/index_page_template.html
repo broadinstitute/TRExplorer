@@ -120,7 +120,7 @@
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,543,507 loci</span>
+                                        <span style="color: #888; margin-left: 20px;">5,591,917 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="tr_explorer_catalog">
@@ -332,6 +332,7 @@
         'StdevFromT2TAssemblies',
 
         'RepeatMaskerIntervals',
+        'NonCodingAnnotations',
         'AoU1027_OE_LengthPercentile',
         'ReferenceLeftFlank',
         'ReferenceRepeatSequence',
@@ -355,6 +356,7 @@
         'HPRC100_AlleleHistogram',
         'VamosMotifFrequencies',
         'RepeatMaskerIntervals',
+        'NonCodingAnnotations',
     ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER)
 
     //copy the default persistent page state
@@ -401,6 +403,7 @@
 
         'Source',
         'RepeatMaskerIntervals',
+        'NonCodingAnnotations',
         'isPathogenic',
         'AoU1027_OE_LengthPercentile',
         'dotPlot',
@@ -873,6 +876,7 @@
                         'AoU1027_OE_LengthPercentile',
 
                         'RepeatMaskerIntervals',
+                        'NonCodingAnnotations',
 
                         'VamosMotifFrequencies',
                         'VamosUniqueMotifs',
@@ -1390,24 +1394,26 @@
 
                 // Process each query value and create query conditions
                 const queryClauses = queryValues.map(queryValue => {
-
+                    queryValue = queryValue.trim()
                     // Check if it's a genomic region (chr:start-end)
-                    const regionMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*:[\s]*([\d,]+)[\s]*-[\s]*([\d,]+)[\s]*$/i)
+                    const regionMatch = queryValue.match(REFERENCE_REGION_REGEXP)
                     if (regionMatch) {
                         let [_, chrom, start, end] = regionMatch
                         start = parseInt(start.replace(/,/g, ''))
                         end = parseInt(end.replace(/,/g, ''))
+                        const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
                         return `
-                            (chrom = '${chrom}' AND start_0based < ${end} AND end_1based >= ${start})
+                            (chrom_index = ${chromIndex} AND start_0based < ${end} AND end_1based >= ${start})
                         `
                     } else {
-                        const locusIdMatch = queryValue.match(/^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i)
+                        const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
                         if (locusIdMatch) {
-                            //let [_, chrom, start, end, motif] = locusIdMatch
-                            //start = parseInt(start.replace(/,/g, ''))
+                            let [_, chrom, start_0based, __, ___] = locusIdMatch
+                            start_0based = parseInt(start_0based.replace(/,/g, ''))
+                            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
                             //end = parseInt(end.replace(/,/g, ''))
-                            //return `(chrom = '${chrom}' AND start_0based < ${end - motif.length} AND end_1based >= ${start + motif.length} AND MotifSize = ${motif.length})`
-                            return `LocusId = '${queryValue.trim()}'`
+
+                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${queryValue}'`
 
                         } else {
                             // Try other fields

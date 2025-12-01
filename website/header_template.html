@@ -36,7 +36,7 @@ gtag('config', 'G-6R8FPBQRFH');
         known_disease_loci: 63,
         illumina_174k_catalog: 174300,
         tr_explorer_catalog: 4863041,
-        tr_explorer_catalog_v2: 5543507,
+        tr_explorer_catalog_v2: 5591917,
     }
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
@@ -86,6 +86,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
         ["igv_triplosens", "ClinGen triplosensitivity track", `${REFERENCE_BASE_URL}/clingen/ClinGen_triplosensitivity_gene_GRCh38.sorted.bed.gz`],
         ["igv_repeatmask", "UCSC RepeatMasker", `${REFERENCE_BASE_URL}/hg38.RepeatMasker.bed.gz`],
+        ["igv_ncannot", "Non-coding Annotations", `${REFERENCE_BASE_URL}/ncAnnot.v0.14.jul2024.filtered.bed.gz`],
     ]
 
     const ALL_AVAILABLE_TRACKS = [
@@ -100,13 +101,23 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251124_074356'
+    const TABLE_ID = 'catalog_20251201_031452'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
 
     const IGV_LOCUS_PADDING = 150
-    const REFERENCE_REGION_REGEXP = /^(?:chr)?([XYMTt0-9]+):([\d,]+)-([\d,]+)$/i
+    const LOCUS_ID_REGEXP = /^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i
+    const REFERENCE_REGION_REGEXP = /^[\s]*(?:chr)?([XYMTt0-9]+):([\d,]+)[\p{Dash_Punctuation}]([\d,]+)[\s]*$/iu
+    const CHROM_TO_CHROM_INDEX = {
+        "X":  23, "chrX": 23,
+        "Y":  24, "chrY": 24,
+        "MT": 25, "M": 25, "chrMT": 25, "chrM": 25,
+    }
+    for (let i = 1; i <= 22; i++) {
+        CHROM_TO_CHROM_INDEX[`${i}`] = i
+        CHROM_TO_CHROM_INDEX[`chr${i}`] = i
+    }
 
     const ALL_STDEV_COLUMNS = [
         'HPRC100_Stdev',
@@ -194,6 +205,7 @@ gtag('config', 'G-6R8FPBQRFH');
         isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
         RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
+        NonCodingAnnotations: 'Non-coding annotations from various sources collected by the Talkowski Lab',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v48 ${gene_region_priority}`,
@@ -417,6 +429,44 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         return `<span class="show-popup action-link" data-html="${details.join('<br />')}">${Array.from(values).join(', ')}</span>`
+    }
+
+    const parseNonCodingAnnotations = (ncAnnot) => {
+        if (!ncAnnot) {
+            return ''
+        }
+
+        const descriptions = {'uce': 'original UCE defined list (human-mouse-rat 100% sequence identity  >= 200bp), lifted over from hg19',
+            'cFootprint_primate': 'evidence for TF binding for constrained primate elements (should be more constrained than mammals)',
+            'uce_primate': 'ultra conserved in primates at least 20 bp',
+            'har': 'elements conserved in mammals but enriched for fixed changes in human only - could be either depleted or enriched for SVs in humans \\\\ sent request to corresponding author 12.14.2023; liftover hg18 -> hg38',
+            'zoonomia_tfbs': 'zoonomia constrained tfbs',
+            'zooHAR': 'zoonomia human accelerated regions',
+            'zooCHAR': 'zoonomia chimp-human accelerated regions',
+            'ucne': '18 species conserved, more permissive than UCE.481',
+            'fetal_cortex_enh_gw18': '24,218 enhancers in GW18 cortex MPRA (psychencode2)',
+            'fetal_cortex_sil_gw18': '2,783 silencers in GW18 cortex MPRA (psychencode2)',
+            'TF_footprints': 'fetal_TF_footprint',
+            'PROcap': 'neuro_procap_enh',
+            'en3_dnase_k4m3_ctcf': 'encode3 DNase-H3K4me3-CTCF',
+            'en3_dnase_k4m3': 'encode3 DNase-H3K4me3',
+            'en3_pLS_ctcf': 'encode3 pLS-CTCF',
+            'en3_pLS': 'encode3 pLS',
+            'UCSC_TF_ChIP': 'UCSC table browser query on encTfChipPkENCFF730MQM"',
+            'vista': 'VISTA enhancer core element - positive',
+            'abc_loeuf_0.15': 'same as abc_0.015 + any target gene loeuf < 0.35',
+            'abc_pHaplo_0.9': 'ABC score >= 0.015 + any target gene pHaplo > 0.9',
+            'abc_pTriplo_0.84': 'ABC score >= 0.015 + any target gene pTriplo > 0.84'}
+        
+        // add popup with description (if it exists) of each non-coding annotation
+        return ncAnnot.split(',').map(k => {
+            k = k.trim()
+            const description = descriptions[k]
+            if (description) {
+                return `<span class="show-popup action-link" data-position="top center" data-html="&lt;div style='min-width: 200px'&gt;${description}&lt;/div&gt;">${k}</span>`
+            }
+            return k
+        }).join(', ')
     }
 
     const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
@@ -911,6 +961,14 @@ gtag('config', 'G-6R8FPBQRFH');
             getValue: (row) => parseRepeatMaskerIntervals(row['RepeatMaskerIntervals']),
             getSortColumns: () => ['RepeatMaskerIntervals'],
             getRequiredColumns: () => ['RepeatMaskerIntervals'],
+        },
+        NonCodingAnnotations: {
+            displayName: 'Non-coding Annot.',
+            defaultSortDirection: 'DESC',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NonCodingAnnotations'],
+            getValue: (row) => parseNonCodingAnnotations(row['NonCodingAnnotations']),
+            getSortColumns: () => ['NonCodingAnnotations'],
+            getRequiredColumns: () => ['NonCodingAnnotations'],
         },
         VamosMotifFrequencies: {
             displayName: 'Motif Variability',
