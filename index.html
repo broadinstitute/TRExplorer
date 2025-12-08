@@ -2249,19 +2249,17 @@ gtag('config', 'G-6R8FPBQRFH');
 
             const frequencies = parseAlleleFrequenciesString(frequenciesString)
 
-            if (frequencies.length > 0) {
-                alleleFrequencyChartData.push({
-                    frequencies: frequencies,
-                    thisObj: this,
-                    refAlleleSize: $(this).data('ref-allele-size'),
-                    axisUnits: $(this).data('axis-units'),
-                    chartWidth: $(this).data('chart-width'),
-                    chartHeight: $(this).data('chart-height'),
-                    label: $(this).data('label'),
-                    minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                    maxAlleleSize: Math.max(...frequencies.map(f => f.size))
-                })
-            }
+            alleleFrequencyChartData.push({
+                frequencies: frequencies,
+                thisObj: this,
+                refAlleleSize: $(this).data('ref-allele-size'),
+                axisUnits: $(this).data('axis-units'),
+                chartWidth: $(this).data('chart-width'),
+                chartHeight: $(this).data('chart-height'),
+                label: $(this).data('label'),
+                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
+                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+            })
         })
 
         //compute overall min, max for all charts and then create the charts
