@@ -3728,6 +3728,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 } else if(value === 'longtr') {
                     toolName = 'LongTR'
                     selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
+                    conditions.push(`start_0based + 1 < end_1based`)
                 } else if(value === 'medaka') {
                     toolName = 'Medaka'
                     selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
