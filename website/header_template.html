@@ -720,22 +720,24 @@ gtag('config', 'G-6R8FPBQRFH');
 
             const frequencies = parseAlleleFrequenciesString(frequenciesString)
 
-            alleleFrequencyChartData.push({
-                frequencies: frequencies,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                axisUnits: $(this).data('axis-units'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
-            })
+            if (frequencies.length > 0) {
+                alleleFrequencyChartData.push({
+                    frequencies: frequencies,
+                    thisObj: this,
+                    refAlleleSize: $(this).data('ref-allele-size'),
+                    axisUnits: $(this).data('axis-units'),
+                    chartWidth: $(this).data('chart-width'),
+                    chartHeight: $(this).data('chart-height'),
+                    label: $(this).data('label'),
+                    minAlleleSize: Math.min(...frequencies.map(f => f.size)),
+                    maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+                })
+            }
         })
 
         //compute overall min, max for all charts and then create the charts
-        let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
-        let overallMaxAlleleSize = Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize))
+        let overallMinAlleleSize = alleleFrequencyChartData.length > 0 ? Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize)) : 0
+        let overallMaxAlleleSize = alleleFrequencyChartData.length > 0 ? Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize)) : 0
 
         alleleFrequencyChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
@@ -766,8 +768,8 @@ gtag('config', 'G-6R8FPBQRFH');
             })
         })
 
-        overallMinAlleleSize = Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize))
-        overallMaxAlleleSize = Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize))
+        overallMinAlleleSize = biallelicHistogramChartData.length > 0 ? Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize)) : 0
+        overallMaxAlleleSize = biallelicHistogramChartData.length > 0 ? Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize)) : 0
 
         biallelicHistogramChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
@@ -1218,6 +1220,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getValue: (row) => {
                 if (row[columnName]) {
                     let tagText = ''
+                    let tag = ''
                     if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
                         const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
                         if (row[`${columnName}RankTotalNumberByMotif`] == 1) {

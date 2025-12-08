@@ -1250,7 +1250,8 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
         //set y-limit to the nearest whole power of 10 divided by 2, rounding up
-        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...frequencies.map(f => f.count))))) / 2
+        const maxCount = frequencies.length > 0 ? Math.max(...frequencies.map(f => f.count)) : 1
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * maxCount))) / 2
         new Chart(thisObj, {
             type: 'bar',
             data: {
@@ -1354,6 +1355,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const parseBiallelicHistogramString = function(frequenciesString) {
         // example: frequencies = "2/2:58,2/3:34,3/3:4"
+        if (!frequenciesString) {
+            return [[], {}]
+        }
         const data = []
         const lookup = {}
         const items = frequenciesString.split(',')
@@ -1439,7 +1443,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         // Calculate maxCount from the binned data
-        const maxCount = Math.max(...data.map(d => d.v))
+        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
@@ -2244,22 +2248,24 @@ gtag('config', 'G-6R8FPBQRFH');
 
             const frequencies = parseAlleleFrequenciesString(frequenciesString)
 
-            alleleFrequencyChartData.push({
-                frequencies: frequencies,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                axisUnits: $(this).data('axis-units'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
-            })
+            if (frequencies.length > 0) {
+                alleleFrequencyChartData.push({
+                    frequencies: frequencies,
+                    thisObj: this,
+                    refAlleleSize: $(this).data('ref-allele-size'),
+                    axisUnits: $(this).data('axis-units'),
+                    chartWidth: $(this).data('chart-width'),
+                    chartHeight: $(this).data('chart-height'),
+                    label: $(this).data('label'),
+                    minAlleleSize: Math.min(...frequencies.map(f => f.size)),
+                    maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+                })
+            }
         })
 
         //compute overall min, max for all charts and then create the charts
-        let overallMinAlleleSize = Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize))
-        let overallMaxAlleleSize = Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize))
+        let overallMinAlleleSize = alleleFrequencyChartData.length > 0 ? Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize)) : 0
+        let overallMaxAlleleSize = alleleFrequencyChartData.length > 0 ? Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize)) : 0
 
         alleleFrequencyChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
@@ -2290,8 +2296,8 @@ gtag('config', 'G-6R8FPBQRFH');
             })
         })
 
-        overallMinAlleleSize = Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize))
-        overallMaxAlleleSize = Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize))
+        overallMinAlleleSize = biallelicHistogramChartData.length > 0 ? Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize)) : 0
+        overallMaxAlleleSize = biallelicHistogramChartData.length > 0 ? Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize)) : 0
 
         biallelicHistogramChartData.forEach((chartData) => {
             chartData.minAlleleSize = overallMinAlleleSize
@@ -2742,6 +2748,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getValue: (row) => {
                 if (row[columnName]) {
                     let tagText = ''
+                    let tag = ''
                     if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
                         const percentByMotif = row[`${columnName}RankTotalNumberByMotif`] > 0 ? row[`${columnName}RankByMotif`]/row[`${columnName}RankTotalNumberByMotif`] : 1
                         if (row[`${columnName}RankTotalNumberByMotif`] == 1) {
@@ -2978,7 +2985,7 @@ gtag('config', 'G-6R8FPBQRFH');
 <div class="ui stackable grid">
 
     <div class="ui row" id="header-stripe">
-    <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
+    <div class="three wide column page-grid-margin" style="padding: 0px !important"></div>
     <div class="three wide column" id="header-title">
         <a href="index.html">
             <img src="tandem-repeat-explorer-logo-white.png" alt="TRExplorer Logo" style="height: 40px; margin-left: 10px;">
@@ -2993,7 +3000,7 @@ gtag('config', 'G-6R8FPBQRFH');
         <a href="https://github.com/broadinstitute/TRExplorer/issues" target="_blank">Issues</a>
         <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
     </div>
-    <div class="three wide column" class="page-grid-margin" style="padding: 0px !important"></div>
+    <div class="three wide column page-grid-margin" style="padding: 0px !important"></div>
 </div>
 
 <div class="ui row" id="igv-row">
@@ -3223,7 +3230,7 @@ gtag('config', 'G-6R8FPBQRFH');
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeat Purity:</td><td>${TABLE_COLUMNS['ReferenceRepeatPurity'].getValue(row)}</td><td>${getHelpIcon('ReferenceRepeatPurity')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Other TRs Nearby:</td><td>${TABLE_COLUMNS['TRsInRegion'].getValue(row) || 'no'}</td><td>${getHelpIcon('TRsInRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Mappability:</td><td>${TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row)}</td><td>${getHelpIcon('FlanksAndLocusMappability')}</td></tr>`
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variantion Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Variation Cluster:</td><td>${TABLE_COLUMNS['variationCluster'].getValue(row) || 'no'}</td><td>${getHelpIcon('variationCluster')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td style="font-size:0.9em !important">${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`
         locusPageRow1Box1 += `<tr><td colspan="3" style="padding-top: 30px"></td></tr>`
         locusPageRow1Box1 += `<tr><td colspan="3" style="position: relative"><div style="position: absolute; top: 0px; left: 0px; z-index: 1000">`

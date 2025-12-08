@@ -197,7 +197,7 @@ if args.tenk10k_tsv:
     tenk10k_lookup = parse_allele_histograms_from_tsv(args.tenk10k_tsv, "TenK10K")
     print(f"Parsed {len(tenk10k_lookup):,d} records from the tenk10k table: {args.tenk10k_tsv}")
     
-HPRC256_lookup = {}
+hprc256_lookup = {}
 if args.hprc256_tsv:
     print(f"Parsing HPRC256 data from {args.hprc256_tsv}")
     hprc256_lookup = parse_allele_histograms_from_tsv(args.hprc256_tsv, "HPRC256")
@@ -328,6 +328,7 @@ if args.repeat_masker_lookup_json:
 ## Compute non-coding annotations lookup
 non_coding_annotations_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
 if args.non_coding_annotations_bed:
+    total_intervals = 0
     with gzip.open(args.non_coding_annotations_bed, "rt") as f:
         for line in f:
             fields = line.rstrip("\n").split("\t")
@@ -336,7 +337,8 @@ if args.non_coding_annotations_bed:
             end_1based = int(fields[2])
             category = fields[3]
             non_coding_annotations_interval_trees[chrom].addi(start_0based, end_1based, data=category)
-    print(f"Parsed {len(non_coding_annotations_interval_trees):,d} records from the non-coding annotations file: {args.non_coding_annotations_bed}")
+            total_intervals += 1
+    print(f"Parsed {total_intervals:,d} records from the non-coding annotations file: {args.non_coding_annotations_bed}")
 
 
 BIGQUERY_COLUMNS = [
@@ -629,6 +631,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         hprc256_record = hprc256_lookup[record["LocusId"]]
         record["HPRC256_AlleleHistogram"] = hprc256_record["allele_size_histogram"]
         record["HPRC256_BiallelicHistogram"] = hprc256_record.get("biallelic_histogram")
+        record["HPRC256_MinAllele"] = hprc256_record["min_allele"]
         record["HPRC256_ModeAllele"] = hprc256_record["mode_allele"]
         record["HPRC256_Stdev"] = hprc256_record["stdev"]
         record["HPRC256_Median"] = hprc256_record["median"]
@@ -700,7 +703,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
         if "NonCodingAnnotations" not in record:
             record["NonCodingAnnotations"] = non_coding_annotations_category
         else:
-            previous_annotations = record["NonCodingAnnotations"].split(",")
+            previous_annotations = [a.strip() for a in record["NonCodingAnnotations"].split(",")]
             if non_coding_annotations_category not in previous_annotations:
                 previous_annotations.append(non_coding_annotations_category)
                 record["NonCodingAnnotations"] = ", ".join(sorted(previous_annotations))

@@ -37,7 +37,8 @@
 
 
         //set y-limit to the nearest whole power of 10 divided by 2, rounding up
-        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * Math.max(...frequencies.map(f => f.count))))) / 2
+        const maxCount = frequencies.length > 0 ? Math.max(...frequencies.map(f => f.count)) : 1
+        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * maxCount))) / 2
         new Chart(thisObj, {
             type: 'bar',
             data: {
@@ -141,6 +142,9 @@
 
     const parseBiallelicHistogramString = function(frequenciesString) {
         // example: frequencies = "2/2:58,2/3:34,3/3:4"
+        if (!frequenciesString) {
+            return [[], {}]
+        }
         const data = []
         const lookup = {}
         const items = frequenciesString.split(',')
@@ -226,7 +230,7 @@
         }
 
         // Calculate maxCount from the binned data
-        const maxCount = Math.max(...data.map(d => d.v))
+        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
