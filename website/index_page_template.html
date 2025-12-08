@@ -183,7 +183,7 @@
                                     <div class="default text">Select filter</div>
                                     <div class="menu">
                                         <div class="item" data-value=""></div>
-                                        <div class="item" data-value="sigma_HPRC100">σ<sub>HPRC100</sub></div>
+                                        <div class="item" data-value="sigma_HPRC256">σ<sub>HPRC256</sub></div>
                                         <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027</sub></div>
                                         <div class="item" data-value="sigma_TenK10K">σ<sub>10k10k</sub></div>
                                         <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
@@ -286,16 +286,16 @@
 
         'polymorphism',
 
-        'HPRC100_AlleleHistogram',
+        'HPRC256_AlleleHistogram',
         'TenK10K_AlleleHistogram',
         'AlleleFrequenciesFromIllumina174k',
         'AlleleFrequenciesFromT2TAssemblies',
 
-        'HPRC100_BiallelicHistogram',
+        'HPRC256_BiallelicHistogram',
         'TenK10K_BiallelicHistogram',
 
 
-        'HPRC100_Stdev',
+        'HPRC256_Stdev',
         'AoU1027_Stdev',
         'TenK10K_Stdev',
         'StdevFromIllumina174k',
@@ -323,7 +323,7 @@
         'variationCluster',
         'Source',
         'AoU1027_Stdev',
-        'HPRC100_AlleleHistogram',
+        'HPRC256_AlleleHistogram',
         'VamosMotifFrequencies',
         'RepeatMaskerIntervals',
         //'NonCodingAnnotations',
@@ -360,12 +360,12 @@
         'VamosMotifFrequencies',
         'polymorphism',
 
-        'HPRC100_AlleleHistogram',
+        'HPRC256_AlleleHistogram',
         'TenK10K_AlleleHistogram',  
         'AlleleFrequenciesFromIllumina174k',  
         'AlleleFrequenciesFromT2TAssemblies',  
         
-        'HPRC100_Stdev',  
+        'HPRC256_Stdev',
         'AoU1027_Stdev',  
         'TenK10K_Stdev',  
         'StdevFromIllumina174k',  
@@ -795,28 +795,28 @@
                         'ManeGeneId',
                         'ManeTranscriptId',
 
-                        //'LPSLengthStdevFromHPRC100',
-                        //'LPSMotifFromHPRC100',
-                        //'LPSMotifFractionFromHPRC100',
-                        //'LPSMotifDenominatorFromHPRC100',
+                        //'LPSLengthStdevFromHPRC256',
+                        //'LPSMotifFromHPRC256',
+                        //'LPSMotifFractionFromHPRC256',
+                        //'LPSMotifDenominatorFromHPRC256',
 
                         'AlleleFrequenciesFromIllumina174k',
                         'StdevFromIllumina174k',
                         'AlleleFrequenciesFromT2TAssemblies',
                         'StdevFromT2TAssemblies',
 
-                        'HPRC100_AlleleHistogram',
-                        'HPRC100_BiallelicHistogram',
-                        'HPRC100_MinAllele',
-                        'HPRC100_ModeAllele',
-                        'HPRC100_Stdev',
-                        'HPRC100_Median',
-                        'HPRC100_99thPercentile',
-                        'HPRC100_MaxAllele',
-                        'HPRC100_UniqueAlleles',
-                        'HPRC100_NumCalledAlleles',
-                        'HPRC100_StdevRankByMotif',
-                        'HPRC100_StdevRankTotalNumberByMotif',
+                        'HPRC256_AlleleHistogram',
+                        'HPRC256_BiallelicHistogram',
+                        'HPRC256_MinAllele',
+                        'HPRC256_ModeAllele',
+                        'HPRC256_Stdev',
+                        'HPRC256_Median',
+                        'HPRC256_99thPercentile',
+                        'HPRC256_MaxAllele',
+                        'HPRC256_UniqueAlleles',
+                        'HPRC256_NumCalledAlleles',
+                        'HPRC256_StdevRankByMotif',
+                        'HPRC256_StdevRankTotalNumberByMotif',
 
                         'AoU1027_MinAllele',
                         'AoU1027_ModeAllele',
@@ -1338,7 +1338,7 @@
                             const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
                             //end = parseInt(end.replace(/,/g, ''))
 
-                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${queryValue}'`
+                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${queryValue}')`
 
                         } else {
                             // Try other fields
@@ -1411,8 +1411,8 @@
                 const polymorphismThreshold = $('input[name="polymorphismThreshold"]').val()
                 if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold) {
                     switch (polymorphismFilterType) {
-                        case 'sigma_HPRC100':
-                            conditions.push(`HPRC100_Stdev > ${polymorphismThreshold}`)
+                        case 'sigma_HPRC256':
+                            conditions.push(`HPRC256_Stdev > ${polymorphismThreshold}`)
                             break
                         case 'sigma_AoU1027':
                             conditions.push(`AoU1027_Stdev > ${polymorphismThreshold}`)

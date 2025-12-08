@@ -1625,7 +1625,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251201_054019'
+    const TABLE_ID = 'catalog_20251207_224457'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1644,7 +1644,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const ALL_STDEV_COLUMNS = [
-        'HPRC100_Stdev',
+        'HPRC256_Stdev',
         'AoU1027_Stdev',
         'TenK10K_Stdev',
         'StdevFromIllumina174k',
@@ -1652,7 +1652,7 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
     const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC100_Stdev': 'Hprc100',
+        'HPRC256_Stdev': 'Hprc256',
         'AoU1027_Stdev': 'AoU1027',
         'TenK10K_Stdev': '10k10k',
         'StdevFromIllumina174k': '1kGP',
@@ -1660,42 +1660,42 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const AXIS_UNITS = {
-        'HPRC100_AlleleHistogram': 'Repeat Count: LPS',
+        'HPRC256_AlleleHistogram': 'Repeat Count: LPS',
         'TenK10K_AlleleHistogram': 'Repeat Count',
         'AlleleFrequenciesFromIllumina174k': 'Repeat Count',
         'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
-        'HPRC100_BiallelicHistogram': 'Repeat Count: LPS',
+        'HPRC256_BiallelicHistogram': 'Repeat Count: LPS',
         'TenK10K_BiallelicHistogram': 'Repeat Count',
     }
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
-        'HPRC100_AlleleHistogram': 'HPRC100',
+        'HPRC256_AlleleHistogram': 'HPRC256',
         'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-        'HPRC100_BiallelicHistogram': 'HPRC100',
+        'HPRC256_BiallelicHistogram': 'HPRC256',
         'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
-        'HPRC100_AlleleHistogram': 'Allele Frequencies from HPRC 100 PacBio samples',
+        'HPRC256_AlleleHistogram': 'Allele Frequencies from HPRC 256 PacBio samples',
         'TenK10K_AlleleHistogram': 'Allele Frequencies from TenK10K Phase 1 short-read genomes',
         'AlleleFrequenciesFromIllumina174k': 'Allele Frequencies from 1kGP short-read genomes',
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
-        'HPRC100_BiallelicHistogram': 'Genotype Heatmap from HPRC 100 PacBio samples',
+        'HPRC256_BiallelicHistogram': 'Genotype Heatmap from HPRC 256 PacBio samples',
         'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
     }
 
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
-        'HPRC100_AlleleHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'HPRC256_AlleleHistogram': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
         'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
-        'HPRC100_BiallelicHistogram': 'based on TRGT calls in 100 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'HPRC256_BiallelicHistogram': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
         'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
     }
 
     const STDEV_HELP_TEXTS = {
-        'HPRC100_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
+        'HPRC256_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
         'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
         'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br />`,
@@ -1703,11 +1703,11 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const ALLELE_HISTOGRAM_HELP_TEXTS = {
-        'HPRC100_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_AlleleHistogram']}.`,
+        'HPRC256_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}.`,
         'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
         'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
         'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
-        'HPRC100_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC100_BiallelicHistogram']}.`,
+        'HPRC256_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_BiallelicHistogram']}.`,
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
@@ -1744,7 +1744,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ManeGeneId: 'MANE v1.4 gene ID',
         ManeGeneName: 'MANE v1.4 gene name',
         ManeTranscriptId: 'MANE v1.4 transcript ID',
-        HPRC100_BiallelicHistogram: 'Biallelic histogram of HPRC100',
+        HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
         dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
@@ -2114,10 +2114,10 @@ gtag('config', 'G-6R8FPBQRFH');
     const getPolymorphismSummaryColumnValue = (row) => {
         return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
             <span class="action-link">
-                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC100_Stdev']}</sub></b>
+                <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC256_Stdev']}</sub></b>
             </span>
             <span style="color: #333;">
-                = ${row.HPRC100_Stdev != null ? row.HPRC100_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+                = ${row.HPRC256_Stdev != null ? row.HPRC256_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
             </span>
             ${row.AoU1027_Stdev != null ? `<span class="action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
             ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
@@ -2131,10 +2131,10 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const generatePolymorphismDialogContent = (row) => {
-        const stdevColumns = ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-        const alleleFrequencyColumns = ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+        const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
 
-        const nStdevsNotAvailable = [row.HPRC100_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+        const nStdevsNotAvailable = [row.HPRC256_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
 
         let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
 
@@ -2210,7 +2210,7 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
-        const biallelicHistogramColumns = ['HPRC100_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
         const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
         if (biallelicHistogramColumnsAvailable) {
             polymorphismDialogContent1 += `
@@ -2455,7 +2455,7 @@ gtag('config', 'G-6R8FPBQRFH');
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['polymorphism'],
             getValue: getPolymorphismSummaryColumnValue,
-            getSortColumns: () => ['HPRC100_Stdev'],
+            getSortColumns: () => ['HPRC256_Stdev'],
             getRequiredColumns: () => REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN,
         },
         Source: {
@@ -2527,7 +2527,16 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceRepeatPurity: {
             displayName: 'Purity',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRepeatPurity'],
-            getValue: (row) => (row['ReferenceRepeatPurity'] ? row['ReferenceRepeatPurity'] : ''),
+            getValue: (row) => {
+                const value = row['ReferenceRepeatPurity']
+                if (typeof value !== 'number' || isNaN(value)) {
+                    return ''
+                } 
+                if (value == 1) {
+                    return '1'
+                }
+                return value.toFixed(2)
+            },
             getSortColumns: () => ['ReferenceRepeatPurity'],
             getRequiredColumns: () => ['ReferenceRepeatPurity']
         },
@@ -2651,13 +2660,13 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['ManeGeneName'],
             getRequiredColumns: () => ['ManeGeneName']
         },
-        HPRC100_BiallelicHistogram: {
-            displayName: 'HPRC100 Biallelic Histogram',
+        HPRC256_BiallelicHistogram: {
+            displayName: 'HPRC256 Biallelic Histogram',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC100_BiallelicHistogram'],
-            getValue: (row) => row['HPRC100_BiallelicHistogram'],
-            getSortColumns: () => ['HPRC100_BiallelicHistogram'],
-            getRequiredColumns: () => ['HPRC100_BiallelicHistogram']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC256_BiallelicHistogram'],
+            getValue: (row) => row['HPRC256_BiallelicHistogram'],
+            getSortColumns: () => ['HPRC256_BiallelicHistogram'],
+            getRequiredColumns: () => ['HPRC256_BiallelicHistogram']
         },
         TenK10K_BiallelicHistogram: {
             displayName: 'TenK10K Phase 1 Biallelic Histogram',
@@ -2695,9 +2704,9 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromIllumina174k',
         'StdevFromT2TAssemblies',
         'AlleleFrequenciesFromT2TAssemblies',
-        'HPRC100_Stdev',
-        'HPRC100_AlleleHistogram',
-        'HPRC100_BiallelicHistogram',
+        'HPRC256_Stdev',
+        'HPRC256_AlleleHistogram',
+        'HPRC256_BiallelicHistogram',
         'TenK10K_AlleleHistogram',
         'TenK10K_BiallelicHistogram',
         'TenK10K_Stdev',
@@ -2707,14 +2716,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
     const alleleHistogramColumnToOtherColumns = {
-        'HPRC100_AlleleHistogram': ['HPRC100_Stdev'],
+        'HPRC256_AlleleHistogram': ['HPRC256_Stdev'],
         'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
         'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
         'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
     }
 
 
-    for (const columnName of ['HPRC100_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
+    for (const columnName of ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
         const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
@@ -2726,7 +2735,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    for (const columnName of ['HPRC100_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev']) {
+    for (const columnName of ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev']) {
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
@@ -2980,7 +2989,7 @@ gtag('config', 'G-6R8FPBQRFH');
         <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
-        <a href="https://github.com/broadinstitute/TRExplorer/issues/new?title=Add%20TR%20locus%20to%20the%20TRExplorer%20website%20and%20catalog%3A&body=TR%20locus%20coordinates%20%28hg38%29%3A%0A%0ATR%20locus%20motif%20%28or%20motif%20size%29%3A%20%0A%0AI%20suggest%20adding%20this%20TR%20locus%20because%3A%20" target="_blank">Suggest TR</a>
+        <a href="https://github.com/broadinstitute/TRExplorer/issues/new?title=Add%20TR%20locus%20to%20the%20TRExplorer%20website%20and%20catalog%3A&body=TR%20locus%20coordinates%20%28hg38%29%3A%0A%0ATR%20locus%20motif%20%28or%20motif%20size%29%3A%20%0A%0AI%20suggest%20adding%20this%20TR%20locus%20because%3A%20" target="_blank" style="white-space: nowrap">Suggest TR</a>
         <a href="https://github.com/broadinstitute/TRExplorer/issues" target="_blank">Issues</a>
         <a href="https://github.com/broadinstitute/TRExplorer" target="_blank" id="github-icon"><i class="github icon"></i></a>
     </div>
@@ -3083,18 +3092,18 @@ gtag('config', 'G-6R8FPBQRFH');
         "StdevFromT2TAssemblies",
         "AlleleFrequenciesFromT2TAssemblies",
 
-        "HPRC100_AlleleHistogram",
-        "HPRC100_BiallelicHistogram",
-        "HPRC100_MinAllele",
-        "HPRC100_ModeAllele",
-        "HPRC100_Stdev",
-        "HPRC100_Median",
-        "HPRC100_99thPercentile",
-        "HPRC100_MaxAllele",
-        "HPRC100_UniqueAlleles",
-        "HPRC100_NumCalledAlleles",
-        "HPRC100_StdevRankByMotif",
-        "HPRC100_StdevRankTotalNumberByMotif",
+        "HPRC256_AlleleHistogram",
+        "HPRC256_BiallelicHistogram",
+        "HPRC256_MinAllele",
+        "HPRC256_ModeAllele",
+        "HPRC256_Stdev",
+        "HPRC256_Median",
+        "HPRC256_99thPercentile",
+        "HPRC256_MaxAllele",
+        "HPRC256_UniqueAlleles",
+        "HPRC256_NumCalledAlleles",
+        "HPRC256_StdevRankByMotif",
+        "HPRC256_StdevRankTotalNumberByMotif",
 
         "TenK10K_AlleleHistogram",
         "TenK10K_BiallelicHistogram",

@@ -43,11 +43,11 @@ tsv_header = [
     "RefseqGeneRegion",
     "ManeGeneRegion",
     #"LocusStructure",
-    #"HPRC100_AlleleHistogram",
-    "HPRC100_ModeAllele",
-    "HPRC100_Stdev",
-    "HPRC100_Median",
-    "HPRC100_99thPercentile",
+    #"HPRC256_AlleleHistogram",
+    "HPRC256_ModeAllele",
+    "HPRC256_Stdev",
+    "HPRC256_Median",
+    "HPRC256_99thPercentile",
     "AoU1027_ModeAllele",
     "AoU1027_Stdev",
     "AoU1027_Median",
@@ -139,11 +139,11 @@ print("-" * 80)
  4,863,041 out of 4,863,041 (100.0%) rows have RefseqGeneRegion
  4,863,041 out of 4,863,041 (100.0%) rows have ManeGeneRegion
  4,863,041 out of 4,863,041 (100.0%) rows have LocusStructure
- 4,609,399 out of 4,863,041 (94.8%) rows have HPRC100_AlleleHistogram
- 4,609,399 out of 4,863,041 (94.8%) rows have HPRC100_ModeAllele
- 4,609,399 out of 4,863,041 (94.8%) rows have HPRC100_Stdev
- 4,609,399 out of 4,863,041 (94.8%) rows have HPRC100_Median
- 4,609,399 out of 4,863,041 (94.8%) rows have HPRC100_99thPercentile
+ 4,609,399 out of 4,863,041 (94.8%) rows have HPRC256_AlleleHistogram
+ 4,609,399 out of 4,863,041 (94.8%) rows have HPRC256_ModeAllele
+ 4,609,399 out of 4,863,041 (94.8%) rows have HPRC256_Stdev
+ 4,609,399 out of 4,863,041 (94.8%) rows have HPRC256_Median
+ 4,609,399 out of 4,863,041 (94.8%) rows have HPRC256_99thPercentile
  4,441,086 out of 4,863,041 (91.3%) rows have AoU1027_ModeAllele
  4,441,086 out of 4,863,041 (91.3%) rows have AoU1027_Stdev
  4,441,086 out of 4,863,041 (91.3%) rows have AoU1027_Median

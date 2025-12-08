@@ -63,6 +63,6 @@ df["diff_AoU_HPRC_stdev"] = df["stdev_AoU"] - df["stdev_HPRC"]
 df["ratio_AoU_stdev_overHPRC_stdev"] = np.where(df["stdev_HPRC"] == 0, 0, df["stdev_AoU"] / df["stdev_HPRC"])  
 
 df = df[sorted(df.columns)]
-output_filename = "AoU_vs_HPRC100_comparison_table.tsv"
+output_filename = "AoU_vs_HPRC256_comparison_table.tsv"
 df.to_csv(output_filename, sep="\t", index=False, header=True)
 print(f"Wrote {len(df):,} rows to {output_filename}")
