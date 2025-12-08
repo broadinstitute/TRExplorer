@@ -1822,10 +1822,20 @@
 
         GLOBAL_PAGE_STATE['currentPage'] = 1
 
-        // set igvLoc to the first value in the search query
-        const searchQuery = $('#search-query').val()
+        // update igvLoc if the first value in the search query is a region or locus id
+        let searchQuery = $('#search-query').val()
         if (searchQuery) {
-            GLOBAL_PAGE_STATE['igvLoc'] = splitSearchQuery(searchQuery)[0]
+            const searchItem = splitSearchQuery(searchQuery)[0]
+            const regionMatch = searchItem.match(REFERENCE_REGION_REGEXP)
+            if (regionMatch) {
+                GLOBAL_PAGE_STATE['igvLoc'] = searchItem
+            } else {
+                const locusIdMatch = searchItem.match(LOCUS_ID_REGEXP)
+                if (locusIdMatch) {
+                    let [_, chrom, start_0based, end_1based, __] = locusIdMatch
+                    GLOBAL_PAGE_STATE['igvLoc'] = `${chrom}:${start_0based}-${end_1based}`
+                }
+            }
         }
 
         await performSearch(false)
