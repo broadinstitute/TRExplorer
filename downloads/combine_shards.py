@@ -6,7 +6,7 @@ import re
 import tqdm
 
 # Find all sharded JSON files matching the pattern
-pattern = "TR_catalog.shard_*_of_*.4863041_loci.20251030*.json.gz"
+pattern = "TR_catalog.shard_*_of_*.20251209_1106*.json.gz"
 input_file_paths = glob.glob(pattern)
 
 if not input_file_paths:
@@ -42,19 +42,31 @@ tsv_header = [
     "GencodeGeneRegion",
     "RefseqGeneRegion",
     "ManeGeneRegion",
+
     #"LocusStructure",
     #"HPRC256_AlleleHistogram",
+
+    "HPRC256_MinAllele",
     "HPRC256_ModeAllele",
     "HPRC256_Stdev",
     "HPRC256_Median",
     "HPRC256_99thPercentile",
+    "HPRC256_MaxAllele",
+    "HPRC256_UniqueAlleles",
+    "HPRC256_NumCalledAlleles",
+
+
+    "AoU1027_MinAllele",
     "AoU1027_ModeAllele",
     "AoU1027_Stdev",
     "AoU1027_Median",
     "AoU1027_99thPercentile",
     "AoU1027_MaxAllele",
+    "AoU1027_UniqueAlleles",
+    "AoU1027_NumCalledAlleles",
     "AoU1027_OE_Length",
     "AoU1027_OE_LengthPercentile",
+    
     "GencodeGeneName",
     #"GencodeGeneId",
     #"GencodeTranscriptId",
