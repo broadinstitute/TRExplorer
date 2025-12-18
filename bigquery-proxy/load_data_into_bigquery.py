@@ -533,6 +533,9 @@ else:
     parser.error(f"Invalid catalog path: {args.catalog_path}")
 
 
+# vamos does not support overlapping loci - double-check that none of the loci with IncludeInVamosCatalog=1 overlap each other
+vamos_overlap_detector_last_end_coord = collections.defaultdict(int)
+
 chrom_indices = {str(i): i for i in range(1, 23)}
 chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
 
@@ -546,8 +549,8 @@ previous_chrom = None
 chrom_fasta_obj = None
 
 counters = collections.Counter()
-for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True):
-    if args.n and i >= args.n:
+for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True):
+    if args.n and record_i >= args.n:
         break
 
     chrom, start_0based, end_1based = parse_interval(record["ReferenceRegion"])
@@ -608,7 +611,7 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
     #    print("WARNING: StdevFromT2TAssemblies is present but AlleleFrequenciesFromT2TAssemblies is missing in record:", pformat(record, indent=4))
 
     # Add id field
-    record["id"] = i + 1
+    record["id"] = record_i + 1
 
     if record["LocusId"] in tenk10k_lookup:
         counters["rows_with_tenk10k_data"] += 1
@@ -690,6 +693,13 @@ for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True)
             if vamos_data[c] is not None and vamos_data[c] != "":
                 record[c] = int(vamos_data[c])
 
+        if int(vamos_data["IncludeInVamosCatalog"]) == 1:
+            # since Vamos doesn't support overlapping loci, double-check that this locus doesn't overlap any other
+            # loci that are to be included in the Vamos catalog
+            if vamos_overlap_detector_last_end_coord[chrom] > start_0based:
+                raise ValueError(f"Overlapping vamos catalog locus detected for new locus: {chrom}:{start_0based}-{end_1based}")
+            vamos_overlap_detector_last_end_coord[chrom] = end_1based
+
     if record["LocusId"] in repeat_masker_lookup:
         counters["rows_with_repeat_masker_intervals"] += 1
         record["RepeatMaskerIntervals"] = repeat_masker_lookup[record["LocusId"]]
@@ -742,11 +752,11 @@ print("Done!")
 # print any GangSTR loci that unexpectedly were not found in the TRExplorer catalog
 if len(gangstr_interval_set) > 0:
     print_N = 100
-    for i, (chrom, start_0based, end_1based, canonical_motif) in enumerate(sorted(gangstr_interval_set)):
-        if i >= print_N:
+    for record_i, (chrom, start_0based, end_1based, canonical_motif) in enumerate(sorted(gangstr_interval_set)):
+        if record_i >= print_N:
             print(f" ... and {len(gangstr_interval_set) - print_N:,d} other loci")
             break
-        print(f"{i+1:3d}: GangSTR locus not found in TRExplorer catalog: {chrom}:{start_0based}-{end_1based}  {canonical_motif}")
+        print(f"{record_i+1:3d}: GangSTR locus not found in TRExplorer catalog: {chrom}:{start_0based}-{end_1based}  {canonical_motif}")
     print(f"WARNING: {len(gangstr_interval_set):,d} GangSTR catalog loci were not found in the TRExplorer catalog")
 
 print("\nCounters:")
