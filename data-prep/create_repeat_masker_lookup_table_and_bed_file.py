@@ -37,7 +37,7 @@ from str_analysis.utils.misc_utils import parse_interval
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--trexplorer-catalog",
-    default="~/code/tandem-repeat-catalogs/results__2025-11-03/release_draft_2025-11-03/repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.json.gz")
+    default="~/code/tandem-repeat-catalogs/results__2025-12-07/release_draft_2025-12-07/repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.json.gz")
 parser.add_argument("--repeat-masker-track", default="./hg38.RepeatMasker.tsv.gz")
 parser.add_argument("--output-json", default="hg38.RepeatMasker.lookup.json.gz")
 parser.add_argument("-n", type=int, default=None)
