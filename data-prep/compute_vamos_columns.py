@@ -4,14 +4,18 @@ with Vamos-related columns to include in the BigQuery table.
 import argparse
 import collections
 import gzip
-import intervaltree
 import os
 import requests
 import tqdm
 
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.misc_utils import get_json_iterator, parse_interval
+from str_analysis.utils.eh_catalog_utils import group_overlapping_loci
 
+
+def get_reference_region_size(record):
+    chrom, start_0based, end_1based = parse_interval(record["ReferenceRegion"])
+    return end_1based - start_0based
 
 def main():
     parser = argparse.ArgumentParser()
@@ -37,59 +41,43 @@ def main():
     else:
         parser.error(f"Invalid catalog path: {args.catalog_path}")
 
-    output_table_rows = {}
     counters = collections.Counter()
-    previous_chrom = None
-    interval_tree_for_vamos_catalog = None
-    for i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scale=True):
-        if args.n and i >= args.n:
+
+    output_table_rows = []
+    for record_group in group_overlapping_loci(
+        catalog,
+        only_group_loci_with_similar_motifs=True,
+        min_overlap_size=-1, # group loci even if they're 1bp apart
+        verbose=True,
+    ):
+
+        record_with_largest_reference_region = max(record_group, key=lambda record: get_reference_region_size(record))
+        for record in record_group:
+            counters["total"] += 1
+            reference_region = record["ReferenceRegion"]
+            output_record = {
+                "ReferenceRegion": reference_region,
+                "IncludeInVamosCatalog": 1 if record == record_with_largest_reference_region else 0,
+            }
+            if record == record_with_largest_reference_region:
+                counters["records_included_in_vamos_catalog"] += 1
+
+            if reference_region in vamos_data_lookup:
+                counters["has_vamos_data"] += 1
+                vamos_data = vamos_data_lookup[reference_region]
+                output_record.update({
+                    "VamosUniqueMotifs": vamos_data["unique_motifs"],
+                    "VamosEfficientMotifs": vamos_data["efficient_motifs"],
+                    "VamosMotifFrequencies": vamos_data["motif_frequencies"],
+                    "VamosNumUniqueMotifs": vamos_data["num_unique_motifs"],
+                })
+            output_table_rows.append(output_record)
+
+        if args.n and counters["total"] >= args.n:
             break
 
-        counters["total"] += 1
-        reference_region = record["ReferenceRegion"]
-        chrom, start_0based, end_1based = parse_interval(reference_region)
-        if chrom != previous_chrom:
-            previous_chrom = chrom
-            interval_tree_for_vamos_catalog = intervaltree.IntervalTree()
 
-        # check if this overlaps with existing intervals in the tree. If yes, keep the interval that is wider
-        include_new_interval_in_vamos_catalog = True
-        new_interval = intervaltree.Interval(start_0based, end_1based, data=reference_region)
-        exclude_from_vamos_catalog = []
-        for existing_interval in interval_tree_for_vamos_catalog.overlap(new_interval):
-            if existing_interval.length() < new_interval.length():
-                exclude_from_vamos_catalog.append(existing_interval)
-            else:
-                include_new_interval_in_vamos_catalog = False
-                break
-
-        # remove overlapping intervals
-        for existing_interval in exclude_from_vamos_catalog:
-            interval_tree_for_vamos_catalog.remove(existing_interval)
-            output_table_rows[existing_interval.data]["IncludeInVamosCatalog"] = False
-
-        # add the current record's ReferenceRegion to the output
-        if include_new_interval_in_vamos_catalog:
-            interval_tree_for_vamos_catalog.add(new_interval)
-
-        output_table_rows[reference_region] = {
-            "ReferenceRegion": reference_region,
-            "IncludeInVamosCatalog": include_new_interval_in_vamos_catalog,
-        }
-
-        if reference_region in vamos_data_lookup:
-            vamos_data = vamos_data_lookup[reference_region]
-            output_table_rows[reference_region].update({
-                "VamosUniqueMotifs": vamos_data["unique_motifs"],
-                "VamosEfficientMotifs": vamos_data["efficient_motifs"],
-                "VamosMotifFrequencies": vamos_data["motif_frequencies"],
-                "VamosNumUniqueMotifs": vamos_data["num_unique_motifs"],
-            })
-            
     print(f"Kept {len(output_table_rows):,d} out of {counters['total']:,d} ({100 * len(output_table_rows) / counters['total']:.2f}%) rows")
-
-    for row in output_table_rows.values():
-        row["IncludeInVamosCatalog"] = int(row["IncludeInVamosCatalog"])  # convert to int for easier parsing later
 
     print(f"Writing {len(output_table_rows):,d} rows to {args.output_tsv}")
     header = [
@@ -104,11 +92,13 @@ def main():
     fopen = gzip.open if args.output_tsv.endswith(".gz") else open
     with fopen(args.output_tsv, "wt") as f:
         f.write("\t".join(header) + "\n")
-        for row in tqdm.tqdm(output_table_rows.values(), unit=" rows", unit_scale=True, total=len(output_table_rows)):
+        for row in tqdm.tqdm(output_table_rows, unit=" rows", unit_scale=True, total=len(output_table_rows)):
             f.write("\t".join([str(row.get(col, "")) for col in header]) + "\n")
 
     print(f"Wrote {len(output_table_rows):,d} rows to {args.output_tsv}")
 
+    print(f"{counters['records_included_in_vamos_catalog']:,d} out of {counters['total']:,d} ({counters['records_included_in_vamos_catalog']/counters['total']:0.1%}) were included in the vamos catalog")
+    print(f"{counters['has_vamos_data']:,d} out of {counters['total']:,d} ({counters['has_vamos_data']/counters['total']:0.1%}) had vamos data")
 
 def parse_vamos_data(unique_motif_tsv_path, efficient_motif_tsv_path=None):
     """Parse the Vamos motif frequencies TSV file line by line and create a lookup dictionary."""
