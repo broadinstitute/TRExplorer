@@ -46,8 +46,8 @@ def main():
     output_table_rows = []
     for record_group in group_overlapping_loci(
         catalog,
-        only_group_loci_with_similar_motifs=True,
-        min_overlap_size=-1, # group loci even if they're 1bp apart
+        only_group_loci_with_similar_motifs=False, # group loci regardless of whether they have the same motif since Vamos doesn't support overlapping locus definitions.
+        min_overlap_size=1, # group loci even if they overlap by at least 1bp
         verbose=True,
     ):
 
