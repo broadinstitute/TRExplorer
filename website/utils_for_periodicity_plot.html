@@ -4,6 +4,9 @@
         if (shift === 0 || string.length === 0) {
             return string
         }
+        if (shift < 0) {
+            throw new Error(`shiftStringBy: shift must be non-negative, got ${shift}`)
+        }
         const normalizedShift = shift % string.length
         return string.slice(-normalizedShift) + string.slice(0, string.length - normalizedShift)
     }
