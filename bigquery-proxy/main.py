@@ -28,7 +28,7 @@ def return_query_results(client, result_table, start_index=0, page_size=100):
     
     try:
         # see docs @ https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client#google_cloud_bigquery_client_Client_query_and_wait
-        # query(..) returns agoogle.cloud.bigquery.job.query.QueryJob
+        # query(..) returns a google.cloud.bigquery.job.query.QueryJob
         # https://cloud.google.com/bigquery/docs/paging-results#page_through_query_results
 
         row_iterator = client.list_rows(result_table, max_results=page_size, start_index=start_index)

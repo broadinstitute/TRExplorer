@@ -1,3 +1,10 @@
+"""Compares AoU and HPRC256 datasets for tandem repeat loci.
+
+This script reads data from both the All of Us (AoU) and HPRC256 datasets, joins them
+on matching locus IDs, and computes comparison metrics including differences in mode
+and stdev values, as well as ratios between the two datasets.
+"""
+
 import pandas as pd
 import numpy as np
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif

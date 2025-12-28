@@ -1,3 +1,10 @@
+"""Combines sharded JSON files into single JSON and TSV output files.
+
+This script finds all TR_catalog shard files matching a specific pattern,
+combines them into a single JSON array, and also outputs a TSV file with
+selected columns. It tracks statistics about field presence across all records.
+"""
+
 import collections
 import glob
 import gzip

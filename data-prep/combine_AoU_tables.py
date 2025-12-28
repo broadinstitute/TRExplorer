@@ -1,3 +1,15 @@
+"""Combines multiple AoU (All of Us) data tables into a single output table.
+
+This script merges three input tables:
+- AoULR_phase1_TRGT_Weisburd_v1_lpsStats.txt.gz
+- AoULR_phase1_TRGT_Weisburd_v1_distinctAndTotalAlleles.txt.gz
+- AoULR_phase1_TRGT_Weisburd_v1.0.1_TRConstraint.txt.gz
+
+It filters to keep only loci where the canonical motif matches the longest pure segment motif,
+computes additional statistics, and outputs a combined table with OE_len_percentile and
+StdevRankByMotif columns.
+"""
+
 import pandas as pd
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 

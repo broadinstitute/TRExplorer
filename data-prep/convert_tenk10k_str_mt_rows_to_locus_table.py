@@ -339,7 +339,7 @@ def main():
     for catalog_locus_id, output_row in output_row_data.items():
         if output_row["found_interval_size_diff"] < 3 * len(output_row["motif"]):
             filtered_output_row_data[catalog_locus_id] = output_row
-    print(f"Filtered out {len(output_row_data) - len(filtered_output_row_data):,d} out of {len(output_row_data):,d} ({100 * (len(output_row_data) - len(filtered_output_row_data)) / len(output_row_data) if len(output_row_data) > 0 else 0:.1f}%) catalog entries because the interval size difference 3 repeat units or more")
+    print(f"Filtered out {len(output_row_data) - len(filtered_output_row_data):,d} out of {len(output_row_data):,d} ({100 * (len(output_row_data) - len(filtered_output_row_data)) / len(output_row_data) if len(output_row_data) > 0 else 0:.1f}%) catalog entries because the interval size difference is 3 repeat units or more")
 
     print(f"Writing tenk10k data for {len(filtered_output_row_data):,d} catalog entries to {output_tsv}")
     write_to_output(filtered_output_row_data, output_tsv, counters)

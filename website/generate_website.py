@@ -1,4 +1,8 @@
-"""Parses the JINJA templates and converts them to static HTML pages."""
+"""Parses JINJA templates and converts them to static HTML pages.
+
+This script processes all *_page_template.html files in the current directory,
+renders them using Jinja2, and outputs the final HTML files to the parent directory.
+"""
 
 import glob
 import jinja2

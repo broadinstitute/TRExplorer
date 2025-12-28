@@ -186,7 +186,7 @@ if "Chiu_et_al" in catalog_paths and (
 	original_catalog_path = catalog_paths["Chiu_et_al"].replace(".bed.gz", ".original.bed.gz")
 	if not os.path.isfile(original_catalog_path):
 		run(f"mv {catalog_paths['Chiu_et_al']} {original_catalog_path}")
-		# convert the comprehensive catalog from Chiu et al. to a regular bed file (removing the header and converting to 0-basd coords)
+		# convert the comprehensive catalog from Chiu et al. to a regular bed file (removing the header and converting to 0-based coords)
 		run(f"gunzip -c {original_catalog_path} | tail -n +3 | cut -f 1-4 | awk 'BEGIN {{OFS=\"\\t\"}} {{ print( $1, $2 - 1, $3, $4 ) }}' | bgzip > {catalog_paths['Chiu_et_al']}")
 
 all_stats_tsv_paths = {}
