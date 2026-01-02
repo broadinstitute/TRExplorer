@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--vamos-eff-motifs-tsv", default="../data-prep/effMotifFinal.all.tsv.gz")
     parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
                         #default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
-                        default="~/code/tandem-repeat-catalogs/results__2025-12-07/release_draft_2025-12-07/repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                        default="~/code/tandem-repeat-catalogs/results__2026-01-01/release_draft_2026-01-01/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
     parser.add_argument("-n", type=int, help="Number of records to process from the catalog")
     parser.add_argument("-o", "--output-tsv", default="../data-prep/vamos_ori_and_eff_motif_columns.tsv.gz")
     args = parser.parse_args()
