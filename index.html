@@ -1647,7 +1647,7 @@ gtag('config', 'G-6R8FPBQRFH');
         known_disease_loci: 63,
         illumina_174k_catalog: 174300,
         tr_explorer_catalog: 4863041,
-        tr_explorer_catalog_v2: 5591917,
+        tr_explorer_catalog_v2: 5543666,
     }
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
@@ -3082,7 +3082,7 @@ gtag('config', 'G-6R8FPBQRFH');
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,591,917 loci</span>
+                                        <span style="color: #888; margin-left: 20px;">5,543,666 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="tr_explorer_catalog">
@@ -4054,7 +4054,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
-        console.log("Search results:", results.rows)
+        //console.log("Search results:", results.rows)
 
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)

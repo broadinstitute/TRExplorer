@@ -90,7 +90,7 @@
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,591,917 loci</span>
+                                        <span style="color: #888; margin-left: 20px;">5,543,666 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="tr_explorer_catalog">
@@ -1062,7 +1062,7 @@
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
-        console.log("Search results:", results.rows)
+        //console.log("Search results:", results.rows)
 
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
