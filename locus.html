@@ -861,7 +861,6 @@ gtag('config', 'G-6R8FPBQRFH');
     /** --------- END of utils for IGV.js  ---------- */
 </script>
 <script>
-    /** --------- START of utils for motif frequency  ---------- */
 
     const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
         const helpText = `
@@ -883,6 +882,86 @@ gtag('config', 'G-6R8FPBQRFH');
             result += `<br /><div style='text-align: justify; color: #555555' ><b>Details:</b> ${helpText}</div>`
         }
         return result
+    }
+
+    const computeMotifFrequenciesTableRows = (frequenciesString) => {
+        if (!frequenciesString) {
+            return []
+        }
+        const items = frequenciesString.split(',')
+        let total = 0
+        let motifCounts = {}
+        let efficientMotifs = {}
+        for (let i = 0; i < items.length; i++) {
+            let motif = '', efficientMotif = '', count = '0'
+            const numTokens = items[i].split(':').length
+            if (numTokens == 3) {
+                [motif, efficientMotif, count] = items[i].split(':')
+            } else if(numTokens == 2) {
+                [motif, count] = items[i].split(':')
+            }
+
+            count = parseInt(count)
+            if (Number.isNaN(count)) {
+                console.warn(`Unable to parse the count for motif ${motif} in ${frequenciesString}. Skipping...`)
+                continue
+            }
+            motif = motif.trim()
+            motifCounts[motif] = count
+            efficientMotifs[motif] = efficientMotif.trim()
+            total += count
+        }
+
+        const minimumFrequencyThreshold = 0  // 0.01
+
+        // convert counts to fractions
+        let motifCount = 0
+        let homopolymerMotifCount = 0
+        for (let motif in motifCounts) {
+            motifCounts[motif] /= total
+            if (motifCounts[motif] >= minimumFrequencyThreshold) {
+                motifCount += 1
+                if (motif.length == 1) {
+                    homopolymerMotifCount += 1
+                }
+            }
+        }
+
+        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
+            return []
+        }
+
+        const truncateMotifAt = 35
+        let resultMotifs = []
+        for (let motif in motifCounts) {
+            let motifRow
+            let motifPercentString
+            if (motifCounts[motif] >= 0.01) {
+                motifRow = '<tr>'
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
+            } else {
+                motifRow = `<tr style='color:#AAAAAA'>`
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
+            }
+            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
+            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
+            if (efficientMotifs[motif]) {
+                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                if (efficientMotifs[motif] != motif) {
+                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
+                } else {
+                    motifRow += '<i>same as motif</i>'
+                }
+                motifRow += `</span></td>`
+            } else {
+                motifRow += `<td><i>unavailable</i></td>`
+            }
+            motifRow += '</tr>'
+
+            resultMotifs.push(motifRow)
+        }
+
+        return resultMotifs
     }
 
     const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
@@ -910,13 +989,15 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    /** --------- END of utils for motif frequency  ---------- */
 </script>
 <script>
     /** --------- START of utils for periodicity plots  ---------- */
     const shiftStringBy = (string, shift) => {
         if (shift === 0 || string.length === 0) {
             return string
+        }
+        if (shift < 0) {
+            throw new Error(`shiftStringBy: shift must be non-negative, got ${shift}`)
         }
         const normalizedShift = shift % string.length
         return string.slice(-normalizedShift) + string.slice(0, string.length - normalizedShift)
@@ -2026,85 +2107,6 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    const computeMotifFrequenciesTableRows = (frequenciesString) => {
-        if (!frequenciesString) {
-            return []
-        }
-        const items = frequenciesString.split(',')
-        let total = 0
-        let motifCounts = {}
-        let efficientMotifs = {}
-        for (let i = 0; i < items.length; i++) {
-            let motif = '', efficientMotif = '', count = '0'
-            const numTokens = items[i].split(':').length
-            if (numTokens == 3) {
-                [motif, efficientMotif, count] = items[i].split(':')
-            } else if(numTokens == 2) {
-                [motif, count] = items[i].split(':')
-            }
-
-            count = parseInt(count)
-            if (Number.isNaN(count)) {
-                console.warn(`Unable to parse the count for motif ${motif} in ${frequenciesString}. Skipping...`)
-                continue
-            }
-            motif = motif.trim()
-            motifCounts[motif] = count
-            efficientMotifs[motif] = efficientMotif.trim()
-            total += count
-        }
-
-        const minimumFrequencyThreshold = 0  // 0.01
-
-        // convert counts to fractions
-        let motifCount = 0
-        let homopolymerMotifCount = 0
-        for (let motif in motifCounts) {
-            motifCounts[motif] /= total
-            if (motifCounts[motif] >= minimumFrequencyThreshold) {
-                motifCount += 1
-                if (motif.length == 1) {
-                    homopolymerMotifCount += 1
-                }
-            }
-        }
-
-        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
-            return []
-        }
-
-        const truncateMotifAt = 35
-        let resultMotifs = []
-        for (let motif in motifCounts) {
-            let motifRow
-            let motifPercentString
-            if (motifCounts[motif] >= 0.01) {
-                motifRow = '<tr>'
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
-            } else {
-                motifRow = `<tr style='color:#AAAAAA'>`
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
-            }
-            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
-            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
-            if (efficientMotifs[motif]) {
-                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
-                if (efficientMotifs[motif] != motif) {
-                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
-                } else {
-                    motifRow += '<i>same as motif</i>'
-                }
-                motifRow += `</span></td>`
-            } else {
-                motifRow += `<td><i>unavailable</i></td>`
-            }
-            motifRow += '</tr>'
-
-            resultMotifs.push(motifRow)
-        }
-
-        return resultMotifs
-    }
 
     const getGeneRegionColumnValue = (geneRegion) => {
         if (!geneRegion) return ''
@@ -2472,7 +2474,19 @@ gtag('config', 'G-6R8FPBQRFH');
                     Illumina174kPolymorphicTRs: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
                     PerfectRepeatsInReference:  "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
                     PolymorphicTRsInT2TAssemblies: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br /><br /><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
+                    KnownDiseaseAssociatedLociV2:    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Known disease-associated loci (v2)'>v2 &nbsp; <i>[5]</i></span>",
+                    PolymorphicTRsInT2TAssembliesV2: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic TRs in 321 T2T assemblies'>v2 &nbsp; <i>[6]</i></span>",
+                    KnownFunctionalVNTRs:            "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Curated list of known VNTRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[7]</i></span>",
+                    HipSTRCatalog:                   "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> HipSTR catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[8]</i></span>",
+                    AdottoTRsFromDanzi2025:          "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[9]</i></span>",
+                    ClinvarIndelsThatAreTRs2025:     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog'>v2 &nbsp; <i>[10]</i></span>",
+                    Tanudisastro2025:                "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Tanudisastro et al. 2025 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[11]</i></span>",
+                    Manigbas2024:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[12]</i></span>",
+                    Sulovari2021:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Sulovari et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[13]</i></span>",
+                    Garg2021:                        "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Garg et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[14]</i></span>",
+                    Mukamel2021:                     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[15]</i></span>",
+                    Annear2021:                      "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Annear et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[16]</i></span>",
+                    Hause2016:                       "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Hause et al. 2016 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[17]</i></span>",
                 }
                 const [version, sourceCatalog] = row['Source'].split(':')
                 return sourceCatalogNameMap[sourceCatalog]

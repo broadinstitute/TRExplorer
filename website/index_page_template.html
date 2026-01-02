@@ -1062,6 +1062,8 @@
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
+        console.log("Search results:", results.rows)
+
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
 
