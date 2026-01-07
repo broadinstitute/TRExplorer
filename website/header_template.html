@@ -101,7 +101,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260102_081349'
+    const TABLE_ID = 'catalog_20260106_223622'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -187,41 +187,38 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
+    // BigQuery column descriptions - generated from global_constants.py via Jinja2
+    const BIGQUERY_COLUMN_DESCRIPTIONS = {{ column_descriptions | tojson }}
+
     const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
+
+    // Help texts for UI columns - starts with BigQuery descriptions, then adds/overrides
+    // with custom text for UI-only columns or those needing HTML formatting
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
+        ...BIGQUERY_COLUMN_DESCRIPTIONS,
+
+        // Custom overrides (HTML formatting, template strings, or different wording)
         LocusId: 'A unique id of this TR locus in hg38',
         ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
-        ReferenceRepeatSequence: 'The repeat sequence in hg38',
-        ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
-        ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
         ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
         CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
-        polymorphism: 'Summary of available polymorphism data for the TR locus',
         Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
         ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
-        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
-        NonCodingAnnotations: 'Non-coding annotations from various sources collected by the Talkowski Lab',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v48 ${gene_region_priority}`,
-        GencodeGeneName: 'Gencode v48 gene name',
-        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
-        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
-        RefSeqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
-        RefSeqGeneId: 'RefSeq gene ID',
-        RefSeqTranscriptId: 'RefSeq transcript ID',
-        RefSeqGeneName: 'RefSeq gene name',
+        RefseqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
         ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
-        ManeGeneId: 'MANE v1.4 gene ID',
-        ManeGeneName: 'MANE v1.4 gene name',
-        ManeTranscriptId: 'MANE v1.4 transcript ID',
         HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
+
+        // UI-only columns (not in BigQuery schema)
+        polymorphism: 'Summary of available polymorphism data for the TR locus',
+        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
+        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
         dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
 
@@ -1005,37 +1002,37 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
         },
-        RefSeqGeneRegion: {
+        RefseqGeneRegion: {
             displayName: 'RefSeq Region',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['RefSeqGeneRegion']),
-            getSortColumns: () => ['RefSeqGeneRegion'],
-            getRequiredColumns: () => ['RefSeqGeneRegion']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['RefseqGeneRegion']),
+            getSortColumns: () => ['RefseqGeneRegion'],
+            getRequiredColumns: () => ['RefseqGeneRegion']
         },
-        RefSeqGeneId: {
+        RefseqGeneId: {
             displayName: 'RefSeq Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneId'],
-            getValue: (row) => row['RefSeqGeneId'],
-            getSortColumns: () => ['RefSeqGeneId'],
-            getRequiredColumns: () => ['RefSeqGeneId']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneId'],
+            getValue: (row) => row['RefseqGeneId'],
+            getSortColumns: () => ['RefseqGeneId'],
+            getRequiredColumns: () => ['RefseqGeneId']
         },
-        RefSeqTranscriptId: {
+        RefseqTranscriptId: {
             displayName: 'RefSeq Transcript Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqTranscriptId'],
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqTranscriptId'],
             getValue: (row) => row['RefseqTranscriptId'],
             getSortColumns: () => ['RefseqTranscriptId'],
             getRequiredColumns: () => ['RefseqTranscriptId']
         },
-        RefSeqGeneName: {
+        RefseqGeneName: {
             displayName: 'RefSeq Gene',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneName'],
-            getValue: (row) => row['RefSeqGeneName'],
-            getSortColumns: () => ['RefSeqGeneName'],
-            getRequiredColumns: () => ['RefSeqGeneName']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneName'],
+            getValue: (row) => row['RefseqGeneName'],
+            getSortColumns: () => ['RefseqGeneName'],
+            getRequiredColumns: () => ['RefseqGeneName']
         },
         ManeGeneRegion: {
             displayName: 'MANE Region',

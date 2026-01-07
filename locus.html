@@ -1711,7 +1711,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260102_081349'
+    const TABLE_ID = 'catalog_20260106_223622'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1797,41 +1797,38 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
+    // BigQuery column descriptions - generated from global_constants.py via Jinja2
+    const BIGQUERY_COLUMN_DESCRIPTIONS = {"AlleleFrequenciesFromIllumina174k": "Allele frequencies based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "AlleleFrequenciesFromT2TAssemblies": "Allele frequencies based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "AoU1027_99thPercentile": "99th percentile allele size (LPS) in AoU1027.", "AoU1027_MaxAllele": "Maximum allele size (LPS) observed in AoU1027.", "AoU1027_Median": "Median allele size (LPS) in AoU1027.", "AoU1027_MinAllele": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us).", "AoU1027_ModeAllele": "Mode (most common) allele size (LPS) in AoU1027.", "AoU1027_NumCalledAlleles": "Total number of alleles called in AoU1027.", "AoU1027_OE_Length": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025).", "AoU1027_OE_LengthPercentile": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog.", "AoU1027_Stdev": "Standard deviation of allele sizes (LPS) in AoU1027.", "AoU1027_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027.", "AoU1027_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in AoU1027.", "AoU1027_UniqueAlleles": "Number of unique allele sizes (LPS) observed in AoU1027.", "CanonicalMotif": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC.", "DiseaseInfo": "JSON object containing detailed disease information including LocusId, STRchiveId, STRipyId, and disease names.", "FlanksAndLocusMappability": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1.", "FoundInGangSTRCatalog": "Whether this locus was found in the GangSTR v17 catalog (1 = yes, NULL = no).", "FoundInIllumina174kPolymorphicTRs": "Whether this locus was found in the Illumina 174k polymorphic TR catalog.", "FoundInKnownDiseaseAssociatedLoci": "Whether this locus was found in the known disease-associated loci catalog.", "FoundInPerfectRepeatsInReference": "Whether this locus was found in the perfect repeats in reference catalog.", "FoundInPolymorphicTRsInT2TAssemblies": "Whether this locus was found in the polymorphic TRs in T2T assemblies catalog.", "GencodeGeneId": "Gencode v48 gene ID (ENSG)", "GencodeGeneName": "Gencode v48 gene name", "GencodeGeneRegion": "The most significant gene region that overlaps the TR locus in Gencode v48, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "GencodeTranscriptId": "Gencode v48 transcript ID (ENST)", "HPRC256_99thPercentile": "99th percentile allele size (LPS) in HPRC256.", "HPRC256_AlleleHistogram": "Allele frequencies based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). Allele sizes computed using the longest pure segment (LPS).", "HPRC256_BiallelicHistogram": "Biallelic genotype histogram from HPRC 256 PacBio samples.", "HPRC256_MaxAllele": "Maximum allele size (LPS) observed in HPRC256.", "HPRC256_Median": "Median allele size (LPS) in HPRC256.", "HPRC256_MinAllele": "Minimum allele size (LPS) observed in HPRC256.", "HPRC256_ModeAllele": "Mode (most common) allele size (LPS) in HPRC256.", "HPRC256_NumCalledAlleles": "Total number of alleles called in HPRC256.", "HPRC256_Stdev": "Standard deviation of allele sizes (LPS) in HPRC256.", "HPRC256_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256.", "HPRC256_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in HPRC256.", "HPRC256_UniqueAlleles": "Number of unique allele sizes (LPS) observed in HPRC256.", "HighestPurityMotif": "The motif that achieves the highest purity score at this locus (may differ from ReferenceMotif).", "HighestPurityMotifPurity": "The purity score achieved by the HighestPurityMotif. Range: 0 to 1.", "HighestPurityMotifQuality": "Quality score for the HighestPurityMotif assignment.", "IncludeInVamosCatalog": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn\u0027t support them.", "KnownDiseaseAssociatedLocus": "Name of the known disease-associated locus if this TR overlaps one.", "KnownDiseaseAssociatedMotif": "The pathogenic repeat motif at the known disease-associated locus.", "LeftFlankMappability": "UCSC 36-mer mappability score for the left flanking region. Range: 0 to 1.", "LocusId": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.", "ManeGeneId": "MANE v1.4 gene ID", "ManeGeneName": "MANE v1.4 gene name", "ManeGeneRegion": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "ManeTranscriptId": "MANE v1.4 transcript ID", "MotifSize": "Length of the repeat motif in base pairs.", "NonCodingAnnotations": "Non-coding annotations from various sources collected by the Talkowski Lab", "NsInFlanks": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don\u0027t support Ns in flanks.", "NumRepeatsInReference": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer.", "ReferenceLeftFlank": "The sequence immediately to the left of the TR locus in hg38", "ReferenceMotif": "The repeat motif sequence as it appears in hg38.", "ReferenceRegion": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442", "ReferenceRegionSize": "Size of the TR locus in base pairs (end_1based - start_0based).", "ReferenceRepeatPurity": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1.", "ReferenceRepeatSequence": "The repeat sequence in hg38", "ReferenceRightFlank": "The sequence immediately to the right of the TR locus in hg38", "RefseqGeneId": "RefSeq gene ID", "RefseqGeneName": "RefSeq gene name", "RefseqGeneRegion": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "RefseqTranscriptId": "RefSeq transcript ID", "RepeatMaskerIntervals": "UCSC Repeat Masker intervals that overlap the TR locus", "RightFlankMappability": "UCSC 36-mer mappability score for the right flanking region. Range: 0 to 1.", "Source": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.", "StdevFromIllumina174k": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "StdevFromT2TAssemblies": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "TRsInRegion": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence.", "TenK10K_99thPercentile": "99th percentile allele size in TenK10K Phase 1.", "TenK10K_AlleleHistogram": "Allele frequencies based on ExpansionHunter calls in 1,925 short-read genomes from the TenK10K Phase 1 dataset.", "TenK10K_BiallelicHistogram": "Biallelic genotype histogram from TenK10K Phase 1 short-read genomes.", "TenK10K_MaxAllele": "Maximum allele size observed in TenK10K Phase 1.", "TenK10K_Median": "Median allele size in TenK10K Phase 1.", "TenK10K_MinAllele": "Minimum allele size observed in TenK10K Phase 1.", "TenK10K_ModeAllele": "Mode (most common) allele size in TenK10K Phase 1.", "TenK10K_NumCalledAlleles": "Total number of alleles called in TenK10K Phase 1.", "TenK10K_Stdev": "Standard deviation of allele sizes in TenK10K Phase 1.", "TenK10K_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1.", "TenK10K_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in TenK10K Phase 1.", "TenK10K_UniqueAlleles": "Number of unique allele sizes observed in TenK10K Phase 1.", "VamosEfficientMotifs": "Efficient motif representation for Vamos genotyping.", "VamosMotifFrequencies": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies.", "VamosNumUniqueMotifs": "Number of unique motifs detected by Vamos at this locus.", "VamosUniqueMotifs": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies.", "VariationCluster": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms.", "VariationClusterFilterReason": "Reason this locus was filtered from the variation cluster analysis, if applicable.", "VariationClusterSizeDiff": "Size difference in bp between the variation cluster interval and the reference repeat interval.", "chrom": "Chromosome name without \u0027chr\u0027 prefix (e.g., \u00271\u0027, \u00272\u0027, \u0027X\u0027, \u0027Y\u0027, \u0027MT\u0027).", "chrom_index": "Numeric chromosome index (1-22, 23=X, 24=Y, 25=MT) used for partitioning and sorting.", "end_1based": "1-based end coordinate of the TR locus in hg38 (half-open interval).", "id": "Auto-incrementing unique identifier for each row in the database.", "start_0based": "0-based start coordinate of the TR locus in hg38."}
+
     const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
+
+    // Help texts for UI columns - starts with BigQuery descriptions, then adds/overrides
+    // with custom text for UI-only columns or those needing HTML formatting
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
+        ...BIGQUERY_COLUMN_DESCRIPTIONS,
+
+        // Custom overrides (HTML formatting, template strings, or different wording)
         LocusId: 'A unique id of this TR locus in hg38',
         ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
-        ReferenceRepeatSequence: 'The repeat sequence in hg38',
-        ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
-        ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
         ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
         CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
-        polymorphism: 'Summary of available polymorphism data for the TR locus',
         Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
         ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
-        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
-        NonCodingAnnotations: 'Non-coding annotations from various sources collected by the Talkowski Lab',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v48 ${gene_region_priority}`,
-        GencodeGeneName: 'Gencode v48 gene name',
-        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
-        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
-        RefSeqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
-        RefSeqGeneId: 'RefSeq gene ID',
-        RefSeqTranscriptId: 'RefSeq transcript ID',
-        RefSeqGeneName: 'RefSeq gene name',
+        RefseqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
         ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
-        ManeGeneId: 'MANE v1.4 gene ID',
-        ManeGeneName: 'MANE v1.4 gene name',
-        ManeTranscriptId: 'MANE v1.4 transcript ID',
         HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
+
+        // UI-only columns (not in BigQuery schema)
+        polymorphism: 'Summary of available polymorphism data for the TR locus',
+        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
+        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
         dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
 
@@ -2615,37 +2612,37 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
         },
-        RefSeqGeneRegion: {
+        RefseqGeneRegion: {
             displayName: 'RefSeq Region',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['RefSeqGeneRegion']),
-            getSortColumns: () => ['RefSeqGeneRegion'],
-            getRequiredColumns: () => ['RefSeqGeneRegion']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['RefseqGeneRegion']),
+            getSortColumns: () => ['RefseqGeneRegion'],
+            getRequiredColumns: () => ['RefseqGeneRegion']
         },
-        RefSeqGeneId: {
+        RefseqGeneId: {
             displayName: 'RefSeq Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneId'],
-            getValue: (row) => row['RefSeqGeneId'],
-            getSortColumns: () => ['RefSeqGeneId'],
-            getRequiredColumns: () => ['RefSeqGeneId']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneId'],
+            getValue: (row) => row['RefseqGeneId'],
+            getSortColumns: () => ['RefseqGeneId'],
+            getRequiredColumns: () => ['RefseqGeneId']
         },
-        RefSeqTranscriptId: {
+        RefseqTranscriptId: {
             displayName: 'RefSeq Transcript Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqTranscriptId'],
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqTranscriptId'],
             getValue: (row) => row['RefseqTranscriptId'],
             getSortColumns: () => ['RefseqTranscriptId'],
             getRequiredColumns: () => ['RefseqTranscriptId']
         },
-        RefSeqGeneName: {
+        RefseqGeneName: {
             displayName: 'RefSeq Gene',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneName'],
-            getValue: (row) => row['RefSeqGeneName'],
-            getSortColumns: () => ['RefSeqGeneName'],
-            getRequiredColumns: () => ['RefSeqGeneName']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneName'],
+            getValue: (row) => row['RefseqGeneName'],
+            getSortColumns: () => ['RefseqGeneName'],
+            getRequiredColumns: () => ['RefseqGeneName']
         },
         ManeGeneRegion: {
             displayName: 'MANE Region',

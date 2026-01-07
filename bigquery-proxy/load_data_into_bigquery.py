@@ -21,6 +21,7 @@ import sys
 
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
+from global_constants import BIGQUERY_COLUMNS
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -341,122 +342,6 @@ if args.non_coding_annotations_bed:
     print(f"Parsed {total_intervals:,d} records from the non-coding annotations file: {args.non_coding_annotations_bed}")
 
 
-BIGQUERY_COLUMNS = [
-    {"type": "INTEGER", "name": "id",              "mode": "REQUIRED"},
-    {"type": "INTEGER", "name": "chrom_index",     "mode": "REQUIRED"},
-    {"type": "STRING",  "name": "chrom",           "mode": "REQUIRED"},
-    {"type": "INTEGER", "name": "start_0based",    "mode": "REQUIRED"},
-    {"type": "INTEGER", "name": "end_1based",      "mode": "REQUIRED"},
-    {"type": "STRING",  "name": "ReferenceRegion", "mode": "REQUIRED"},
-    {"type": "STRING",  "name": "LocusId"},
-    {"type": "INTEGER", "name": "ReferenceRegionSize"},
-    {"type": "INTEGER", "name": "MotifSize"},
-    {"type": "STRING",  "name": "ReferenceMotif"},
-    {"type": "STRING",  "name": "CanonicalMotif"},
-    {"type": "INTEGER", "name": "NumRepeatsInReference"},
-    {"type": "FLOAT",   "name": "ReferenceRepeatPurity"},
-
-    {"type": "STRING",  "name": "HighestPurityMotif"},
-    {"type": "FLOAT",   "name": "HighestPurityMotifPurity"},
-    {"type": "FLOAT",   "name": "HighestPurityMotifQuality"},
-    
-    {"type": "INTEGER", "name": "NsInFlanks"},
-    {"type": "INTEGER", "name": "TRsInRegion"},
-    {"type": "STRING",  "name": "Source"},
-    
-    {"type": "STRING",  "name": "FoundInKnownDiseaseAssociatedLoci"},
-    {"type": "STRING",  "name": "FoundInIllumina174kPolymorphicTRs"},
-    {"type": "STRING",  "name": "FoundInPerfectRepeatsInReference"},
-    {"type": "STRING",  "name": "FoundInPolymorphicTRsInT2TAssemblies"},
-    {"type": "INTEGER", "name": "FoundInGangSTRCatalog"},
-     
-    {"type": "FLOAT",   "name": "LeftFlankMappability"},
-    {"type": "FLOAT",   "name": "RightFlankMappability"},
-    {"type": "FLOAT",   "name": "FlanksAndLocusMappability"},
-    {"type": "STRING",  "name": "VariationCluster"},
-    {"type": "INTEGER", "name": "VariationClusterSizeDiff"},
-
-    {"type": "STRING", "name": "KnownDiseaseAssociatedLocus"},
-    {"type": "STRING", "name": "KnownDiseaseAssociatedMotif"},
-    {"type": "STRING", "name": "DiseaseInfo"},
-    
-    {"type": "STRING", "name": "GencodeGeneRegion"},
-    {"type": "STRING", "name": "GencodeGeneName"},
-    {"type": "STRING", "name": "GencodeGeneId"},
-    {"type": "STRING", "name": "GencodeTranscriptId"},
-    {"type": "STRING", "name": "RefseqGeneRegion"},
-    {"type": "STRING", "name": "RefseqGeneName"},
-    {"type": "STRING", "name": "RefseqGeneId"},
-    {"type": "STRING", "name": "RefseqTranscriptId"},
-    {"type": "STRING", "name": "ManeGeneRegion"},
-    {"type": "STRING", "name": "ManeGeneName"},
-    {"type": "STRING", "name": "ManeGeneId"},
-    {"type": "STRING", "name": "ManeTranscriptId"},
-
-    # Illumina174k data
-    {"type": "STRING", "name": "AlleleFrequenciesFromIllumina174k"},
-    {"type": "FLOAT",  "name": "StdevFromIllumina174k"},
-    {"type": "STRING", "name": "AlleleFrequenciesFromT2TAssemblies"},
-    {"type": "FLOAT",  "name": "StdevFromT2TAssemblies"},
-
-    # TenK10K data
-    {"type": "STRING",  "name": "TenK10K_AlleleHistogram"},
-    {"type": "STRING",  "name": "TenK10K_BiallelicHistogram"},
-    {"type": "INTEGER", "name": "TenK10K_MinAllele"},
-    {"type": "INTEGER", "name": "TenK10K_ModeAllele"},
-    {"type": "FLOAT",   "name": "TenK10K_Stdev"},
-    {"type": "FLOAT",   "name": "TenK10K_Median"},
-    {"type": "FLOAT",   "name": "TenK10K_99thPercentile"},
-    {"type": "INTEGER", "name": "TenK10K_MaxAllele"},
-    {"type": "INTEGER", "name": "TenK10K_UniqueAlleles"},
-    {"type": "INTEGER", "name": "TenK10K_NumCalledAlleles"},
-    {"type": "INTEGER", "name": "TenK10K_StdevRankByMotif"},
-    {"type": "INTEGER", "name": "TenK10K_StdevRankTotalNumberByMotif"},
-
-    # HPRC256 data
-    {"type": "STRING",  "name": "HPRC256_AlleleHistogram"},
-    {"type": "STRING",  "name": "HPRC256_BiallelicHistogram"},
-    {"type": "INTEGER", "name": "HPRC256_MinAllele"},
-    {"type": "INTEGER", "name": "HPRC256_ModeAllele"},
-    {"type": "FLOAT",   "name": "HPRC256_Stdev"},
-    {"type": "FLOAT",   "name": "HPRC256_Median"},
-    {"type": "FLOAT",   "name": "HPRC256_99thPercentile"},
-    {"type": "INTEGER", "name": "HPRC256_MaxAllele"},
-    {"type": "INTEGER", "name": "HPRC256_UniqueAlleles"},
-    {"type": "INTEGER", "name": "HPRC256_NumCalledAlleles"},
-    {"type": "INTEGER", "name": "HPRC256_StdevRankByMotif"},
-    {"type": "INTEGER", "name": "HPRC256_StdevRankTotalNumberByMotif"},
-
-    # AoU1027 data
-    {"type": "INTEGER", "name": "AoU1027_MinAllele"},
-    {"type": "INTEGER", "name": "AoU1027_ModeAllele"},
-    {"type": "FLOAT",   "name": "AoU1027_Stdev"},
-    {"type": "FLOAT",   "name": "AoU1027_Median"},
-    {"type": "FLOAT",   "name": "AoU1027_99thPercentile"},
-    {"type": "INTEGER", "name": "AoU1027_MaxAllele"},
-    {"type": "INTEGER", "name": "AoU1027_UniqueAlleles"},
-    {"type": "INTEGER", "name": "AoU1027_NumCalledAlleles"},
-    {"type": "INTEGER", "name": "AoU1027_StdevRankByMotif"},
-    {"type": "INTEGER", "name": "AoU1027_StdevRankTotalNumberByMotif"},
-    {"type": "FLOAT",   "name": "AoU1027_OE_Length"},
-    {"type": "FLOAT",   "name": "AoU1027_OE_LengthPercentile"},
-
-    # RepeatMasker
-    {"type": "STRING", "name": "RepeatMaskerIntervals"},
-    {"type": "STRING", "name": "NonCodingAnnotations"},
-
-    # Vamos data
-    {"type": "STRING",  "name": "VamosUniqueMotifs"},
-    {"type": "STRING",  "name": "VamosEfficientMotifs"},
-    {"type": "STRING",  "name": "VamosMotifFrequencies"},
-    {"type": "INTEGER", "name": "VamosNumUniqueMotifs"},
-    {"type": "INTEGER", "name": "IncludeInVamosCatalog"},
-
-    # Reference data
-    {"type": "STRING", "name": "ReferenceRepeatSequence"},
-    {"type": "STRING", "name": "ReferenceLeftFlank"},
-    {"type": "STRING", "name": "ReferenceRightFlank"},
-]
 
 schema = []
 for column in BIGQUERY_COLUMNS:
