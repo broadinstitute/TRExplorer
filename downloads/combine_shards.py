@@ -13,7 +13,7 @@ import re
 import tqdm
 
 # Find all sharded JSON files matching the pattern
-pattern = "TR_catalog.shard_*_of_*.20251222_*.json.gz"
+pattern = "TR_catalog.shard_*_of_*.20260108_*.json.gz"
 input_file_paths = glob.glob(pattern)
 
 if not input_file_paths:
