@@ -24,6 +24,26 @@
     </div>
 </div>
 
+<!-- modal dialog for selecting columns to export -->
+<div class="ui modal" id="export-column-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="export-dialog-title">
+        Select columns to include
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div id="export-dialog-cancel-button" class="ui deny button">Cancel</div>
+        <div id="export-dialog-download-button" class="ui positive right labeled icon button">
+            Download
+            <i class="download icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for polymorphism allele frequencies -->
 <div class="ui modal" id="polymorphism-dialog">
     <i class="close icon"></i>
@@ -361,14 +381,14 @@
         'polymorphism',
 
         'HPRC256_AlleleHistogram',
-        'TenK10K_AlleleHistogram',  
-        'AlleleFrequenciesFromIllumina174k',  
-        'AlleleFrequenciesFromT2TAssemblies',  
-        
+        'TenK10K_AlleleHistogram',
+        'AlleleFrequenciesFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies',
+
         'HPRC256_Stdev',
-        'AoU1027_Stdev',  
-        'TenK10K_Stdev',  
-        'StdevFromIllumina174k',  
+        'AoU1027_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
         'StdevFromT2TAssemblies',
 
         'Source',
@@ -379,6 +399,13 @@
         'dotPlot',
 
     ]
+
+    // Columns available for TSV/JSON export with their display names and group
+    // Generated from BIGQUERY_COLUMNS in global_constants.py
+    const EXPORT_COLUMN_OPTIONS = {{ exportable_columns_json }}
+
+    // Store pending export type when showing the dialog
+    let pendingExportType = null
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -712,207 +739,254 @@
 
                 $('.export-dropdown').dropdown('clear')
 
-                // Format data based on export type
-                let fileFormat
-                if (value === 'expansion_hunter' || value == 'json') {
-                    fileFormat = 'JSON'
-                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
-                    fileFormat = 'BED'
-                } else if (value === 'tsv' || value == 'vamos') {
-                    fileFormat = 'TSV'
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
+                // For TSV and JSON exports, show the column selection dialog
+                if (value === 'tsv' || value === 'json') {
+                    showExportColumnDialog(value)
+                    return
                 }
 
-                let toolName
-                let selectClause
-                let conditions = [...window.lastSearchConditions]
-                let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
-                if (value === 'expansion_hunter') {
-                    toolName = 'ExpansionHunter'
-                    selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
-                    conditions.push(`NsInFlanks<=5`)
-                    alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
-                } else if(value === 'gangstr') {
-                    toolName = 'GangSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
-                } else if(value === 'hipstr') {
-                    toolName = 'HipSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
-                } else if(value === 'trgt') {
-                    toolName = 'TRGT'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
-                } else if(value === 'vamos') {
-                    toolName = 'vamos'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
-                    conditions.push(`IncludeInVamosCatalog=1`)
-                    alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
-                } else if(value === 'longtr') {
-                    toolName = 'LongTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
-                    conditions.push(`start_0based + 1 < end_1based`)
-                } else if(value === 'medaka') {
-                    toolName = 'Medaka'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'strdust') {
-                    toolName = 'STRdust'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'bed') {
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
-                } else if(value === 'tsv' || value === 'json') {
-                    const tsv_columns = [
-                        //'chrom_index',
-                        `CONCAT('chr', chrom) AS chrom`,
-                        'start_0based',
-                        'end_1based',
-                        'ReferenceRegion',
-                        'LocusId',
-                        'ReferenceRegionSize',
-                        'ReferenceMotif',
-                        'MotifSize',
-                        'CanonicalMotif',
-                        'NumRepeatsInReference',
-                        'ReferenceRepeatPurity',
-                        'NsInFlanks',
-                        'TRsInRegion',
-                        'Source',
-                        //'LeftFlankMappability',
-                        //'RightFlankMappability',
-                        'FlanksAndLocusMappability',
-                        'VariationCluster',
-                        'VariationClusterSizeDiff',
-                        'KnownDiseaseAssociatedLocus',
-                        'KnownDiseaseAssociatedMotif',
-                        'GencodeGeneRegion',
-                        'GencodeGeneName',
-                        'GencodeGeneId',
-                        'GencodeTranscriptId',
-                        'RefseqGeneRegion',
-                        'RefseqGeneName',
-                        'RefseqGeneId',
-                        'RefseqTranscriptId',
-                        'ManeGeneRegion',
-                        'ManeGeneName',
-                        'ManeGeneId',
-                        'ManeTranscriptId',
-
-                        //'LPSLengthStdevFromHPRC256',
-                        //'LPSMotifFromHPRC256',
-                        //'LPSMotifFractionFromHPRC256',
-                        //'LPSMotifDenominatorFromHPRC256',
-
-                        'AlleleFrequenciesFromIllumina174k',
-                        'StdevFromIllumina174k',
-                        'AlleleFrequenciesFromT2TAssemblies',
-                        'StdevFromT2TAssemblies',
-
-                        'HPRC256_AlleleHistogram',
-                        'HPRC256_BiallelicHistogram',
-                        'HPRC256_MinAllele',
-                        'HPRC256_ModeAllele',
-                        'HPRC256_Stdev',
-                        'HPRC256_Median',
-                        'HPRC256_99thPercentile',
-                        'HPRC256_MaxAllele',
-                        'HPRC256_UniqueAlleles',
-                        'HPRC256_NumCalledAlleles',
-                        'HPRC256_StdevRankByMotif',
-                        'HPRC256_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_MinAllele',
-                        'AoU1027_ModeAllele',
-                        'AoU1027_Stdev',
-                        'AoU1027_Median',
-                        'AoU1027_99thPercentile',
-                        'AoU1027_MaxAllele',
-                        'AoU1027_UniqueAlleles',
-                        'AoU1027_NumCalledAlleles',
-                        'AoU1027_StdevRankByMotif',
-                        'AoU1027_StdevRankTotalNumberByMotif',
-
-                        'TenK10K_AlleleHistogram',
-                        'TenK10K_BiallelicHistogram',
-                        'TenK10K_MinAllele',
-                        'TenK10K_ModeAllele',
-                        'TenK10K_Stdev',
-                        'TenK10K_Median',
-                        'TenK10K_99thPercentile',
-                        'TenK10K_MaxAllele',
-                        'TenK10K_UniqueAlleles',
-                        'TenK10K_NumCalledAlleles',
-                        'TenK10K_StdevRankByMotif',
-                        'TenK10K_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_OE_Length',
-                        'AoU1027_OE_LengthPercentile',
-
-                        'RepeatMaskerIntervals',
-                        'NonCodingAnnotations',
-
-                        'VamosMotifFrequencies',
-                        'VamosUniqueMotifs',
-                        'VamosEfficientMotifs',
-                        'VamosNumUniqueMotifs',
-                        'IncludeInVamosCatalog',
-                    ]
-                    selectClause = tsv_columns.join(', ')
-                    sortClause = window.lastSearchSortClause
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
-                }
-
-                try {
-                    $('body').css('cursor', 'wait')
-
-                    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-                    const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
-                    const results = await queryBigQuery(query, null, null, fileFormat, toolName)
-
-                    if (results.public_urls) {
-                        if (results.public_urls.length > 1) {
-                            if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
-                                return;
-                            }
-                        }
-                        for (const url of results.public_urls) {
-                            console.log('Downloading URL:', url)
-                            // Create and trigger download link using jQuery
-                            const $link = $('<a>')
-                                .attr('href', url)
-                                .appendTo('body')
-                            $link[0].click()
-
-                            // Add a small delay between downloads
-                            await new Promise(resolve => setTimeout(resolve, 2000))
-
-                            // Keep track of the link for later removal
-                            if (!window.downloadLinks) {
-                                window.downloadLinks = []
-                            }
-                            window.downloadLinks.push($link)
-
-                            // If this is the first link, start the cleanup timer
-                            if (window.downloadLinks.length === 1) {
-                                setTimeout(() => {
-                                    window.downloadLinks.forEach($link => {
-                                        $link.remove()
-                                    })
-                                    window.downloadLinks = []
-                                }, 2*60*1000)
-                            }
-
-                        }
-                    }
-
-                } catch (error) {
-                    console.error('Error exporting data:', error)
-                    alert('Error exporting data: ' + error.message)
-                } finally {
-                    $('body').css('cursor', 'default')
-                }
+                // For all other formats, proceed with the export directly
+                await performExport(value)
             }
         })
     }
+
+    const showExportColumnDialog = (exportType) => {
+        pendingExportType = exportType
+
+        // Set dialog title based on export type
+        const titleText = exportType === 'json'
+            ? 'Select fields to include in the JSON file'
+            : 'Select columns to include in the TSV'
+        $('#export-dialog-title').text(titleText)
+
+        // Get currently visible columns in the results table
+        const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+        const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
+
+        // Compute which export columns should be pre-selected based on visible table columns
+        const preSelectedExportColumns = new Set()
+        visibleColumnNames.forEach(columnName => {
+            if (TABLE_COLUMNS[columnName]) {
+                TABLE_COLUMNS[columnName].getRequiredColumns().forEach(col => preSelectedExportColumns.add(col))
+            }
+        })
+
+        // Build checkboxes grouped by category
+        const checkboxesContainer = $('#export-column-checkboxes')
+        checkboxesContainer.empty()
+
+        // Group columns by their group property
+        const groupedColumns = {}
+        EXPORT_COLUMN_OPTIONS.forEach(opt => {
+            if (!groupedColumns[opt.group]) {
+                groupedColumns[opt.group] = []
+            }
+            groupedColumns[opt.group].push(opt)
+        })
+
+        // Define the order in which groups should appear
+        const groupOrder = [
+            'Core',
+            'Additional Layers',
+            'Gene Annotations',
+            'Vamos',
+            'Polymorphism (TenK10K)',
+            'Polymorphism (HPRC256)',
+            'Polymorphism (AoU1027)',
+        ]
+
+        // Create HTML for each group in the specified order
+        groupOrder.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+            const columns = groupedColumns[groupName]
+            const groupDiv = $(`<div class="export-column-group">
+                <div class="export-column-group-header">${groupName}</div>
+                <div class="export-column-group-items"></div>
+            </div>`)
+
+            const itemsContainer = groupDiv.find('.export-column-group-items')
+
+            columns.forEach(opt => {
+                const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                const checkboxHtml = `
+                    <div class="export-column-checkbox-item">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
+                            <label>${opt.displayName}</label>
+                        </div>
+                    </div>
+                `
+                itemsContainer.append(checkboxHtml)
+            })
+
+            checkboxesContainer.append(groupDiv)
+        })
+
+        // Initialize Semantic UI checkboxes
+        $('#export-column-checkboxes .ui.checkbox').checkbox()
+
+        // Show the dialog
+        $('#export-column-dialog').modal('show')
+    }
+
+    const performExport = async (value, selectedColumns = null) => {
+        // Format data based on export type
+        let fileFormat
+        if (value === 'expansion_hunter' || value == 'json') {
+            fileFormat = 'JSON'
+        } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
+            fileFormat = 'BED'
+        } else if (value === 'tsv' || value == 'vamos') {
+            fileFormat = 'TSV'
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        let toolName
+        let selectClause
+        let conditions = [...window.lastSearchConditions]
+        let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
+        if (value === 'expansion_hunter') {
+            toolName = 'ExpansionHunter'
+            selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
+            conditions.push(`NsInFlanks<=5`)
+            alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
+        } else if(value === 'gangstr') {
+            toolName = 'GangSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
+        } else if(value === 'hipstr') {
+            toolName = 'HipSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
+        } else if(value === 'trgt') {
+            toolName = 'TRGT'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+        } else if(value === 'vamos') {
+            toolName = 'vamos'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
+            conditions.push(`IncludeInVamosCatalog=1`)
+            alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
+        } else if(value === 'longtr') {
+            toolName = 'LongTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
+            conditions.push(`start_0based + 1 < end_1based`)
+        } else if(value === 'medaka') {
+            toolName = 'Medaka'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'strdust') {
+            toolName = 'STRdust'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'bed') {
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
+        } else if(value === 'tsv' || value === 'json') {
+            // Use selected columns if provided, otherwise use default list
+            if (selectedColumns && selectedColumns.length > 0) {
+                // Map selected column names to their SQL column expressions
+                const columnExpressions = selectedColumns.map(colName => {
+                    const colOption = EXPORT_COLUMN_OPTIONS.find(opt => opt.name === colName)
+                    return colOption ? colOption.column : colName
+                })
+                selectClause = columnExpressions.join(', ')
+            } else {
+                // Fallback to default columns if none selected
+                const defaultColumns = [
+                    `CONCAT('chr', chrom) AS chrom`,
+                    'start_0based',
+                    'end_1based',
+                    'ReferenceRegion',
+                    'LocusId',
+                    'ReferenceMotif',
+                    'MotifSize',
+                ]
+                selectClause = defaultColumns.join(', ')
+            }
+            sortClause = window.lastSearchSortClause
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        try {
+            $('body').css('cursor', 'wait')
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+            const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            const results = await queryBigQuery(query, null, null, fileFormat, toolName)
+
+            if (results.public_urls) {
+                if (results.public_urls.length > 1) {
+                    if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
+                        return;
+                    }
+                }
+                for (const url of results.public_urls) {
+                    console.log('Downloading URL:', url)
+                    // Create and trigger download link using jQuery
+                    const $link = $('<a>')
+                        .attr('href', url)
+                        .appendTo('body')
+                    $link[0].click()
+
+                    // Add a small delay between downloads
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+
+                    // Keep track of the link for later removal
+                    if (!window.downloadLinks) {
+                        window.downloadLinks = []
+                    }
+                    window.downloadLinks.push($link)
+
+                    // If this is the first link, start the cleanup timer
+                    if (window.downloadLinks.length === 1) {
+                        setTimeout(() => {
+                            window.downloadLinks.forEach($link => {
+                                $link.remove()
+                            })
+                            window.downloadLinks = []
+                        }, 2*60*1000)
+                    }
+
+                }
+            }
+
+        } catch (error) {
+            console.error('Error exporting data:', error)
+            alert('Error exporting data: ' + error.message)
+        } finally {
+            $('body').css('cursor', 'default')
+        }
+    }
+
+    // Handle export dialog download button
+    $('#export-dialog-download-button').click(async () => {
+        if (!pendingExportType) return
+
+        // Collect selected columns
+        const selectedColumns = []
+        $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
+            const columnName = $(this).data('column-name')
+            if (columnName) {
+                selectedColumns.push(columnName)
+            }
+        })
+
+        if (selectedColumns.length === 0) {
+            alert('Please select at least one column to export.')
+            return
+        }
+
+        // Hide the dialog
+        $('#export-column-dialog').modal('hide')
+
+        // Perform the export with selected columns
+        await performExport(pendingExportType, selectedColumns)
+
+        pendingExportType = null
+    })
+
+    // Handle export dialog cancel button
+    $('#export-dialog-cancel-button').click(() => {
+        pendingExportType = null
+        $('#export-column-dialog').modal('hide')
+    })
 
 
     const createSmallAlleleFrequencyChart = function() {

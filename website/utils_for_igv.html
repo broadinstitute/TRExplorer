@@ -144,16 +144,23 @@
                 </td></tr>
             `).join(' ') + `
                 <tr>
-                    <td style="padding: 5px 0px !important">
-                        <i>Source Catalogs:</i>
+                    <td style="padding: 5px 0px !important" colspan="2">
+                        <a href="#" class="show-details-button" id="show-details-for-source-catalogs">Show checkboxes for source catalogs</a>
                         <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
                     </td>
-                    <td></td>
                 </tr>
+            ` + `
+                <tr class="source-catalogs-content" style="display: none;">
+                    <td colspan="2">
+                        <table style="width: 100%;">
             ` +
                 TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
                 <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' '))
+            `).join(' ') + `
+                        </table>
+                    </td>
+                </tr>
+            `)
 
             $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
                 TR_VARIATION_CLUSTERS.map((rt) => `
@@ -192,6 +199,19 @@
             )
 
             $(".ui.checkbox").checkbox()
+
+            // Add click handler for source catalogs toggle
+            $('#show-details-for-source-catalogs').click(function(e) {
+                e.preventDefault();
+                var content = $('.source-catalogs-content');
+                if (content.css('display') === 'none') {
+                    content.css('display', 'table-row');
+                    $(this).text('Hide source catalogs');
+                } else {
+                    content.css('display', 'none');
+                    $(this).text('Show source catalogs');
+                }
+            });
 
             $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
                 //$('#igv-select-tracks-button').click(() => {

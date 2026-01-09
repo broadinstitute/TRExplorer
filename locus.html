@@ -504,6 +504,51 @@ gtag('config', 'G-6R8FPBQRFH');
         height: 48px;
     }
 
+    /* Export column selection dialog styles */
+    #export-column-dialog.ui.modal {
+        width: 80% !important;
+        max-width: 1000px;
+    }
+
+    .export-column-checkboxes-flex-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .export-column-group {
+        flex: 1 1 200px;
+        min-width: 200px;
+        max-width: 300px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #fafafa;
+    }
+
+    .export-column-group-header {
+        font-weight: 700;
+        font-size: 1em;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #ddd;
+        color: #333;
+    }
+
+    .export-column-group-items {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .export-column-checkbox-item {
+        padding: 2px 0;
+    }
+
+    .export-column-checkbox-item .ui.checkbox label {
+        font-size: 0.95em;
+    }
+
 </style>
 
 <script>
@@ -772,16 +817,23 @@ gtag('config', 'G-6R8FPBQRFH');
                 </td></tr>
             `).join(' ') + `
                 <tr>
-                    <td style="padding: 5px 0px !important">
-                        <i>Source Catalogs:</i>
+                    <td style="padding: 5px 0px !important" colspan="2">
+                        <a href="#" class="show-details-button" id="show-details-for-source-catalogs">Show checkboxes for source catalogs</a>
                         <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
                     </td>
-                    <td></td>
                 </tr>
+            ` + `
+                <tr class="source-catalogs-content" style="display: none;">
+                    <td colspan="2">
+                        <table style="width: 100%;">
             ` +
                 TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
                 <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' '))
+            `).join(' ') + `
+                        </table>
+                    </td>
+                </tr>
+            `)
 
             $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
                 TR_VARIATION_CLUSTERS.map((rt) => `
@@ -820,6 +872,19 @@ gtag('config', 'G-6R8FPBQRFH');
             )
 
             $(".ui.checkbox").checkbox()
+
+            // Add click handler for source catalogs toggle
+            $('#show-details-for-source-catalogs').click(function(e) {
+                e.preventDefault();
+                var content = $('.source-catalogs-content');
+                if (content.css('display') === 'none') {
+                    content.css('display', 'table-row');
+                    $(this).text('Hide source catalogs');
+                } else {
+                    content.css('display', 'none');
+                    $(this).text('Show source catalogs');
+                }
+            });
 
             $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
                 //$('#igv-select-tracks-button').click(() => {
@@ -1658,13 +1723,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const TR_EXPLORER_CATALOG  = [
         ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
     ]
 
     const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/trs_and_vcs-v2.bed.gz`, 5020583, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        // ["igv_vc_v2", "Variation clusters v2", `${TR_CATALOG_BASE_URL}/v2.0/variation_clusters_v1.hg38.TRGT.bed.gz`, 4439813, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
         ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
     ];
 
     const KNOWN_TR_LOCI_TRACK = [

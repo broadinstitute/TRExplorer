@@ -505,6 +505,51 @@ gtag('config', 'G-6R8FPBQRFH');
         height: 48px;
     }
 
+    /* Export column selection dialog styles */
+    #export-column-dialog.ui.modal {
+        width: 80% !important;
+        max-width: 1000px;
+    }
+
+    .export-column-checkboxes-flex-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .export-column-group {
+        flex: 1 1 200px;
+        min-width: 200px;
+        max-width: 300px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #fafafa;
+    }
+
+    .export-column-group-header {
+        font-weight: 700;
+        font-size: 1em;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #ddd;
+        color: #333;
+    }
+
+    .export-column-group-items {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .export-column-checkbox-item {
+        padding: 2px 0;
+    }
+
+    .export-column-checkbox-item .ui.checkbox label {
+        font-size: 0.95em;
+    }
+
 </style>
 
 <script>
@@ -773,16 +818,23 @@ gtag('config', 'G-6R8FPBQRFH');
                 </td></tr>
             `).join(' ') + `
                 <tr>
-                    <td style="padding: 5px 0px !important">
-                        <i>Source Catalogs:</i>
+                    <td style="padding: 5px 0px !important" colspan="2">
+                        <a href="#" class="show-details-button" id="show-details-for-source-catalogs">Show checkboxes for source catalogs</a>
                         <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
                     </td>
-                    <td></td>
                 </tr>
+            ` + `
+                <tr class="source-catalogs-content" style="display: none;">
+                    <td colspan="2">
+                        <table style="width: 100%;">
             ` +
                 TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
                 <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' '))
+            `).join(' ') + `
+                        </table>
+                    </td>
+                </tr>
+            `)
 
             $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
                 TR_VARIATION_CLUSTERS.map((rt) => `
@@ -821,6 +873,19 @@ gtag('config', 'G-6R8FPBQRFH');
             )
 
             $(".ui.checkbox").checkbox()
+
+            // Add click handler for source catalogs toggle
+            $('#show-details-for-source-catalogs').click(function(e) {
+                e.preventDefault();
+                var content = $('.source-catalogs-content');
+                if (content.css('display') === 'none') {
+                    content.css('display', 'table-row');
+                    $(this).text('Hide source catalogs');
+                } else {
+                    content.css('display', 'none');
+                    $(this).text('Show source catalogs');
+                }
+            });
 
             $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
                 //$('#igv-select-tracks-button').click(() => {
@@ -1659,13 +1724,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const TR_EXPLORER_CATALOG  = [
         ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
     ]
 
     const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/trs_and_vcs-v2.bed.gz`, 5020583, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        // ["igv_vc_v2", "Variation clusters v2", `${TR_CATALOG_BASE_URL}/v2.0/variation_clusters_v1.hg38.TRGT.bed.gz`, 4439813, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
         ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
     ];
 
     const KNOWN_TR_LOCI_TRACK = [
@@ -2990,6 +3056,26 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
 </div>
 
+<!-- modal dialog for selecting columns to export -->
+<div class="ui modal" id="export-column-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="export-dialog-title">
+        Select columns to include
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div id="export-dialog-cancel-button" class="ui deny button">Cancel</div>
+        <div id="export-dialog-download-button" class="ui positive right labeled icon button">
+            Download
+            <i class="download icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for polymorphism allele frequencies -->
 <div class="ui modal" id="polymorphism-dialog">
     <i class="close icon"></i>
@@ -3350,14 +3436,14 @@ gtag('config', 'G-6R8FPBQRFH');
         'polymorphism',
 
         'HPRC256_AlleleHistogram',
-        'TenK10K_AlleleHistogram',  
-        'AlleleFrequenciesFromIllumina174k',  
-        'AlleleFrequenciesFromT2TAssemblies',  
-        
+        'TenK10K_AlleleHistogram',
+        'AlleleFrequenciesFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies',
+
         'HPRC256_Stdev',
-        'AoU1027_Stdev',  
-        'TenK10K_Stdev',  
-        'StdevFromIllumina174k',  
+        'AoU1027_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
         'StdevFromT2TAssemblies',
 
         'Source',
@@ -3368,6 +3454,13 @@ gtag('config', 'G-6R8FPBQRFH');
         'dotPlot',
 
     ]
+
+    // Columns available for TSV/JSON export with their display names and group
+    // Generated from BIGQUERY_COLUMNS in global_constants.py
+    const EXPORT_COLUMN_OPTIONS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "column": "CONCAT('chr', chrom) AS chrom"}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "column": "start_0based"}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "column": "end_1based"}, {"name": "ReferenceRegion", "displayName": "Reference Region", "group": "Core", "column": "ReferenceRegion"}, {"name": "LocusId", "displayName": "Locus ID", "group": "Core", "column": "LocusId"}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "column": "ReferenceRegionSize"}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "column": "MotifSize"}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "column": "ReferenceMotif"}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "column": "CanonicalMotif"}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "column": "NumRepeatsInReference"}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "column": "ReferenceRepeatPurity"}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "column": "NsInFlanks"}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "column": "TRsInRegion"}, {"name": "Source", "displayName": "Source", "group": "Core", "column": "Source"}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "column": "FlanksAndLocusMappability"}, {"name": "VariationCluster", "displayName": "Variation Cluster", "group": "Additional Layers", "column": "VariationCluster"}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "column": "VariationClusterSizeDiff"}, {"name": "KnownDiseaseAssociatedLocus", "displayName": "Known Disease Locus", "group": "Additional Layers", "column": "KnownDiseaseAssociatedLocus"}, {"name": "KnownDiseaseAssociatedMotif", "displayName": "Known Disease Motif", "group": "Additional Layers", "column": "KnownDiseaseAssociatedMotif"}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "column": "GencodeGeneRegion"}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "column": "GencodeGeneName"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "column": "GencodeGeneId"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "column": "GencodeTranscriptId"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "column": "RefseqGeneRegion"}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "column": "RefseqGeneName"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "column": "RefseqGeneId"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "column": "RefseqTranscriptId"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "column": "ManeGeneRegion"}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "column": "ManeGeneName"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "column": "ManeGeneId"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "column": "ManeTranscriptId"}, {"name": "AlleleFrequenciesFromIllumina174k", "displayName": "1kGP Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromIllumina174k"}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "column": "StdevFromIllumina174k"}, {"name": "AlleleFrequenciesFromT2TAssemblies", "displayName": "T2T Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromT2TAssemblies"}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "column": "StdevFromT2TAssemblies"}, {"name": "TenK10K_AlleleHistogram", "displayName": "TenK10K Allele Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_AlleleHistogram"}, {"name": "TenK10K_BiallelicHistogram", "displayName": "TenK10K Biallelic Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_BiallelicHistogram"}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MinAllele"}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_ModeAllele"}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Stdev"}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Median"}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "column": "TenK10K_99thPercentile"}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MaxAllele"}, {"name": "TenK10K_UniqueAlleles", "displayName": "TenK10K Unique Alleles", "group": "Polymorphism (TenK10K)", "column": "TenK10K_UniqueAlleles"}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "column": "TenK10K_NumCalledAlleles"}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankByMotif"}, {"name": "TenK10K_StdevRankTotalNumberByMotif", "displayName": "TenK10K Stdev Rank Total", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankTotalNumberByMotif"}, {"name": "HPRC256_AlleleHistogram", "displayName": "HPRC256 Allele Histogram", "group": "Polymorphism (HPRC256)", "column": "HPRC256_AlleleHistogram"}, {"name": "HPRC256_BiallelicHistogram", "displayName": "HPRC256 Biallelic Histogram", "group": "Polymorphism (HPRC256)", "column": "HPRC256_BiallelicHistogram"}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256 Min Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_MinAllele"}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256 Mode Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_ModeAllele"}, {"name": "HPRC256_Stdev", "displayName": "HPRC256 Stdev", "group": "Polymorphism (HPRC256)", "column": "HPRC256_Stdev"}, {"name": "HPRC256_Median", "displayName": "HPRC256 Median", "group": "Polymorphism (HPRC256)", "column": "HPRC256_Median"}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256 99th Percentile", "group": "Polymorphism (HPRC256)", "column": "HPRC256_99thPercentile"}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256 Max Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_MaxAllele"}, {"name": "HPRC256_UniqueAlleles", "displayName": "HPRC256 Unique Alleles", "group": "Polymorphism (HPRC256)", "column": "HPRC256_UniqueAlleles"}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256 Num Called", "group": "Polymorphism (HPRC256)", "column": "HPRC256_NumCalledAlleles"}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256 Stdev Rank", "group": "Polymorphism (HPRC256)", "column": "HPRC256_StdevRankByMotif"}, {"name": "HPRC256_StdevRankTotalNumberByMotif", "displayName": "HPRC256 Stdev Rank Total", "group": "Polymorphism (HPRC256)", "column": "HPRC256_StdevRankTotalNumberByMotif"}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027 Min Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_MinAllele"}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027 Mode Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_ModeAllele"}, {"name": "AoU1027_Stdev", "displayName": "AoU1027 Stdev", "group": "Polymorphism (AoU1027)", "column": "AoU1027_Stdev"}, {"name": "AoU1027_Median", "displayName": "AoU1027 Median", "group": "Polymorphism (AoU1027)", "column": "AoU1027_Median"}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027 99th Percentile", "group": "Polymorphism (AoU1027)", "column": "AoU1027_99thPercentile"}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027 Max Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_MaxAllele"}, {"name": "AoU1027_UniqueAlleles", "displayName": "AoU1027 Unique Alleles", "group": "Polymorphism (AoU1027)", "column": "AoU1027_UniqueAlleles"}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027 Num Called", "group": "Polymorphism (AoU1027)", "column": "AoU1027_NumCalledAlleles"}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027 Stdev Rank", "group": "Polymorphism (AoU1027)", "column": "AoU1027_StdevRankByMotif"}, {"name": "AoU1027_StdevRankTotalNumberByMotif", "displayName": "AoU1027 Stdev Rank Total", "group": "Polymorphism (AoU1027)", "column": "AoU1027_StdevRankTotalNumberByMotif"}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "column": "AoU1027_OE_Length"}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "column": "AoU1027_OE_LengthPercentile"}, {"name": "RepeatMaskerIntervals", "displayName": "RepeatMasker Intervals", "group": "Additional Layers", "column": "RepeatMaskerIntervals"}, {"name": "NonCodingAnnotations", "displayName": "Non-coding Annotations", "group": "Additional Layers", "column": "NonCodingAnnotations"}, {"name": "VamosUniqueMotifs", "displayName": "Vamos Unique Motifs", "group": "Vamos", "column": "VamosUniqueMotifs"}, {"name": "VamosEfficientMotifs", "displayName": "Vamos Efficient Motifs", "group": "Vamos", "column": "VamosEfficientMotifs"}, {"name": "VamosMotifFrequencies", "displayName": "Vamos Motif Frequencies", "group": "Vamos", "column": "VamosMotifFrequencies"}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Vamos", "column": "VamosNumUniqueMotifs"}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Vamos", "column": "IncludeInVamosCatalog"}]
+
+    // Store pending export type when showing the dialog
+    let pendingExportType = null
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -3701,207 +3794,254 @@ gtag('config', 'G-6R8FPBQRFH');
 
                 $('.export-dropdown').dropdown('clear')
 
-                // Format data based on export type
-                let fileFormat
-                if (value === 'expansion_hunter' || value == 'json') {
-                    fileFormat = 'JSON'
-                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
-                    fileFormat = 'BED'
-                } else if (value === 'tsv' || value == 'vamos') {
-                    fileFormat = 'TSV'
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
+                // For TSV and JSON exports, show the column selection dialog
+                if (value === 'tsv' || value === 'json') {
+                    showExportColumnDialog(value)
+                    return
                 }
 
-                let toolName
-                let selectClause
-                let conditions = [...window.lastSearchConditions]
-                let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
-                if (value === 'expansion_hunter') {
-                    toolName = 'ExpansionHunter'
-                    selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
-                    conditions.push(`NsInFlanks<=5`)
-                    alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
-                } else if(value === 'gangstr') {
-                    toolName = 'GangSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
-                } else if(value === 'hipstr') {
-                    toolName = 'HipSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
-                } else if(value === 'trgt') {
-                    toolName = 'TRGT'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
-                } else if(value === 'vamos') {
-                    toolName = 'vamos'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
-                    conditions.push(`IncludeInVamosCatalog=1`)
-                    alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
-                } else if(value === 'longtr') {
-                    toolName = 'LongTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
-                    conditions.push(`start_0based + 1 < end_1based`)
-                } else if(value === 'medaka') {
-                    toolName = 'Medaka'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'strdust') {
-                    toolName = 'STRdust'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'bed') {
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
-                } else if(value === 'tsv' || value === 'json') {
-                    const tsv_columns = [
-                        //'chrom_index',
-                        `CONCAT('chr', chrom) AS chrom`,
-                        'start_0based',
-                        'end_1based',
-                        'ReferenceRegion',
-                        'LocusId',
-                        'ReferenceRegionSize',
-                        'ReferenceMotif',
-                        'MotifSize',
-                        'CanonicalMotif',
-                        'NumRepeatsInReference',
-                        'ReferenceRepeatPurity',
-                        'NsInFlanks',
-                        'TRsInRegion',
-                        'Source',
-                        //'LeftFlankMappability',
-                        //'RightFlankMappability',
-                        'FlanksAndLocusMappability',
-                        'VariationCluster',
-                        'VariationClusterSizeDiff',
-                        'KnownDiseaseAssociatedLocus',
-                        'KnownDiseaseAssociatedMotif',
-                        'GencodeGeneRegion',
-                        'GencodeGeneName',
-                        'GencodeGeneId',
-                        'GencodeTranscriptId',
-                        'RefseqGeneRegion',
-                        'RefseqGeneName',
-                        'RefseqGeneId',
-                        'RefseqTranscriptId',
-                        'ManeGeneRegion',
-                        'ManeGeneName',
-                        'ManeGeneId',
-                        'ManeTranscriptId',
-
-                        //'LPSLengthStdevFromHPRC256',
-                        //'LPSMotifFromHPRC256',
-                        //'LPSMotifFractionFromHPRC256',
-                        //'LPSMotifDenominatorFromHPRC256',
-
-                        'AlleleFrequenciesFromIllumina174k',
-                        'StdevFromIllumina174k',
-                        'AlleleFrequenciesFromT2TAssemblies',
-                        'StdevFromT2TAssemblies',
-
-                        'HPRC256_AlleleHistogram',
-                        'HPRC256_BiallelicHistogram',
-                        'HPRC256_MinAllele',
-                        'HPRC256_ModeAllele',
-                        'HPRC256_Stdev',
-                        'HPRC256_Median',
-                        'HPRC256_99thPercentile',
-                        'HPRC256_MaxAllele',
-                        'HPRC256_UniqueAlleles',
-                        'HPRC256_NumCalledAlleles',
-                        'HPRC256_StdevRankByMotif',
-                        'HPRC256_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_MinAllele',
-                        'AoU1027_ModeAllele',
-                        'AoU1027_Stdev',
-                        'AoU1027_Median',
-                        'AoU1027_99thPercentile',
-                        'AoU1027_MaxAllele',
-                        'AoU1027_UniqueAlleles',
-                        'AoU1027_NumCalledAlleles',
-                        'AoU1027_StdevRankByMotif',
-                        'AoU1027_StdevRankTotalNumberByMotif',
-
-                        'TenK10K_AlleleHistogram',
-                        'TenK10K_BiallelicHistogram',
-                        'TenK10K_MinAllele',
-                        'TenK10K_ModeAllele',
-                        'TenK10K_Stdev',
-                        'TenK10K_Median',
-                        'TenK10K_99thPercentile',
-                        'TenK10K_MaxAllele',
-                        'TenK10K_UniqueAlleles',
-                        'TenK10K_NumCalledAlleles',
-                        'TenK10K_StdevRankByMotif',
-                        'TenK10K_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_OE_Length',
-                        'AoU1027_OE_LengthPercentile',
-
-                        'RepeatMaskerIntervals',
-                        'NonCodingAnnotations',
-
-                        'VamosMotifFrequencies',
-                        'VamosUniqueMotifs',
-                        'VamosEfficientMotifs',
-                        'VamosNumUniqueMotifs',
-                        'IncludeInVamosCatalog',
-                    ]
-                    selectClause = tsv_columns.join(', ')
-                    sortClause = window.lastSearchSortClause
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
-                }
-
-                try {
-                    $('body').css('cursor', 'wait')
-
-                    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-                    const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
-                    const results = await queryBigQuery(query, null, null, fileFormat, toolName)
-
-                    if (results.public_urls) {
-                        if (results.public_urls.length > 1) {
-                            if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
-                                return;
-                            }
-                        }
-                        for (const url of results.public_urls) {
-                            console.log('Downloading URL:', url)
-                            // Create and trigger download link using jQuery
-                            const $link = $('<a>')
-                                .attr('href', url)
-                                .appendTo('body')
-                            $link[0].click()
-
-                            // Add a small delay between downloads
-                            await new Promise(resolve => setTimeout(resolve, 2000))
-
-                            // Keep track of the link for later removal
-                            if (!window.downloadLinks) {
-                                window.downloadLinks = []
-                            }
-                            window.downloadLinks.push($link)
-
-                            // If this is the first link, start the cleanup timer
-                            if (window.downloadLinks.length === 1) {
-                                setTimeout(() => {
-                                    window.downloadLinks.forEach($link => {
-                                        $link.remove()
-                                    })
-                                    window.downloadLinks = []
-                                }, 2*60*1000)
-                            }
-
-                        }
-                    }
-
-                } catch (error) {
-                    console.error('Error exporting data:', error)
-                    alert('Error exporting data: ' + error.message)
-                } finally {
-                    $('body').css('cursor', 'default')
-                }
+                // For all other formats, proceed with the export directly
+                await performExport(value)
             }
         })
     }
+
+    const showExportColumnDialog = (exportType) => {
+        pendingExportType = exportType
+
+        // Set dialog title based on export type
+        const titleText = exportType === 'json'
+            ? 'Select fields to include in the JSON file'
+            : 'Select columns to include in the TSV'
+        $('#export-dialog-title').text(titleText)
+
+        // Get currently visible columns in the results table
+        const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+        const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
+
+        // Compute which export columns should be pre-selected based on visible table columns
+        const preSelectedExportColumns = new Set()
+        visibleColumnNames.forEach(columnName => {
+            if (TABLE_COLUMNS[columnName]) {
+                TABLE_COLUMNS[columnName].getRequiredColumns().forEach(col => preSelectedExportColumns.add(col))
+            }
+        })
+
+        // Build checkboxes grouped by category
+        const checkboxesContainer = $('#export-column-checkboxes')
+        checkboxesContainer.empty()
+
+        // Group columns by their group property
+        const groupedColumns = {}
+        EXPORT_COLUMN_OPTIONS.forEach(opt => {
+            if (!groupedColumns[opt.group]) {
+                groupedColumns[opt.group] = []
+            }
+            groupedColumns[opt.group].push(opt)
+        })
+
+        // Define the order in which groups should appear
+        const groupOrder = [
+            'Core',
+            'Additional Layers',
+            'Gene Annotations',
+            'Vamos',
+            'Polymorphism (TenK10K)',
+            'Polymorphism (HPRC256)',
+            'Polymorphism (AoU1027)',
+        ]
+
+        // Create HTML for each group in the specified order
+        groupOrder.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+            const columns = groupedColumns[groupName]
+            const groupDiv = $(`<div class="export-column-group">
+                <div class="export-column-group-header">${groupName}</div>
+                <div class="export-column-group-items"></div>
+            </div>`)
+
+            const itemsContainer = groupDiv.find('.export-column-group-items')
+
+            columns.forEach(opt => {
+                const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                const checkboxHtml = `
+                    <div class="export-column-checkbox-item">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
+                            <label>${opt.displayName}</label>
+                        </div>
+                    </div>
+                `
+                itemsContainer.append(checkboxHtml)
+            })
+
+            checkboxesContainer.append(groupDiv)
+        })
+
+        // Initialize Semantic UI checkboxes
+        $('#export-column-checkboxes .ui.checkbox').checkbox()
+
+        // Show the dialog
+        $('#export-column-dialog').modal('show')
+    }
+
+    const performExport = async (value, selectedColumns = null) => {
+        // Format data based on export type
+        let fileFormat
+        if (value === 'expansion_hunter' || value == 'json') {
+            fileFormat = 'JSON'
+        } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
+            fileFormat = 'BED'
+        } else if (value === 'tsv' || value == 'vamos') {
+            fileFormat = 'TSV'
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        let toolName
+        let selectClause
+        let conditions = [...window.lastSearchConditions]
+        let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
+        if (value === 'expansion_hunter') {
+            toolName = 'ExpansionHunter'
+            selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
+            conditions.push(`NsInFlanks<=5`)
+            alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
+        } else if(value === 'gangstr') {
+            toolName = 'GangSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
+        } else if(value === 'hipstr') {
+            toolName = 'HipSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
+        } else if(value === 'trgt') {
+            toolName = 'TRGT'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+        } else if(value === 'vamos') {
+            toolName = 'vamos'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
+            conditions.push(`IncludeInVamosCatalog=1`)
+            alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
+        } else if(value === 'longtr') {
+            toolName = 'LongTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
+            conditions.push(`start_0based + 1 < end_1based`)
+        } else if(value === 'medaka') {
+            toolName = 'Medaka'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'strdust') {
+            toolName = 'STRdust'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'bed') {
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
+        } else if(value === 'tsv' || value === 'json') {
+            // Use selected columns if provided, otherwise use default list
+            if (selectedColumns && selectedColumns.length > 0) {
+                // Map selected column names to their SQL column expressions
+                const columnExpressions = selectedColumns.map(colName => {
+                    const colOption = EXPORT_COLUMN_OPTIONS.find(opt => opt.name === colName)
+                    return colOption ? colOption.column : colName
+                })
+                selectClause = columnExpressions.join(', ')
+            } else {
+                // Fallback to default columns if none selected
+                const defaultColumns = [
+                    `CONCAT('chr', chrom) AS chrom`,
+                    'start_0based',
+                    'end_1based',
+                    'ReferenceRegion',
+                    'LocusId',
+                    'ReferenceMotif',
+                    'MotifSize',
+                ]
+                selectClause = defaultColumns.join(', ')
+            }
+            sortClause = window.lastSearchSortClause
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        try {
+            $('body').css('cursor', 'wait')
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+            const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            const results = await queryBigQuery(query, null, null, fileFormat, toolName)
+
+            if (results.public_urls) {
+                if (results.public_urls.length > 1) {
+                    if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
+                        return;
+                    }
+                }
+                for (const url of results.public_urls) {
+                    console.log('Downloading URL:', url)
+                    // Create and trigger download link using jQuery
+                    const $link = $('<a>')
+                        .attr('href', url)
+                        .appendTo('body')
+                    $link[0].click()
+
+                    // Add a small delay between downloads
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+
+                    // Keep track of the link for later removal
+                    if (!window.downloadLinks) {
+                        window.downloadLinks = []
+                    }
+                    window.downloadLinks.push($link)
+
+                    // If this is the first link, start the cleanup timer
+                    if (window.downloadLinks.length === 1) {
+                        setTimeout(() => {
+                            window.downloadLinks.forEach($link => {
+                                $link.remove()
+                            })
+                            window.downloadLinks = []
+                        }, 2*60*1000)
+                    }
+
+                }
+            }
+
+        } catch (error) {
+            console.error('Error exporting data:', error)
+            alert('Error exporting data: ' + error.message)
+        } finally {
+            $('body').css('cursor', 'default')
+        }
+    }
+
+    // Handle export dialog download button
+    $('#export-dialog-download-button').click(async () => {
+        if (!pendingExportType) return
+
+        // Collect selected columns
+        const selectedColumns = []
+        $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
+            const columnName = $(this).data('column-name')
+            if (columnName) {
+                selectedColumns.push(columnName)
+            }
+        })
+
+        if (selectedColumns.length === 0) {
+            alert('Please select at least one column to export.')
+            return
+        }
+
+        // Hide the dialog
+        $('#export-column-dialog').modal('hide')
+
+        // Perform the export with selected columns
+        await performExport(pendingExportType, selectedColumns)
+
+        pendingExportType = null
+    })
+
+    // Handle export dialog cancel button
+    $('#export-dialog-cancel-button').click(() => {
+        pendingExportType = null
+        $('#export-column-dialog').modal('hide')
+    })
 
 
     const createSmallAlleleFrequencyChart = function() {
