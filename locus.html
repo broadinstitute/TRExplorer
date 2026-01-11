@@ -1941,6 +1941,8 @@ gtag('config', 'G-6R8FPBQRFH');
         keepIntergenicLoci: 0,
         keepNonCodingExonLoci: 0,
         keepLociThatOverlapDiseaseAssociatedLoci: 0,
+        keepLociThatOverlapLocusSet: 0,
+        keepLociThatOverlapLocusSetSelection: '',
 
         polymorphismFilter: 0,
         polymorphismFilterType: '',
@@ -2003,12 +2005,34 @@ gtag('config', 'G-6R8FPBQRFH');
     ].join(', ')
 
 
+    // Mapping from internal state names to abbreviated URL param names
+    const URL_PARAM_ALIASES = {
+        'searchQuery': 'q',
+        'sourceCatalog': 'source',
+        'keepLociThatOverlapDiseaseAssociatedLoci': 'keepDiseaseAssocLoci',
+        'keepLociThatOverlapLocusSet': 'keepLocusSet',
+        'keepLociThatOverlapLocusSetSelection': 'keepLocusSetSelect',
+        'polymorphismFilter': 'pFilter',
+        'polymorphismFilterType': 'pFilterType',
+        'polymorphismThreshold': 'pThreshold',
+        'igv_custom_track_url_1': 'igv_ct_url1',
+        'igv_custom_track_url_2': 'igv_ct_url2',
+        'igv_custom_track_url_3': 'igv_ct_url3',
+    }
+
+    // Reverse mapping from URL param names to internal state names
+    const URL_PARAM_REVERSE_ALIASES = Object.fromEntries(
+        Object.entries(URL_PARAM_ALIASES).map(([k, v]) => [v, k])
+    )
+
     const writePersistentPageStateToUrl = () => {
         // Create object with only non-default values
         const nonDefaultParams = {}
         for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
             if (value !== DEFAULT_GLOBAL_PAGE_STATE[key]) {
-                nonDefaultParams[key] = value
+                // Use abbreviated URL param name if available
+                const urlKey = URL_PARAM_ALIASES[key] || key
+                nonDefaultParams[urlKey] = value
             }
         }
 
@@ -3234,15 +3258,17 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
-        
+
         const urlArgs = window.location.hash.substring(1)
         if (!urlArgs) return
-        
+
         const params = new URLSearchParams(urlArgs)
-        for (const [key, value] of params.entries()) {
+        for (const [urlKey, value] of params.entries()) {
+            // Convert abbreviated URL param name to internal state name if needed
+            const key = URL_PARAM_REVERSE_ALIASES[urlKey] || urlKey
             if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
-                GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
+                GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
             }

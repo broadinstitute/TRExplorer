@@ -179,15 +179,17 @@
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
-        
+
         const urlArgs = window.location.hash.substring(1)
         if (!urlArgs) return
-        
+
         const params = new URLSearchParams(urlArgs)
-        for (const [key, value] of params.entries()) {
+        for (const [urlKey, value] of params.entries()) {
+            // Convert abbreviated URL param name to internal state name if needed
+            const key = URL_PARAM_REVERSE_ALIASES[urlKey] || urlKey
             if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
-                GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
+                GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
             }

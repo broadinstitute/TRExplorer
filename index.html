@@ -1942,6 +1942,8 @@ gtag('config', 'G-6R8FPBQRFH');
         keepIntergenicLoci: 0,
         keepNonCodingExonLoci: 0,
         keepLociThatOverlapDiseaseAssociatedLoci: 0,
+        keepLociThatOverlapLocusSet: 0,
+        keepLociThatOverlapLocusSetSelection: '',
 
         polymorphismFilter: 0,
         polymorphismFilterType: '',
@@ -2004,12 +2006,34 @@ gtag('config', 'G-6R8FPBQRFH');
     ].join(', ')
 
 
+    // Mapping from internal state names to abbreviated URL param names
+    const URL_PARAM_ALIASES = {
+        'searchQuery': 'q',
+        'sourceCatalog': 'source',
+        'keepLociThatOverlapDiseaseAssociatedLoci': 'keepDiseaseAssocLoci',
+        'keepLociThatOverlapLocusSet': 'keepLocusSet',
+        'keepLociThatOverlapLocusSetSelection': 'keepLocusSetSelect',
+        'polymorphismFilter': 'pFilter',
+        'polymorphismFilterType': 'pFilterType',
+        'polymorphismThreshold': 'pThreshold',
+        'igv_custom_track_url_1': 'igv_ct_url1',
+        'igv_custom_track_url_2': 'igv_ct_url2',
+        'igv_custom_track_url_3': 'igv_ct_url3',
+    }
+
+    // Reverse mapping from URL param names to internal state names
+    const URL_PARAM_REVERSE_ALIASES = Object.fromEntries(
+        Object.entries(URL_PARAM_ALIASES).map(([k, v]) => [v, k])
+    )
+
     const writePersistentPageStateToUrl = () => {
         // Create object with only non-default values
         const nonDefaultParams = {}
         for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
             if (value !== DEFAULT_GLOBAL_PAGE_STATE[key]) {
-                nonDefaultParams[key] = value
+                // Use abbreviated URL param name if available
+                const urlKey = URL_PARAM_ALIASES[key] || key
+                nonDefaultParams[urlKey] = value
             }
         }
 
@@ -3222,10 +3246,24 @@ gtag('config', 'G-6R8FPBQRFH');
                                 <label>Exon (non-coding transcript)</label>
                             </div>
                         </div>
-                        <div class="checkbox-group">
+                        <div class="checkbox-group" style="display: flex; align-items: center; flex-wrap: wrap; gap: 30px;">
                             <div class="ui checkbox">
                                 <input type="checkbox" name="keepLociThatOverlapDiseaseAssociatedLoci">
                                 <label>Overlaps latest known disease-associated loci</label>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <div class="ui checkbox" style="padding-right: 10px !important;">
+                                    <input type="checkbox" name="keepLociThatOverlapLocusSet">
+                                    <label>Overlaps loci from</label>
+                                </div>
+                                <div class="ui selection dropdown" id="overlap-locus-set-dropdown" style="min-width: 180px;">
+                                    <input type="hidden" name="keepLociThatOverlapLocusSetSelection">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select catalog</div>
+                                    <div class="menu">
+                                        <div class="item" data-value="gangstr_v17">GangSTR Catalog v17</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3514,16 +3552,18 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
-        
+
         const hash = window.location.hash.substring(1)
         if (!hash) return
-        
+
         const params = new URLSearchParams(hash)
-        
-        for (const [key, value] of params.entries()) {
+
+        for (const [urlKey, value] of params.entries()) {
+            // Convert abbreviated URL param name to internal state name if needed
+            const key = URL_PARAM_REVERSE_ALIASES[urlKey] || urlKey
             if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
-                GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
+                GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
                 if (key === 'showColumns') {
@@ -3565,6 +3605,9 @@ gtag('config', 'G-6R8FPBQRFH');
         $('input[name="keepIntergenicLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntergenicLoci'] === 1)
         $('input[name="keepNonCodingExonLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] === 1)
         $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] === 1)
+        $('input[name="keepLociThatOverlapLocusSet"]').prop('checked', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] === 1)
+        $('select[name="keepLociThatOverlapLocusSetSelection"]').val(GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
+        $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
 
         $('input[name="polymorphismFilter"]').prop('checked', GLOBAL_PAGE_STATE['polymorphismFilter'] === 1)
         $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
@@ -4684,6 +4727,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 if ($('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked')) {
                     regionConditions.push("DiseaseInfo IS NOT NULL")
                 }
+                if ($('input[name="keepLociThatOverlapLocusSet"]').prop('checked')) {
+                    const locusSetType = $('#overlap-locus-set-dropdown').dropdown('get value')
+                    if (locusSetType === 'gangstr_v17') {
+                        regionConditions.push("FoundInGangSTRCatalog = 1")
+                    }
+                }
 
                 if (regionConditions.length > 0) {
                     conditions.push(`(${regionConditions.join(' OR ')})`)
@@ -4745,6 +4794,8 @@ gtag('config', 'G-6R8FPBQRFH');
             GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked') ? 1 : 0
+            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] = $('input[name="keepLociThatOverlapLocusSet"]').prop('checked') ? 1 : 0
+            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'] = $('#overlap-locus-set-dropdown').dropdown('get value')
 
             GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
@@ -4791,6 +4842,8 @@ gtag('config', 'G-6R8FPBQRFH');
             $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
             $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
             $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
+            $('select[name="keepLociThatOverlapLocusSetSelection"]').val(GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
+            $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
 
         } else {
             $('#advanced-search-form').slideUp(300)
@@ -5014,7 +5067,22 @@ gtag('config', 'G-6R8FPBQRFH');
             }
         }
     })
-    
+
+    // Add event handler for overlap locus set filter dropdown
+    $('#overlap-locus-set-dropdown').dropdown({
+        onShow: function() {
+            $(this).css('z-index', 10001)
+        },
+        onHide: function() {
+            $(this).css('z-index', '')
+        },
+        onChange: (value) => {
+            if (value) {
+                $('input[name="keepLociThatOverlapLocusSet"]').prop('checked', true)
+            }
+        }
+    })
+
     $('#known-disease-motifs-link').click((e) => {
         e.preventDefault()
 
