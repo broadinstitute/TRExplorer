@@ -1254,7 +1254,7 @@
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
-                <span style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</span>${diseaseAssociatedIconHtml}
+                <span style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</span>
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
@@ -1272,7 +1272,7 @@
                     tableHtml += `<td style="padding: 3px 5px 3px 10px">${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" data-row-index="${index}" style="margin-right: 15px;">IGV</a><button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
+            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
