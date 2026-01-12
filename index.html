@@ -2524,7 +2524,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceRegion: {
             displayName: 'Interval (hg38)',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRegion'],
-            getValue: (row) => row['ReferenceRegion'].replace(/^chr/i, ''),
+            getValue: (row) => `<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}">${row['ReferenceRegion'].replace(/^chr/i, '')}</a>`,
             getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based'],
             getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
         },
@@ -4376,7 +4376,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
-                <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
+                <span style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</span>${diseaseAssociatedIconHtml}
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {

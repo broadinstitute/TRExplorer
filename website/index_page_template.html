@@ -1254,7 +1254,7 @@
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
-                <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
+                <span style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</span>${diseaseAssociatedIconHtml}
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
