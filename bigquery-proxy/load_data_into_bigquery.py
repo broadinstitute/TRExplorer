@@ -21,6 +21,7 @@ import sys
 
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
+from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from global_constants import BIGQUERY_COLUMNS
 
 PROJECT_ID = "cmg-analysis"
@@ -33,8 +34,8 @@ parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog 
                     default="~/code/tandem-repeat-catalogs/results__2026-01-01/release_draft_2026-01-01/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
-                    help="ExpansionHunter catalog with the latest known disease-associated loci",
-                    default="https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json")
+                    action="append",
+                    help="ExpansionHunter catalog (JSON) or BED file with known disease-associated loci. Can be specified multiple times.")
 parser.add_argument("--reference-fasta", default="~/hg38.fa", help="Path of reference genome fasta file")
 parser.add_argument("--tenk10k-tsv", default="../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz")
 parser.add_argument("--hprc256-tsv", default="../data-prep/hprc_lps.2025_12.grouped_by_locus_and_motif.with_biallelic_histogram.tsv.gz")
@@ -225,22 +226,47 @@ if hprc256_lookup and aou1027_lookup:
 vamos_columns_lookup = parse_vamos_tsv(args.vamos_tsv)
 
 ## Parse known disease-associated loci from gnomAD, STRchive and STRipy
-print(f"Parsing known disease-associated loci from {args.known_disease_associated_loci}")
-if os.path.isfile(args.known_disease_associated_loci):
-    fopen = gzip.open if args.known_disease_associated_loci.endswith(".gz") else open
-    with fopen(args.known_disease_associated_loci) as f:
-        known_disease_associated_loci = ijson.items(f, "item", use_float=True)
-elif args.known_disease_associated_loci.startswith("http"):
-    response = requests.get(args.known_disease_associated_loci)
-    known_disease_associated_loci = ijson.items(response.content, "item", use_float=True)
-else:
-    parser.error(f"Invalid catalog path: {args.known_disease_associated_loci}")
+if not args.known_disease_associated_loci:
+    args.known_disease_associated_loci = [
+        "https://raw.githubusercontent.com/broadinstitute/str-analysis/refs/heads/main/str_analysis/variant_catalogs/variant_catalog_without_offtargets.GRCh38.json",
+        "https://storage.googleapis.com/tandem-repeat-catalog/v2.0/known_disease_associated_loci_v2.loci_to_include_in_catalog.bed.gz",
+    ]
 
-known_disease_associated_loci = {
-    x["MainReferenceRegion"].replace("chr", ""): x for x in known_disease_associated_loci if x.get("Diseases")
-}
+known_disease_associated_loci = {}
+for catalog_path in args.known_disease_associated_loci:
+    print(f"Parsing known disease-associated loci from {catalog_path}")
+
+    for record in get_variant_catalog_iterator(catalog_path):
+        # Get reference region, normalizing to remove 'chr' prefix
+        reference_region = record.get("MainReferenceRegion") or record.get("ReferenceRegion")
+        reference_region = reference_region.replace("chr", "")
+
+        # Skip if we already have this locus (first source wins)
+        if reference_region in known_disease_associated_loci:
+            continue
+
+        # For JSON files with disease info, require Diseases field
+        # For BED files (no Diseases field), include all loci
+        if "Diseases" not in record and ".json" in catalog_path:
+            continue
+
+        # Extract motif from LocusStructure if RepeatUnit not present
+        if "RepeatUnit" not in record and "LocusStructure" in record:
+            motif_match = re.match(r"^[(]([A-Z]+)[)][+*]", record["LocusStructure"])
+            if motif_match:
+                record["RepeatUnit"] = motif_match.group(1)
+
+        # For BED files, add placeholder Diseases field
+        if "Diseases" not in record:
+            record["Diseases"] = [{"Symbol": record["LocusId"]}]
+
+        record["MainReferenceRegion"] = reference_region
+        known_disease_associated_loci[reference_region] = record
+
+    print(f"  Total unique loci so far: {len(known_disease_associated_loci)}")
+
 known_disease_associated_locus_ids = {x["LocusId"] for x in known_disease_associated_loci.values()}
-print(f"Parsed {len(known_disease_associated_loci)} known disease-associated loci:")
+print(f"Parsed {len(known_disease_associated_loci)} unique known disease-associated loci from {len(args.known_disease_associated_loci)} source(s):")
 print(", ".join(sorted(known_disease_associated_locus_ids)))
 
 strchive_data_json = requests.get("https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/STRchive-loci.json").json()
