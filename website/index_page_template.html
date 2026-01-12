@@ -561,13 +561,28 @@
             $('#show-igv-divider-text').hide()
             $('#hide-igv-divider-text').show()
             await updateIgv()
+            updateIgvNavButtons()
         } else {
             $('#igv-row').slideUp(500, () => {
                 $('#hide-igv-divider-text').hide()
                 $('#show-igv-divider-text').show()
             })
+            updateIgvNavButtons()
         }
 
+    })
+
+    // IGV navigation button handlers
+    $('#igv-nav-prev').click(async () => {
+        if (window.igvNavIndex > 0) {
+            await navigateIgvToResult(window.igvNavIndex - 1)
+        }
+    })
+
+    $('#igv-nav-next').click(async () => {
+        if (window.searchResults && window.igvNavIndex < window.searchResults.rows.length - 1) {
+            await navigateIgvToResult(window.igvNavIndex + 1)
+        }
     })
 
 
@@ -1110,6 +1125,61 @@
     }
 
 
+    // IGV navigation state
+    window.igvNavIndex = 0
+
+    // Update IGV navigation buttons visibility and state
+    const updateIgvNavButtons = () => {
+        const hasResults = window.searchResults && window.searchResults.rows && window.searchResults.rows.length > 1
+        const igvVisible = GLOBAL_PAGE_STATE['showIGV'] === 1
+
+        if (hasResults && igvVisible) {
+            $('#igv-nav-container').show()
+            const totalResults = window.searchResults.rows.length
+            const currentIndex = window.igvNavIndex
+
+            // Update index display
+            $('#igv-nav-index').text(`${currentIndex + 1} of ${totalResults}`)
+
+            // Update button states
+            $('#igv-nav-prev').prop('disabled', currentIndex <= 0)
+            $('#igv-nav-next').prop('disabled', currentIndex >= totalResults - 1)
+        } else {
+            $('#igv-nav-container').hide()
+        }
+    }
+
+    // Navigate IGV to a specific result index
+    const navigateIgvToResult = async (index) => {
+        if (!window.searchResults || !window.searchResults.rows) return
+        if (index < 0 || index >= window.searchResults.rows.length) return
+
+        const row = window.searchResults.rows[index]
+        const referenceRegion = row['ReferenceRegion']
+        if (!referenceRegion) return
+
+        const match = referenceRegion.match(REFERENCE_REGION_REGEXP)
+        if (!match) {
+            console.warn(`Unexpected locus format: ${referenceRegion}`)
+            return
+        }
+
+        const [_, chrom, start, end] = match
+        const paddedStart = Math.max(0, parseInt(start.replace(',', '')) - IGV_LOCUS_PADDING)
+        const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
+        const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
+
+        window.igvNavIndex = index
+        GLOBAL_PAGE_STATE['igvLoc'] = paddedReferenceRegion
+        writePersistentPageStateToUrl()
+
+        if (window.igvBrowser) {
+            await window.igvBrowser.search(paddedReferenceRegion)
+        }
+
+        updateIgvNavButtons()
+    }
+
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
@@ -1165,7 +1235,7 @@
                 <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
                     <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
                 </div>
-                <a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}">IGV</a>
+                <a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" data-row-index="${index}">IGV</a>
                 ${diseaseAssociatedIconHtml}
             </td>`
 
@@ -1252,6 +1322,7 @@
         // add click handlers for IGV buttons
         $('.row-igv-button').click(async function() {
             const referenceRegion = $(this).data('reference-region')
+            const rowIndex = $(this).data('row-index')
             if (!referenceRegion) return
 
             // Parse the locus to get chrom, start, end
@@ -1266,6 +1337,10 @@
             const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
             const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
 
+            // Update navigation index
+            if (rowIndex !== undefined) {
+                window.igvNavIndex = rowIndex
+            }
 
             try {
                 $('body').css('cursor', 'wait')
@@ -1304,6 +1379,9 @@
 
                     await updateIgv()
                 }
+
+                // Update navigation buttons
+                updateIgvNavButtons()
             } finally {
                 $('body').css('cursor', 'default')
             }
@@ -1697,6 +1775,9 @@
 
             window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
 
+            // Reset navigation index for new search results
+            window.igvNavIndex = 0
+
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
 
@@ -1726,8 +1807,9 @@
             writePersistentPageStateToUrl()
 
             displaySearchResults()
-            
+
             updatePaginationControls()
+            updateIgvNavButtons()
             
         } catch (error) {
             console.error('Error performing search:', error)

@@ -84,6 +84,26 @@ gtag('config', 'G-6R8FPBQRFH');
         margin-right: 20px;
     }
 
+    #igv-nav-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 8px 10px;
+        gap: 12px;
+    }
+
+    #igv-nav-container .ui.button {
+        margin: 0;
+        padding: 6px 12px;
+    }
+
+    #igv-nav-index {
+        font-size: 14px;
+        color: #666;
+        min-width: 70px;
+        text-align: center;
+    }
+
     #advanced-search-form .checkbox {
         padding-right: 20px;
     }
@@ -3105,6 +3125,15 @@ gtag('config', 'G-6R8FPBQRFH');
 
 <div class="ui row" id="igv-row">
     <div class="sixteen wide column">
+        <div id="igv-nav-container" style="display: none;">
+            <button id="igv-nav-prev" class="ui basic button" disabled>
+                <i class="chevron left icon"></i> Prev
+            </button>
+            <span id="igv-nav-index">1 of 1</span>
+            <button id="igv-nav-next" class="ui basic button" disabled>
+                Next <i class="chevron right icon"></i>
+            </button>
+        </div>
         <div id="igv-viewport"></div>
     </div>
 </div>
