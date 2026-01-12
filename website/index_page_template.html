@@ -102,33 +102,127 @@
 
                     <div class="field" style="padding-top: 5px">
                         <label>Search TR Catalog</label>
-                        <div class="ui selection dropdown" id="source-catalog-dropdown" style="max-width: 350px !important">
+                        <div class="ui selection dropdown" id="source-catalog-dropdown" style="min-width: 420px !important">
                             <input type="hidden" name="sourceCatalog">
                             <i class="dropdown icon"></i>
                             <div class="default text">Select catalog</div>
                             <div class="menu">
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,543,666 loci</span>
+                                        <span style="white-space: nowrap;">TRExplorer catalog v2</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">5,543,666 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="tr_explorer_catalog">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v1</span>
-                                        <span style="color: #888; margin-left: 20px;">4,863,041 loci</span>
+                                        <span style="white-space: nowrap;">TRExplorer catalog v1</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">4,863,041 loci</span>
                                     </div>
                                 </div>
-                                <div class="item" data-value="illumina_174k_catalog">
+                                <div class="divider"></div>
+                                <div class="header">v1 sources</div>
+                                <div class="item" data-value="source_KnownDiseaseAssociatedLoci">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Illumina 174k</span>
-                                        <span style="color: #888; margin-left: 20px;">174,286 loci</span>
+                                        <span style="white-space: nowrap;">Known disease-associated loci (v1)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">83 loci</span>
                                     </div>
                                 </div>
-                                <div class="item" data-value="known_disease_loci">
+                                <div class="item" data-value="source_Illumina174kPolymorphicTRs">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Known disease-associated loci</span>
-                                        <span style="color: #888; margin-left: 20px;">63 loci</span>
+                                        <span style="white-space: nowrap;">Illumina 174k polymorphic TRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">174,244 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PerfectRepeatsInReference">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Perfect repeats in hg38</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">4,391,197 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PolymorphicTRsInT2TAssemblies">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Polymorphic TRs in 78 T2T assemblies</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">297,517 loci</span>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="header">v2 sources</div>
+                                <div class="item" data-value="source_KnownDiseaseAssociatedLociV2">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Known disease-associated loci (v2)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">7 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PolymorphicTRsInT2TAssembliesV2">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Polymorphic TRs in 321 T2T assemblies</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">280,262 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_KnownFunctionalVNTRs">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Known functional VNTRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">13 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_HipSTRCatalog">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">HipSTR catalog</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">130,377 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_AdottoTRsFromDanzi2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Danzi et al. 2025 (Adotto)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">263,108 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_ClinvarIndelsThatAreTRs2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">ClinVar indels that are TRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">815 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Tanudisastro2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Tanudisastro et al. 2025</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">1,209 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Manigbas2024">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Manigbas et al. 2024</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">2,347 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Sulovari2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Sulovari et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">388 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Garg2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Garg et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">1,300 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Mukamel2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Mukamel et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">39 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Annear2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Annear et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">156 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Hause2016">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Hause et al. 2016</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">604 loci</span>
                                     </div>
                                 </div>
                             </div>
@@ -1568,12 +1662,58 @@
                         case 'tr_explorer_catalog':
                             conditions.push("Source LIKE 'TRExplorerV1%'")
                             break
-                        case 'illumina_174k_catalog':
-                            conditions.push(
-                                "(FoundInIllumina174kPolymorphicTRs = 'Yes' OR (FoundInKnownDiseaseAssociatedLoci = 'Yes' AND FoundInIllumina174kPolymorphicTRs LIKE '%Yes%'))")
+                        // v1 sources
+                        case 'source_PerfectRepeatsInReference':
+                            conditions.push("Source = 'TRExplorerV1:PerfectRepeatsInReference'")
                             break
-                        case 'known_disease_loci':
-                            conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL")
+                        case 'source_PolymorphicTRsInT2TAssemblies':
+                            conditions.push("Source = 'TRExplorerV1:PolymorphicTRsInT2TAssemblies'")
+                            break
+                        case 'source_Illumina174kPolymorphicTRs':
+                            conditions.push("Source = 'TRExplorerV1:Illumina174kPolymorphicTRs'")
+                            break
+                        case 'source_KnownDiseaseAssociatedLoci':
+                            conditions.push("Source = 'TRExplorerV1:KnownDiseaseAssociatedLoci'")
+                            break
+                        // v2 sources
+                        case 'source_PolymorphicTRsInT2TAssembliesV2':
+                            conditions.push("Source = 'TRExplorerV2:PolymorphicTRsInT2TAssembliesV2'")
+                            break
+                        case 'source_AdottoTRsFromDanzi2025':
+                            conditions.push("Source = 'TRExplorerV2:AdottoTRsFromDanzi2025'")
+                            break
+                        case 'source_HipSTRCatalog':
+                            conditions.push("Source = 'TRExplorerV2:HipSTRCatalog'")
+                            break
+                        case 'source_Manigbas2024':
+                            conditions.push("Source = 'TRExplorerV2:Manigbas2024'")
+                            break
+                        case 'source_Garg2021':
+                            conditions.push("Source = 'TRExplorerV2:Garg2021'")
+                            break
+                        case 'source_Tanudisastro2025':
+                            conditions.push("Source = 'TRExplorerV2:Tanudisastro2025'")
+                            break
+                        case 'source_ClinvarIndelsThatAreTRs2025':
+                            conditions.push("Source = 'TRExplorerV2:ClinvarIndelsThatAreTRs2025'")
+                            break
+                        case 'source_Hause2016':
+                            conditions.push("Source = 'TRExplorerV2:Hause2016'")
+                            break
+                        case 'source_Sulovari2021':
+                            conditions.push("Source = 'TRExplorerV2:Sulovari2021'")
+                            break
+                        case 'source_Annear2021':
+                            conditions.push("Source = 'TRExplorerV2:Annear2021'")
+                            break
+                        case 'source_Mukamel2021':
+                            conditions.push("Source = 'TRExplorerV2:Mukamel2021'")
+                            break
+                        case 'source_KnownFunctionalVNTRs':
+                            conditions.push("Source = 'TRExplorerV2:KnownFunctionalVNTRs'")
+                            break
+                        case 'source_KnownDiseaseAssociatedLociV2':
+                            conditions.push("Source = 'TRExplorerV2:KnownDiseaseAssociatedLociV2'")
                             break
                     }
                 }
