@@ -453,7 +453,7 @@
             diseaseDescription = '<i>An error occurred while loading this information.</i>'
             console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
         }
-        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
+        diseaseAssociatedIconHtml += `<i style="margin-right: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
         if (linkText) {
             diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
         }
@@ -582,6 +582,28 @@
     $('#igv-nav-next').click(async () => {
         if (window.searchResults && window.igvNavIndex < window.searchResults.rows.length - 1) {
             await navigateIgvToResult(window.igvNavIndex + 1)
+        }
+    })
+
+    $('#igv-nav-jump-to-table').click(() => {
+        // Find the row in the table corresponding to current igvNavIndex
+        const rows = $('#results-table tbody tr')
+        if (rows.length > window.igvNavIndex) {
+            const targetRow = $(rows[window.igvNavIndex])
+
+            // Scroll to the row
+            targetRow[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+            // Remove any existing animation class and re-add to trigger blink
+            targetRow.removeClass('highlight-blink')
+            // Force reflow to restart animation
+            void targetRow[0].offsetWidth
+            targetRow.addClass('highlight-blink')
+
+            // Remove the class after animation completes
+            setTimeout(() => {
+                targetRow.removeClass('highlight-blink')
+            }, 2500)
         }
     })
 
@@ -1203,9 +1225,9 @@
         }
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
-        tableHtml += `<th style="text-align: center">
-            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column descriptions and settings">
-                <i class="setting icon"></i>
+        tableHtml += `<th style="width: 1%; padding: 2px 4px; text-align: center; vertical-align: middle;">
+            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; width:30px; padding:0; border-radius:5px; background-color: #FCFCFF !important; display: inline-flex; align-items: center; justify-content: center;" data-tooltip="Column descriptions and settings">
+                <i class="setting icon" style="margin: 0;"></i>
             </button>
         </th>`
 
@@ -1231,12 +1253,8 @@
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
-            tableHtml += `<td style="text-align: left;">
-                <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
-                    <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
-                </div>
-                <a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" data-row-index="${index}">IGV</a>
-                ${diseaseAssociatedIconHtml}
+            tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
+                <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
@@ -1254,7 +1272,7 @@
                     tableHtml += `<td style="padding: 3px 5px 3px 10px">${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td style="padding:15px"><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
+            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" data-row-index="${index}" style="margin-right: 15px;">IGV</a><button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'

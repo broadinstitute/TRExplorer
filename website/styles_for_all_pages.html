@@ -80,6 +80,19 @@
         text-align: center;
     }
 
+    #igv-nav-jump-to-table {
+        cursor: pointer;
+    }
+
+    @keyframes row-highlight-blink {
+        0%, 100% { background-color: transparent; }
+        50% { background-color: #cce5ff; }
+    }
+
+    .highlight-blink {
+        animation: row-highlight-blink 0.8s ease-in-out 3;
+    }
+
     #advanced-search-form .checkbox {
         padding-right: 20px;
     }

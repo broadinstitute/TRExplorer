@@ -30,7 +30,7 @@
 
     {% include "body_header_template.html" %}
 
-    <div class="ui row">
+    <div class="ui row" style="padding-bottom: 0;">
         <div class="three wide column"></div>
         <div class="ten wide column">
             <div id="show-igv-divider">
@@ -78,6 +78,17 @@
 <div style="min-height: 50px;"></div>
 
 <script>
+    // Add back link above IGV (outside igv-row so it's always visible)
+    $('#igv-row').before(`
+        <div class="ui row" style="padding-bottom: 0;">
+            <div class="two wide column"></div>
+            <div class="twelve wide column" style="padding: 10px 20px 5px 20px;">
+                <a id="back-to-search-link" href="index.html" style="font-size: 1.1em">&lt; Back to search page</a>
+            </div>
+            <div class="two wide column"></div>
+        </div>
+    `)
+
     $('body').css('cursor', 'wait')
 
     const REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE = [
@@ -282,9 +293,14 @@
         const urlArgs = window.location.hash.substring(1)
         const homePageUrl = `index.html?#${urlArgs}`
 
+        // Update the back link with the current URL parameters
+        $('#back-to-search-link').attr('href', homePageUrl)
+
+        // Update the page title with the locus ID
+        document.title = `TRExplorer: ${row['LocusId']}`
+
         let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
         locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
-        locusPageRow2Box1 += `<div style="padding-top: 20px"><a href="${homePageUrl}" style="font-size: 1.1em">&lt; Back to search page</a></div>`
         locusPageRow2Box1 += `</div>`
         $("#locus-page-row2-box1").html(locusPageRow2Box1)
 
