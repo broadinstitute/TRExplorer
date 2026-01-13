@@ -330,22 +330,30 @@
 
         $('.question').popup({ on: 'click' })
         $('.show-popup').popup({ on: 'click', hoverable: true })
-        $('#show-igv-button').click(async () => {
+
+        // Consolidated click handler for showing IGV and navigating to the locus
+        const showIgvAndNavigate = async () => {
             const row = window.searchResults.rows[0]
             GLOBAL_PAGE_STATE['igvLoc'] = row['ReferenceRegion']
 
+            // Show IGV if hidden
             if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
-                $('#show-igv-divider').click()
+                await $('#show-igv-divider').click()
             } else {
                 writePersistentPageStateToUrl()
-
                 if (!window.igvBrowser) {
-                    console.error("WARNING: IGV browser not initialized yet")
                     await updateIgv()
                 }
                 await window.igvBrowser.search(row['ReferenceRegion'])
             }
-        })
+
+            // Scroll the page to the IGV browser
+            $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
+        }
+
+        // Attach handler to both the (IGV) link and the Reference Region link
+        $('#show-igv-button').click(showIgvAndNavigate)
+        $('.row-igv-button').click(showIgvAndNavigate)
     }
 
     const performSearch = async () => {
