@@ -1810,7 +1810,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260106_223622'
+    const TABLE_ID = 'catalog_20260112_233051'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -3200,12 +3200,14 @@ gtag('config', 'G-6R8FPBQRFH');
 <div style="min-height: 50px;"></div>
 
 <script>
-    // Add back link above IGV (outside igv-row so it's always visible)
+    // Add back link and page title above IGV (outside igv-row so it's always visible)
     $('#igv-row').before(`
         <div class="ui row" style="padding-bottom: 0;">
             <div class="two wide column"></div>
-            <div class="twelve wide column" style="padding: 10px 20px 5px 20px;">
-                <a id="back-to-search-link" href="index.html" style="font-size: 1.1em">&lt; Back to search page</a>
+            <div class="twelve wide column" style="padding: 10px 20px 5px 20px; display: flex; align-items: center;">
+                <a id="back-to-search-link" href="index.html" style="font-size: 1.1em; white-space: nowrap;">&lt; Back to search page</a>
+                <div id="locus-page-title" style="flex: 1; text-align: center; font-size: 1.3em; font-weight: 600;"></div>
+                <div style="width: 140px;"></div>
             </div>
             <div class="two wide column"></div>
         </div>
@@ -3418,9 +3420,6 @@ gtag('config', 'G-6R8FPBQRFH');
         // Update the back link with the current URL parameters
         $('#back-to-search-link').attr('href', homePageUrl)
 
-        // Update the page title with the locus ID
-        document.title = `TRExplorer: ${row['LocusId']}`
-
         let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
         locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
         locusPageRow2Box1 += `</div>`
@@ -3485,9 +3484,20 @@ gtag('config', 'G-6R8FPBQRFH');
                 return
             }
 
-            // the BigQuery table is partitioned on chrom_index and clustered by start_0based, so include these in the W
             const locusIdMatch = locusId.match(LOCUS_ID_REGEXP)
-            let [_, chrom, start_0based, __, ___] = locusIdMatch
+            if (!locusIdMatch) {
+                displayError(`Invalid locusId format: ${locusId}. Expected format: chrom-start-end-motif (eg. 4-3074876-3074933-CAG)`)
+                return
+            }
+            let [_, chrom, start_0based, end_1based, motif] = locusIdMatch
+
+            // Set page titles immediately (before waiting for search results)
+            const referenceRegion = `chr${chrom}:${start_0based}-${end_1based}`
+            const truncatedMotif = motif.length > 35 ? motif.substring(0, 35) + '...' : motif
+            document.title = `TRExplorer: ${locusId}`
+            $('#locus-page-title').text(`Locus Page: ${referenceRegion} ${truncatedMotif}`)
+
+            // the BigQuery table is partitioned on chrom_index and clustered by start_0based, so include these in the W
             start_0based = parseInt(start_0based.replace(/,/g, ''))
             const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
             let selectedColumns = REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE
