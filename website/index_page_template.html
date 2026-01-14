@@ -168,7 +168,7 @@
                                 <div class="item" data-value="source_HipSTRCatalog">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span style="white-space: nowrap;">HipSTR catalog</span>
-                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">130,377 loci</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">129,523 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="source_AdottoTRsFromDanzi2025">
@@ -223,6 +223,12 @@
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span style="white-space: nowrap;">Hause et al. 2016</span>
                                         <span style="color: #888; margin-left: 20px; white-space: nowrap;">604 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_VamosV3">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Vamos v3 catalog</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">56,846 loci</span>
                                     </div>
                                 </div>
                             </div>
@@ -1714,6 +1720,9 @@
                             break
                         case 'source_KnownDiseaseAssociatedLociV2':
                             conditions.push("Source = 'TRExplorerV2:KnownDiseaseAssociatedLociV2'")
+                            break
+                        case 'source_VamosV3':
+                            conditions.push("Source = 'TRExplorerV2:VamosV3'")
                             break
                     }
                 }
