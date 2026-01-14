@@ -22,6 +22,7 @@ import sys
 from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
+from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
 from global_constants import BIGQUERY_COLUMNS
 
 PROJECT_ID = "cmg-analysis"
@@ -30,8 +31,7 @@ TABLE_ID = "catalog"
 
 parser = argparse.ArgumentParser(description="Load data into BigQuery from the annotated catalog JSON file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
-                    #default="https://github.com/broadinstitute/tandem-repeat-catalog/v2.0/repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
-                    default="~/code/tandem-repeat-catalogs/results__2026-01-01/release_draft_2026-01-01/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    default="~/code/tandem-repeat-catalogs/results__2026-01-12/release_draft_2026-01-12/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
                     action="append",
@@ -44,6 +44,11 @@ parser.add_argument("--vamos-tsv", default="../data-prep/vamos_ori_and_eff_motif
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 parser.add_argument("--non-coding-annotations-bed", default="../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz")
 args = parser.parse_args()
+
+# Set up logging to a timestamped file
+log_filename = f"load_data_into_bigquery_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+tee_stdout_and_stderr_to_log_file(log_filename)
+print(f"Logging output to {log_filename}")
 
 
 ## Define utility functions
@@ -74,42 +79,52 @@ def population_data_sanity_check(row, dataset_name):
     stdev_rank_total_number_by_motif
     """
 
+    errors = []
     if row["min_allele"] > row["mode_allele"]:
-        print(f"WARNING: {dataset_name}: min_allele > mode_allele for {row['locus_id']}: min_allele == {row['min_allele']} and mode_allele == {row['mode_allele']}")
+        errors.append((f"{dataset_name}: min_allele > mode_allele", f"{row['locus_id']}: min_allele == {row['min_allele']} and mode_allele == {row['mode_allele']}"))
     if row["min_allele"] > row["median"]:
-        print(f"WARNING: {dataset_name}: min_allele > median for {row['locus_id']}: min_allele == {row['min_allele']} and median == {row['median']}")
+        errors.append((f"{dataset_name}: min_allele > median", f"{row['locus_id']}: min_allele == {row['min_allele']} and median == {row['median']}"))
     if row["mode_allele"] > row["max_allele"]:
-        print(f"WARNING: {dataset_name}: mode_allele > max_allele for {row['locus_id']}: mode_allele == {row['mode_allele']} and max_allele == {row['max_allele']}")
+        errors.append((f"{dataset_name}: mode_allele > max_allele", f"{row['locus_id']}: mode_allele == {row['mode_allele']} and max_allele == {row['max_allele']}"))
     if row["median"] > row["99th_percentile"]:
-        print(f"WARNING: {dataset_name}: median > 99th_percentile for {row['locus_id']}: median == {row['median']} and 99thPercentile == {row['99th_percentile']}")
+        errors.append((f"{dataset_name}: median > 99th_percentile", f"{row['locus_id']}: median == {row['median']} and 99thPercentile == {row['99th_percentile']}"))
     if row["99th_percentile"] > row["max_allele"]:
-        print(f"WARNING: {dataset_name}: 99th_percentile > max_allele for {row['locus_id']}: 99th_percentile == {row['99th_percentile']} and max_allele == {row['max_allele']}")
+        errors.append((f"{dataset_name}: 99th_percentile > max_allele", f"{row['locus_id']}: 99th_percentile == {row['99th_percentile']} and max_allele == {row['max_allele']}"))
+
+    if row["unique_alleles"] > row["max_allele"] - row["min_allele"] + 1:
+        errors.append((f"{dataset_name}: unique_alleles > max_allele - min_allele + 1", f"{row['locus_id']}: min_allele == {row['min_allele']}, max_allele == {row['max_allele']}, and unique_alleles == {row['unique_alleles']}"))
 
     if row["stdev_rank_by_motif"] > row["stdev_rank_total_number_by_motif"]:
-        print(f"WARNING: {dataset_name}: stdev_rank_by_motif > stdev_rank_total_number_by_motif for {row['locus_id']}: stdev_rank_by_motif == {row['stdev_rank_by_motif']} and stdev_rank_total_number_by_motif == {row['stdev_rank_total_number_by_motif']}")
-    
+        errors.append((f"{dataset_name}: stdev_rank_by_motif > stdev_rank_total_number_by_motif", f"{row['locus_id']}: stdev_rank_by_motif == {row['stdev_rank_by_motif']} and stdev_rank_total_number_by_motif == {row['stdev_rank_total_number_by_motif']}"))
+
     allele_set = set([row["min_allele"], row["mode_allele"], row["max_allele"]])
     if row["unique_alleles"] < len(allele_set):
-        print(f"WARNING: {dataset_name}: unique_alleles < len({allele_set}) for {row['locus_id']}: unique_alleles == {row['unique_alleles']}")
+        errors.append((f"{dataset_name}: unique_alleles < len(allele_set)", f"{row['locus_id']}: unique_alleles == {row['unique_alleles']}"))
     if row["num_called_alleles"] < row["unique_alleles"]:
-        print(f"WARNING: {dataset_name}: num_called_alleles < unique_alleles for {row['locus_id']}: num_called_alleles == {row['num_called_alleles']}, unique_alleles == {row['unique_alleles']}")
+        errors.append((f"{dataset_name}: num_called_alleles < unique_alleles", f"{row['locus_id']}: num_called_alleles == {row['num_called_alleles']}, unique_alleles == {row['unique_alleles']}"))
     if row["stdev"] > 0 and row["num_called_alleles"] == 1:
-        print(f"WARNING: {dataset_name}: stdev > 0 and num_called_alleles == 1 for {row['locus_id']}: stdev == {row['stdev']}, num_called_alleles == {row['num_called_alleles']}")
+        errors.append((f"{dataset_name}: stdev > 0 and num_called_alleles == 1", f"{row['locus_id']}: stdev == {row['stdev']}, num_called_alleles == {row['num_called_alleles']}"))
     if len(allele_set) > 1 and row["stdev"] == 0:
-        print(f"WARNING: {dataset_name}: len({allele_set}) > 1 and stdev == 0 for {row['locus_id']}: len({allele_set}) == {len(allele_set)}, stdev == {row['stdev']}")
+        errors.append((f"{dataset_name}: len(allele_set) > 1 and stdev == 0", f"{row['locus_id']}: len({allele_set}) == {len(allele_set)}, stdev == {row['stdev']}"))
+
+    return errors
 
 def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     """Parse the tenk10k TSV file line by line and create a lookup dictionary."""
-    
+
     lookup = {}
-    df = pd.read_table(tsv_path)
+    error_counter = collections.Counter()
+    error_examples = collections.defaultdict(list)
+
+    df = pd.read_table(tsv_path, dtype={"locus_id": str})
     df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
     df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
     df_grouped_by_motif = df.groupby("canonical_motif")
     df["stdev_rank_by_motif"] = df_grouped_by_motif["stdev"].rank(ascending=False)
     df["stdev_rank_total_number_by_motif"] = df_grouped_by_motif["locus_id"].transform("count")
 
-    for _, row in tqdm.tqdm(df.iterrows(), unit=" loci", unit_scale=True, total=len(df)):
+    total_records = len(df)
+    for _, row in tqdm.tqdm(df.iterrows(), unit=" loci", unit_scale=True, total=total_records):
         locus_id = row["locus_id"]
         lookup[locus_id] = {
             "locus_id": locus_id,
@@ -127,18 +142,35 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         }
         if not pd.isna(row["biallelic_histogram"]):
             lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
-        population_data_sanity_check(lookup[locus_id], dataset_name)
-    
+        errors = population_data_sanity_check(lookup[locus_id], dataset_name)
+        for error_type, error_detail in errors:
+            error_counter[error_type] += 1
+            if len(error_examples[error_type]) < 100:
+                error_examples[error_type].append(error_detail)
+
+    # Print error summary
+    if error_counter:
+        print(f"\n{dataset_name} sanity check errors:")
+        for error_type, count in error_counter.most_common():
+            print(f"  {count:,d} out of {total_records:,d} ({count/total_records:.1%}): {error_type}")
+            for example in error_examples[error_type]:
+                print(f"      {example}")
+
     return lookup
 
 
 def parse_AoU1027_data_from_tsv(tsv_path):
     """Parse the AoU1027 TSV file line by line and create a lookup dictionary."""
     lookup = {}
+    error_counter = collections.Counter()
+    error_examples = collections.defaultdict(list)
+    total_records = 0
+
     with gzip.open(tsv_path, "rt") as f:
         header = f.readline().rstrip("\n").split("\t")
         col_indices = {col: i for i, col in enumerate(header)}
         for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
+            total_records += 1
             fields = line.rstrip("\n").split("\t")
             locus_id = fields[col_indices["TRID2"]]
             motif_size = len(fields[col_indices["longestPureSegmentMotif"]])
@@ -161,7 +193,19 @@ def parse_AoU1027_data_from_tsv(tsv_path):
                 "oe_length_percentile": float(fields[col_indices["OE_len_percentile"]]) if fields[col_indices["OE_len_percentile"]] != "" else None,
             }
 
-            population_data_sanity_check(lookup[locus_id], "AoU1027")
+            errors = population_data_sanity_check(lookup[locus_id], "AoU1027")
+            for error_type, error_detail in errors:
+                error_counter[error_type] += 1
+                if len(error_examples[error_type]) < 25:
+                    error_examples[error_type].append(error_detail)
+
+    # Print error summary
+    if error_counter:
+        print(f"\nAoU1027 sanity check errors:")
+        for error_type, count in error_counter.most_common():
+            print(f"  {count:,d} out of {total_records:,d} ({count/total_records:.1%}): {error_type}")
+            for example in error_examples[error_type]:
+                print(f"      {example}")
 
     return lookup
 

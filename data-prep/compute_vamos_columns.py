@@ -19,16 +19,27 @@ def get_reference_region_size(record):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vamos-ori-motifs-tsv", default="../data-prep/oriMotifFinal.all.tsv.gz")
-    parser.add_argument("--vamos-eff-motifs-tsv", default="../data-prep/effMotifFinal.all.tsv.gz")
+    parser.add_argument("--vamos-ori-motifs-tsv", action="append", default=[
+        "../data-prep/oriMotifFinal.all.tsv.gz",
+        #"../data-prep/vamosGenomicTR_v3.0_oriMotifs.tsv.gz",
+    ])
+    parser.add_argument("--vamos-eff-motifs-tsv", action="append", default=[
+        "../data-prep/effMotifFinal.all.tsv.gz",
+        #"../data-prep/vamosGenomicTR_v3.0_effMotifs-0.1.tsv.gz",
+    ])
+    
     parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
                         #default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
-                        default="~/code/tandem-repeat-catalogs/results__2026-01-01/release_draft_2026-01-01/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                        default="~/code/tandem-repeat-catalogs/results__2026-01-12/release_draft_2026-01-12/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
     parser.add_argument("-n", type=int, help="Number of records to process from the catalog")
     parser.add_argument("-o", "--output-tsv", default="../data-prep/vamos_ori_and_eff_motif_columns.tsv.gz")
     args = parser.parse_args()
 
-    vamos_data_lookup = parse_vamos_data(args.vamos_ori_motifs_tsv, args.vamos_eff_motifs_tsv)
+    vamos_data_lookup = {}
+    for vamos_ori_motifs_tsv, vamos_eff_motifs_tsv in zip(args.vamos_ori_motifs_tsv, args.vamos_eff_motifs_tsv):
+        lookup = parse_vamos_data(vamos_ori_motifs_tsv, vamos_eff_motifs_tsv)
+        vamos_data_lookup.update(lookup)
+
 
     # Read catalog data
     print(f"Reading catalog from {args.catalog_path}")
