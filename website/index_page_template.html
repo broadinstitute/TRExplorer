@@ -1475,19 +1475,17 @@
                     $('#igv-row').show()
                     $('#show-igv-divider-text').hide()
                     $('#hide-igv-divider-text').show()
-                    await updateIgv()
-                } else {
-                    if (!window.igvBrowser) {
-                        console.error("WARNING: IGV browser not initialized yet")
-                        await updateIgv()
-                    }
-                    writePersistentPageStateToUrl()
-
-                    await window.igvBrowser.search(paddedReferenceRegion)
                 }
 
-                // Scroll the page to the IGV browser
+                // Scroll to the IGV browser first, then update/search
                 $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
+
+                if (!window.igvBrowser) {
+                    await updateIgv()
+                } else {
+                    writePersistentPageStateToUrl()
+                    await window.igvBrowser.search(paddedReferenceRegion)
+                }
 
 
                 // Enable the "TRExplorer genome-wide catalog" track if it's not already enabled
