@@ -1810,7 +1810,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260112_233051'
+    const TABLE_ID = 'catalog_20260113_141007'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -2257,66 +2257,154 @@ gtag('config', 'G-6R8FPBQRFH');
         `
     }
 
-    const generatePolymorphismDialogContent = (row) => {
-        const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+    const SUMMARY_STATS_DATASETS = [
+        { prefix: 'HPRC256_', name: 'HPRC 256', description: '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS' },
+        { prefix: 'AoU1027_', name: 'AoU Phase 1', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleles'] },
+        { prefix: 'TenK10K_', name: 'TenK10K Phase 1', description: '1,925 short-read samples from TenK10K genotyped using ExpansionHunter' },
+    ]
 
-        const nStdevsNotAvailable = [row.HPRC256_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+    // Format number: show as integer (with commas) if it's a whole number, otherwise show 1 decimal place
+    const formatIntOrDecimal = (v) => v == null ? '-' : (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1))
 
-        let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
+    const SUMMARY_STATS_COLUMNS = [
+        { suffix: 'MinAllele', header: 'Min', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'Median', header: 'Median', format: formatIntOrDecimal, highlight: true },
+        { suffix: '99thPercentile', header: '99th %', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'MaxAllele', header: 'Max', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'UniqueAlleles', header: '# of Unique Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'NumCalledAlleles', header: 'Total Genotyped Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'ModeAllele', header: 'Mode', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },
+    ]
 
-        if (nStdevsNotAvailable == stdevColumns.length) {
-            polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
-        } else {
-            polymorphismDialogContent1 += `
-                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
-                    <div style="margin-top: 5px">
-                        <table style="margin: 0 auto">
-            `
+    const generateSummaryStatsTable = (row) => {
+        // Check if any dataset has Stdev data
+        const hasAnyData = SUMMARY_STATS_DATASETS.some(dataset =>
+            row[dataset.prefix + 'Stdev'] != null
+        )
+
+        if (!hasAnyData) {
+            return ''
         }
 
-        for (const key of stdevColumns) {
-            if (row[key] != null) {
-                polymorphismDialogContent1 += `
-                    <tr>
-                        <td style="text-align: left;">
-                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
-                        </td>
-                        <td style="text-align: right;">
-                            = ${row[key].toFixed(3)}
-                        </td>
-                        <td style="text-align: right;">
-                            <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
-                        </td>
-                    </tr>
-                `
+        let html = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">`
+        html += `<div style="position: relative; margin-bottom: 15px;"><div style="text-align: center;"><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div><div style="position: absolute; right: 0; top: 0;"><span style="display: inline-block; width: 14px; height: 14px; background-color: #e8f4fc; border: 1px solid #888; vertical-align: middle;"></span> = number of repeats</div></div>`
+        html += `<table class="ui compact celled table" style="font-size: 0.95em;">`
+
+        // Header row
+        html += `<thead><tr><th>Dataset</th>`
+        for (const col of SUMMARY_STATS_COLUMNS) {
+            html += `<th style="text-align: center;">${col.header}</th>`
+        }
+        html += `</tr></thead>`
+
+        // Data rows
+        html += `<tbody>`
+        const unavailableDatasets = []
+        for (const dataset of SUMMARY_STATS_DATASETS) {
+            // Check if this dataset has Stdev data
+            const datasetHasData = row[dataset.prefix + 'Stdev'] != null
+            if (!datasetHasData) {
+                unavailableDatasets.push(dataset.name)
+                continue
             }
-        }
-        polymorphismDialogContent1 += "</table>"
 
-        if (nStdevsNotAvailable > 0) {
-            polymorphismDialogContent1 += "<br />"
-            let namesOfMissingSigmas = []
-            for (const key of stdevColumns) {
-                if (row[key] == null) {
-                    namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
-                }
+            html += `<tr>`
+            html += `<td style="white-space: nowrap;"><b>${dataset.name}</b><br/><span style="font-size: 0.85em; color: #666;">${dataset.description}</span></td>`
+            for (const col of SUMMARY_STATS_COLUMNS) {
+                const isHidden = dataset.hideColumns?.includes(col.suffix)
+                const value = isHidden ? null : row[dataset.prefix + col.suffix]
+                const bgStyle = col.highlight ? 'background-color: #e8f4fc;' : ''
+                html += `<td style="text-align: center; ${bgStyle}">${col.format(value)}</td>`
             }
-            polymorphismDialogContent1 += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+            html += `</tr>`
         }
 
+        // Add row for unavailable datasets
+        if (unavailableDatasets.length > 0) {
+            const numCols = SUMMARY_STATS_COLUMNS.length + 1
+            html += `<tr><td colspan="${numCols}" style="text-align: left; color: #686868;">${unavailableDatasets.join(', ')} data is not available for this locus</td></tr>`
+        }
+
+        html += `</tbody></table>`
+
+        // Add constraint percentile if available
         if (row.AoU1027_OE_LengthPercentile != null) {
-            polymorphismDialogContent1 += `
-                <div style="margin-top: 25px">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+            html += `
+                <div style="margin-top: 15px; text-align: center;">
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
                 </div>
             `
         }
 
-        polymorphismDialogContent1 += "</div>"
+        html += `</div>`
+        return html
+    }
 
-        // check if any of the allele frequency columns are available
+    const generatePolymorphismDialogContent = (row, options = {}) => {
+        const { showSigmaSummary = true } = options
+        const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+
+        const nStdevsNotAvailable = stdevColumns.filter(key => row[key] == null).length
+
+        let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
+
+        // Summary statistics section (sigma values) - only show if showSigmaSummary is true
+        if (showSigmaSummary && nStdevsNotAvailable < stdevColumns.length) {
+            polymorphismDialogContent1 += `
+                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
+                <div style="margin-top: 5px">
+                    <table style="margin: 0 auto">
+            `
+            for (const key of stdevColumns) {
+                if (row[key] != null) {
+                    polymorphismDialogContent1 += `
+                        <tr>
+                            <td style="text-align: left;">
+                                <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
+                            </td>
+                            <td style="text-align: right;">
+                                = ${row[key].toFixed(3)}
+                            </td>
+                            <td style="text-align: right;">
+                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                            </td>
+                        </tr>
+                    `
+                }
+            }
+            polymorphismDialogContent1 += `</table>`
+
+            if (nStdevsNotAvailable > 0) {
+                polymorphismDialogContent1 += `<br />`
+                let namesOfMissingSigmas = []
+                for (const key of stdevColumns) {
+                    if (row[key] == null) {
+                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
+                    }
+                }
+                polymorphismDialogContent1 += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+            }
+
+            if (row.AoU1027_OE_LengthPercentile != null) {
+                polymorphismDialogContent1 += `
+                    <div style="margin-top: 25px">
+                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+                    </div>
+                `
+            }
+
+            polymorphismDialogContent1 += `</div>`
+        } else if (showSigmaSummary) {
+            polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
+        }
+
+        // Check if any chart data is available
         const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
+        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
+
         if (alleleFrequencyColumnsAvailable) {
             // calculate the height of the allele frequency charts
             polymorphismDialogContent1 += `
@@ -2337,8 +2425,6 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
-        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
-        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
         if (biallelicHistogramColumnsAvailable) {
             polymorphismDialogContent1 += `
                 <div style="margin-top: 15px;">
@@ -2357,6 +2443,7 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
+        polymorphismDialogContent1 += '</div>'
         return polymorphismDialogContent1
     }
 
@@ -3183,6 +3270,13 @@ gtag('config', 'G-6R8FPBQRFH');
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
+            <div id="locus-page-summary-stats"></div>
+        </div>
+        <div class="three wide column"></div>
+    </div>
+    <div class="ui row">
         <div class="four wide column"></div>
         <div class="eight wide column" style="display: flex; justify-content: center">
             <div id="locus-page-efficient-motifs"></div>
@@ -3431,6 +3525,11 @@ gtag('config', 'G-6R8FPBQRFH');
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
 
+        // Generate summary stats table (above motif variability)
+        const summaryStatsHtml = generateSummaryStatsTable(row)
+        $('#locus-page-summary-stats').html(summaryStatsHtml)
+
+        // Generate motif variability section
         const motifFrequencyTableRows = computeMotifFrequenciesTableRows(row['VamosMotifFrequencies'])
         let motifFrequencyTableHtml
         if (motifFrequencyTableRows.length > 1) {
@@ -3441,12 +3540,13 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         $('#locus-page-efficient-motifs').html(motifFrequencyTableHtml)
 
-        // Generate the rest of the page
-        $('#locus-page-polymorphism-data').html('')
-
-        let polymorphismContent = generatePolymorphismDialogContent(row)
-        polymorphismContent = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`
-        $('#locus-page-polymorphism-data').html(polymorphismContent.replace(/\s+/g, ' ').trim())
+        // Generate allele frequency charts section (hide sigma summary since we show the table above)
+        const polymorphismContent = generatePolymorphismDialogContent(row, { showSigmaSummary: false })
+        if (polymorphismContent) {
+            $('#locus-page-polymorphism-data').html(`<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`.replace(/\s+/g, ' ').trim())
+        } else {
+            $('#locus-page-polymorphism-data').html('')
+        }
 
         renderChartsInPolymorphismDialog(row);
 

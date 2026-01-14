@@ -61,6 +61,13 @@
         <div class="two wide column"></div>
     </div>
     <div class="ui row">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
+            <div id="locus-page-summary-stats"></div>
+        </div>
+        <div class="three wide column"></div>
+    </div>
+    <div class="ui row">
         <div class="four wide column"></div>
         <div class="eight wide column" style="display: flex; justify-content: center">
             <div id="locus-page-efficient-motifs"></div>
@@ -309,6 +316,11 @@
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
 
+        // Generate summary stats table (above motif variability)
+        const summaryStatsHtml = generateSummaryStatsTable(row)
+        $('#locus-page-summary-stats').html(summaryStatsHtml)
+
+        // Generate motif variability section
         const motifFrequencyTableRows = computeMotifFrequenciesTableRows(row['VamosMotifFrequencies'])
         let motifFrequencyTableHtml
         if (motifFrequencyTableRows.length > 1) {
@@ -319,12 +331,13 @@
         }
         $('#locus-page-efficient-motifs').html(motifFrequencyTableHtml)
 
-        // Generate the rest of the page
-        $('#locus-page-polymorphism-data').html('')
-
-        let polymorphismContent = generatePolymorphismDialogContent(row)
-        polymorphismContent = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`
-        $('#locus-page-polymorphism-data').html(polymorphismContent.replace(/\s+/g, ' ').trim())
+        // Generate allele frequency charts section (hide sigma summary since we show the table above)
+        const polymorphismContent = generatePolymorphismDialogContent(row, { showSigmaSummary: false })
+        if (polymorphismContent) {
+            $('#locus-page-polymorphism-data').html(`<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`.replace(/\s+/g, ' ').trim())
+        } else {
+            $('#locus-page-polymorphism-data').html('')
+        }
 
         renderChartsInPolymorphismDialog(row);
 
