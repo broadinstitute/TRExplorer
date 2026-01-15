@@ -552,10 +552,27 @@
 
     .export-column-checkbox-item {
         padding: 2px 0;
+        display: flex;
+        align-items: center;
     }
 
     .export-column-checkbox-item .ui.checkbox label {
         font-size: 0.95em;
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+    }
+
+    .export-column-help-icon {
+        margin-left: 5px;
+        color: #888;
+        cursor: pointer;
+        font-size: 0.85em;
+    }
+
+    .export-column-help-icon:hover {
+        color: #333;
     }
 
 </style>

@@ -964,12 +964,20 @@
 
             columns.forEach(opt => {
                 const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                // Escape description for HTML attribute (replace quotes and special chars)
+                const escapedDescription = opt.description
+                    ? opt.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    : ''
+                const helpIcon = opt.description
+                    ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                    : ''
                 const checkboxHtml = `
                     <div class="export-column-checkbox-item">
                         <div class="ui checkbox">
                             <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
                             <label>${opt.displayName}</label>
                         </div>
+                        ${helpIcon}
                     </div>
                 `
                 itemsContainer.append(checkboxHtml)

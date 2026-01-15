@@ -102,7 +102,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260113_141007'
+    const TABLE_ID = 'catalog_20260114_220309'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -551,7 +551,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const SUMMARY_STATS_DATASETS = [
         { prefix: 'HPRC256_', name: 'HPRC 256', description: '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS' },
-        { prefix: 'AoU1027_', name: 'AoU Phase 1', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleles'] },
+        { prefix: 'AoU1027_', name: 'AoU Phase 1', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleleLengths'] },
         { prefix: 'TenK10K_', name: 'TenK10K Phase 1', description: '1,925 short-read samples from TenK10K genotyped using ExpansionHunter' },
     ]
 
@@ -563,7 +563,7 @@ gtag('config', 'G-6R8FPBQRFH');
         { suffix: 'Median', header: 'Median', format: formatIntOrDecimal, highlight: true },
         { suffix: '99thPercentile', header: '99th %', format: formatIntOrDecimal, highlight: true },
         { suffix: 'MaxAllele', header: 'Max', format: formatIntOrDecimal, highlight: true },
-        { suffix: 'UniqueAlleles', header: '# of Unique Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'UniqueAlleleLengths', header: 'Unique Allele Lengths', format: (v) => v != null ? v.toLocaleString() : '-' },
         { suffix: 'NumCalledAlleles', header: 'Total Genotyped Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
         { suffix: 'ModeAllele', header: 'Mode', format: formatIntOrDecimal, highlight: true },
         { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },

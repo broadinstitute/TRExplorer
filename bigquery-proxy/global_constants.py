@@ -441,9 +441,9 @@ BIGQUERY_COLUMNS = [
     },
     {
         "type": "INTEGER",
-        "name": "TenK10K_UniqueAlleles",
-        "description": "Number of unique allele sizes observed in TenK10K Phase 1.",
-        "displayName": "TenK10K Unique Alleles",
+        "name": "TenK10K_UniqueAlleleLengths",
+        "description": "Number of unique allele lengths observed in TenK10K Phase 1.",
+        "displayName": "TenK10K Unique Allele Lengths",
         "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
     },
     {
@@ -527,9 +527,9 @@ BIGQUERY_COLUMNS = [
     },
     {
         "type": "INTEGER",
-        "name": "HPRC256_UniqueAlleles",
-        "description": "Number of unique allele sizes (LPS) observed in HPRC256.",
-        "displayName": "HPRC256 Unique Alleles",
+        "name": "HPRC256_UniqueAlleleLengths",
+        "description": "Number of unique LPS allele lengths observed in HPRC256.",
+        "displayName": "HPRC256 Unique Allele Lengths",
         "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
     },
     {
@@ -595,13 +595,6 @@ BIGQUERY_COLUMNS = [
         "name": "AoU1027_MaxAllele",
         "description": "Maximum allele size (LPS) observed in AoU1027.",
         "displayName": "AoU1027 Max Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
-    },
-    {
-        "type": "INTEGER",
-        "name": "AoU1027_UniqueAlleles",
-        "description": "Number of unique allele sizes (LPS) observed in AoU1027.",
-        "displayName": "AoU1027 Unique Alleles",
         "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
     },
     {
@@ -727,7 +720,7 @@ def get_exportable_columns():
     Only columns that have a 'displayName' and 'group' are considered exportable.
 
     Returns:
-        list: List of dicts with keys: name, displayName, group, column
+        list: List of dicts with keys: name, displayName, group, column, description
               where column is the SQL expression to use (defaults to name).
     """
     exportable = []
@@ -738,5 +731,6 @@ def get_exportable_columns():
                 "displayName": col["displayName"],
                 "group": col["group"],
                 "column": col.get("exportColumn", col["name"]),
+                "description": col.get("description", ""),
             })
     return exportable
