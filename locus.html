@@ -2288,7 +2288,7 @@ gtag('config', 'G-6R8FPBQRFH');
         { suffix: 'Median', header: 'Median', format: formatIntOrDecimal, highlight: true },
         { suffix: '99thPercentile', header: '99th %', format: formatIntOrDecimal, highlight: true },
         { suffix: 'MaxAllele', header: 'Max', format: formatIntOrDecimal, highlight: true },
-        { suffix: 'UniqueAlleleLengths', header: 'Distinct Allele Lengths', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'UniqueAlleleLengths', header: 'Unique Allele Lengths', format: (v) => v != null ? v.toLocaleString() : '-' },
         { suffix: 'NumCalledAlleles', header: 'Total Genotyped Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
         { suffix: 'ModeAllele', header: 'Mode', format: formatIntOrDecimal, highlight: true },
         { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },
@@ -3230,8 +3230,8 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav">
-        <a href="#" id="about-link">About</a>
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(1/16/2026)</span></a>
+        <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
         <a href="https://github.com/broadinstitute/TRExplorer/issues/new?title=Add%20TR%20locus%20to%20the%20TRExplorer%20website%20and%20catalog%3A&body=TR%20locus%20coordinates%20%28hg38%29%3A%0A%0ATR%20locus%20motif%20%28or%20motif%20size%29%3A%20%0A%0AI%20suggest%20adding%20this%20TR%20locus%20because%3A%20" target="_blank" style="white-space: nowrap">Suggest TR</a>
