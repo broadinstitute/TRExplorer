@@ -1,8 +1,7 @@
-"""Combines sharded JSON files into single JSON and TSV output files.
+"""Combines sharded JSON files into single JSON output file.
 
 This script finds all TR_catalog shard files matching a specific pattern,
-combines them into a single JSON array, and also outputs a TSV file with
-selected columns. It tracks statistics about field presence across all records.
+combines them into a single JSON array. It tracks statistics about field presence across all records.
 """
 
 import collections
@@ -13,7 +12,8 @@ import re
 import tqdm
 
 # Find all sharded JSON files matching the pattern
-pattern = "TR_catalog.shard_*_of_*.20260108_*.json.gz"
+
+pattern = "TR_catalog.shard_*_of_20.5599658_loci.20260123_033937.json.gz"
 input_file_paths = glob.glob(pattern)
 
 if not input_file_paths:
@@ -32,78 +32,12 @@ if not match:
 
 suffix = match.group(1)  # e.g., "4863041_loci.20250611_144717"
 output_json_path = f"TR_catalog.{suffix}.json.gz"
-output_tsv_path = f"TR_catalog.{suffix}.tsv.gz"
-
-tsv_header = [
-    "LocusId",
-    "ReferenceRegion",
-    "ReferenceMotif",
-    "CanonicalMotif",
-    "MotifSize",
-    "NumRepeatsInReference",
-    "ReferenceRepeatPurity",
-    #"NsInFlanks",
-    "TRsInRegion",
-    "Source",
-    "FlanksAndLocusMappability",
-    "GencodeGeneRegion",
-    "RefseqGeneRegion",
-    "ManeGeneRegion",
-
-    #"LocusStructure",
-    #"HPRC256_AlleleHistogram",
-
-    "HPRC256_MinAllele",
-    "HPRC256_ModeAllele",
-    "HPRC256_Stdev",
-    "HPRC256_Median",
-    "HPRC256_99thPercentile",
-    "HPRC256_MaxAllele",
-    "HPRC256_UniqueAlleles",
-    "HPRC256_NumCalledAlleles",
-
-
-    "AoU1027_MinAllele",
-    "AoU1027_ModeAllele",
-    "AoU1027_Stdev",
-    "AoU1027_Median",
-    "AoU1027_99thPercentile",
-    "AoU1027_MaxAllele",
-    "AoU1027_UniqueAlleles",
-    "AoU1027_NumCalledAlleles",
-    "AoU1027_OE_Length",
-    "AoU1027_OE_LengthPercentile",
-    
-    "GencodeGeneName",
-    #"GencodeGeneId",
-    #"GencodeTranscriptId",
-    "RefseqGeneName",
-    #"RefseqGeneId",
-    #"RefseqTranscriptId",
-    #"TenK10K_AlleleHistogram",
-    "TenK10K_ModeAllele",
-    "TenK10K_Stdev",
-    "TenK10K_Median",
-    "TenK10K_99thPercentile",
-    "ManeGeneName",
-    #"ManeGeneId",
-    #"ManeTranscriptId",
-    #"StdevFromT2TAssemblies",
-    #"AlleleFrequenciesFromT2TAssemblies",
-    "VariationCluster",
-    "VariationClusterSizeDiff",
-    #"KnownDiseaseAssociatedMotif",
-    #"AlleleFrequenciesFromIllumina174k",
-    "StdevFromIllumina174k",
-    #"KnownDiseaseAssociatedLocus",
-]
 
 # Combine all shards into a single output file
 total_rows = 0
 key_counters = collections.Counter()
-with gzip.open(output_json_path, "wt") as out_json, gzip.open(output_tsv_path, "wt") as out_tsv:
+with gzip.open(output_json_path, "wt") as out_json:
     out_json.write("[")
-    out_tsv.write("\t".join(tsv_header) + "\n")
     first_object = True
     for path in sorted(input_file_paths):
         print(f"Processing {path}")
@@ -129,13 +63,10 @@ with gzip.open(output_json_path, "wt") as out_json, gzip.open(output_tsv_path, "
                     if v is not None:
                         key_counters[k] += 1
 
-                # write to tsv
-                out_tsv.write("\t".join([str(record.get(k, "")) for k in tsv_header]) + "\n")
-
     out_json.write("\n]")
 
 
-print(f"Wrote {total_rows:,d} records from {len(input_file_paths)} shards to {output_json_path} and {output_tsv_path}")
+print(f"Wrote {total_rows:,d} records from {len(input_file_paths)} shards to {output_json_path}") 
 
 for k, c in sorted(key_counters.items(), key=lambda i: -i[1]):
     print(f"{c:10,d} out of {total_rows:,d} ({c/total_rows:.1%}) rows have {k}")

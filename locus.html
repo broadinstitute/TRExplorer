@@ -652,6 +652,11 @@ gtag('config', 'G-6R8FPBQRFH');
             console.warn("Sequence is empty")
             return
         }
+
+        if (sequence.length > 1000) {
+            return
+        }
+
         const separatorPositions = []
         const filteredSequenceChars = []
         for (const c of sequence) {
@@ -669,7 +674,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const size = matrix.length;
         const scaledSize = size * pixelsPerCell;
-        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+
+        let pixelData;
+        try {
+            pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        } catch (e) {
+            console.error(`Failed to allocate dot plot buffer (size: ${scaledSize}x${scaledSize}, sequence length: ${filteredSequence.length}):`, e)
+            return
+        }
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
                 const value = matrix[i][j];
@@ -2764,7 +2776,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: '# of Repeats',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NumRepeatsInReference'],
-            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'].toLocaleString() : ''),
             getSortColumns: () => ['NumRepeatsInReference'],
             getRequiredColumns: () => ['NumRepeatsInReference']
         },
@@ -2925,6 +2937,12 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
                 const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
+
+                // Skip if region is too large or sequence data not available (NULL from SQL CASE)
+                if (row["ReferenceRegionSize"] + 2 * flankSize > 1000 || !row["ReferenceRepeatSequence"]) {
+                    return ''
+                }
+
                 const leftFlank = row["ReferenceLeftFlank"].slice(-flankSize)
                 const rightFlank = row["ReferenceRightFlank"].slice(0, flankSize)
 

@@ -653,6 +653,11 @@ gtag('config', 'G-6R8FPBQRFH');
             console.warn("Sequence is empty")
             return
         }
+
+        if (sequence.length > 1000) {
+            return
+        }
+
         const separatorPositions = []
         const filteredSequenceChars = []
         for (const c of sequence) {
@@ -670,7 +675,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const size = matrix.length;
         const scaledSize = size * pixelsPerCell;
-        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+
+        let pixelData;
+        try {
+            pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        } catch (e) {
+            console.error(`Failed to allocate dot plot buffer (size: ${scaledSize}x${scaledSize}, sequence length: ${filteredSequence.length}):`, e)
+            return
+        }
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
                 const value = matrix[i][j];
@@ -2765,7 +2777,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: '# of Repeats',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NumRepeatsInReference'],
-            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'].toLocaleString() : ''),
             getSortColumns: () => ['NumRepeatsInReference'],
             getRequiredColumns: () => ['NumRepeatsInReference']
         },
@@ -2926,6 +2938,12 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
                 const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
+
+                // Skip if region is too large or sequence data not available (NULL from SQL CASE)
+                if (row["ReferenceRegionSize"] + 2 * flankSize > 1000 || !row["ReferenceRepeatSequence"]) {
+                    return ''
+                }
+
                 const leftFlank = row["ReferenceLeftFlank"].slice(-flankSize)
                 const rightFlank = row["ReferenceRightFlank"].slice(0, flankSize)
 
@@ -3312,7 +3330,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         </span>
                     </div>
                     <div class="ui action input">
-                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a comma-separated list of these">
+                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these">
                         <button id="filter-button" class="ui basic icon button" type="button" data-html="Show or hide additional TR filters" data-position="top center"><i class="filter icon rotated" style="transition: transform 0.3s;"></i></button>
                         <button id="search-button" class="ui primary button" type="submit">Search</button>
                     </div>
@@ -4811,8 +4829,8 @@ gtag('config', 'G-6R8FPBQRFH');
         searchQuery = searchQuery.trim()
         searchQuery = searchQuery.replace(/[–—−‐‑‒﹘﹣－‾]/g, '-') // Replace all unicode dash types with a regular dash
 
-        // split by comma except where the comma is part of a large number (eg. 1,234,567)
-        const searchQueryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+        // split by comma (except where the comma is part of a large number like 1,234,567) or whitespace
+        const searchQueryValues = searchQuery.split(/,(?!\d{3})|\s+/).map(q => q.trim()).filter(q => q !== '')
 
         return searchQueryValues
     }
@@ -5165,7 +5183,15 @@ gtag('config', 'G-6R8FPBQRFH');
             const sortColumns = TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom', 'start_0based']
             const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
 
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
+            const selectClauseColumns = selectedColumns.map(col => {
+                if (col === 'ReferenceRepeatSequence' || col === 'ReferenceLeftFlank' || col === 'ReferenceRightFlank') {
+                    return `CASE WHEN ReferenceRegionSize <= 10000 THEN ${col} ELSE NULL END AS ${col}`
+                }
+                return col
+            })
+
+            const query = `SELECT ${selectClauseColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
 
             const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
             const pageSize = GLOBAL_PAGE_STATE['pageSize']

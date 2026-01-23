@@ -1039,7 +1039,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: '# of Repeats',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NumRepeatsInReference'],
-            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'].toLocaleString() : ''),
             getSortColumns: () => ['NumRepeatsInReference'],
             getRequiredColumns: () => ['NumRepeatsInReference']
         },
