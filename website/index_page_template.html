@@ -920,13 +920,12 @@
         const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
         const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
 
-        // Compute which export columns should be pre-selected based on visible table columns
-        const preSelectedExportColumns = new Set()
-        visibleColumnNames.forEach(columnName => {
-            if (TABLE_COLUMNS[columnName]) {
-                TABLE_COLUMNS[columnName].getRequiredColumns().forEach(col => preSelectedExportColumns.add(col))
-            }
-        })
+        // Load saved export column selections from localStorage, or fall back to visible table columns
+        const savedSelections = localStorage.getItem('exportColumnSelections')
+        const preSelectedExportColumns = savedSelections
+            ? new Set(JSON.parse(savedSelections))
+            : new Set(visibleColumnNames.flatMap(columnName =>
+                TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
 
         // Build checkboxes grouped by category
         const checkboxesContainer = $('#export-column-checkboxes')
@@ -1136,6 +1135,9 @@
             alert('Please select at least one column to export.')
             return
         }
+
+        // Save selections to localStorage
+        localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
 
         // Hide the dialog
         $('#export-column-dialog').modal('hide')

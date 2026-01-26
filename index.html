@@ -655,6 +655,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         if (sequence.length > 1000) {
+            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
             return
         }
 
@@ -2938,12 +2939,6 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
                 const flankSize = Math.max(24, row["ReferenceMotif"].length * 5)
-
-                // Skip if region is too large or sequence data not available (NULL from SQL CASE)
-                if (row["ReferenceRegionSize"] + 2 * flankSize > 1000 || !row["ReferenceRepeatSequence"]) {
-                    return ''
-                }
-
                 const leftFlank = row["ReferenceLeftFlank"].slice(-flankSize)
                 const rightFlank = row["ReferenceRightFlank"].slice(0, flankSize)
 
@@ -4165,13 +4160,12 @@ gtag('config', 'G-6R8FPBQRFH');
         const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
         const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
 
-        // Compute which export columns should be pre-selected based on visible table columns
-        const preSelectedExportColumns = new Set()
-        visibleColumnNames.forEach(columnName => {
-            if (TABLE_COLUMNS[columnName]) {
-                TABLE_COLUMNS[columnName].getRequiredColumns().forEach(col => preSelectedExportColumns.add(col))
-            }
-        })
+        // Load saved export column selections from localStorage, or fall back to visible table columns
+        const savedSelections = localStorage.getItem('exportColumnSelections')
+        const preSelectedExportColumns = savedSelections
+            ? new Set(JSON.parse(savedSelections))
+            : new Set(visibleColumnNames.flatMap(columnName =>
+                TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
 
         // Build checkboxes grouped by category
         const checkboxesContainer = $('#export-column-checkboxes')
@@ -4381,6 +4375,9 @@ gtag('config', 'G-6R8FPBQRFH');
             alert('Please select at least one column to export.')
             return
         }
+
+        // Save selections to localStorage
+        localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
 
         // Hide the dialog
         $('#export-column-dialog').modal('hide')
