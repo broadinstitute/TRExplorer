@@ -297,9 +297,8 @@ for catalog_path in args.known_disease_associated_loci:
         if reference_region in known_disease_associated_loci:
             continue
 
-        # For JSON files with disease info, require Diseases field
-        # For BED files (no Diseases field), include all loci
-        if "Diseases" not in record and ".json" in catalog_path:
+        # Require non-empty Diseases field with actual disease names
+        if not any(d.get("Name") for d in record.get("Diseases", [])):
             continue
 
         # Extract motif from LocusStructure if RepeatUnit not present
@@ -307,10 +306,6 @@ for catalog_path in args.known_disease_associated_loci:
             motif_match = re.match(r"^[(]([A-Z]+)[)][+*]", record["LocusStructure"])
             if motif_match:
                 record["RepeatUnit"] = motif_match.group(1)
-
-        # For BED files, add placeholder Diseases field
-        if "Diseases" not in record:
-            record["Diseases"] = [{"Symbol": record["LocusId"]}]
 
         record["MainReferenceRegion"] = reference_region
         known_disease_associated_loci[reference_region] = record
@@ -323,12 +318,53 @@ print(", ".join(sorted(known_disease_associated_locus_ids)))
 
 strchive_data_json = requests.get("https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/STRchive-loci.json").json()
 strchive_id_lookup = {}
+strchive_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
+strchive_loci_with_disease = 0
 for locus in strchive_data_json:
     strchive_gene = locus["gene"].upper()
     strchive_locus_id = locus["id"].upper()
     if strchive_gene in strchive_id_lookup:
         print(f"WARNING: {strchive_gene} already has an ID in strchive_gene_to_id: {strchive_id_lookup[strchive_gene]}")
     strchive_id_lookup[strchive_gene] = strchive_locus_id
+
+    # Build STRchive interval tree for overlap matching (only for loci with disease names)
+    if locus.get("disease") and locus.get("chrom") and locus.get("start_hg38") and locus.get("stop_hg38"):
+        strchive_interval_trees[locus["chrom"].replace("chr", "")].addi(int(locus["start_hg38"]), int(locus["stop_hg38"]), data={
+            "id": strchive_locus_id,
+            "gene": strchive_gene,
+            "motif": (locus.get("reference_motif_reference_orientation") or [None])[0],
+            # Store all relevant STRchive fields for DiseaseInfo
+            "disease": locus.get("disease"),
+            "disease_description": locus.get("disease_description"),
+            "inheritance": locus.get("inheritance"),
+            "age_onset": locus.get("age_onset"),
+            "age_onset_min": locus.get("age_onset_min"),
+            "age_onset_max": locus.get("age_onset_max"),
+            "typ_age_onset_min": locus.get("typ_age_onset_min"),
+            "typ_age_onset_max": locus.get("typ_age_onset_max"),
+            "prevalence": locus.get("prevalence"),
+            "prevalence_details": locus.get("prevalence_details"),
+            "benign_min": locus.get("benign_min"),
+            "benign_max": locus.get("benign_max"),
+            "intermediate_min": locus.get("intermediate_min"),
+            "intermediate_max": locus.get("intermediate_max"),
+            "pathogenic_min": locus.get("pathogenic_min"),
+            "pathogenic_max": locus.get("pathogenic_max"),
+            "mechanism": locus.get("mechanism"),
+            "mechanism_detail": locus.get("mechanism_detail"),
+            "year": locus.get("year"),
+            # External database IDs
+            "omim": locus.get("omim"),
+            "mondo": locus.get("mondo"),
+            "medgen": locus.get("medgen"),
+            "orphanet": locus.get("orphanet"),
+            "gard": locus.get("gard"),
+            "malacard": locus.get("malacard"),
+            "genereviews": locus.get("genereviews"),
+        })
+        strchive_loci_with_disease += 1
+
+print(f"Built STRchive interval tree with {strchive_loci_with_disease} disease-associated loci")
 
 strchive_id_lookup["ARX_1"] = strchive_id_lookup["ARX"]
 strchive_id_lookup["ARX_2"] = strchive_id_lookup["ARX"]
@@ -352,7 +388,7 @@ for locus_id in known_disease_associated_locus_ids:
 for locus_id in set(strchive_id_lookup.keys()) - {x["LocusId"] for x in known_disease_associated_loci.values()}:
     print(f"WARNING: {locus_id} is in STRchive but not in {args.known_disease_associated_loci}")
 
-known_disease_associated_loci_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
+# Add STRchive and STRipy IDs to known_disease_associated_loci entries (for exact matching)
 for reference_region, locus_info in known_disease_associated_loci.items():
     if locus_info["LocusId"] in strchive_id_lookup:
         locus_info["STRchiveId"] = strchive_id_lookup[locus_info["LocusId"]]
@@ -364,10 +400,7 @@ for reference_region, locus_info in known_disease_associated_loci.items():
     else:
         print(f"WARNING: {locus_info['LocusId']} is not in STRipy")
 
-    chrom, start_0based, end_1based = parse_interval(reference_region)
-    known_disease_associated_loci_interval_trees[chrom].addi(start_0based, end_1based, data=locus_info)
-
-    # drop all keys from  locus_info except LocusId, STRchiveId, and Diseases
+    # Keep only the fields needed for DiseaseInfo
     known_disease_associated_loci[reference_region] = {
         key: locus_info[key] for key in ["LocusId", "STRchiveId", "STRipyId", "Diseases", "RepeatUnit"] if key in locus_info
     }
@@ -546,24 +579,85 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
 
     catalog_reference_region = record["ReferenceRegion"].replace("chr", "")
     if catalog_reference_region in known_disease_associated_loci:
+        # Exact match in known_disease_associated_loci
         known_locus_info = known_disease_associated_loci[catalog_reference_region]
         locus_ids_with_added_disease_info.add(known_locus_info["LocusId"])
         record["DiseaseInfo"] = json.dumps(known_locus_info)
         #print(f"Added disease info for locus #{len(locus_ids_with_added_disease_info)}:", known_locus_info["LocusId"])
     else:
+        # Check for overlap with STRchive loci (must have disease name)
         chrom, start_0based, end_1based = parse_interval(catalog_reference_region)
-        for overlapping_interval in known_disease_associated_loci_interval_trees[chrom].overlap(start_0based, end_1based):
-            known_locus_info = overlapping_interval.data
-            known_locus_canonical_motif = compute_canonical_motif(known_locus_info["RepeatUnit"])
-            catalog_record_canonical_motif = compute_canonical_motif(record["ReferenceMotif"])
+        catalog_motif = record["ReferenceMotif"]
+        catalog_motif_len = len(catalog_motif) if catalog_motif else 0
 
-            if known_locus_canonical_motif == catalog_record_canonical_motif and overlapping_interval.overlap_size(start_0based, end_1based) > len(catalog_record_canonical_motif):
-                record["DiseaseInfo"] = json.dumps(known_locus_info)
-                locus_ids_with_added_disease_info.add(known_locus_info["LocusId"])
+        for overlapping_interval in strchive_interval_trees[chrom].overlap(start_0based, end_1based):
+            strchive_locus = overlapping_interval.data
+            strchive_motif = strchive_locus.get("motif")
+
+            # Check motif match based on length:
+            # - For motifs 1-6bp: require same canonical motif
+            # - For motifs >6bp: require same motif length
+            motif_matches = False
+            if catalog_motif and strchive_motif:
+                strchive_motif_len = len(strchive_motif)
+                if catalog_motif_len <= 6:
+                    # Same canonical motif required
+                    catalog_canonical = compute_canonical_motif(catalog_motif)
+                    strchive_canonical = compute_canonical_motif(strchive_motif)
+                    motif_matches = (catalog_canonical == strchive_canonical)
+                else:
+                    # Same motif length required
+                    motif_matches = (catalog_motif_len == strchive_motif_len)
+
+            if motif_matches:
+                # Build DiseaseInfo from STRchive data (only include non-empty fields)
+                disease_info = {
+                    "LocusId": strchive_locus["gene"],
+                    "STRchiveId": strchive_locus["id"],
+                    "Diseases": [{"Name": strchive_locus["disease"], "Symbol": strchive_locus["gene"]}],
+                }
+                # Add STRipy ID if available
+                if strchive_locus["gene"] in stripy_id_lookup:
+                    disease_info["STRipyId"] = stripy_id_lookup[strchive_locus["gene"]]
+
+                # Add additional STRchive fields if non-empty
+                strchive_field_mapping = {
+                    "disease_description": "DiseaseDescription",
+                    "inheritance": "Inheritance",
+                    "age_onset": "AgeOnset",
+                    "age_onset_min": "AgeOnsetMin",
+                    "age_onset_max": "AgeOnsetMax",
+                    "typ_age_onset_min": "TypicalAgeOnsetMin",
+                    "typ_age_onset_max": "TypicalAgeOnsetMax",
+                    "prevalence": "Prevalence",
+                    "prevalence_details": "PrevalenceDetails",
+                    "benign_min": "BenignMin",
+                    "benign_max": "BenignMax",
+                    "intermediate_min": "IntermediateMin",
+                    "intermediate_max": "IntermediateMax",
+                    "pathogenic_min": "PathogenicMin",
+                    "pathogenic_max": "PathogenicMax",
+                    "mechanism": "Mechanism",
+                    "mechanism_detail": "MechanismDetail",
+                    "year": "YearDiscovered",
+                    "omim": "OMIM",
+                    "mondo": "MONDO",
+                    "medgen": "MedGen",
+                    "orphanet": "Orphanet",
+                    "gard": "GARD",
+                    "malacard": "MalaCard",
+                    "genereviews": "GeneReviews",
+                }
+                for strchive_key, disease_info_key in strchive_field_mapping.items():
+                    if strchive_locus.get(strchive_key):
+                        disease_info[disease_info_key] = strchive_locus[strchive_key]
+
+                record["DiseaseInfo"] = json.dumps(disease_info)
+                locus_ids_with_added_disease_info.add(strchive_locus["gene"])
                 print()
-                print(f"Added disease info for overlapping locus #{len(locus_ids_with_added_disease_info)}:", known_locus_info["LocusId"])
-                print(f"    Known locus definition: {known_locus_info['ReferenceRegion']} {known_locus_info['RepeatUnit']}")
-                print(f"  Catalog locus definition: {record['ReferenceRegion']} {record['ReferenceMotif']}")
+                print(f"Added disease info for STRchive-overlapping locus #{len(locus_ids_with_added_disease_info)}:", strchive_locus["gene"])
+                print(f"    STRchive locus: {strchive_locus['id']} motif={strchive_motif}")
+                print(f"    Catalog locus: {record['ReferenceRegion']} motif={catalog_motif}")
                 break
 
     if record.get("StdevFromIllumina174k") and not record.get("AlleleFrequenciesFromIllumina174k"):
