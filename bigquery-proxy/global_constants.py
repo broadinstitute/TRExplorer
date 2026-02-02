@@ -18,6 +18,8 @@ EXPORT_GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
 EXPORT_GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
 EXPORT_GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
 EXPORT_GROUP_VAMOS = "Vamos"
+EXPORT_GROUP_SC_ETRS = "sc-eTRs (Tanudisastro 2024)"
+EXPORT_GROUP_PHEWAS = "PheWAS (Manigbas 2024)"
 
 
 BIGQUERY_COLUMNS = [
@@ -166,6 +168,22 @@ BIGQUERY_COLUMNS = [
         "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.",
         "displayName": "Source",
         "group": EXPORT_GROUP_CORE,
+    },
+
+    # Non-overlapping locus flags
+    {
+        "type": "INTEGER",
+        "name": "NonOverlappingLongestLocus",
+        "description": "Whether this is the longest locus among overlapping loci at this position (1 = yes, 0 = no).",
+        "displayName": "Non-Overlapping Longest",
+        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+    },
+    {
+        "type": "INTEGER",
+        "name": "NonOverlappingPurestLocus",
+        "description": "Whether this is the purest locus among overlapping loci at this position (1 = yes, 0 = no).",
+        "displayName": "Non-Overlapping Purest",
+        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
     },
 
     # Source catalog membership flags
@@ -684,6 +702,55 @@ BIGQUERY_COLUMNS = [
         "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them.",
         "displayName": "Include In Vamos Catalog",
         "group": EXPORT_GROUP_VAMOS,
+    },
+
+    # Tanudisastro 2024 sc-eTR data
+    {
+        "type": "STRING",
+        "name": "Tanudisastro2024_LocusId",
+        "description": "Original locus ID from Tanudisastro et al. 2024. May differ from TRExplorer LocusId if matched via Jaccard similarity.",
+    },
+    {
+        "type": "STRING",
+        "name": "Tanudisastro2024_SignificantCellTypes",
+        "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.",
+        "displayName": "sc-eTRs: Cell Types",
+        "group": EXPORT_GROUP_SC_ETRS,
+    },
+    {
+        "type": "FLOAT",
+        "name": "Tanudisastro2024_MinPvalue",
+        "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.",
+        "displayName": "sc-eTRs: Min P-value",
+        "group": EXPORT_GROUP_SC_ETRS,
+    },
+    {
+        "type": "STRING",
+        "name": "Tanudisastro2024_Details",
+        "description": "JSON with per-cell-type sc-eTR details (p-value, effect size, eGene, rank) from Tanudisastro et al. 2024.",
+    },
+
+    # Manigbas 2024 PheWAS data
+    {
+        "type": "STRING",
+        "name": "Manigbas2024_AssociatedTraits",
+        "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.",
+        "displayName": "PheWAS: Traits",
+        "group": EXPORT_GROUP_PHEWAS,
+    },
+    {
+        "type": "FLOAT",
+        "name": "Manigbas2024_MinPvalue",
+        "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations.",
+        "displayName": "PheWAS: Min P-value",
+        "group": EXPORT_GROUP_PHEWAS,
+    },
+    {
+        "type": "STRING",
+        "name": "Manigbas2024_Details",
+        "description": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId.",
+        "displayName": "PheWAS: Details",
+        "group": EXPORT_GROUP_PHEWAS,
     },
 
     # Reference sequence data
