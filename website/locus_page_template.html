@@ -197,7 +197,6 @@
         "ReferenceRightFlank",
 
         "Tanudisastro2024_SignificantCellTypes",
-        "Tanudisastro2024_LocusId",
         "Tanudisastro2024_MinPvalue",
         "Tanudisastro2024_Details",
 
@@ -349,7 +348,7 @@
             console.error('Failed to parse Tanudisastro2024_Details:', e)
             return '<div class="ui error message">Error loading sc-eTR details</div>'
         }
-        const tanudisastroLocusId = row['Tanudisastro2024_LocusId']
+        const tanudisastroLocusId = details.Tanudisastro2024_LocusId
         const isFuzzyMatch = tanudisastroLocusId !== row['LocusId']
 
         let html = '<h4>sc-eTRs (Tanudisastro et al. 2024)</h4>'

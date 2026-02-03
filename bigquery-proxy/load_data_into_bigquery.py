@@ -411,6 +411,19 @@ for reference_region, locus_info in known_disease_associated_loci.items():
         key: locus_info[key] for key in ["LocusId", "STRchiveId", "STRipyId", "Diseases", "RepeatUnit"] if key in locus_info
     }
 
+# Build interval tree for known_disease_associated_loci (for overlap-based matching)
+known_disease_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
+for reference_region, locus_info in known_disease_associated_loci.items():
+    chrom, start_0based, end_1based = parse_interval(reference_region)
+    motif = locus_info.get("RepeatUnit")
+    known_disease_interval_trees[chrom].addi(start_0based, end_1based, data={
+        "LocusId": locus_info["LocusId"],
+        "motif": motif,
+        "locus_info": locus_info,
+    })
+
+print(f"Built known disease interval tree with {sum(len(t) for t in known_disease_interval_trees.values())} loci")
+
 ## Compute GangSTR catalog lookup
 
 # Example row: chr11	98522293	98522307	3	AAC	AACAACAACAACAAC
@@ -601,39 +614,59 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
     motif_match = re.match(r"^[(]([A-Z]+)[)][+*]", record["LocusStructure"])
     record["ReferenceMotif"] = motif_match.group(1) if motif_match else None
 
+    # Match catalog loci to known disease-associated loci using overlap with Jaccard > 0.66
     catalog_reference_region = record["ReferenceRegion"].replace("chr", "")
-    if catalog_reference_region in known_disease_associated_loci:
-        # Exact match in known_disease_associated_loci
-        known_locus_info = known_disease_associated_loci[catalog_reference_region]
-        locus_ids_with_added_disease_info.add(known_locus_info["LocusId"])
-        record["DiseaseInfo"] = json.dumps(known_locus_info)
-        #print(f"Added disease info for locus #{len(locus_ids_with_added_disease_info)}:", known_locus_info["LocusId"])
-    else:
-        # Check for overlap with STRchive loci (must have disease name)
-        chrom, start_0based, end_1based = parse_interval(catalog_reference_region)
-        catalog_motif = record["ReferenceMotif"]
-        catalog_motif_len = len(catalog_motif) if catalog_motif else 0
+    catalog_chrom, catalog_start, catalog_end = parse_interval(catalog_reference_region)
+    catalog_motif = record["ReferenceMotif"]
+    catalog_motif_len = len(catalog_motif) if catalog_motif else 0
+    catalog_size = catalog_end - catalog_start
 
-        for overlapping_interval in strchive_interval_trees[chrom].overlap(start_0based, end_1based):
+    def compute_jaccard(interval_begin, interval_end):
+        """Compute Jaccard index between catalog interval and given interval."""
+        overlap_start = max(catalog_start, interval_begin)
+        overlap_end = min(catalog_end, interval_end)
+        if overlap_start >= overlap_end:
+            return 0.0
+        overlap_size = overlap_end - overlap_start
+        interval_size = interval_end - interval_begin
+        union_size = catalog_size + interval_size - overlap_size
+        return overlap_size / union_size if union_size > 0 else 0.0
+
+    def motifs_match(other_motif):
+        """Check if motifs match based on length-dependent criteria."""
+        if not catalog_motif or not other_motif:
+            return False
+        other_motif_len = len(other_motif)
+        if catalog_motif_len <= 6:
+            return compute_canonical_motif(catalog_motif) == compute_canonical_motif(other_motif)
+        else:
+            return catalog_motif_len == other_motif_len
+
+    # Path 1: Check known disease-associated loci interval tree
+    matched_gnomAD_known_disease_associated_locus = False
+    for overlapping_interval in known_disease_interval_trees[catalog_chrom].overlap(catalog_start, catalog_end):
+        jaccard = compute_jaccard(overlapping_interval.begin, overlapping_interval.end)
+        if jaccard <= 0.66:
+            continue
+
+        known_locus = overlapping_interval.data
+        if motifs_match(known_locus.get("motif")):
+            locus_ids_with_added_disease_info.add(known_locus["LocusId"])
+            record["DiseaseInfo"] = json.dumps(known_locus["locus_info"])
+            matched_gnomAD_known_disease_associated_locus = True
+            break
+
+    # Path 2: Fallback to STRchive interval tree (for STRchive-only loci)
+    if not matched_gnomAD_known_disease_associated_locus:
+        for overlapping_interval in strchive_interval_trees[catalog_chrom].overlap(catalog_start, catalog_end):
+            jaccard = compute_jaccard(overlapping_interval.begin, overlapping_interval.end)
+            if jaccard <= 0.66:
+                continue
+
             strchive_locus = overlapping_interval.data
             strchive_motif = strchive_locus.get("motif")
 
-            # Check motif match based on length:
-            # - For motifs 1-6bp: require same canonical motif
-            # - For motifs >6bp: require same motif length
-            motif_matches = False
-            if catalog_motif and strchive_motif:
-                strchive_motif_len = len(strchive_motif)
-                if catalog_motif_len <= 6:
-                    # Same canonical motif required
-                    catalog_canonical = compute_canonical_motif(catalog_motif)
-                    strchive_canonical = compute_canonical_motif(strchive_motif)
-                    motif_matches = (catalog_canonical == strchive_canonical)
-                else:
-                    # Same motif length required
-                    motif_matches = (catalog_motif_len == strchive_motif_len)
-
-            if motif_matches:
+            if motifs_match(strchive_motif):
                 # Build DiseaseInfo from STRchive data (only include non-empty fields)
                 disease_info = {
                     "LocusId": strchive_locus["gene"],
@@ -677,11 +710,12 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
                         disease_info[disease_info_key] = strchive_locus[strchive_key]
 
                 record["DiseaseInfo"] = json.dumps(disease_info)
-                locus_ids_with_added_disease_info.add(strchive_locus["gene"])
+                # Don't add to locus_ids_with_added_disease_info for STRchive-only matches
+                # since these aren't in known_disease_associated_locus_ids
                 print()
-                print(f"Added disease info for STRchive-overlapping locus #{len(locus_ids_with_added_disease_info)}:", strchive_locus["gene"])
-                print(f"    STRchive locus: {strchive_locus['id']} motif={strchive_motif}")
-                print(f"    Catalog locus: {record['ReferenceRegion']} motif={catalog_motif}")
+                print(f"Added disease info for STRchive-only locus: {strchive_locus['gene']}")
+                print(f"    STRchive: {strchive_locus['id']} motif={strchive_motif} Jaccard={jaccard:.2f}")
+                print(f"    Catalog: {record['ReferenceRegion']} motif={catalog_motif}")
                 break
 
     if record.get("StdevFromIllumina174k") and not record.get("AlleleFrequenciesFromIllumina174k"):
@@ -789,7 +823,6 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
     if record["LocusId"] in tanudisastro_2024_lookup:
         counters["rows_with_tanudisastro_2024_data"] += 1
         t2024_data = tanudisastro_2024_lookup[record["LocusId"]]
-        record["Tanudisastro2024_LocusId"] = t2024_data["Tanudisastro2024_LocusId"]
         record["Tanudisastro2024_SignificantCellTypes"] = t2024_data["SignificantCellTypes"]
         record["Tanudisastro2024_MinPvalue"] = t2024_data["MinPvalue"]
         record["Tanudisastro2024_Details"] = json.dumps(t2024_data["Details"])
@@ -832,9 +865,11 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
 if rows_to_insert:
     insert_with_retries(new_table_ref, rows_to_insert)
 
+missing_locus_ids_with_disease_info = known_disease_associated_locus_ids - locus_ids_with_added_disease_info
 if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_ids):
-    print(f"WARNING: {len(known_disease_associated_locus_ids) - len(locus_ids_with_added_disease_info)} out of {len(known_disease_associated_locus_ids)} known disease-associated loci were not found in the catalog. "
-           "Missing LocusIds:", ", ".join(known_disease_associated_locus_ids - locus_ids_with_added_disease_info))
+    print(f"WARNING: After adding {len(locus_ids_with_added_disease_info)} known disease-associated loci, {len(missing_locus_ids_with_disease_info)} known disease-associated locus ids appear to be missing from the catalog. "
+           "Missing locus ids:", ", ".join(missing_locus_ids_with_disease_info))
+    print(f"Added known disease-associated locus ids: ", ", ".join(locus_ids_with_added_disease_info))
 
 for html_path in "../website/header_template.html", "../index.html", "../locus.html":
     print(f"Update TABLE_ID to '{new_table_id}' in {html_path}")
@@ -872,7 +907,7 @@ for key, count in sorted(counters.items(), key=lambda x: x[1], reverse=True):
 # Update the data_last_updated_date.json file
 data_last_updated_path = "../website/data_last_updated_date.json"
 data_last_updated = {
-    "data_last_updated_date": datetime.datetime.now().strftime("%-m/%-d/%Y %H:%M"),
+    "data_last_updated_date": datetime.datetime.now().strftime("%-m/%-d/%Y"),
     "data_last_updated_details": args.reason,
 }
 with open(data_last_updated_path, "w") as f:

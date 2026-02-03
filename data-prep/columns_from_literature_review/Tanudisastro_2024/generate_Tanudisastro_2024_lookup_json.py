@@ -5,11 +5,10 @@ TRExplorer catalog using exact matching (by locus ID) or fuzzy matching (by inte
 overlap and motif similarity).
 
 Output is a JSON lookup table keyed by TRExplorer locus ID containing:
-- Tanudisastro2024_LocusId: the original locus ID from the source data
-- MatchType: "exact" or "fuzzy"
 - SignificantCellTypes: comma-separated list of cell types, ordered by p-value
 - MinPvalue: minimum p-value across all cell types
-- Details: per-cell-type information (pvalue, effectSize, eGene, rank, totalInCellType)
+- Details: contains Tanudisastro2024_LocusId, MatchType, and per-cell-type information
+  (pvalue, effectSize, eGene, rank, totalInCellType)
 """
 
 import argparse
@@ -235,7 +234,10 @@ def main():
 
         # Build details dict, sorted by p-value
         sorted_rows = sorted(rows, key=lambda r: r['nominal p-value'])
-        details = {}
+        details = {
+            "Tanudisastro2024_LocusId": tanudisastro_locus_id,
+            "MatchType": match_type,
+        }
         for row in sorted_rows:
             cell_type = row['cell_type']
             details[cell_type] = {
@@ -247,9 +249,7 @@ def main():
             }
 
         output_lookup[trexplorer_locus_id] = {
-            "Tanudisastro2024_LocusId": tanudisastro_locus_id,
-            "MatchType": match_type,
-            "SignificantCellTypes": ",".join(details.keys()),
+            "SignificantCellTypes": ",".join(ct for ct in details.keys() if ct not in ("Tanudisastro2024_LocusId", "MatchType")),
             "MinPvalue": min_pvalue,
             "Details": details,
         }

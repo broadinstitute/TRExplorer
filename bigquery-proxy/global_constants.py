@@ -707,11 +707,6 @@ BIGQUERY_COLUMNS = [
     # Tanudisastro 2024 sc-eTR data
     {
         "type": "STRING",
-        "name": "Tanudisastro2024_LocusId",
-        "description": "Original locus ID from Tanudisastro et al. 2024. May differ from TRExplorer LocusId if matched via Jaccard similarity.",
-    },
-    {
-        "type": "STRING",
         "name": "Tanudisastro2024_SignificantCellTypes",
         "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.",
         "displayName": "sc-eTRs: Cell Types",

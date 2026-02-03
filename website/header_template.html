@@ -102,7 +102,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260114_220309'
+    const TABLE_ID = 'catalog_20260202_081858'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -525,7 +525,7 @@ gtag('config', 'G-6R8FPBQRFH');
         //const color = GENE_REGION_COLORS[geneRegion]
         const regionRename = {
             'CDS': 'coding',
-            'exon': 'exon (non-coding gene)'
+            //'exon': 'exon (non-coding gene)'
         }
         return `${regionRename[geneRegion] || geneRegion}`
     }
@@ -900,13 +900,13 @@ gtag('config', 'G-6R8FPBQRFH');
             console.error('Failed to parse Tanudisastro2024_Details:', e)
             return '<div>Error loading details</div>'
         }
-        const tanudisastroLocusId = row['Tanudisastro2024_LocusId']
+        const tanudisastroLocusId = details.Tanudisastro2024_LocusId
         const trexplorerLocusId = row['LocusId']
 
-        let html = '<div style="max-width: 500px;">'
+        let html = '<div style="overflow-x: auto;">'
 
-        // Add note if locus IDs differ (fuzzy match)
-        if (tanudisastroLocusId !== trexplorerLocusId) {
+        // Add note if locus IDs differ (fuzzy match) - only if tanudisastroLocusId exists
+        if (tanudisastroLocusId && tanudisastroLocusId !== trexplorerLocusId) {
             html += `<div style="background: #fff3cd; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
                 <i class="info circle icon"></i>
                 <b>Note:</b> Matched via coordinate overlap (Jaccard >= 0.2).<br/>
@@ -915,9 +915,9 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         // Table with details sorted by p-value
-        html += `<table class="ui compact table">
+        html += `<table class="ui compact table" style="white-space: nowrap;">
             <thead><tr>
-                <th>Cell Type</th><th>eGene</th><th>P-value</th><th>Effect Size</th><th>Rank</th>
+                <th>Cell Type</th><th>eGene</th><th style="text-align: right;">P-value</th><th style="text-align: right;">Effect Size</th><th style="text-align: right;">P-value Rank</th>
             </tr></thead><tbody>`
 
         // Sort cell types by p-value (most significant first)
@@ -933,9 +933,9 @@ gtag('config', 'G-6R8FPBQRFH');
             html += `<tr>
                 <td>${cellType}</td>
                 <td>${d.eGene || ''}</td>
-                <td>${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
-                <td>${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
-                <td>${d.rank || ''} / ${d.totalInCellType || ''}</td>
+                <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
+                <td style="text-align: right;">${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
+                <td style="text-align: right;">${d.rank || ''} / ${d.totalInCellType || ''}</td>
             </tr>`
         }
 
@@ -958,15 +958,15 @@ gtag('config', 'G-6R8FPBQRFH');
         // Details is now directly keyed by trait names
         const traitNames = Object.keys(details)
 
-        let html = '<div style="max-width: 600px;">'
+        let html = '<div style="overflow-x: auto;">'
 
         if (traitNames.length === 0) {
             html += '<p>This locus was tested in the UK Biobank PheWAS but showed no significant trait associations.</p>'
         } else {
             // Table with details sorted by p-value
-            html += `<table class="ui compact table">
+            html += `<table class="ui compact table" style="white-space: nowrap;">
                 <thead><tr>
-                    <th>Trait</th><th>Type</th><th>P-value</th><th>CAVIAR Prob</th><th>Sample Size</th><th>Replicated</th>
+                    <th>Trait</th><th>Type</th><th style="text-align: right;">P-value</th><th style="text-align: right;">CAVIAR Prob</th><th style="text-align: right;">Sample Size</th><th>Replicated</th>
                 </tr></thead><tbody>`
 
             // Sort traits by p-value (most significant first)
@@ -984,13 +984,13 @@ gtag('config', 'G-6R8FPBQRFH');
                     : '<i class="minus circle grey icon" title="Not replicated"></i>'
                 const caviarColor = d.caviarProbability >= 0.9 ? 'green' : (d.caviarProbability >= 0.5 ? 'orange' : '')
                 html += `<tr>
-                    <td style="max-width: 200px; word-wrap: break-word;">${traitName}</td>
+                    <td>${traitName}</td>
                     <td>${d.traitType || ''}</td>
-                    <td>${d.pvalue != null ? d.pvalue.toExponential(1) : ''}</td>
-                    <td style="color: ${caviarColor}; font-weight: ${caviarColor ? 'bold' : 'normal'};">
+                    <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(1) : ''}</td>
+                    <td style="text-align: right; color: ${caviarColor}; font-weight: ${caviarColor ? 'bold' : 'normal'};">
                         ${d.caviarProbability != null ? (d.caviarProbability * 100).toFixed(1) + '%' : ''}
                     </td>
-                    <td>${d.sampleSize != null ? d.sampleSize.toLocaleString() : ''}</td>
+                    <td style="text-align: right;">${d.sampleSize != null ? d.sampleSize.toLocaleString() : ''}</td>
                     <td>${replicatedIcon}</td>
                 </tr>`
             }
@@ -1328,9 +1328,9 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         },
         Tanudisastro2024_SignificantCellTypes: {
-            displayName: 'sc-eTRs',
+            displayName: 'sc-eTRs 2024',
             defaultSortDirection: 'ASC',
-            helpText: 'Immune cell types with significant sc-eTR associations from Tanudisastro et al. 2024',
+            helpText: 'Immune cell types with significant sc-eTR associations from [<a href=&quot;https://www.biorxiv.org/content/10.1101/2024.11.02.621562&quot; target=&quot;_blank&quot;>Tanudisastro 2024</a>]',
             getValue: (row) => {
                 if (!row['Tanudisastro2024_SignificantCellTypes']) return ''
                 const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
@@ -1353,14 +1353,13 @@ gtag('config', 'G-6R8FPBQRFH');
                 'Tanudisastro2024_SignificantCellTypes',
                 'Tanudisastro2024_Details',
                 'Tanudisastro2024_MinPvalue',
-                'Tanudisastro2024_LocusId',
                 'LocusId'
             ]
         },
         Manigbas2024_AssociatedTraits: {
-            displayName: 'PheWAS',
+            displayName: 'PheWAS 2024',
             defaultSortDirection: 'ASC',  // ASC = lowest p-value first = most significant first
-            helpText: 'Traits with fine-mapped causal TR associations from Manigbas et al. 2024 UK Biobank PheWAS (n=168,554). Empty means tested but no associations found.',
+            helpText: 'Traits with fine-mapped causal TR associations from [<a href=&quot;https://www.nature.com/articles/s41467-024-54678-0&quot; target=&quot;_blank&quot;>Manigbas 2024</a>] UK Biobank PheWAS',
             getValue: (row) => {
                 // Check if locus was tested (has Details) vs not tested (NULL)
                 if (row['Manigbas2024_Details'] === null || row['Manigbas2024_Details'] === undefined) {
