@@ -92,6 +92,3 @@ df['StdevRankTotalNumberByMotif'] = df_grouped_by_motif["TRID"].transform("count
 output_filename = "AoULR_phase1_TRGT_Weisburd_v1_combined.txt.gz"
 df.to_csv(output_filename, sep="\t", index=False, header=True)
 print(f"Wrote {len(df):,} rows to {output_filename}")
-
-
-

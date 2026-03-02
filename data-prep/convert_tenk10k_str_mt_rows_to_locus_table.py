@@ -70,7 +70,7 @@ OUTPUT_HEADER_FIELDS = [
     "median",
     "99th_percentile",
     "max_allele",
-    "unique_alleles",
+    "unique_allele_lengths",
     "num_called_alleles",
     "tenk_10k_vs_catalog_overlap_size",
     "tenk_10k_vs_catalog_size_diff",
@@ -114,7 +114,7 @@ def write_to_output(output_row_data, output_tsv, counters):
         output_row["mean"] = f"{mean:.3f}"
         output_row["min_allele"] = int(np.min(allele_sizes))
         output_row["max_allele"] = int(np.max(allele_sizes))
-        output_row["unique_alleles"] = len(set(allele_sizes))
+        output_row["unique_allele_lengths"] = len(set(allele_sizes))
         output_row["num_called_alleles"] = sum(allele_counts)
 
         output_row["tenk_10k_vs_catalog_overlap_size"] = output_row["found_interval_overlap_size"]

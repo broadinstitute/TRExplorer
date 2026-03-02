@@ -85,6 +85,39 @@ gtag('config', 'G-6R8FPBQRFH');
         margin-right: 20px;
     }
 
+    #igv-nav-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 8px 10px;
+        gap: 12px;
+    }
+
+    #igv-nav-container .ui.button {
+        margin: 0;
+        padding: 6px 12px;
+    }
+
+    #igv-nav-index {
+        font-size: 14px;
+        color: #666;
+        min-width: 70px;
+        text-align: center;
+    }
+
+    #igv-nav-jump-to-table {
+        cursor: pointer;
+    }
+
+    @keyframes row-highlight-blink {
+        0%, 100% { box-shadow: inset 0 0 0 100px transparent; }
+        50% { box-shadow: inset 0 0 0 100px rgba(0, 123, 255, 0.4); }
+    }
+
+    .highlight-blink {
+        animation: row-highlight-blink 0.8s ease-in-out 3;
+    }
+
     #advanced-search-form .checkbox {
         padding-right: 20px;
     }
@@ -505,6 +538,68 @@ gtag('config', 'G-6R8FPBQRFH');
         height: 48px;
     }
 
+    /* Export column selection dialog styles */
+    #export-column-dialog.ui.modal {
+        width: 80% !important;
+        max-width: 1000px;
+    }
+
+    .export-column-checkboxes-flex-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .export-column-group {
+        flex: 1 1 200px;
+        min-width: 200px;
+        max-width: 300px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #fafafa;
+    }
+
+    .export-column-group-header {
+        font-weight: 700;
+        font-size: 1em;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #ddd;
+        color: #333;
+    }
+
+    .export-column-group-items {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .export-column-checkbox-item {
+        padding: 2px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .export-column-checkbox-item .ui.checkbox label {
+        font-size: 0.95em;
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+    }
+
+    .export-column-help-icon {
+        margin-left: 5px;
+        color: #888;
+        cursor: pointer;
+        font-size: 0.85em;
+    }
+
+    .export-column-help-icon:hover {
+        color: #333;
+    }
+
 </style>
 
 <script>
@@ -558,6 +653,12 @@ gtag('config', 'G-6R8FPBQRFH');
             console.warn("Sequence is empty")
             return
         }
+
+        if (sequence.length > 1000) {
+            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
+            return
+        }
+
         const separatorPositions = []
         const filteredSequenceChars = []
         for (const c of sequence) {
@@ -575,7 +676,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const size = matrix.length;
         const scaledSize = size * pixelsPerCell;
-        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+
+        let pixelData;
+        try {
+            pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        } catch (e) {
+            console.error(`Failed to allocate dot plot buffer (size: ${scaledSize}x${scaledSize}, sequence length: ${filteredSequence.length}):`, e)
+            return
+        }
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
                 const value = matrix[i][j];
@@ -773,16 +881,23 @@ gtag('config', 'G-6R8FPBQRFH');
                 </td></tr>
             `).join(' ') + `
                 <tr>
-                    <td style="padding: 5px 0px !important">
-                        <i>Source Catalogs:</i>
+                    <td style="padding: 5px 0px !important" colspan="2">
+                        <a href="#" class="show-details-button" id="show-details-for-source-catalogs">Show checkboxes for source catalogs</a>
                         <i class="question circle icon link" style="margin-left: 15px;" data-html="These 4 catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."></i>
                     </td>
-                    <td></td>
                 </tr>
+            ` + `
+                <tr class="source-catalogs-content" style="display: none;">
+                    <td colspan="2">
+                        <table style="width: 100%;">
             ` +
                 TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
                 <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' '))
+            `).join(' ') + `
+                        </table>
+                    </td>
+                </tr>
+            `)
 
             $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
                 TR_VARIATION_CLUSTERS.map((rt) => `
@@ -821,6 +936,19 @@ gtag('config', 'G-6R8FPBQRFH');
             )
 
             $(".ui.checkbox").checkbox()
+
+            // Add click handler for source catalogs toggle
+            $('#show-details-for-source-catalogs').click(function(e) {
+                e.preventDefault();
+                var content = $('.source-catalogs-content');
+                if (content.css('display') === 'none') {
+                    content.css('display', 'table-row');
+                    $(this).text('Hide source catalogs');
+                } else {
+                    content.css('display', 'none');
+                    $(this).text('Show source catalogs');
+                }
+            });
 
             $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
                 //$('#igv-select-tracks-button').click(() => {
@@ -862,7 +990,6 @@ gtag('config', 'G-6R8FPBQRFH');
     /** --------- END of utils for IGV.js  ---------- */
 </script>
 <script>
-    /** --------- START of utils for motif frequency  ---------- */
 
     const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
         const helpText = `
@@ -884,6 +1011,86 @@ gtag('config', 'G-6R8FPBQRFH');
             result += `<br /><div style='text-align: justify; color: #555555' ><b>Details:</b> ${helpText}</div>`
         }
         return result
+    }
+
+    const computeMotifFrequenciesTableRows = (frequenciesString) => {
+        if (!frequenciesString) {
+            return []
+        }
+        const items = frequenciesString.split(',')
+        let total = 0
+        let motifCounts = {}
+        let efficientMotifs = {}
+        for (let i = 0; i < items.length; i++) {
+            let motif = '', efficientMotif = '', count = '0'
+            const numTokens = items[i].split(':').length
+            if (numTokens == 3) {
+                [motif, efficientMotif, count] = items[i].split(':')
+            } else if(numTokens == 2) {
+                [motif, count] = items[i].split(':')
+            }
+
+            count = parseInt(count)
+            if (Number.isNaN(count)) {
+                console.warn(`Unable to parse the count for motif ${motif} in ${frequenciesString}. Skipping...`)
+                continue
+            }
+            motif = motif.trim()
+            motifCounts[motif] = count
+            efficientMotifs[motif] = efficientMotif.trim()
+            total += count
+        }
+
+        const minimumFrequencyThreshold = 0  // 0.01
+
+        // convert counts to fractions
+        let motifCount = 0
+        let homopolymerMotifCount = 0
+        for (let motif in motifCounts) {
+            motifCounts[motif] /= total
+            if (motifCounts[motif] >= minimumFrequencyThreshold) {
+                motifCount += 1
+                if (motif.length == 1) {
+                    homopolymerMotifCount += 1
+                }
+            }
+        }
+
+        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
+            return []
+        }
+
+        const truncateMotifAt = 35
+        let resultMotifs = []
+        for (let motif in motifCounts) {
+            let motifRow
+            let motifPercentString
+            if (motifCounts[motif] >= 0.01) {
+                motifRow = '<tr>'
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
+            } else {
+                motifRow = `<tr style='color:#AAAAAA'>`
+                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
+            }
+            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
+            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
+            if (efficientMotifs[motif]) {
+                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
+                if (efficientMotifs[motif] != motif) {
+                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
+                } else {
+                    motifRow += '<i>same as motif</i>'
+                }
+                motifRow += `</span></td>`
+            } else {
+                motifRow += `<td><i>unavailable</i></td>`
+            }
+            motifRow += '</tr>'
+
+            resultMotifs.push(motifRow)
+        }
+
+        return resultMotifs
     }
 
     const parseMotifFrequenciesString = (frequenciesString, maxRowsToShow=null) => {
@@ -911,13 +1118,15 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    /** --------- END of utils for motif frequency  ---------- */
 </script>
 <script>
     /** --------- START of utils for periodicity plots  ---------- */
     const shiftStringBy = (string, shift) => {
         if (shift === 0 || string.length === 0) {
             return string
+        }
+        if (shift < 0) {
+            throw new Error(`shiftStringBy: shift must be non-negative, got ${shift}`)
         }
         const normalizedShift = shift % string.length
         return string.slice(-normalizedShift) + string.slice(0, string.length - normalizedShift)
@@ -1566,7 +1775,7 @@ gtag('config', 'G-6R8FPBQRFH');
         known_disease_loci: 63,
         illumina_174k_catalog: 174300,
         tr_explorer_catalog: 4863041,
-        tr_explorer_catalog_v2: 5591917,
+        tr_explorer_catalog_v2: 5599658,
     }
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
@@ -1578,13 +1787,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const TR_EXPLORER_CATALOG  = [
         ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0 draft", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Draft version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Version 2.0 of the TR catalog described in [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
     ]
 
     const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/trs_and_vcs-v2.bed.gz`, 5020583, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        // ["igv_vc_v2", "Variation clusters v2", `${TR_CATALOG_BASE_URL}/v2.0/variation_clusters_v1.hg38.TRGT.bed.gz`, 4439813, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
         ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        ["igv_vc_and_isolated_v1_0_1", "Variation clusters and isolated repeats v1.0.1", `${TR_CATALOG_BASE_URL}/v1.0.1/TRExplorer.variation_clusters_and_isolated_TRs_v1.0.1.hg38.TRGT.bed.gz`, 4439813, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. v1.0.1 removes 103,015 isolated repeat loci from v1.0 but that occur inside very large variation clusters which exceeded the max region size of the variation cluster algorithm. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
     ];
 
     const KNOWN_TR_LOCI_TRACK = [
@@ -1597,7 +1807,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ["igv_illumina_174k", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
         ["igv_trgt", "TRGT", `${TR_CATALOG_BASE_URL}/other_catalogs/TRGT.bed.gz`, 171146, "Genome-wide catalog provided in the <a href='https://github.com/PacificBiosciences/trgt/tree/3d10c75/repeats' target='_blank'>TRGT repo</a> (downloaded March, 2025)"],
         ["igv_ucsc_sr", "UCSC simple repeat track", `${TR_CATALOG_BASE_URL}/other_catalogs/UCSC_SimpleRepeatTrack.bed.gz`, 965511],
-        ["igv_vamos", "VAMOS v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
+        ["igv_vamos", "Vamos v2.1", `${TR_CATALOG_BASE_URL}/other_catalogs/VamosCatalog_v2.1.bed.gz`, 1243954],
         ["igv_gangstr", "GangSTR v17", `${TR_CATALOG_BASE_URL}/other_catalogs/GangSTR_v17.bed.gz`, 1340266],
         ["igv_hipstr", "HipSTR", `${TR_CATALOG_BASE_URL}/other_catalogs/HipSTR.bed.gz`, 1638945],
         ["igv_adotto", "Adotto v1.2", `${TR_CATALOG_BASE_URL}/other_catalogs/Adotto_v1.2.bed.gz`, 2934805],
@@ -1631,7 +1841,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20251224_181940'
+    const TABLE_ID = 'catalog_20260203_075711'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -1717,41 +1927,38 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
+    // BigQuery column descriptions - generated from global_constants.py via Jinja2
+    const BIGQUERY_COLUMN_DESCRIPTIONS = {"AlleleFrequenciesFromIllumina174k": "Allele frequencies based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "AlleleFrequenciesFromT2TAssemblies": "Allele frequencies based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "AoU1027_99thPercentile": "99th percentile allele size (LPS) in AoU1027.", "AoU1027_MaxAllele": "Maximum allele size (LPS) observed in AoU1027.", "AoU1027_Median": "Median allele size (LPS) in AoU1027.", "AoU1027_MinAllele": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us).", "AoU1027_ModeAllele": "Mode (most common) allele size (LPS) in AoU1027.", "AoU1027_NumCalledAlleles": "Total number of alleles called in AoU1027.", "AoU1027_OE_Length": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025).", "AoU1027_OE_LengthPercentile": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog.", "AoU1027_Stdev": "Standard deviation of allele sizes (LPS) in AoU1027.", "AoU1027_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027.", "AoU1027_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in AoU1027.", "CanonicalMotif": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC.", "DiseaseInfo": "JSON object containing detailed disease information including LocusId, STRchiveId, STRipyId, and disease names.", "FlanksAndLocusMappability": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1.", "FoundInGangSTRCatalog": "Whether this locus was found in the GangSTR v17 catalog (1 = yes, NULL = no).", "FoundInIllumina174kPolymorphicTRs": "Whether this locus was found in the Illumina 174k polymorphic TR catalog.", "FoundInKnownDiseaseAssociatedLoci": "Whether this locus was found in the known disease-associated loci catalog.", "FoundInPerfectRepeatsInReference": "Whether this locus was found in the perfect repeats in reference catalog.", "FoundInPolymorphicTRsInT2TAssemblies": "Whether this locus was found in the polymorphic TRs in T2T assemblies catalog.", "GencodeGeneId": "Gencode v48 gene ID (ENSG)", "GencodeGeneName": "Gencode v48 gene name", "GencodeGeneRegion": "The most significant gene region that overlaps the TR locus in Gencode v48, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "GencodeTranscriptId": "Gencode v48 transcript ID (ENST)", "HPRC256_99thPercentile": "99th percentile allele size (LPS) in HPRC256.", "HPRC256_AlleleHistogram": "Allele frequencies based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). Allele sizes computed using the longest pure segment (LPS).", "HPRC256_BiallelicHistogram": "Biallelic genotype histogram from HPRC 256 PacBio samples.", "HPRC256_MaxAllele": "Maximum allele size (LPS) observed in HPRC256.", "HPRC256_Median": "Median allele size (LPS) in HPRC256.", "HPRC256_MinAllele": "Minimum allele size (LPS) observed in HPRC256.", "HPRC256_ModeAllele": "Mode (most common) allele size (LPS) in HPRC256.", "HPRC256_NumCalledAlleles": "Total number of alleles called in HPRC256.", "HPRC256_Stdev": "Standard deviation of allele sizes (LPS) in HPRC256.", "HPRC256_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256.", "HPRC256_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in HPRC256.", "HPRC256_UniqueAlleleLengths": "Number of unique LPS allele lengths observed in HPRC256.", "HighestPurityMotif": "The motif that achieves the highest purity score at this locus (may differ from ReferenceMotif).", "HighestPurityMotifPurity": "The purity score achieved by the HighestPurityMotif. Range: 0 to 1.", "HighestPurityMotifQuality": "Quality score for the HighestPurityMotif assignment.", "IncludeInVamosCatalog": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn\u0027t support them.", "KnownDiseaseAssociatedLocus": "Name of the known disease-associated locus if this TR overlaps one.", "KnownDiseaseAssociatedMotif": "The pathogenic repeat motif at the known disease-associated locus.", "LeftFlankMappability": "UCSC 36-mer mappability score for the left flanking region. Range: 0 to 1.", "LocusId": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.", "ManeGeneId": "MANE v1.4 gene ID", "ManeGeneName": "MANE v1.4 gene name", "ManeGeneRegion": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "ManeTranscriptId": "MANE v1.4 transcript ID", "Manigbas2024_AssociatedTraits": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.", "Manigbas2024_Details": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId.", "Manigbas2024_MinPvalue": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations.", "MotifSize": "Length of the repeat motif in base pairs.", "NonCodingAnnotations": "Non-coding annotations from various sources collected by the Talkowski Lab", "NonOverlappingLongestLocus": "Whether this is the longest locus among overlapping loci at this position (1 = yes, 0 = no).", "NonOverlappingPurestLocus": "Whether this is the purest locus among overlapping loci at this position (1 = yes, 0 = no).", "NsInFlanks": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don\u0027t support Ns in flanks.", "NumRepeatsInReference": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer.", "ReferenceLeftFlank": "The sequence immediately to the left of the TR locus in hg38", "ReferenceMotif": "The repeat motif sequence as it appears in hg38.", "ReferenceRegion": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442", "ReferenceRegionSize": "Size of the TR locus in base pairs (end_1based - start_0based).", "ReferenceRepeatPurity": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1.", "ReferenceRepeatSequence": "The repeat sequence in hg38", "ReferenceRightFlank": "The sequence immediately to the right of the TR locus in hg38", "RefseqGeneId": "RefSeq gene ID", "RefseqGeneName": "RefSeq gene name", "RefseqGeneRegion": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR.", "RefseqTranscriptId": "RefSeq transcript ID", "RepeatMaskerIntervals": "UCSC Repeat Masker intervals that overlap the TR locus", "RightFlankMappability": "UCSC 36-mer mappability score for the right flanking region. Range: 0 to 1.", "Source": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.", "StdevFromIllumina174k": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "StdevFromT2TAssemblies": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "TRsInRegion": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence.", "Tanudisastro2024_Details": "JSON with per-cell-type sc-eTR details (p-value, effect size, eGene, rank) from Tanudisastro et al. 2024.", "Tanudisastro2024_MinPvalue": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.", "Tanudisastro2024_SignificantCellTypes": "Comma-separated list of immune cell types with significant sc-eTR associations (p \u003c 0.05) from Tanudisastro et al. 2024.", "TenK10K_99thPercentile": "99th percentile allele size in TenK10K Phase 1.", "TenK10K_AlleleHistogram": "Allele frequencies based on ExpansionHunter calls in 1,925 short-read genomes from the TenK10K Phase 1 dataset.", "TenK10K_BiallelicHistogram": "Biallelic genotype histogram from TenK10K Phase 1 short-read genomes.", "TenK10K_MaxAllele": "Maximum allele size observed in TenK10K Phase 1.", "TenK10K_Median": "Median allele size in TenK10K Phase 1.", "TenK10K_MinAllele": "Minimum allele size observed in TenK10K Phase 1.", "TenK10K_ModeAllele": "Mode (most common) allele size in TenK10K Phase 1.", "TenK10K_NumCalledAlleles": "Total number of alleles called in TenK10K Phase 1.", "TenK10K_Stdev": "Standard deviation of allele sizes in TenK10K Phase 1.", "TenK10K_StdevRankByMotif": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1.", "TenK10K_StdevRankTotalNumberByMotif": "Total number of loci with the same motif used for ranking in TenK10K Phase 1.", "TenK10K_UniqueAlleleLengths": "Number of unique allele lengths observed in TenK10K Phase 1.", "VamosEfficientMotifs": "Efficient motif representation for Vamos genotyping.", "VamosMotifFrequencies": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies.", "VamosNumUniqueMotifs": "Number of unique motifs detected by Vamos at this locus.", "VamosUniqueMotifs": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies.", "VariationCluster": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms.", "VariationClusterFilterReason": "Reason this locus was filtered from the variation cluster analysis, if applicable.", "VariationClusterSizeDiff": "Size difference in bp between the variation cluster interval and the reference repeat interval.", "chrom": "Chromosome name without \u0027chr\u0027 prefix (e.g., \u00271\u0027, \u00272\u0027, \u0027X\u0027, \u0027Y\u0027, \u0027MT\u0027).", "chrom_index": "Numeric chromosome index (1-22, 23=X, 24=Y, 25=MT) used for partitioning and sorting.", "end_1based": "1-based end coordinate of the TR locus in hg38 (half-open interval).", "id": "Auto-incrementing unique identifier for each row in the database.", "start_0based": "0-based start coordinate of the TR locus in hg38."}
+
     const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
+
+    // Help texts for UI columns - starts with BigQuery descriptions, then adds/overrides
+    // with custom text for UI-only columns or those needing HTML formatting
     const RESULTS_TABLE_COLUMN_HELP_TEXTS = {
+        ...BIGQUERY_COLUMN_DESCRIPTIONS,
+
+        // Custom overrides (HTML formatting, template strings, or different wording)
         LocusId: 'A unique id of this TR locus in hg38',
         ReferenceRegion: 'Genomic coordinates of the TR locus in the hg38 reference genome. <b>Example:</b> 1:94418421-94418442',
-        ReferenceRepeatSequence: 'The repeat sequence in hg38',
-        ReferenceLeftFlank: 'The sequence immediately to the left of the TR locus in hg38',
-        ReferenceRightFlank: 'The sequence immediately to the right of the TR locus in hg38',
         ReferenceMotif: 'The repeat motif in hg38 and its size in base pairs',
         CanonicalMotif: 'The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. <b>For example:</b> the canonical version of <i>CTG</i> is <i>AGC</i>',
-        polymorphism: 'Summary of available polymorphism data for the TR locus',
         Source: 'TRExplorer catalog version, as well as the source catalog that contributed this TR locus to the TRExplorer catalog',
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
         ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
-        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
-        RepeatMaskerIntervals: 'UCSC Repeat masker intervals that overlap the TR locus',
-        NonCodingAnnotations: 'Non-coding annotations from various sources collected by the Talkowski Lab',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v48 ${gene_region_priority}`,
-        GencodeGeneName: 'Gencode v48 gene name',
-        GencodeGeneId: 'Gencode v48 gene ID (ENSG)',
-        GencodeTranscriptId: 'Gencode v48 transcript ID (ENST)',
-        RefSeqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
-        RefSeqGeneId: 'RefSeq gene ID',
-        RefSeqTranscriptId: 'RefSeq transcript ID',
-        RefSeqGeneName: 'RefSeq gene name',
+        RefseqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
         ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
-        ManeGeneId: 'MANE v1.4 gene ID',
-        ManeGeneName: 'MANE v1.4 gene name',
-        ManeTranscriptId: 'MANE v1.4 transcript ID',
         HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
         TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
+
+        // UI-only columns (not in BigQuery schema)
+        polymorphism: 'Summary of available polymorphism data for the TR locus',
+        isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
+        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2\' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]',
         dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
 
@@ -1798,6 +2005,8 @@ gtag('config', 'G-6R8FPBQRFH');
         keepIntergenicLoci: 0,
         keepNonCodingExonLoci: 0,
         keepLociThatOverlapDiseaseAssociatedLoci: 0,
+        keepLociThatOverlapLocusSet: 0,
+        keepLociThatOverlapLocusSetSelection: '',
 
         polymorphismFilter: 0,
         polymorphismFilterType: '',
@@ -1860,12 +2069,34 @@ gtag('config', 'G-6R8FPBQRFH');
     ].join(', ')
 
 
+    // Mapping from internal state names to abbreviated URL param names
+    const URL_PARAM_ALIASES = {
+        'searchQuery': 'q',
+        'sourceCatalog': 'source',
+        'keepLociThatOverlapDiseaseAssociatedLoci': 'keepDiseaseAssocLoci',
+        'keepLociThatOverlapLocusSet': 'keepLocusSet',
+        'keepLociThatOverlapLocusSetSelection': 'keepLocusSetSelect',
+        'polymorphismFilter': 'pFilter',
+        'polymorphismFilterType': 'pFilterType',
+        'polymorphismThreshold': 'pThreshold',
+        'igv_custom_track_url_1': 'igv_ct_url1',
+        'igv_custom_track_url_2': 'igv_ct_url2',
+        'igv_custom_track_url_3': 'igv_ct_url3',
+    }
+
+    // Reverse mapping from URL param names to internal state names
+    const URL_PARAM_REVERSE_ALIASES = Object.fromEntries(
+        Object.entries(URL_PARAM_ALIASES).map(([k, v]) => [v, k])
+    )
+
     const writePersistentPageStateToUrl = () => {
         // Create object with only non-default values
         const nonDefaultParams = {}
         for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
             if (value !== DEFAULT_GLOBAL_PAGE_STATE[key]) {
-                nonDefaultParams[key] = value
+                // Use abbreviated URL param name if available
+                const urlKey = URL_PARAM_ALIASES[key] || key
+                nonDefaultParams[urlKey] = value
             }
         }
 
@@ -2027,92 +2258,13 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    const computeMotifFrequenciesTableRows = (frequenciesString) => {
-        if (!frequenciesString) {
-            return []
-        }
-        const items = frequenciesString.split(',')
-        let total = 0
-        let motifCounts = {}
-        let efficientMotifs = {}
-        for (let i = 0; i < items.length; i++) {
-            let motif = '', efficientMotif = '', count = '0'
-            const numTokens = items[i].split(':').length
-            if (numTokens == 3) {
-                [motif, efficientMotif, count] = items[i].split(':')
-            } else if(numTokens == 2) {
-                [motif, count] = items[i].split(':')
-            }
-
-            count = parseInt(count)
-            if (Number.isNaN(count)) {
-                console.warn(`Unable to parse the count for motif ${motif} in ${frequenciesString}. Skipping...`)
-                continue
-            }
-            motif = motif.trim()
-            motifCounts[motif] = count
-            efficientMotifs[motif] = efficientMotif.trim()
-            total += count
-        }
-
-        const minimumFrequencyThreshold = 0  // 0.01
-
-        // convert counts to fractions
-        let motifCount = 0
-        let homopolymerMotifCount = 0
-        for (let motif in motifCounts) {
-            motifCounts[motif] /= total
-            if (motifCounts[motif] >= minimumFrequencyThreshold) {
-                motifCount += 1
-                if (motif.length == 1) {
-                    homopolymerMotifCount += 1
-                }
-            }
-        }
-
-        if (motifCount <= 1 || homopolymerMotifCount == motifCount) {
-            return []
-        }
-
-        const truncateMotifAt = 35
-        let resultMotifs = []
-        for (let motif in motifCounts) {
-            let motifRow
-            let motifPercentString
-            if (motifCounts[motif] >= 0.01) {
-                motifRow = '<tr>'
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(0)
-            } else {
-                motifRow = `<tr style='color:#AAAAAA'>`
-                motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
-            }
-            motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
-            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
-            if (efficientMotifs[motif]) {
-                motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
-                if (efficientMotifs[motif] != motif) {
-                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
-                } else {
-                    motifRow += '<i>same as motif</i>'
-                }
-                motifRow += `</span></td>`
-            } else {
-                motifRow += `<td><i>unavailable</i></td>`
-            }
-            motifRow += '</tr>'
-
-            resultMotifs.push(motifRow)
-        }
-
-        return resultMotifs
-    }
 
     const getGeneRegionColumnValue = (geneRegion) => {
         if (!geneRegion) return ''
         //const color = GENE_REGION_COLORS[geneRegion]
         const regionRename = {
             'CDS': 'coding',
-            'exon': 'exon (non-coding gene)'
+            //'exon': 'exon (non-coding gene)'
         }
         return `${regionRename[geneRegion] || geneRegion}`
     }
@@ -2136,66 +2288,154 @@ gtag('config', 'G-6R8FPBQRFH');
         `
     }
 
-    const generatePolymorphismDialogContent = (row) => {
-        const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+    const SUMMARY_STATS_DATASETS = [
+        { prefix: 'HPRC256_', name: 'HPRC 256', description: '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS' },
+        { prefix: 'AoU1027_', name: 'AoU Phase 1', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleleLengths'] },
+        { prefix: 'TenK10K_', name: 'TenK10K Phase 1', description: '1,925 short-read samples from TenK10K genotyped using ExpansionHunter' },
+    ]
 
-        const nStdevsNotAvailable = [row.HPRC256_Stdev == null, row.AoU1027_Stdev == null, row.TenK10K_Stdev == null, row.StdevFromIllumina174k == null, row.StdevFromT2TAssemblies == null].filter(Boolean).length
+    // Format number: show as integer (with commas) if it's a whole number, otherwise show 1 decimal place
+    const formatIntOrDecimal = (v) => v == null ? '-' : (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1))
 
-        let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
+    const SUMMARY_STATS_COLUMNS = [
+        { suffix: 'MinAllele', header: 'Min', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'Median', header: 'Median', format: formatIntOrDecimal, highlight: true },
+        { suffix: '99thPercentile', header: '99th %', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'MaxAllele', header: 'Max', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'UniqueAlleleLengths', header: 'Unique Allele Lengths', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'NumCalledAlleles', header: 'Total Genotyped Alleles', format: (v) => v != null ? v.toLocaleString() : '-' },
+        { suffix: 'ModeAllele', header: 'Mode', format: formatIntOrDecimal, highlight: true },
+        { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },
+    ]
 
-        if (nStdevsNotAvailable == stdevColumns.length) {
-            polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
-        } else {
-            polymorphismDialogContent1 += `
-                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
-                    <div style="margin-top: 5px">
-                        <table style="margin: 0 auto">
-            `
+    const generateSummaryStatsTable = (row) => {
+        // Check if any dataset has Stdev data
+        const hasAnyData = SUMMARY_STATS_DATASETS.some(dataset =>
+            row[dataset.prefix + 'Stdev'] != null
+        )
+
+        if (!hasAnyData) {
+            return ''
         }
 
-        for (const key of stdevColumns) {
-            if (row[key] != null) {
-                polymorphismDialogContent1 += `
-                    <tr>
-                        <td style="text-align: left;">
-                            <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
-                        </td>
-                        <td style="text-align: right;">
-                            = ${row[key].toFixed(3)}
-                        </td>
-                        <td style="text-align: right;">
-                            <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
-                        </td>
-                    </tr>
-                `
+        let html = `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">`
+        html += `<div style="position: relative; margin-bottom: 15px;"><div style="text-align: center;"><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div><div style="position: absolute; right: 0; top: 0;"><span style="display: inline-block; width: 14px; height: 14px; background-color: #e8f4fc; border: 1px solid #888; vertical-align: middle;"></span> = number of repeats</div></div>`
+        html += `<table class="ui compact celled table" style="font-size: 0.95em;">`
+
+        // Header row
+        html += `<thead><tr><th>Dataset</th>`
+        for (const col of SUMMARY_STATS_COLUMNS) {
+            html += `<th style="text-align: center;">${col.header}</th>`
+        }
+        html += `</tr></thead>`
+
+        // Data rows
+        html += `<tbody>`
+        const unavailableDatasets = []
+        for (const dataset of SUMMARY_STATS_DATASETS) {
+            // Check if this dataset has Stdev data
+            const datasetHasData = row[dataset.prefix + 'Stdev'] != null
+            if (!datasetHasData) {
+                unavailableDatasets.push(dataset.name)
+                continue
             }
-        }
-        polymorphismDialogContent1 += "</table>"
 
-        if (nStdevsNotAvailable > 0) {
-            polymorphismDialogContent1 += "<br />"
-            let namesOfMissingSigmas = []
-            for (const key of stdevColumns) {
-                if (row[key] == null) {
-                    namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
-                }
+            html += `<tr>`
+            html += `<td style="white-space: nowrap;"><b>${dataset.name}</b><br/><span style="font-size: 0.85em; color: #666;">${dataset.description}</span></td>`
+            for (const col of SUMMARY_STATS_COLUMNS) {
+                const isHidden = dataset.hideColumns?.includes(col.suffix)
+                const value = isHidden ? null : row[dataset.prefix + col.suffix]
+                const bgStyle = col.highlight ? 'background-color: #e8f4fc;' : ''
+                html += `<td style="text-align: center; ${bgStyle}">${col.format(value)}</td>`
             }
-            polymorphismDialogContent1 += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+            html += `</tr>`
         }
 
+        // Add row for unavailable datasets
+        if (unavailableDatasets.length > 0) {
+            const numCols = SUMMARY_STATS_COLUMNS.length + 1
+            html += `<tr><td colspan="${numCols}" style="text-align: left; color: #686868;">${unavailableDatasets.join(', ')} data is not available for this locus</td></tr>`
+        }
+
+        html += `</tbody></table>`
+
+        // Add constraint percentile if available
         if (row.AoU1027_OE_LengthPercentile != null) {
-            polymorphismDialogContent1 += `
-                <div style="margin-top: 25px">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+            html += `
+                <div style="margin-top: 15px; text-align: center;">
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
                 </div>
             `
         }
 
-        polymorphismDialogContent1 += "</div>"
+        html += `</div>`
+        return html
+    }
 
-        // check if any of the allele frequency columns are available
+    const generatePolymorphismDialogContent = (row, options = {}) => {
+        const { showSigmaSummary = true } = options
+        const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
+        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
+        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+
+        const nStdevsNotAvailable = stdevColumns.filter(key => row[key] == null).length
+
+        let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
+
+        // Summary statistics section (sigma values) - only show if showSigmaSummary is true
+        if (showSigmaSummary && nStdevsNotAvailable < stdevColumns.length) {
+            polymorphismDialogContent1 += `
+                <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
+                <div style="margin-top: 5px">
+                    <table style="margin: 0 auto">
+            `
+            for (const key of stdevColumns) {
+                if (row[key] != null) {
+                    polymorphismDialogContent1 += `
+                        <tr>
+                            <td style="text-align: left;">
+                                <span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>
+                            </td>
+                            <td style="text-align: right;">
+                                = ${row[key].toFixed(3)}
+                            </td>
+                            <td style="text-align: right;">
+                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                            </td>
+                        </tr>
+                    `
+                }
+            }
+            polymorphismDialogContent1 += `</table>`
+
+            if (nStdevsNotAvailable > 0) {
+                polymorphismDialogContent1 += `<br />`
+                let namesOfMissingSigmas = []
+                for (const key of stdevColumns) {
+                    if (row[key] == null) {
+                        namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
+                    }
+                }
+                polymorphismDialogContent1 += ` ${namesOfMissingSigmas.join(' &amp; ')} ${namesOfMissingSigmas.length > 1 ? 'are' : 'is'} not available for this locus`
+            }
+
+            if (row.AoU1027_OE_LengthPercentile != null) {
+                polymorphismDialogContent1 += `
+                    <div style="margin-top: 25px">
+                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+                    </div>
+                `
+            }
+
+            polymorphismDialogContent1 += `</div>`
+        } else if (showSigmaSummary) {
+            polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
+        }
+
+        // Check if any chart data is available
         const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
+        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
+
         if (alleleFrequencyColumnsAvailable) {
             // calculate the height of the allele frequency charts
             polymorphismDialogContent1 += `
@@ -2216,8 +2456,6 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
-        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
-        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
         if (biallelicHistogramColumnsAvailable) {
             polymorphismDialogContent1 += `
                 <div style="margin-top: 15px;">
@@ -2236,6 +2474,7 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
+        polymorphismDialogContent1 += '</div>'
         return polymorphismDialogContent1
     }
 
@@ -2391,6 +2630,121 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    function buildScEtrPopupContent(row) {
+        const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
+        let details
+        try {
+            details = JSON.parse(row['Tanudisastro2024_Details'] || '{}')
+        } catch (e) {
+            console.error('Failed to parse Tanudisastro2024_Details:', e)
+            return '<div>Error loading details</div>'
+        }
+        const tanudisastroLocusId = details.Tanudisastro2024_LocusId
+        const trexplorerLocusId = row['LocusId']
+
+        let html = '<div style="overflow-x: auto;">'
+
+        // Add note if locus IDs differ (fuzzy match) - only if tanudisastroLocusId exists
+        if (tanudisastroLocusId && tanudisastroLocusId !== trexplorerLocusId) {
+            html += `<div style="background: #fff3cd; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
+                <i class="info circle icon"></i>
+                <b>Note:</b> Matched via coordinate overlap (Jaccard >= 0.2).<br/>
+                Original locus in Tanudisastro et al.: <code>${tanudisastroLocusId}</code>
+            </div>`
+        }
+
+        // Table with details sorted by p-value
+        html += `<table class="ui compact table" style="white-space: nowrap;">
+            <thead><tr>
+                <th>Cell Type</th><th>eGene</th><th style="text-align: right;">P-value</th><th style="text-align: right;">Effect Size</th><th style="text-align: right;">P-value Rank</th>
+            </tr></thead><tbody>`
+
+        // Sort cell types by p-value (most significant first)
+        const sortedCellTypes = [...cellTypes].sort((a, b) => {
+            const pvalA = details[a]?.pvalue ?? Infinity
+            const pvalB = details[b]?.pvalue ?? Infinity
+            return pvalA - pvalB
+        })
+
+        for (const cellType of sortedCellTypes) {
+            const d = details[cellType]
+            if (!d) continue
+            html += `<tr>
+                <td>${cellType}</td>
+                <td>${d.eGene || ''}</td>
+                <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
+                <td style="text-align: right;">${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
+                <td style="text-align: right;">${d.rank || ''} / ${d.totalInCellType || ''}</td>
+            </tr>`
+        }
+
+        html += '</tbody></table>'
+        html += '<div style="font-size: 0.9em; color: #666; margin-top: 8px;">Source: <a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro et al. 2024</a></div>'
+        html += '</div>'
+
+        return html
+    }
+
+    function buildPheWASPopupContent(row) {
+        let details
+        try {
+            details = JSON.parse(row['Manigbas2024_Details'] || '{}')
+        } catch (e) {
+            console.error('Failed to parse Manigbas2024_Details:', e)
+            return '<div>Error loading details</div>'
+        }
+
+        // Details is now directly keyed by trait names
+        const traitNames = Object.keys(details)
+
+        let html = '<div style="overflow-x: auto;">'
+
+        if (traitNames.length === 0) {
+            html += '<p>This locus was tested in the UK Biobank PheWAS but showed no significant trait associations.</p>'
+        } else {
+            // Table with details sorted by p-value
+            html += `<table class="ui compact table" style="white-space: nowrap;">
+                <thead><tr>
+                    <th>Trait</th><th>Type</th><th style="text-align: right;">P-value</th><th style="text-align: right;">CAVIAR Prob</th><th style="text-align: right;">Sample Size</th><th>Replicated</th>
+                </tr></thead><tbody>`
+
+            // Sort traits by p-value (most significant first)
+            const sortedTraitNames = [...traitNames].sort((a, b) => {
+                const pvalA = details[a]?.pvalue ?? Infinity
+                const pvalB = details[b]?.pvalue ?? Infinity
+                return pvalA - pvalB
+            })
+
+            for (const traitName of sortedTraitNames) {
+                const d = details[traitName]
+                if (!d) continue
+                const replicatedIcon = d.replicatedInAoU
+                    ? '<i class="check circle green icon" title="Replicated in All of Us"></i>'
+                    : '<i class="minus circle grey icon" title="Not replicated"></i>'
+                const caviarColor = d.caviarProbability >= 0.9 ? 'green' : (d.caviarProbability >= 0.5 ? 'orange' : '')
+                html += `<tr>
+                    <td>${traitName}</td>
+                    <td>${d.traitType || ''}</td>
+                    <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(1) : ''}</td>
+                    <td style="text-align: right; color: ${caviarColor}; font-weight: ${caviarColor ? 'bold' : 'normal'};">
+                        ${d.caviarProbability != null ? (d.caviarProbability * 100).toFixed(1) + '%' : ''}
+                    </td>
+                    <td style="text-align: right;">${d.sampleSize != null ? d.sampleSize.toLocaleString() : ''}</td>
+                    <td>${replicatedIcon}</td>
+                </tr>`
+            }
+            html += '</tbody></table>'
+        }
+
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: <a href="https://www.nature.com/articles/s41467-024-54678-0" target="_blank">Manigbas et al. 2024</a>
+            (UK Biobank PheWAS, n=168,554)
+        </div>`
+        html += '</div>'
+
+        return html
+    }
+
     let TABLE_COLUMNS = {
         LocusId: {
             displayName: 'LocusId',
@@ -2402,7 +2756,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ReferenceRegion: {
             displayName: 'Interval (hg38)',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ReferenceRegion'],
-            getValue: (row) => row['ReferenceRegion'].replace(/^chr/i, ''),
+            getValue: (row) => `<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}">${row['ReferenceRegion'].replace(/^chr/i, '')}</a>`,
             getSortColumns: () => ['chrom_index', 'start_0based', 'end_1based'],
             getRequiredColumns: () => ['chrom_index', 'start_0based', 'end_1based', 'ReferenceRegion']
         },
@@ -2473,7 +2827,20 @@ gtag('config', 'G-6R8FPBQRFH');
                     Illumina174kPolymorphicTRs: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
                     PerfectRepeatsInReference:  "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
                     PolymorphicTRsInT2TAssemblies: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    VamosCatalog: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2 draft<br /><br /><b>Original source:</b> Vamos v2.1 catalog'>v2 draft &nbsp; <i>[5]</i></span>",
+                    KnownDiseaseAssociatedLociV2:    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Known disease-associated loci (v2)'>v2 &nbsp; <i>[5]</i></span>",
+                    PolymorphicTRsInT2TAssembliesV2: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic TRs in 321 T2T assemblies'>v2 &nbsp; <i>[6]</i></span>",
+                    KnownFunctionalVNTRs:            "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Curated list of known VNTRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[7]</i></span>",
+                    HipSTRCatalog:                   "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> HipSTR catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[8]</i></span>",
+                    AdottoTRsFromDanzi2025:          "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[9]</i></span>",
+                    ClinvarIndelsThatAreTRs2025:     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog'>v2 &nbsp; <i>[10]</i></span>",
+                    Tanudisastro2025:                "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Tanudisastro et al. 2025 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[11]</i></span>",
+                    Manigbas2024:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[12]</i></span>",
+                    Sulovari2021:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Sulovari et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[13]</i></span>",
+                    Garg2021:                        "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Garg et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[14]</i></span>",
+                    Mukamel2021:                     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[15]</i></span>",
+                    Annear2021:                      "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Annear et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[16]</i></span>",
+                    Hause2016:                       "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Hause et al. 2016 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[17]</i></span>",
+                    VamosV3:                         "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Vamos v3 catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[18]</i></span>",
                 }
                 const [version, sourceCatalog] = row['Source'].split(':')
                 return sourceCatalogNameMap[sourceCatalog]
@@ -2526,7 +2893,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: '# of Repeats',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['NumRepeatsInReference'],
-            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'] : ''),
+            getValue: (row) => (row['NumRepeatsInReference'] ? row['NumRepeatsInReference'].toLocaleString() : ''),
             getSortColumns: () => ['NumRepeatsInReference'],
             getRequiredColumns: () => ['NumRepeatsInReference']
         },
@@ -2602,37 +2969,37 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['GencodeTranscriptId'],
             getRequiredColumns: () => ['GencodeTranscriptId']
         },
-        RefSeqGeneRegion: {
+        RefseqGeneRegion: {
             displayName: 'RefSeq Region',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['RefSeqGeneRegion']),
-            getSortColumns: () => ['RefSeqGeneRegion'],
-            getRequiredColumns: () => ['RefSeqGeneRegion']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneRegion'],
+            getValue: (row) => getGeneRegionColumnValue(row['RefseqGeneRegion']),
+            getSortColumns: () => ['RefseqGeneRegion'],
+            getRequiredColumns: () => ['RefseqGeneRegion']
         },
-        RefSeqGeneId: {
+        RefseqGeneId: {
             displayName: 'RefSeq Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneId'],
-            getValue: (row) => row['RefSeqGeneId'],
-            getSortColumns: () => ['RefSeqGeneId'],
-            getRequiredColumns: () => ['RefSeqGeneId']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneId'],
+            getValue: (row) => row['RefseqGeneId'],
+            getSortColumns: () => ['RefseqGeneId'],
+            getRequiredColumns: () => ['RefseqGeneId']
         },
-        RefSeqTranscriptId: {
+        RefseqTranscriptId: {
             displayName: 'RefSeq Transcript Id',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqTranscriptId'],
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqTranscriptId'],
             getValue: (row) => row['RefseqTranscriptId'],
             getSortColumns: () => ['RefseqTranscriptId'],
             getRequiredColumns: () => ['RefseqTranscriptId']
         },
-        RefSeqGeneName: {
+        RefseqGeneName: {
             displayName: 'RefSeq Gene',
             defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefSeqGeneName'],
-            getValue: (row) => row['RefSeqGeneName'],
-            getSortColumns: () => ['RefSeqGeneName'],
-            getRequiredColumns: () => ['RefSeqGeneName']
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneName'],
+            getValue: (row) => row['RefseqGeneName'],
+            getSortColumns: () => ['RefseqGeneName'],
+            getRequiredColumns: () => ['RefseqGeneName']
         },
         ManeGeneRegion: {
             displayName: 'MANE Region',
@@ -2698,7 +3065,75 @@ gtag('config', 'G-6R8FPBQRFH');
             },
             getSortColumns: () => ['ReferenceRepeatSequence'],
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
-        }
+        },
+        Tanudisastro2024_SignificantCellTypes: {
+            displayName: 'sc-eTRs 2024',
+            defaultSortDirection: 'DESC',
+            helpText: 'Immune cell types with significant sc-eTR associations from [<a href=&quot;https://www.biorxiv.org/content/10.1101/2024.11.02.621562&quot; target=&quot;_blank&quot;>Tanudisastro 2024</a>]',
+            getValue: (row) => {
+                if (!row['Tanudisastro2024_SignificantCellTypes']) return ''
+                const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
+                const popupContent = buildScEtrPopupContent(row)
+
+                // Display: "CD4_TCM (+4 more)"
+                const displayText = cellTypes.length <= 1
+                    ? cellTypes[0]
+                    : `${cellTypes[0]} (+${cellTypes.length-1} more)`
+
+                // Escape popupContent for safe HTML attribute inclusion
+                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+
+                return `<span class="action-cell show-popup" data-html="${escapedPopupContent}">
+                    <span class="action-link">${displayText}</span>
+                </span>`
+            },
+            getSortColumns: () => ['Tanudisastro2024_MinPvalue'],
+            getRequiredColumns: () => [
+                'Tanudisastro2024_SignificantCellTypes',
+                'Tanudisastro2024_Details',
+                'Tanudisastro2024_MinPvalue',
+                'LocusId'
+            ]
+        },
+        Manigbas2024_AssociatedTraits: {
+            displayName: 'PheWAS 2024',
+            defaultSortDirection: 'DESC',  // ASC = lowest p-value first = most significant first
+            helpText: 'Traits with fine-mapped causal TR associations from [<a href=&quot;https://www.nature.com/articles/s41467-024-54678-0&quot; target=&quot;_blank&quot;>Manigbas 2024</a>] UK Biobank PheWAS',
+            getValue: (row) => {
+                // Check if locus was tested (has Details) vs not tested (NULL)
+                if (row['Manigbas2024_Details'] === null || row['Manigbas2024_Details'] === undefined) {
+                    return ''  // Not tested in PheWAS
+                }
+
+                const associatedTraits = row['Manigbas2024_AssociatedTraits'] || ''
+
+                // Locus was tested but has no associations
+                if (!associatedTraits) {
+                    return '<span style="color: #888;">No associations</span>'
+                }
+
+                const traits = associatedTraits.split(',')
+                const popupContent = buildPheWASPopupContent(row)
+
+                // Display: "High blood pressure (+4 more)"
+                const displayText = traits.length <= 1
+                    ? traits[0]
+                    : `${traits[0]} (+${traits.length-1} more)`
+
+                // Escape popupContent for safe HTML attribute inclusion
+                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+
+                return `<span class="action-cell show-popup" data-html="${escapedPopupContent}">
+                    <span class="action-link">${displayText}</span>
+                </span>`
+            },
+            getSortColumns: () => ['Manigbas2024_MinPvalue'],
+            getRequiredColumns: () => [
+                'Manigbas2024_AssociatedTraits',
+                'Manigbas2024_Details',
+                'Manigbas2024_MinPvalue'
+            ]
+        },
     }
 
 
@@ -2923,13 +3358,13 @@ gtag('config', 'G-6R8FPBQRFH');
 </div>
 
 <!-- downloads modal dialog -->
-<div class="ui modal" id="downloads-modal">
+<div class="ui modal" id="downloads-modal" style="height: 88%; min-height: 88%">
     <i class="close icon"></i>
     <div class="header">
         Downloads
     </div>
     <div class="content" style="font-size: 1.1em; height: 100%;">
-        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
+        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px;"></iframe>
     </div>
 </div>
 
@@ -2979,6 +3414,26 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
 </div>
 
+<!-- modal dialog for selecting columns to export -->
+<div class="ui modal" id="export-column-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="export-dialog-title">
+        Select columns to include
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div id="export-dialog-cancel-button" class="ui deny button">Cancel</div>
+        <div id="export-dialog-download-button" class="ui positive right labeled icon button">
+            Download
+            <i class="download icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for polymorphism allele frequencies -->
 <div class="ui modal" id="polymorphism-dialog">
     <i class="close icon"></i>
@@ -3001,8 +3456,8 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav">
-        <a href="#" id="about-link">About</a>
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New</a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(2/2/2026)</span></a>
+        <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
         <a href="https://github.com/broadinstitute/TRExplorer/issues/new?title=Add%20TR%20locus%20to%20the%20TRExplorer%20website%20and%20catalog%3A&body=TR%20locus%20coordinates%20%28hg38%29%3A%0A%0ATR%20locus%20motif%20%28or%20motif%20size%29%3A%20%0A%0AI%20suggest%20adding%20this%20TR%20locus%20because%3A%20" target="_blank" style="white-space: nowrap">Suggest TR</a>
@@ -3014,6 +3469,16 @@ gtag('config', 'G-6R8FPBQRFH');
 
 <div class="ui row" id="igv-row">
     <div class="sixteen wide column">
+        <div id="igv-nav-container" style="display: none;">
+            <a id="igv-nav-jump-to-table" class="action-link" style="margin-right: 15px;">Jump to table</a>
+            <button id="igv-nav-prev" class="ui basic button" disabled>
+                <i class="chevron left icon"></i> Prev
+            </button>
+            <span id="igv-nav-index">1 of 1</span>
+            <button id="igv-nav-next" class="ui basic button" disabled>
+                Next <i class="chevron right icon"></i>
+            </button>
+        </div>
         <div id="igv-viewport"></div>
     </div>
 </div>
@@ -3043,7 +3508,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         </span>
                     </div>
                     <div class="ui action input">
-                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a comma-separated list of these">
+                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these">
                         <button id="filter-button" class="ui basic icon button" type="button" data-html="Show or hide additional TR filters" data-position="top center"><i class="filter icon rotated" style="transition: transform 0.3s;"></i></button>
                         <button id="search-button" class="ui primary button" type="submit">Search</button>
                     </div>
@@ -3058,35 +3523,135 @@ gtag('config', 'G-6R8FPBQRFH');
                 <!-- Advanced Search (Initially Hidden) -->
                 <form id="advanced-search-form" class="ui form" style="display:none">
 
-                    <div class="field" style="padding-top: 5px">
+                    <div class="field" style="padding-top: 5px; max-width: 155px">
                         <label>Search TR Catalog</label>
-                        <div class="ui selection dropdown" id="source-catalog-dropdown" style="max-width: 350px !important">
+                        <div class="ui selection dropdown" id="source-catalog-dropdown" style="min-width: 420px !important">
                             <input type="hidden" name="sourceCatalog">
                             <i class="dropdown icon"></i>
                             <div class="default text">Select catalog</div>
                             <div class="menu">
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v2</span>
-                                        <span style="color: #888; margin-left: 20px;">5,591,917 loci</span>
+                                        <span style="white-space: nowrap;">TRExplorer catalog v2</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">5,599,658 loci</span>
                                     </div>
                                 </div>
                                 <div class="item" data-value="tr_explorer_catalog">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>TRExplorer catalog v1</span>
-                                        <span style="color: #888; margin-left: 20px;">4,863,041 loci</span>
+                                        <span style="white-space: nowrap;">TRExplorer catalog v1</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">4,863,041 loci</span>
                                     </div>
                                 </div>
-                                <div class="item" data-value="illumina_174k_catalog">
+                                <div class="divider"></div>
+                                <div class="header">v1 sources</div>
+                                <div class="item" data-value="source_KnownDiseaseAssociatedLoci">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Illumina 174k</span>
-                                        <span style="color: #888; margin-left: 20px;">174,286 loci</span>
+                                        <span style="white-space: nowrap;">Known disease-associated loci (v1)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">83 loci</span>
                                     </div>
                                 </div>
-                                <div class="item" data-value="known_disease_loci">
+                                <div class="item" data-value="source_Illumina174kPolymorphicTRs">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span>Known disease-associated loci</span>
-                                        <span style="color: #888; margin-left: 20px;">63 loci</span>
+                                        <span style="white-space: nowrap;">Illumina 174k polymorphic TRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">174,244 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PerfectRepeatsInReference">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Perfect repeats in hg38</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">4,391,197 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PolymorphicTRsInT2TAssemblies">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Polymorphic TRs in 78 T2T assemblies</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">297,517 loci</span>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="header">v2 sources</div>
+                                <div class="item" data-value="source_KnownDiseaseAssociatedLociV2">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Known disease-associated loci (v2)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">7 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_PolymorphicTRsInT2TAssembliesV2">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Polymorphic TRs in 321 T2T assemblies</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">280,262 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_KnownFunctionalVNTRs">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Known functional VNTRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">13 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_HipSTRCatalog">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">HipSTR catalog</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">129,523 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_AdottoTRsFromDanzi2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Danzi et al. 2025 (Adotto)</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">263,108 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_ClinvarIndelsThatAreTRs2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">ClinVar indels that are TRs</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">815 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Tanudisastro2025">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Tanudisastro et al. 2025</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">1,209 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Manigbas2024">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Manigbas et al. 2024</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">2,347 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Sulovari2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Sulovari et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">388 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Garg2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Garg et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">1,300 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Mukamel2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Mukamel et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">39 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Annear2021">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Annear et al. 2021</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">156 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_Hause2016">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Hause et al. 2016</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">604 loci</span>
+                                    </div>
+                                </div>
+                                <div class="item" data-value="source_VamosV3">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">Vamos v3 catalog</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">56,846 loci</span>
                                     </div>
                                 </div>
                             </div>
@@ -3125,10 +3690,24 @@ gtag('config', 'G-6R8FPBQRFH');
                                 <label>Exon (non-coding transcript)</label>
                             </div>
                         </div>
-                        <div class="checkbox-group">
+                        <div class="checkbox-group" style="display: flex; align-items: center; flex-wrap: wrap; gap: 30px;">
                             <div class="ui checkbox">
                                 <input type="checkbox" name="keepLociThatOverlapDiseaseAssociatedLoci">
                                 <label>Overlaps latest known disease-associated loci</label>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <div class="ui checkbox" style="padding-right: 10px !important;">
+                                    <input type="checkbox" name="keepLociThatOverlapLocusSet">
+                                    <label>Overlaps loci from</label>
+                                </div>
+                                <div class="ui selection dropdown" id="overlap-locus-set-dropdown" style="min-width: 155px;">
+                                    <input type="hidden" name="keepLociThatOverlapLocusSetSelection">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select catalog</div>
+                                    <div class="menu">
+                                        <div class="item" data-value="gangstr_v17">GangSTR Catalog v17</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3252,10 +3831,10 @@ gtag('config', 'G-6R8FPBQRFH');
 
         'GencodeGeneId',
         'GencodeTranscriptId',
-        'RefSeqGeneRegion',
-        'RefSeqGeneId',
-        'RefSeqGeneName',
-        'RefSeqTranscriptId',
+        'RefseqGeneRegion',
+        'RefseqGeneId',
+        'RefseqGeneName',
+        'RefseqTranscriptId',
         'ManeGeneRegion',
         'ManeGeneId',
         'ManeGeneName',
@@ -3281,6 +3860,8 @@ gtag('config', 'G-6R8FPBQRFH');
 
         'RepeatMaskerIntervals',
         'NonCodingAnnotations',
+        'Tanudisastro2024_SignificantCellTypes',
+        'Manigbas2024_AssociatedTraits',
         'AoU1027_OE_LengthPercentile',
         'ReferenceLeftFlank',
         'ReferenceRepeatSequence',
@@ -3327,10 +3908,10 @@ gtag('config', 'G-6R8FPBQRFH');
         'GencodeGeneRegion',
         'GencodeGeneId',
         'GencodeTranscriptId',
-        'RefSeqGeneRegion',
-        'RefSeqGeneId',
-        'RefSeqGeneName',
-        'RefSeqTranscriptId',
+        'RefseqGeneRegion',
+        'RefseqGeneId',
+        'RefseqGeneName',
+        'RefseqTranscriptId',
         'ManeGeneRegion',
         'ManeGeneId',
         'ManeGeneName',
@@ -3339,24 +3920,33 @@ gtag('config', 'G-6R8FPBQRFH');
         'polymorphism',
 
         'HPRC256_AlleleHistogram',
-        'TenK10K_AlleleHistogram',  
-        'AlleleFrequenciesFromIllumina174k',  
-        'AlleleFrequenciesFromT2TAssemblies',  
-        
+        'TenK10K_AlleleHistogram',
+        'AlleleFrequenciesFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies',
+
         'HPRC256_Stdev',
-        'AoU1027_Stdev',  
-        'TenK10K_Stdev',  
-        'StdevFromIllumina174k',  
+        'AoU1027_Stdev',
+        'TenK10K_Stdev',
+        'StdevFromIllumina174k',
         'StdevFromT2TAssemblies',
 
         'Source',
         'RepeatMaskerIntervals',
         'NonCodingAnnotations',
+        'Tanudisastro2024_SignificantCellTypes',
+        'Manigbas2024_AssociatedTraits',
         'isPathogenic',
         'AoU1027_OE_LengthPercentile',
         'dotPlot',
 
     ]
+
+    // Columns available for TSV/JSON export with their display names and group
+    // Generated from BIGQUERY_COLUMNS in global_constants.py
+    const EXPORT_COLUMN_OPTIONS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "column": "CONCAT('chr', chrom) AS chrom", "description": "Chromosome name without 'chr' prefix (e.g., '1', '2', 'X', 'Y', 'MT')."}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "column": "start_0based", "description": "0-based start coordinate of the TR locus in hg38."}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "column": "end_1based", "description": "1-based end coordinate of the TR locus in hg38 (half-open interval)."}, {"name": "ReferenceRegion", "displayName": "Reference Region", "group": "Core", "column": "ReferenceRegion", "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442"}, {"name": "LocusId", "displayName": "Locus ID", "group": "Core", "column": "LocusId", "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif."}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "column": "ReferenceRegionSize", "description": "Size of the TR locus in base pairs (end_1based - start_0based)."}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "column": "MotifSize", "description": "Length of the repeat motif in base pairs."}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "column": "ReferenceMotif", "description": "The repeat motif sequence as it appears in hg38."}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "column": "CanonicalMotif", "description": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC."}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "column": "NumRepeatsInReference", "description": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer."}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "column": "ReferenceRepeatPurity", "description": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1."}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "column": "NsInFlanks", "description": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don't support Ns in flanks."}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "column": "TRsInRegion", "description": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence."}, {"name": "Source", "displayName": "Source", "group": "Core", "column": "Source", "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog."}, {"name": "NonOverlappingLongestLocus", "displayName": "Non-Overlapping Longest", "group": "Additional Layers", "column": "NonOverlappingLongestLocus", "description": "Whether this is the longest locus among overlapping loci at this position (1 = yes, 0 = no)."}, {"name": "NonOverlappingPurestLocus", "displayName": "Non-Overlapping Purest", "group": "Additional Layers", "column": "NonOverlappingPurestLocus", "description": "Whether this is the purest locus among overlapping loci at this position (1 = yes, 0 = no)."}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "column": "FlanksAndLocusMappability", "description": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1."}, {"name": "VariationCluster", "displayName": "Variation Cluster", "group": "Additional Layers", "column": "VariationCluster", "description": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms."}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "column": "VariationClusterSizeDiff", "description": "Size difference in bp between the variation cluster interval and the reference repeat interval."}, {"name": "KnownDiseaseAssociatedLocus", "displayName": "Known Disease Locus", "group": "Additional Layers", "column": "KnownDiseaseAssociatedLocus", "description": "Name of the known disease-associated locus if this TR overlaps one."}, {"name": "KnownDiseaseAssociatedMotif", "displayName": "Known Disease Motif", "group": "Additional Layers", "column": "KnownDiseaseAssociatedMotif", "description": "The pathogenic repeat motif at the known disease-associated locus."}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "column": "GencodeGeneRegion", "description": "The most significant gene region that overlaps the TR locus in Gencode v48, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "column": "GencodeGeneName", "description": "Gencode v48 gene name"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "column": "GencodeGeneId", "description": "Gencode v48 gene ID (ENSG)"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "column": "GencodeTranscriptId", "description": "Gencode v48 transcript ID (ENST)"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "column": "RefseqGeneRegion", "description": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "column": "RefseqGeneName", "description": "RefSeq gene name"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "column": "RefseqGeneId", "description": "RefSeq gene ID"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "column": "RefseqTranscriptId", "description": "RefSeq transcript ID"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "column": "ManeGeneRegion", "description": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "column": "ManeGeneName", "description": "MANE v1.4 gene name"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "column": "ManeGeneId", "description": "MANE v1.4 gene ID"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "column": "ManeTranscriptId", "description": "MANE v1.4 transcript ID"}, {"name": "AlleleFrequenciesFromIllumina174k", "displayName": "1kGP Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromIllumina174k", "description": "Allele frequencies based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP."}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "column": "StdevFromIllumina174k", "description": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP."}, {"name": "AlleleFrequenciesFromT2TAssemblies", "displayName": "T2T Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromT2TAssemblies", "description": "Allele frequencies based on assembly-to-hg38 alignments of 78 diploid T2T assemblies."}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "column": "StdevFromT2TAssemblies", "description": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies."}, {"name": "TenK10K_AlleleHistogram", "displayName": "TenK10K Allele Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_AlleleHistogram", "description": "Allele frequencies based on ExpansionHunter calls in 1,925 short-read genomes from the TenK10K Phase 1 dataset."}, {"name": "TenK10K_BiallelicHistogram", "displayName": "TenK10K Biallelic Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_BiallelicHistogram", "description": "Biallelic genotype histogram from TenK10K Phase 1 short-read genomes."}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MinAllele", "description": "Minimum allele size observed in TenK10K Phase 1."}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_ModeAllele", "description": "Mode (most common) allele size in TenK10K Phase 1."}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Stdev", "description": "Standard deviation of allele sizes in TenK10K Phase 1."}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Median", "description": "Median allele size in TenK10K Phase 1."}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "column": "TenK10K_99thPercentile", "description": "99th percentile allele size in TenK10K Phase 1."}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MaxAllele", "description": "Maximum allele size observed in TenK10K Phase 1."}, {"name": "TenK10K_UniqueAlleleLengths", "displayName": "TenK10K Unique Allele Lengths", "group": "Polymorphism (TenK10K)", "column": "TenK10K_UniqueAlleleLengths", "description": "Number of unique allele lengths observed in TenK10K Phase 1."}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "column": "TenK10K_NumCalledAlleles", "description": "Total number of alleles called in TenK10K Phase 1."}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1."}, {"name": "TenK10K_StdevRankTotalNumberByMotif", "displayName": "TenK10K Stdev Rank Total", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in TenK10K Phase 1."}, {"name": "HPRC256_AlleleHistogram", "displayName": "HPRC256 Allele Histogram", "group": "Polymorphism (HPRC256)", "column": "HPRC256_AlleleHistogram", "description": "Allele frequencies based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). Allele sizes computed using the longest pure segment (LPS)."}, {"name": "HPRC256_BiallelicHistogram", "displayName": "HPRC256 Biallelic Histogram", "group": "Polymorphism (HPRC256)", "column": "HPRC256_BiallelicHistogram", "description": "Biallelic genotype histogram from HPRC 256 PacBio samples."}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256 Min Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_MinAllele", "description": "Minimum allele size (LPS) observed in HPRC256."}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256 Mode Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_ModeAllele", "description": "Mode (most common) allele size (LPS) in HPRC256."}, {"name": "HPRC256_Stdev", "displayName": "HPRC256 Stdev", "group": "Polymorphism (HPRC256)", "column": "HPRC256_Stdev", "description": "Standard deviation of allele sizes (LPS) in HPRC256."}, {"name": "HPRC256_Median", "displayName": "HPRC256 Median", "group": "Polymorphism (HPRC256)", "column": "HPRC256_Median", "description": "Median allele size (LPS) in HPRC256."}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256 99th Percentile", "group": "Polymorphism (HPRC256)", "column": "HPRC256_99thPercentile", "description": "99th percentile allele size (LPS) in HPRC256."}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256 Max Allele", "group": "Polymorphism (HPRC256)", "column": "HPRC256_MaxAllele", "description": "Maximum allele size (LPS) observed in HPRC256."}, {"name": "HPRC256_UniqueAlleleLengths", "displayName": "HPRC256 Unique Allele Lengths", "group": "Polymorphism (HPRC256)", "column": "HPRC256_UniqueAlleleLengths", "description": "Number of unique LPS allele lengths observed in HPRC256."}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256 Num Called", "group": "Polymorphism (HPRC256)", "column": "HPRC256_NumCalledAlleles", "description": "Total number of alleles called in HPRC256."}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256 Stdev Rank", "group": "Polymorphism (HPRC256)", "column": "HPRC256_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256."}, {"name": "HPRC256_StdevRankTotalNumberByMotif", "displayName": "HPRC256 Stdev Rank Total", "group": "Polymorphism (HPRC256)", "column": "HPRC256_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in HPRC256."}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027 Min Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_MinAllele", "description": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us)."}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027 Mode Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_ModeAllele", "description": "Mode (most common) allele size (LPS) in AoU1027."}, {"name": "AoU1027_Stdev", "displayName": "AoU1027 Stdev", "group": "Polymorphism (AoU1027)", "column": "AoU1027_Stdev", "description": "Standard deviation of allele sizes (LPS) in AoU1027."}, {"name": "AoU1027_Median", "displayName": "AoU1027 Median", "group": "Polymorphism (AoU1027)", "column": "AoU1027_Median", "description": "Median allele size (LPS) in AoU1027."}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027 99th Percentile", "group": "Polymorphism (AoU1027)", "column": "AoU1027_99thPercentile", "description": "99th percentile allele size (LPS) in AoU1027."}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027 Max Allele", "group": "Polymorphism (AoU1027)", "column": "AoU1027_MaxAllele", "description": "Maximum allele size (LPS) observed in AoU1027."}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027 Num Called", "group": "Polymorphism (AoU1027)", "column": "AoU1027_NumCalledAlleles", "description": "Total number of alleles called in AoU1027."}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027 Stdev Rank", "group": "Polymorphism (AoU1027)", "column": "AoU1027_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027."}, {"name": "AoU1027_StdevRankTotalNumberByMotif", "displayName": "AoU1027 Stdev Rank Total", "group": "Polymorphism (AoU1027)", "column": "AoU1027_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in AoU1027."}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "column": "AoU1027_OE_Length", "description": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025)."}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "column": "AoU1027_OE_LengthPercentile", "description": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog."}, {"name": "RepeatMaskerIntervals", "displayName": "RepeatMasker Intervals", "group": "Additional Layers", "column": "RepeatMaskerIntervals", "description": "UCSC Repeat Masker intervals that overlap the TR locus"}, {"name": "NonCodingAnnotations", "displayName": "Non-coding Annotations", "group": "Additional Layers", "column": "NonCodingAnnotations", "description": "Non-coding annotations from various sources collected by the Talkowski Lab"}, {"name": "VamosUniqueMotifs", "displayName": "Vamos Unique Motifs", "group": "Vamos", "column": "VamosUniqueMotifs", "description": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies."}, {"name": "VamosEfficientMotifs", "displayName": "Vamos Efficient Motifs", "group": "Vamos", "column": "VamosEfficientMotifs", "description": "Efficient motif representation for Vamos genotyping."}, {"name": "VamosMotifFrequencies", "displayName": "Vamos Motif Frequencies", "group": "Vamos", "column": "VamosMotifFrequencies", "description": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies."}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Vamos", "column": "VamosNumUniqueMotifs", "description": "Number of unique motifs detected by Vamos at this locus."}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Vamos", "column": "IncludeInVamosCatalog", "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them."}, {"name": "Tanudisastro2024_SignificantCellTypes", "displayName": "sc-eTRs: Cell Types", "group": "sc-eTRs (Tanudisastro 2024)", "column": "Tanudisastro2024_SignificantCellTypes", "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024."}, {"name": "Tanudisastro2024_MinPvalue", "displayName": "sc-eTRs: Min P-value", "group": "sc-eTRs (Tanudisastro 2024)", "column": "Tanudisastro2024_MinPvalue", "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024."}, {"name": "Manigbas2024_AssociatedTraits", "displayName": "PheWAS: Traits", "group": "PheWAS (Manigbas 2024)", "column": "Manigbas2024_AssociatedTraits", "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations."}, {"name": "Manigbas2024_MinPvalue", "displayName": "PheWAS: Min P-value", "group": "PheWAS (Manigbas 2024)", "column": "Manigbas2024_MinPvalue", "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations."}, {"name": "Manigbas2024_Details", "displayName": "PheWAS: Details", "group": "PheWAS (Manigbas 2024)", "column": "Manigbas2024_Details", "description": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId."}]
+
+    // Store pending export type when showing the dialog
+    let pendingExportType = null
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -3390,7 +3980,7 @@ gtag('config', 'G-6R8FPBQRFH');
             diseaseDescription = '<i>An error occurred while loading this information.</i>'
             console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
         }
-        diseaseAssociatedIconHtml += `<i style="margin-left: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
+        diseaseAssociatedIconHtml += `<i style="margin-right: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${diseaseLocusId}" data-html="${diseaseDescription}"></i>`
         if (linkText) {
             diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
         }
@@ -3410,16 +4000,18 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
-        
+
         const hash = window.location.hash.substring(1)
         if (!hash) return
-        
+
         const params = new URLSearchParams(hash)
-        
-        for (const [key, value] of params.entries()) {
+
+        for (const [urlKey, value] of params.entries()) {
+            // Convert abbreviated URL param name to internal state name if needed
+            const key = URL_PARAM_REVERSE_ALIASES[urlKey] || urlKey
             if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
                 // Convert string values to appropriate types
-                GLOBAL_PAGE_STATE[key] = value === 'true' ? true : 
+                GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
                 if (key === 'showColumns') {
@@ -3461,6 +4053,9 @@ gtag('config', 'G-6R8FPBQRFH');
         $('input[name="keepIntergenicLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepIntergenicLoci'] === 1)
         $('input[name="keepNonCodingExonLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] === 1)
         $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked', GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] === 1)
+        $('input[name="keepLociThatOverlapLocusSet"]').prop('checked', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] === 1)
+        $('select[name="keepLociThatOverlapLocusSetSelection"]').val(GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
+        $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
 
         $('input[name="polymorphismFilter"]').prop('checked', GLOBAL_PAGE_STATE['polymorphismFilter'] === 1)
         $('select[name="polymorphismFilterType"]').val(GLOBAL_PAGE_STATE['polymorphismFilterType'])
@@ -3493,13 +4088,50 @@ gtag('config', 'G-6R8FPBQRFH');
             $('#show-igv-divider-text').hide()
             $('#hide-igv-divider-text').show()
             await updateIgv()
+            updateIgvNavButtons()
         } else {
             $('#igv-row').slideUp(500, () => {
                 $('#hide-igv-divider-text').hide()
                 $('#show-igv-divider-text').show()
             })
+            updateIgvNavButtons()
         }
 
+    })
+
+    // IGV navigation button handlers
+    $('#igv-nav-prev').click(async () => {
+        if (window.igvNavIndex > 0) {
+            await navigateIgvToResult(window.igvNavIndex - 1)
+        }
+    })
+
+    $('#igv-nav-next').click(async () => {
+        if (window.searchResults && window.igvNavIndex < window.searchResults.rows.length - 1) {
+            await navigateIgvToResult(window.igvNavIndex + 1)
+        }
+    })
+
+    $('#igv-nav-jump-to-table').click(() => {
+        // Find the row in the table corresponding to current igvNavIndex
+        const rows = $('#results-table tbody tr')
+        if (rows.length > window.igvNavIndex) {
+            const targetRow = $(rows[window.igvNavIndex])
+
+            // Scroll to the row
+            targetRow[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+            // Remove any existing animation class and re-add to trigger blink
+            targetRow.removeClass('highlight-blink')
+            // Force reflow to restart animation
+            void targetRow[0].offsetWidth
+            targetRow.addClass('highlight-blink')
+
+            // Remove the class after animation completes
+            setTimeout(() => {
+                targetRow.removeClass('highlight-blink')
+            }, 2500)
+        }
     })
 
 
@@ -3690,207 +4322,266 @@ gtag('config', 'G-6R8FPBQRFH');
 
                 $('.export-dropdown').dropdown('clear')
 
-                // Format data based on export type
-                let fileFormat
-                if (value === 'expansion_hunter' || value == 'json') {
-                    fileFormat = 'JSON'
-                } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
-                    fileFormat = 'BED'
-                } else if (value === 'tsv' || value == 'vamos') {
-                    fileFormat = 'TSV'
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
+                // For TSV and JSON exports, show the column selection dialog
+                if (value === 'tsv' || value === 'json') {
+                    showExportColumnDialog(value)
+                    return
                 }
 
-                let toolName
-                let selectClause
-                let conditions = [...window.lastSearchConditions]
-                let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
-                if (value === 'expansion_hunter') {
-                    toolName = 'ExpansionHunter'
-                    selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
-                    conditions.push(`NsInFlanks<=5`)
-                    alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
-                } else if(value === 'gangstr') {
-                    toolName = 'GangSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
-                } else if(value === 'hipstr') {
-                    toolName = 'HipSTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
-                } else if(value === 'trgt') {
-                    toolName = 'TRGT'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
-                } else if(value === 'vamos') {
-                    toolName = 'vamos'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
-                    conditions.push(`IncludeInVamosCatalog=1`)
-                    alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
-                } else if(value === 'longtr') {
-                    toolName = 'LongTR'
-                    selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
-                    conditions.push(`start_0based + 1 < end_1based`)
-                } else if(value === 'medaka') {
-                    toolName = 'Medaka'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'strdust') {
-                    toolName = 'STRdust'
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-                } else if(value === 'bed') {
-                    selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
-                } else if(value === 'tsv' || value === 'json') {
-                    const tsv_columns = [
-                        //'chrom_index',
-                        `CONCAT('chr', chrom) AS chrom`,
-                        'start_0based',
-                        'end_1based',
-                        'ReferenceRegion',
-                        'LocusId',
-                        'ReferenceRegionSize',
-                        'ReferenceMotif',
-                        'MotifSize',
-                        'CanonicalMotif',
-                        'NumRepeatsInReference',
-                        'ReferenceRepeatPurity',
-                        'NsInFlanks',
-                        'TRsInRegion',
-                        'Source',
-                        //'LeftFlankMappability',
-                        //'RightFlankMappability',
-                        'FlanksAndLocusMappability',
-                        'VariationCluster',
-                        'VariationClusterSizeDiff',
-                        'KnownDiseaseAssociatedLocus',
-                        'KnownDiseaseAssociatedMotif',
-                        'GencodeGeneRegion',
-                        'GencodeGeneName',
-                        'GencodeGeneId',
-                        'GencodeTranscriptId',
-                        'RefseqGeneRegion',
-                        'RefseqGeneName',
-                        'RefseqGeneId',
-                        'RefseqTranscriptId',
-                        'ManeGeneRegion',
-                        'ManeGeneName',
-                        'ManeGeneId',
-                        'ManeTranscriptId',
-
-                        //'LPSLengthStdevFromHPRC256',
-                        //'LPSMotifFromHPRC256',
-                        //'LPSMotifFractionFromHPRC256',
-                        //'LPSMotifDenominatorFromHPRC256',
-
-                        'AlleleFrequenciesFromIllumina174k',
-                        'StdevFromIllumina174k',
-                        'AlleleFrequenciesFromT2TAssemblies',
-                        'StdevFromT2TAssemblies',
-
-                        'HPRC256_AlleleHistogram',
-                        'HPRC256_BiallelicHistogram',
-                        'HPRC256_MinAllele',
-                        'HPRC256_ModeAllele',
-                        'HPRC256_Stdev',
-                        'HPRC256_Median',
-                        'HPRC256_99thPercentile',
-                        'HPRC256_MaxAllele',
-                        'HPRC256_UniqueAlleles',
-                        'HPRC256_NumCalledAlleles',
-                        'HPRC256_StdevRankByMotif',
-                        'HPRC256_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_MinAllele',
-                        'AoU1027_ModeAllele',
-                        'AoU1027_Stdev',
-                        'AoU1027_Median',
-                        'AoU1027_99thPercentile',
-                        'AoU1027_MaxAllele',
-                        'AoU1027_UniqueAlleles',
-                        'AoU1027_NumCalledAlleles',
-                        'AoU1027_StdevRankByMotif',
-                        'AoU1027_StdevRankTotalNumberByMotif',
-
-                        'TenK10K_AlleleHistogram',
-                        'TenK10K_BiallelicHistogram',
-                        'TenK10K_MinAllele',
-                        'TenK10K_ModeAllele',
-                        'TenK10K_Stdev',
-                        'TenK10K_Median',
-                        'TenK10K_99thPercentile',
-                        'TenK10K_MaxAllele',
-                        'TenK10K_UniqueAlleles',
-                        'TenK10K_NumCalledAlleles',
-                        'TenK10K_StdevRankByMotif',
-                        'TenK10K_StdevRankTotalNumberByMotif',
-
-                        'AoU1027_OE_Length',
-                        'AoU1027_OE_LengthPercentile',
-
-                        'RepeatMaskerIntervals',
-                        'NonCodingAnnotations',
-
-                        'VamosMotifFrequencies',
-                        'VamosUniqueMotifs',
-                        'VamosEfficientMotifs',
-                        'VamosNumUniqueMotifs',
-                        'IncludeInVamosCatalog',
-                    ]
-                    selectClause = tsv_columns.join(', ')
-                    sortClause = window.lastSearchSortClause
-                } else {
-                    throw new Error(`Invalid export-dropdown value: ${value}`)
-                }
-
-                try {
-                    $('body').css('cursor', 'wait')
-
-                    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-                    const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
-                    const results = await queryBigQuery(query, null, null, fileFormat, toolName)
-
-                    if (results.public_urls) {
-                        if (results.public_urls.length > 1) {
-                            if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
-                                return;
-                            }
-                        }
-                        for (const url of results.public_urls) {
-                            console.log('Downloading URL:', url)
-                            // Create and trigger download link using jQuery
-                            const $link = $('<a>')
-                                .attr('href', url)
-                                .appendTo('body')
-                            $link[0].click()
-
-                            // Add a small delay between downloads
-                            await new Promise(resolve => setTimeout(resolve, 2000))
-
-                            // Keep track of the link for later removal
-                            if (!window.downloadLinks) {
-                                window.downloadLinks = []
-                            }
-                            window.downloadLinks.push($link)
-
-                            // If this is the first link, start the cleanup timer
-                            if (window.downloadLinks.length === 1) {
-                                setTimeout(() => {
-                                    window.downloadLinks.forEach($link => {
-                                        $link.remove()
-                                    })
-                                    window.downloadLinks = []
-                                }, 2*60*1000)
-                            }
-
-                        }
-                    }
-
-                } catch (error) {
-                    console.error('Error exporting data:', error)
-                    alert('Error exporting data: ' + error.message)
-                } finally {
-                    $('body').css('cursor', 'default')
-                }
+                // For all other formats, proceed with the export directly
+                await performExport(value)
             }
         })
     }
+
+    const showExportColumnDialog = (exportType) => {
+        pendingExportType = exportType
+
+        // Set dialog title based on export type
+        const titleText = exportType === 'json'
+            ? 'Select fields to include in the JSON file'
+            : 'Select columns to include in the TSV'
+        $('#export-dialog-title').text(titleText)
+
+        // Get currently visible columns in the results table
+        const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+        const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
+
+        // Load saved export column selections from localStorage, or fall back to visible table columns
+        const savedSelections = localStorage.getItem('exportColumnSelections')
+        const preSelectedExportColumns = savedSelections
+            ? new Set(JSON.parse(savedSelections))
+            : new Set(visibleColumnNames.flatMap(columnName =>
+                TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
+
+        // Build checkboxes grouped by category
+        const checkboxesContainer = $('#export-column-checkboxes')
+        checkboxesContainer.empty()
+
+        // Group columns by their group property
+        const groupedColumns = {}
+        EXPORT_COLUMN_OPTIONS.forEach(opt => {
+            if (!groupedColumns[opt.group]) {
+                groupedColumns[opt.group] = []
+            }
+            groupedColumns[opt.group].push(opt)
+        })
+
+        // Define the order in which groups should appear
+        const groupOrder = [
+            'Core',
+            'Additional Layers',
+            'Gene Annotations',
+            'Vamos',
+            'Polymorphism (TenK10K)',
+            'Polymorphism (HPRC256)',
+            'Polymorphism (AoU1027)',
+        ]
+
+        // Create HTML for each group in the specified order
+        groupOrder.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+            const columns = groupedColumns[groupName]
+            const groupDiv = $(`<div class="export-column-group">
+                <div class="export-column-group-header">${groupName}</div>
+                <div class="export-column-group-items"></div>
+            </div>`)
+
+            const itemsContainer = groupDiv.find('.export-column-group-items')
+
+            columns.forEach(opt => {
+                const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                // Escape description for HTML attribute (replace quotes and special chars)
+                const escapedDescription = opt.description
+                    ? opt.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    : ''
+                const helpIcon = opt.description
+                    ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                    : ''
+                const checkboxHtml = `
+                    <div class="export-column-checkbox-item">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
+                            <label>${opt.displayName}</label>
+                        </div>
+                        ${helpIcon}
+                    </div>
+                `
+                itemsContainer.append(checkboxHtml)
+            })
+
+            checkboxesContainer.append(groupDiv)
+        })
+
+        // Initialize Semantic UI checkboxes
+        $('#export-column-checkboxes .ui.checkbox').checkbox()
+
+        // Show the dialog
+        $('#export-column-dialog').modal('show')
+    }
+
+    const performExport = async (value, selectedColumns = null) => {
+        // Format data based on export type
+        let fileFormat
+        if (value === 'expansion_hunter' || value == 'json') {
+            fileFormat = 'JSON'
+        } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
+            fileFormat = 'BED'
+        } else if (value === 'tsv' || value == 'vamos') {
+            fileFormat = 'TSV'
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        let toolName
+        let selectClause
+        let conditions = [...window.lastSearchConditions]
+        let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
+        if (value === 'expansion_hunter') {
+            toolName = 'ExpansionHunter'
+            selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
+            conditions.push(`NsInFlanks<=5`)
+            alert('Note: The exported ExpansionHunter catalog will exclude any loci that have > 5 Ns within their flanking regions since ExpansionHunter does not support them.')
+        } else if(value === 'gangstr') {
+            toolName = 'GangSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, ReferenceMotif, '' AS OffTargetRegions`
+        } else if(value === 'hipstr') {
+            toolName = 'HipSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, MotifSize, NumRepeatsInReference, LocusId, ReferenceMotif`
+            conditions.push(`MotifSize < 10`)
+            alert('Note: The exported HipSTR catalog will only include loci with motif sizes < 10bp since HipSTR does not support larger motifs.')
+        } else if(value === 'trgt') {
+            toolName = 'TRGT'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+        } else if(value === 'vamos') {
+            toolName = 'vamos'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
+            conditions.push(`IncludeInVamosCatalog=1`)
+            alert('Note: The exported Vamos catalog will exclude any loci that overlap larger loci since Vamos does not support overlapping locus definitions.')
+        } else if(value === 'longtr') {
+            toolName = 'LongTR'
+            selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
+            conditions.push(`start_0based + 1 < end_1based`)
+        } else if(value === 'medaka') {
+            toolName = 'Medaka'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'strdust') {
+            toolName = 'STRdust'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'bed') {
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
+        } else if(value === 'tsv' || value === 'json') {
+            // Use selected columns if provided, otherwise use default list
+            if (selectedColumns && selectedColumns.length > 0) {
+                // Map selected column names to their SQL column expressions
+                const columnExpressions = selectedColumns.map(colName => {
+                    const colOption = EXPORT_COLUMN_OPTIONS.find(opt => opt.name === colName)
+                    return colOption ? colOption.column : colName
+                })
+                selectClause = columnExpressions.join(', ')
+            } else {
+                // Fallback to default columns if none selected
+                const defaultColumns = [
+                    `CONCAT('chr', chrom) AS chrom`,
+                    'start_0based',
+                    'end_1based',
+                    'ReferenceRegion',
+                    'LocusId',
+                    'ReferenceMotif',
+                    'MotifSize',
+                ]
+                selectClause = defaultColumns.join(', ')
+            }
+            sortClause = window.lastSearchSortClause
+        } else {
+            throw new Error(`Invalid export-dropdown value: ${value}`)
+        }
+
+        try {
+            $('body').css('cursor', 'wait')
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+            const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            const results = await queryBigQuery(query, null, null, fileFormat, toolName)
+
+            if (results.public_urls) {
+                if (results.public_urls.length > 1) {
+                    if (!confirm(`The requested export is very large, so it was split into ${results.public_urls.length} separate files. Would you like to download them?`)) {
+                        return;
+                    }
+                }
+                for (const url of results.public_urls) {
+                    console.log('Downloading URL:', url)
+                    // Create and trigger download link using jQuery
+                    const $link = $('<a>')
+                        .attr('href', url)
+                        .appendTo('body')
+                    $link[0].click()
+
+                    // Add a small delay between downloads
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+
+                    // Keep track of the link for later removal
+                    if (!window.downloadLinks) {
+                        window.downloadLinks = []
+                    }
+                    window.downloadLinks.push($link)
+
+                    // If this is the first link, start the cleanup timer
+                    if (window.downloadLinks.length === 1) {
+                        setTimeout(() => {
+                            window.downloadLinks.forEach($link => {
+                                $link.remove()
+                            })
+                            window.downloadLinks = []
+                        }, 2*60*1000)
+                    }
+
+                }
+            }
+
+        } catch (error) {
+            console.error('Error exporting data:', error)
+            alert('Error exporting data: ' + error.message)
+        } finally {
+            $('body').css('cursor', 'default')
+        }
+    }
+
+    // Handle export dialog download button
+    $('#export-dialog-download-button').click(async () => {
+        if (!pendingExportType) return
+
+        // Collect selected columns
+        const selectedColumns = []
+        $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
+            const columnName = $(this).data('column-name')
+            if (columnName) {
+                selectedColumns.push(columnName)
+            }
+        })
+
+        if (selectedColumns.length === 0) {
+            alert('Please select at least one column to export.')
+            return
+        }
+
+        // Save selections to localStorage
+        localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
+
+        // Hide the dialog
+        $('#export-column-dialog').modal('hide')
+
+        // Perform the export with selected columns
+        await performExport(pendingExportType, selectedColumns)
+
+        pendingExportType = null
+    })
+
+    // Handle export dialog cancel button
+    $('#export-dialog-cancel-button').click(() => {
+        pendingExportType = null
+        $('#export-column-dialog').modal('hide')
+    })
 
 
     const createSmallAlleleFrequencyChart = function() {
@@ -3995,6 +4686,61 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
 
+    // IGV navigation state
+    window.igvNavIndex = 0
+
+    // Update IGV navigation buttons visibility and state
+    const updateIgvNavButtons = () => {
+        const hasResults = window.searchResults && window.searchResults.rows && window.searchResults.rows.length > 1
+        const igvVisible = GLOBAL_PAGE_STATE['showIGV'] === 1
+
+        if (hasResults && igvVisible) {
+            $('#igv-nav-container').show()
+            const totalResults = window.searchResults.rows.length
+            const currentIndex = window.igvNavIndex
+
+            // Update index display
+            $('#igv-nav-index').text(`${currentIndex + 1} of ${totalResults}`)
+
+            // Update button states
+            $('#igv-nav-prev').prop('disabled', currentIndex <= 0)
+            $('#igv-nav-next').prop('disabled', currentIndex >= totalResults - 1)
+        } else {
+            $('#igv-nav-container').hide()
+        }
+    }
+
+    // Navigate IGV to a specific result index
+    const navigateIgvToResult = async (index) => {
+        if (!window.searchResults || !window.searchResults.rows) return
+        if (index < 0 || index >= window.searchResults.rows.length) return
+
+        const row = window.searchResults.rows[index]
+        const referenceRegion = row['ReferenceRegion']
+        if (!referenceRegion) return
+
+        const match = referenceRegion.match(REFERENCE_REGION_REGEXP)
+        if (!match) {
+            console.warn(`Unexpected locus format: ${referenceRegion}`)
+            return
+        }
+
+        const [_, chrom, start, end] = match
+        const paddedStart = Math.max(0, parseInt(start.replace(',', '')) - IGV_LOCUS_PADDING)
+        const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
+        const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
+
+        window.igvNavIndex = index
+        GLOBAL_PAGE_STATE['igvLoc'] = paddedReferenceRegion
+        writePersistentPageStateToUrl()
+
+        if (window.igvBrowser) {
+            await window.igvBrowser.search(paddedReferenceRegion)
+        }
+
+        updateIgvNavButtons()
+    }
+
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
@@ -4018,9 +4764,9 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         let tableHtml = '<table class="ui celled sortable table"><thead><tr>'
-        tableHtml += `<th style="text-align: center">
-            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; padding:2px 3px 2px 13px; border-radius:5px; background-color: #FCFCFF !important" data-tooltip="Column descriptions and settings">
-                <i class="setting icon"></i>
+        tableHtml += `<th style="width: 1%; padding: 2px 4px; text-align: center; vertical-align: middle;">
+            <button id="results-table-settings-button" class="ui primary basic grey button" style="height:25px; width:30px; padding:0; border-radius:5px; background-color: #FCFCFF !important; display: inline-flex; align-items: center; justify-content: center;" data-tooltip="Column descriptions and settings">
+                <i class="setting icon" style="margin: 0;"></i>
             </button>
         </th>`
 
@@ -4040,16 +4786,14 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
+        //console.log("Search results:", results.rows)
+
         results.rows.forEach((row, index) => {
             let diseaseAssociatedIconHtml = generateDiseaseAssociatedIcon(row)
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
-            tableHtml += `<td style="text-align: left;">
-                <div style="min-width: 25px; padding-right: 5px; display: inline-block;">
-                    <a class="row-locus-page-button action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}">#${(startIndex + index + 1).toLocaleString()}:</a>
-                </div>
-                <a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}">IGV</a>
-                ${diseaseAssociatedIconHtml}
+            tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
+                <span style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</span>
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
@@ -4067,7 +4811,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     tableHtml += `<td style="padding: 3px 5px 3px 10px">${value != null ? value : ''}</td>`
                 }
             })
-            tableHtml += `<td style="padding:15px"><a class="row-locus-page-button" style="cursor: pointer" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}"><i class="chevron circle right icon"></i></a></td>`
+            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -4136,6 +4880,7 @@ gtag('config', 'G-6R8FPBQRFH');
         $('.row-igv-button').click(async function() {
             const referenceRegion = $(this).data('reference-region')
             if (!referenceRegion) return
+            const rowIndex = $(this).closest('tr').index()
 
             // Parse the locus to get chrom, start, end
             const match = referenceRegion.match(REFERENCE_REGION_REGEXP)
@@ -4149,6 +4894,8 @@ gtag('config', 'G-6R8FPBQRFH');
             const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
             const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
 
+            // Update navigation index
+            window.igvNavIndex = rowIndex
 
             try {
                 $('body').css('cursor', 'wait')
@@ -4165,19 +4912,17 @@ gtag('config', 'G-6R8FPBQRFH');
                     $('#igv-row').show()
                     $('#show-igv-divider-text').hide()
                     $('#hide-igv-divider-text').show()
-                    await updateIgv()
-                } else {
-                    if (!window.igvBrowser) {
-                        console.error("WARNING: IGV browser not initialized yet")
-                        await updateIgv()
-                    }
-                    writePersistentPageStateToUrl()
-
-                    await window.igvBrowser.search(paddedReferenceRegion)
                 }
 
-                // Scroll the page to the IGV browser
+                // Scroll to the IGV browser first, then update/search
                 $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
+
+                if (!window.igvBrowser) {
+                    await updateIgv()
+                } else {
+                    writePersistentPageStateToUrl()
+                    await window.igvBrowser.search(paddedReferenceRegion)
+                }
 
 
                 // Enable the "TRExplorer genome-wide catalog" track if it's not already enabled
@@ -4187,6 +4932,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
                     await updateIgv()
                 }
+
+                // Update navigation buttons
+                updateIgvNavButtons()
             } finally {
                 $('body').css('cursor', 'default')
             }
@@ -4265,8 +5013,8 @@ gtag('config', 'G-6R8FPBQRFH');
         searchQuery = searchQuery.trim()
         searchQuery = searchQuery.replace(/[–—−‐‑‒﹘﹣－‾]/g, '-') // Replace all unicode dash types with a regular dash
 
-        // split by comma except where the comma is part of a large number (eg. 1,234,567)
-        const searchQueryValues = searchQuery.split(/,(?!\d{3})/).map(q => q.trim()).filter(q => q !== '')
+        // split by comma (except where the comma is part of a large number like 1,234,567) or whitespace
+        const searchQueryValues = searchQuery.split(/,(?!\d{3})|\s+/).map(q => q.trim()).filter(q => q !== '')
 
         return searchQueryValues
     }
@@ -4355,12 +5103,61 @@ gtag('config', 'G-6R8FPBQRFH');
                         case 'tr_explorer_catalog':
                             conditions.push("Source LIKE 'TRExplorerV1%'")
                             break
-                        case 'illumina_174k_catalog':
-                            conditions.push(
-                                "(FoundInIllumina174kPolymorphicTRs = 'Yes' OR (FoundInKnownDiseaseAssociatedLoci = 'Yes' AND FoundInIllumina174kPolymorphicTRs LIKE '%Yes%'))")
+                        // v1 sources
+                        case 'source_PerfectRepeatsInReference':
+                            conditions.push("Source = 'TRExplorerV1:PerfectRepeatsInReference'")
                             break
-                        case 'known_disease_loci':
-                            conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL")
+                        case 'source_PolymorphicTRsInT2TAssemblies':
+                            conditions.push("Source = 'TRExplorerV1:PolymorphicTRsInT2TAssemblies'")
+                            break
+                        case 'source_Illumina174kPolymorphicTRs':
+                            conditions.push("Source = 'TRExplorerV1:Illumina174kPolymorphicTRs'")
+                            break
+                        case 'source_KnownDiseaseAssociatedLoci':
+                            conditions.push("Source = 'TRExplorerV1:KnownDiseaseAssociatedLoci'")
+                            break
+                        // v2 sources
+                        case 'source_PolymorphicTRsInT2TAssembliesV2':
+                            conditions.push("Source = 'TRExplorerV2:PolymorphicTRsInT2TAssembliesV2'")
+                            break
+                        case 'source_AdottoTRsFromDanzi2025':
+                            conditions.push("Source = 'TRExplorerV2:AdottoTRsFromDanzi2025'")
+                            break
+                        case 'source_HipSTRCatalog':
+                            conditions.push("Source = 'TRExplorerV2:HipSTRCatalog'")
+                            break
+                        case 'source_Manigbas2024':
+                            conditions.push("Source = 'TRExplorerV2:Manigbas2024'")
+                            break
+                        case 'source_Garg2021':
+                            conditions.push("Source = 'TRExplorerV2:Garg2021'")
+                            break
+                        case 'source_Tanudisastro2025':
+                            conditions.push("Source = 'TRExplorerV2:Tanudisastro2025'")
+                            break
+                        case 'source_ClinvarIndelsThatAreTRs2025':
+                            conditions.push("Source = 'TRExplorerV2:ClinvarIndelsThatAreTRs2025'")
+                            break
+                        case 'source_Hause2016':
+                            conditions.push("Source = 'TRExplorerV2:Hause2016'")
+                            break
+                        case 'source_Sulovari2021':
+                            conditions.push("Source = 'TRExplorerV2:Sulovari2021'")
+                            break
+                        case 'source_Annear2021':
+                            conditions.push("Source = 'TRExplorerV2:Annear2021'")
+                            break
+                        case 'source_Mukamel2021':
+                            conditions.push("Source = 'TRExplorerV2:Mukamel2021'")
+                            break
+                        case 'source_KnownFunctionalVNTRs':
+                            conditions.push("Source = 'TRExplorerV2:KnownFunctionalVNTRs'")
+                            break
+                        case 'source_KnownDiseaseAssociatedLociV2':
+                            conditions.push("Source = 'TRExplorerV2:KnownDiseaseAssociatedLociV2'")
+                            break
+                        case 'source_VamosV3':
+                            conditions.push("Source = 'TRExplorerV2:VamosV3'")
                             break
                     }
                 }
@@ -4435,7 +5232,7 @@ gtag('config', 'G-6R8FPBQRFH');
                             sizeClauses.push(`(MotifSize >= ${min})`)
                             return
                         }
-                        
+
                         // Handle ranges like "2-6"
                         const rangeMatch = value.match(/^(\d+)-(\d+)$/)
                         if (rangeMatch) {
@@ -4531,6 +5328,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 if ($('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked')) {
                     regionConditions.push("DiseaseInfo IS NOT NULL")
                 }
+                if ($('input[name="keepLociThatOverlapLocusSet"]').prop('checked')) {
+                    const locusSetType = $('#overlap-locus-set-dropdown').dropdown('get value')
+                    if (locusSetType === 'gangstr_v17') {
+                        regionConditions.push("FoundInGangSTRCatalog = 1")
+                    }
+                }
 
                 if (regionConditions.length > 0) {
                     conditions.push(`(${regionConditions.join(' OR ')})`)
@@ -4564,7 +5367,15 @@ gtag('config', 'G-6R8FPBQRFH');
             const sortColumns = TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom', 'start_0based']
             const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
 
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
+            const selectClauseColumns = selectedColumns.map(col => {
+                if (col === 'ReferenceRepeatSequence' || col === 'ReferenceLeftFlank' || col === 'ReferenceRightFlank') {
+                    return `CASE WHEN ReferenceRegionSize <= 10000 THEN ${col} ELSE NULL END AS ${col}`
+                }
+                return col
+            })
+
+            const query = `SELECT ${selectClauseColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
 
             const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
             const pageSize = GLOBAL_PAGE_STATE['pageSize']
@@ -4573,6 +5384,9 @@ gtag('config', 'G-6R8FPBQRFH');
             window.lastSearchSortClause = sortClause
 
             window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
+
+            // Reset navigation index for new search results
+            window.igvNavIndex = 0
 
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
@@ -4592,6 +5406,8 @@ gtag('config', 'G-6R8FPBQRFH');
             GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked') ? 1 : 0
+            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] = $('input[name="keepLociThatOverlapLocusSet"]').prop('checked') ? 1 : 0
+            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'] = $('#overlap-locus-set-dropdown').dropdown('get value')
 
             GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
@@ -4601,8 +5417,9 @@ gtag('config', 'G-6R8FPBQRFH');
             writePersistentPageStateToUrl()
 
             displaySearchResults()
-            
+
             updatePaginationControls()
+            updateIgvNavButtons()
             
         } catch (error) {
             console.error('Error performing search:', error)
@@ -4638,6 +5455,8 @@ gtag('config', 'G-6R8FPBQRFH');
             $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
             $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
             $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
+            $('select[name="keepLociThatOverlapLocusSetSelection"]').val(GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
+            $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
 
         } else {
             $('#advanced-search-form').slideUp(300)
@@ -4861,7 +5680,22 @@ gtag('config', 'G-6R8FPBQRFH');
             }
         }
     })
-    
+
+    // Add event handler for overlap locus set filter dropdown
+    $('#overlap-locus-set-dropdown').dropdown({
+        onShow: function() {
+            $(this).css('z-index', 10001)
+        },
+        onHide: function() {
+            $(this).css('z-index', '')
+        },
+        onChange: (value) => {
+            if (value) {
+                $('input[name="keepLociThatOverlapLocusSet"]').prop('checked', true)
+            }
+        }
+    })
+
     $('#known-disease-motifs-link').click((e) => {
         e.preventDefault()
 

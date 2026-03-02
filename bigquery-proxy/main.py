@@ -213,10 +213,14 @@ def query_db(request):
         print(f"ERROR: {response_dict['error']}")
         return jsonify(response_dict), 400, response_headers
 
-    client = bigquery.Client()
-    job = client.query(sql, job_config=bigquery.QueryJobConfig(use_query_cache=True))
-    job.result()  # wait for the query to complete
-    result_table = client.get_table(job.destination)  # get the temporary destination table object
+    try:
+        client = bigquery.Client()
+        job = client.query(sql, job_config=bigquery.QueryJobConfig(use_query_cache=True))
+        job.result()  # wait for the query to complete
+        result_table = client.get_table(job.destination)  # get the temporary destination table object
+    except Exception as e:
+        print(f"ERROR: BigQuery query failed: {str(e)}")
+        return jsonify({"error": f"BigQuery query failed: {e}"}), 500, response_headers
 
     export_to_file_format = data.get("export_to_file_format")
     if export_to_file_format:

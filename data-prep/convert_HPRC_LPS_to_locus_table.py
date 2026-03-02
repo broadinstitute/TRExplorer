@@ -34,7 +34,7 @@ HEADER_FIELDS = [
     "median",
     "99th_percentile",
     "max_allele",
-    "unique_alleles",
+    "unique_allele_lengths",
     "num_called_alleles",
 ]
 

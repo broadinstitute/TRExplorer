@@ -49,6 +49,12 @@
             console.warn("Sequence is empty")
             return
         }
+
+        if (sequence.length > 1000) {
+            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
+            return
+        }
+
         const separatorPositions = []
         const filteredSequenceChars = []
         for (const c of sequence) {
@@ -66,7 +72,14 @@
 
         const size = matrix.length;
         const scaledSize = size * pixelsPerCell;
-        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+
+        let pixelData;
+        try {
+            pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
+        } catch (e) {
+            console.error(`Failed to allocate dot plot buffer (size: ${scaledSize}x${scaledSize}, sequence length: ${filteredSequence.length}):`, e)
+            return
+        }
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
                 const value = matrix[i][j];
