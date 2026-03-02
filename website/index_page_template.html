@@ -678,13 +678,17 @@
 
     // IGV navigation button handlers
     $('#igv-nav-prev').click(async () => {
-        if (window.igvNavIndex > 0) {
+        if (window.igvNavActive && window.igvNavIndex > 0) {
             await navigateIgvToResult(window.igvNavIndex - 1)
         }
     })
 
     $('#igv-nav-next').click(async () => {
-        if (window.searchResults && window.igvNavIndex < window.searchResults.rows.length - 1) {
+        if (!window.searchResults) return
+        if (!window.igvNavActive) {
+            // First click after page change: navigate to row 0 of current page
+            await navigateIgvToResult(0)
+        } else if (window.igvNavIndex < window.searchResults.rows.length - 1) {
             await navigateIgvToResult(window.igvNavIndex + 1)
         }
     })
@@ -1265,6 +1269,7 @@
 
     // IGV navigation state
     window.igvNavIndex = 0
+    window.igvNavActive = false
 
     // Update IGV navigation buttons visibility and state
     const updateIgvNavButtons = () => {
@@ -1273,15 +1278,19 @@
 
         if (hasResults && igvVisible) {
             $('#igv-nav-container').show()
-            const totalResults = window.searchResults.rows.length
-            const currentIndex = window.igvNavIndex
+            const totalResults = window.searchResults.total_results
+            const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
 
-            // Update index display
-            $('#igv-nav-index').text(`${currentIndex + 1} of ${totalResults}`)
-
-            // Update button states
-            $('#igv-nav-prev').prop('disabled', currentIndex <= 0)
-            $('#igv-nav-next').prop('disabled', currentIndex >= totalResults - 1)
+            if (window.igvNavActive) {
+                // Show absolute row number
+                $('#igv-nav-index').text(`${startIndex + window.igvNavIndex + 1} of ${totalResults}`)
+                $('#igv-nav-prev').prop('disabled', window.igvNavIndex <= 0)
+            } else {
+                // No row actively navigated to on this page
+                $('#igv-nav-index').text(`- of ${totalResults}`)
+                $('#igv-nav-prev').prop('disabled', true)
+            }
+            $('#igv-nav-next').prop('disabled', window.igvNavIndex >= window.searchResults.rows.length - 1 && window.igvNavActive)
         } else {
             $('#igv-nav-container').hide()
         }
@@ -1308,6 +1317,7 @@
         const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
 
         window.igvNavIndex = index
+        window.igvNavActive = true
         GLOBAL_PAGE_STATE['igvLoc'] = paddedReferenceRegion
         writePersistentPageStateToUrl()
 
@@ -1473,6 +1483,7 @@
 
             // Update navigation index
             window.igvNavIndex = rowIndex
+            window.igvNavActive = true
 
             try {
                 $('body').css('cursor', 'wait')
@@ -1964,6 +1975,7 @@
 
             // Reset navigation index for new search results
             window.igvNavIndex = 0
+            window.igvNavActive = false
 
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
