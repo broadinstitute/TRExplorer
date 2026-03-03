@@ -33,6 +33,18 @@
     <div class="ui row" style="padding-bottom: 0;">
         <div class="three wide column"></div>
         <div class="ten wide column">
+            <div id="error-message" class="ui negative message" style="display: none">
+                <i class="close icon"></i>
+                <div class="header">Error</div>
+                <p id="error-text"></p>
+            </div>
+        </div>
+        <div class="three wide column"></div>
+    </div>
+
+    <div class="ui row" style="padding-bottom: 0;">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
             <div id="show-igv-divider">
                 <span id="show-igv-divider-text">Show IGV.js<i class="chevron down icon"></i></span>
                 <span id="hide-igv-divider-text" style="display: none">Hide IGV.js<i class="chevron up icon"></i></span>
@@ -349,7 +361,7 @@
             return '<div class="ui error message">Error loading sc-eTR details</div>'
         }
         const tanudisastroLocusId = details.Tanudisastro2024_LocusId
-        const isFuzzyMatch = tanudisastroLocusId !== row['LocusId']
+        const isFuzzyMatch = tanudisastroLocusId && tanudisastroLocusId !== row['LocusId']
 
         let html = '<h4>sc-eTRs (Tanudisastro et al. 2024)</h4>'
 
@@ -526,7 +538,7 @@
 
             // Show IGV if hidden
             if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
-                await $('#show-igv-divider').click()
+                $('#show-igv-divider').click()  // triggers async IGV init; .click() returns a jQuery object, not a Promise
             } else {
                 writePersistentPageStateToUrl()
                 if (!window.igvBrowser) {
@@ -586,7 +598,8 @@
             $('#loading-container').hide()
 
             if (!window.searchResults.rows || window.searchResults.rows.length == 0) {
-                console.log("ERROR: row not found", whereClause)
+                console.error("ERROR: row not found", whereClause)
+                displayError(`Locus not found: ${locusId}`)
                 return
             }
 

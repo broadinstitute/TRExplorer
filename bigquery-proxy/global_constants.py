@@ -11,15 +11,15 @@ GENE_REGION_PRIORITY = (
 )
 
 # Export group names for organizing columns in the export dialog
-EXPORT_GROUP_CORE = "Core"
-EXPORT_GROUP_ADDITIONAL_LAYERS = "Additional Layers"
-EXPORT_GROUP_GENE_ANNOTATIONS = "Gene Annotations"
-EXPORT_GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
-EXPORT_GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
-EXPORT_GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
-EXPORT_GROUP_VAMOS = "Vamos"
-EXPORT_GROUP_SC_ETRS = "sc-eTRs (Tanudisastro 2024)"
-EXPORT_GROUP_PHEWAS = "PheWAS (Manigbas 2024)"
+GROUP_CORE = "Core"
+GROUP_ADDITIONAL_LAYERS = "Additional Layers"
+GROUP_GENE_ANNOTATIONS = "Gene Annotations"
+GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
+GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
+GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
+GROUP_VAMOS = "Vamos"
+GROUP_SC_ETRS = "sc-eTRs (Tanudisastro 2024)"
+GROUP_PHEWAS = "PheWAS (Manigbas 2024)"
 
 
 BIGQUERY_COLUMNS = [
@@ -42,7 +42,9 @@ BIGQUERY_COLUMNS = [
         "mode": "REQUIRED",
         "description": "Chromosome name without 'chr' prefix (e.g., '1', '2', 'X', 'Y', 'MT').",
         "displayName": "Chromosome",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
         "exportColumn": "CONCAT('chr', chrom) AS chrom",
     },
     {
@@ -51,7 +53,9 @@ BIGQUERY_COLUMNS = [
         "mode": "REQUIRED",
         "description": "0-based start coordinate of the TR locus in hg38.",
         "displayName": "Start (0-based)",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "INTEGER",
@@ -59,7 +63,9 @@ BIGQUERY_COLUMNS = [
         "mode": "REQUIRED",
         "description": "1-based end coordinate of the TR locus in hg38 (half-open interval).",
         "displayName": "End (1-based)",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
@@ -67,35 +73,45 @@ BIGQUERY_COLUMNS = [
         "mode": "REQUIRED",
         "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442",
         "displayName": "Reference Region",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
         "name": "LocusId",
         "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.",
         "displayName": "Locus ID",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "INTEGER",
         "name": "ReferenceRegionSize",
         "description": "Size of the TR locus in base pairs (end_1based - start_0based).",
         "displayName": "Locus Size (bp)",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "INTEGER",
         "name": "MotifSize",
         "description": "Length of the repeat motif in base pairs.",
         "displayName": "Motif Size",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
         "name": "ReferenceMotif",
         "description": "The repeat motif sequence as it appears in hg38.",
         "displayName": "Motif",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
@@ -106,7 +122,9 @@ BIGQUERY_COLUMNS = [
             "For example, the canonical version of CTG is AGC."
         ),
         "displayName": "Canonical Motif",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "INTEGER",
@@ -116,7 +134,9 @@ BIGQUERY_COLUMNS = [
             "and dividing it by the motif size, then rounding down to the nearest integer."
         ),
         "displayName": "# Repeats in Reference",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "FLOAT",
@@ -127,7 +147,9 @@ BIGQUERY_COLUMNS = [
             "has purity = 0.89. Range: 0 to 1."
         ),
         "displayName": "Repeat Purity",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
 
     # Highest purity motif fields
@@ -153,21 +175,27 @@ BIGQUERY_COLUMNS = [
         "name": "NsInFlanks",
         "description": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don't support Ns in flanks.",
         "displayName": "Ns in Flanks",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "INTEGER",
         "name": "TRsInRegion",
         "description": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence.",
         "displayName": "Nearby TRs",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
         "name": "Source",
         "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.",
         "displayName": "Source",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
 
     # Non-overlapping locus flags
@@ -176,14 +204,18 @@ BIGQUERY_COLUMNS = [
         "name": "NonOverlappingLongestLocus",
         "description": "Whether this is the longest locus among overlapping loci at this position (1 = yes, 0 = no).",
         "displayName": "Non-Overlapping Longest",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "INTEGER",
         "name": "NonOverlappingPurestLocus",
         "description": "Whether this is the purest locus among overlapping loci at this position (1 = yes, 0 = no).",
         "displayName": "Non-Overlapping Purest",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # Source catalog membership flags
@@ -229,7 +261,9 @@ BIGQUERY_COLUMNS = [
         "name": "FlanksAndLocusMappability",
         "description": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1.",
         "displayName": "Mappability",
-        "group": EXPORT_GROUP_CORE,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_CORE,
     },
 
     # Variation clusters
@@ -242,14 +276,18 @@ BIGQUERY_COLUMNS = [
             "embedded within a wider region that harbors multiple common polymorphisms."
         ),
         "displayName": "Variation Cluster",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "INTEGER",
         "name": "VariationClusterSizeDiff",
         "description": "Size difference in bp between the variation cluster interval and the reference repeat interval.",
         "displayName": "VC Size Diff",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "STRING",
@@ -263,14 +301,16 @@ BIGQUERY_COLUMNS = [
         "name": "KnownDiseaseAssociatedLocus",
         "description": "Name of the known disease-associated locus if this TR overlaps one.",
         "displayName": "Known Disease Locus",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "STRING",
         "name": "KnownDiseaseAssociatedMotif",
         "description": "The pathogenic repeat motif at the known disease-associated locus.",
         "displayName": "Known Disease Motif",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "STRING",
@@ -284,28 +324,36 @@ BIGQUERY_COLUMNS = [
         "name": "GencodeGeneRegion",
         "description": f"The most significant gene region that overlaps the TR locus in Gencode v48, {GENE_REGION_PRIORITY}.",
         "displayName": "Gencode Gene Region",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "GencodeGeneName",
         "description": "Gencode v48 gene name",
         "displayName": "Gencode Gene Name",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "GencodeGeneId",
         "description": "Gencode v48 gene ID (ENSG)",
         "displayName": "Gencode Gene ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "GencodeTranscriptId",
         "description": "Gencode v48 transcript ID (ENST)",
         "displayName": "Gencode Transcript ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
 
     # Gene annotations - RefSeq
@@ -314,28 +362,36 @@ BIGQUERY_COLUMNS = [
         "name": "RefseqGeneRegion",
         "description": f"The most significant RefSeq gene region that overlaps the TR locus, {GENE_REGION_PRIORITY}.",
         "displayName": "RefSeq Gene Region",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "RefseqGeneName",
         "description": "RefSeq gene name",
         "displayName": "RefSeq Gene Name",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "RefseqGeneId",
         "description": "RefSeq gene ID",
         "displayName": "RefSeq Gene ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "RefseqTranscriptId",
         "description": "RefSeq transcript ID",
         "displayName": "RefSeq Transcript ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
 
     # Gene annotations - MANE
@@ -344,28 +400,36 @@ BIGQUERY_COLUMNS = [
         "name": "ManeGeneRegion",
         "description": f"The most significant gene region that overlaps the TR locus in MANE v1.4, {GENE_REGION_PRIORITY}.",
         "displayName": "MANE Gene Region",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "ManeGeneName",
         "description": "MANE v1.4 gene name",
         "displayName": "MANE Gene Name",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "ManeGeneId",
         "description": "MANE v1.4 gene ID",
         "displayName": "MANE Gene ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
     {
         "type": "STRING",
         "name": "ManeTranscriptId",
         "description": "MANE v1.4 transcript ID",
         "displayName": "MANE Transcript ID",
-        "group": EXPORT_GROUP_GENE_ANNOTATIONS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_GENE_ANNOTATIONS,
     },
 
     # Illumina174k / 1kGP data
@@ -374,14 +438,17 @@ BIGQUERY_COLUMNS = [
         "name": "AlleleFrequenciesFromIllumina174k",
         "description": "Allele frequencies based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.",
         "displayName": "1kGP Allele Frequencies",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "FLOAT",
         "name": "StdevFromIllumina174k",
         "description": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.",
         "displayName": "1kGP Stdev",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # T2T assemblies data
@@ -390,14 +457,17 @@ BIGQUERY_COLUMNS = [
         "name": "AlleleFrequenciesFromT2TAssemblies",
         "description": "Allele frequencies based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.",
         "displayName": "T2T Allele Frequencies",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "FLOAT",
         "name": "StdevFromT2TAssemblies",
         "description": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.",
         "displayName": "T2T Stdev",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # TenK10K data
@@ -406,84 +476,105 @@ BIGQUERY_COLUMNS = [
         "name": "TenK10K_AlleleHistogram",
         "description": "Allele frequencies based on ExpansionHunter calls in 1,925 short-read genomes from the TenK10K Phase 1 dataset.",
         "displayName": "TenK10K Allele Histogram",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "STRING",
         "name": "TenK10K_BiallelicHistogram",
         "description": "Biallelic genotype histogram from TenK10K Phase 1 short-read genomes.",
         "displayName": "TenK10K Biallelic Histogram",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_MinAllele",
         "description": "Minimum allele size observed in TenK10K Phase 1.",
         "displayName": "TenK10K Min Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_ModeAllele",
         "description": "Mode (most common) allele size in TenK10K Phase 1.",
         "displayName": "TenK10K Mode Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "FLOAT",
         "name": "TenK10K_Stdev",
         "description": "Standard deviation of allele sizes in TenK10K Phase 1.",
         "displayName": "TenK10K Stdev",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "FLOAT",
         "name": "TenK10K_Median",
         "description": "Median allele size in TenK10K Phase 1.",
         "displayName": "TenK10K Median",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "FLOAT",
         "name": "TenK10K_99thPercentile",
         "description": "99th percentile allele size in TenK10K Phase 1.",
         "displayName": "TenK10K 99th Percentile",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_MaxAllele",
         "description": "Maximum allele size observed in TenK10K Phase 1.",
         "displayName": "TenK10K Max Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_UniqueAlleleLengths",
         "description": "Number of unique allele lengths observed in TenK10K Phase 1.",
         "displayName": "TenK10K Unique Allele Lengths",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_NumCalledAlleles",
         "description": "Total number of alleles called in TenK10K Phase 1.",
         "displayName": "TenK10K Num Called",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_StdevRankByMotif",
         "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1.",
         "displayName": "TenK10K Stdev Rank",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
     {
         "type": "INTEGER",
         "name": "TenK10K_StdevRankTotalNumberByMotif",
         "description": "Total number of loci with the same motif used for ranking in TenK10K Phase 1.",
         "displayName": "TenK10K Stdev Rank Total",
-        "group": EXPORT_GROUP_POLYMORPHISM_TENK10K,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
     },
 
     # HPRC256 data
@@ -492,84 +583,105 @@ BIGQUERY_COLUMNS = [
         "name": "HPRC256_AlleleHistogram",
         "description": "Allele frequencies based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). Allele sizes computed using the longest pure segment (LPS).",
         "displayName": "HPRC256 Allele Histogram",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "STRING",
         "name": "HPRC256_BiallelicHistogram",
         "description": "Biallelic genotype histogram from HPRC 256 PacBio samples.",
         "displayName": "HPRC256 Biallelic Histogram",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_MinAllele",
         "description": "Minimum allele size (LPS) observed in HPRC256.",
         "displayName": "HPRC256 Min Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_ModeAllele",
         "description": "Mode (most common) allele size (LPS) in HPRC256.",
         "displayName": "HPRC256 Mode Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "FLOAT",
         "name": "HPRC256_Stdev",
         "description": "Standard deviation of allele sizes (LPS) in HPRC256.",
         "displayName": "HPRC256 Stdev",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "FLOAT",
         "name": "HPRC256_Median",
         "description": "Median allele size (LPS) in HPRC256.",
         "displayName": "HPRC256 Median",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "FLOAT",
         "name": "HPRC256_99thPercentile",
         "description": "99th percentile allele size (LPS) in HPRC256.",
         "displayName": "HPRC256 99th Percentile",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_MaxAllele",
         "description": "Maximum allele size (LPS) observed in HPRC256.",
         "displayName": "HPRC256 Max Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_UniqueAlleleLengths",
         "description": "Number of unique LPS allele lengths observed in HPRC256.",
         "displayName": "HPRC256 Unique Allele Lengths",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_NumCalledAlleles",
         "description": "Total number of alleles called in HPRC256.",
         "displayName": "HPRC256 Num Called",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_StdevRankByMotif",
         "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256.",
         "displayName": "HPRC256 Stdev Rank",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
         "type": "INTEGER",
         "name": "HPRC256_StdevRankTotalNumberByMotif",
         "description": "Total number of loci with the same motif used for ranking in HPRC256.",
         "displayName": "HPRC256 Stdev Rank Total",
-        "group": EXPORT_GROUP_POLYMORPHISM_HPRC256,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
     },
 
     # AoU1027 data
@@ -578,77 +690,98 @@ BIGQUERY_COLUMNS = [
         "name": "AoU1027_MinAllele",
         "description": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us).",
         "displayName": "AoU1027 Min Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "INTEGER",
         "name": "AoU1027_ModeAllele",
         "description": "Mode (most common) allele size (LPS) in AoU1027.",
         "displayName": "AoU1027 Mode Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "FLOAT",
         "name": "AoU1027_Stdev",
         "description": "Standard deviation of allele sizes (LPS) in AoU1027.",
         "displayName": "AoU1027 Stdev",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "FLOAT",
         "name": "AoU1027_Median",
         "description": "Median allele size (LPS) in AoU1027.",
         "displayName": "AoU1027 Median",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "FLOAT",
         "name": "AoU1027_99thPercentile",
         "description": "99th percentile allele size (LPS) in AoU1027.",
         "displayName": "AoU1027 99th Percentile",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "INTEGER",
         "name": "AoU1027_MaxAllele",
         "description": "Maximum allele size (LPS) observed in AoU1027.",
         "displayName": "AoU1027 Max Allele",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "INTEGER",
         "name": "AoU1027_NumCalledAlleles",
         "description": "Total number of alleles called in AoU1027.",
         "displayName": "AoU1027 Num Called",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "INTEGER",
         "name": "AoU1027_StdevRankByMotif",
         "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027.",
         "displayName": "AoU1027 Stdev Rank",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "INTEGER",
         "name": "AoU1027_StdevRankTotalNumberByMotif",
         "description": "Total number of loci with the same motif used for ranking in AoU1027.",
         "displayName": "AoU1027 Stdev Rank Total",
-        "group": EXPORT_GROUP_POLYMORPHISM_AOU1027,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
     },
     {
         "type": "FLOAT",
         "name": "AoU1027_OE_Length",
         "description": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025).",
         "displayName": "Constraint: O/E Length",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "FLOAT",
         "name": "AoU1027_OE_LengthPercentile",
         "description": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog.",
         "displayName": "Constraint: O/E Length Percentile",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # RepeatMasker and non-coding annotations
@@ -657,14 +790,18 @@ BIGQUERY_COLUMNS = [
         "name": "RepeatMaskerIntervals",
         "description": "UCSC Repeat Masker intervals that overlap the TR locus",
         "displayName": "RepeatMasker Intervals",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
     {
         "type": "STRING",
         "name": "NonCodingAnnotations",
         "description": "Non-coding annotations from various sources collected by the Talkowski Lab",
         "displayName": "Non-coding Annotations",
-        "group": EXPORT_GROUP_ADDITIONAL_LAYERS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # Vamos data
@@ -673,35 +810,42 @@ BIGQUERY_COLUMNS = [
         "name": "VamosUniqueMotifs",
         "description": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies.",
         "displayName": "Vamos Unique Motifs",
-        "group": EXPORT_GROUP_VAMOS,
+        "allowExport": True,
+        "group": GROUP_VAMOS,
     },
     {
         "type": "STRING",
         "name": "VamosEfficientMotifs",
         "description": "Efficient motif representation for Vamos genotyping.",
         "displayName": "Vamos Efficient Motifs",
-        "group": EXPORT_GROUP_VAMOS,
+        "allowExport": True,
+        "group": GROUP_VAMOS,
     },
     {
         "type": "STRING",
         "name": "VamosMotifFrequencies",
         "description": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies.",
         "displayName": "Vamos Motif Frequencies",
-        "group": EXPORT_GROUP_VAMOS,
+        "allowExport": True,
+        "group": GROUP_VAMOS,
     },
     {
         "type": "INTEGER",
         "name": "VamosNumUniqueMotifs",
         "description": "Number of unique motifs detected by Vamos at this locus.",
         "displayName": "Vamos Num Unique Motifs",
-        "group": EXPORT_GROUP_VAMOS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_VAMOS,
     },
     {
         "type": "INTEGER",
         "name": "IncludeInVamosCatalog",
         "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them.",
         "displayName": "Include In Vamos Catalog",
-        "group": EXPORT_GROUP_VAMOS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_VAMOS,
     },
 
     # Tanudisastro 2024 sc-eTR data
@@ -710,14 +854,18 @@ BIGQUERY_COLUMNS = [
         "name": "Tanudisastro2024_SignificantCellTypes",
         "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.",
         "displayName": "sc-eTRs: Cell Types",
-        "group": EXPORT_GROUP_SC_ETRS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_SC_ETRS,
     },
     {
         "type": "FLOAT",
         "name": "Tanudisastro2024_MinPvalue",
         "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.",
         "displayName": "sc-eTRs: Min P-value",
-        "group": EXPORT_GROUP_SC_ETRS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_SC_ETRS,
     },
     {
         "type": "STRING",
@@ -731,38 +879,52 @@ BIGQUERY_COLUMNS = [
         "name": "Manigbas2024_AssociatedTraits",
         "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.",
         "displayName": "PheWAS: Traits",
-        "group": EXPORT_GROUP_PHEWAS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_PHEWAS,
     },
     {
         "type": "FLOAT",
         "name": "Manigbas2024_MinPvalue",
         "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations.",
         "displayName": "PheWAS: Min P-value",
-        "group": EXPORT_GROUP_PHEWAS,
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_PHEWAS,
     },
     {
         "type": "STRING",
         "name": "Manigbas2024_Details",
         "description": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId.",
         "displayName": "PheWAS: Details",
-        "group": EXPORT_GROUP_PHEWAS,
+        "allowExport": True,
+        "group": GROUP_PHEWAS,
     },
 
     # Reference sequence data
     {
         "type": "STRING",
         "name": "ReferenceRepeatSequence",
-        "description": "The repeat sequence in hg38",
+        "description": "The repeat sequence within the TR interval in hg38",
+        "displayName": "Reference Sequence",
+        "allowCustomFilter": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
         "name": "ReferenceLeftFlank",
         "description": "The sequence immediately to the left of the TR locus in hg38",
+        "displayName": "Left Flank Sequence",
+        "allowCustomFilter": True,
+        "group": GROUP_CORE,
     },
     {
         "type": "STRING",
         "name": "ReferenceRightFlank",
         "description": "The sequence immediately to the right of the TR locus in hg38",
+        "displayName": "Right Flank Sequence",
+        "allowCustomFilter": True,
+        "group": GROUP_CORE,
     },
 ]
 
@@ -776,10 +938,31 @@ def get_column_descriptions():
     return {col["name"]: col.get("description", "") for col in BIGQUERY_COLUMNS}
 
 
+def get_custom_filter_columns():
+    """Return a list of columns that can be used for custom filtering.
+
+    Only columns that have 'allowCustomFilter' set to True are included.
+
+    Returns:
+        list: List of dicts with keys: name, displayName, group, description, type
+    """
+    filterable = []
+    for col in BIGQUERY_COLUMNS:
+        if col.get("allowCustomFilter", False):
+            filterable.append({
+                "name": col.get("name", ""),
+                "displayName": col.get("displayName", col.get("name", "")),
+                "group": col.get("group", ""),
+                "description": col.get("description", ""),
+                "type": col.get("type", ""),
+            })
+    return filterable
+
+
 def get_exportable_columns():
     """Return a list of columns that can be exported, with their display metadata.
 
-    Only columns that have a 'displayName' and 'group' are considered exportable.
+    Only columns that have 'allowExport' set to True are included.
 
     Returns:
         list: List of dicts with keys: name, displayName, group, column, description
@@ -787,12 +970,12 @@ def get_exportable_columns():
     """
     exportable = []
     for col in BIGQUERY_COLUMNS:
-        if "displayName" in col and "group" in col:
+        if col.get("allowExport", False):
             exportable.append({
-                "name": col["name"],
-                "displayName": col["displayName"],
-                "group": col["group"],
-                "column": col.get("exportColumn", col["name"]),
+                "name": col.get("name", ""),
+                "displayName": col.get("displayName", col.get("name", "")),
+                "group": col.get("group", ""),
+                "column": col.get("exportColumn", col.get("name", "")),
                 "description": col.get("description", ""),
             })
     return exportable

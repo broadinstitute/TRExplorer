@@ -275,6 +275,9 @@ gtag('config', 'G-6R8FPBQRFH');
         vcFilter: 0,
         vcFilterType: '',
 
+        // Custom filters: compact format "col|op|val,col|op|val"
+        customFilters: '',
+
         // Custom track URLs
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
@@ -340,6 +343,7 @@ gtag('config', 'G-6R8FPBQRFH');
         'polymorphismFilter': 'pFilter',
         'polymorphismFilterType': 'pFilterType',
         'polymorphismThreshold': 'pThreshold',
+        'customFilters': 'cf',
         'igv_custom_track_url_1': 'igv_ct_url1',
         'igv_custom_track_url_2': 'igv_ct_url2',
         'igv_custom_track_url_3': 'igv_ct_url3',
@@ -858,7 +862,7 @@ gtag('config', 'G-6R8FPBQRFH');
             $('#dot-plot-dialog-sequences').html(`
                     <table>
                     <tr><td><b>Left Flank:</b></td></tr>
-                    <td><span style="font-family: monospace">${leftFlank}</span></td></tr>
+                    <tr><td><span style="font-family: monospace">${leftFlank}</span></td></tr>
                     <tr><td><b>Repeat Sequence:</b></td></tr>
                     <tr><td><span style="font-family: monospace">${repeatSeq}</span></td></tr>
                     <tr><td><b>Right Flank:</b></td></tr>

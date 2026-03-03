@@ -44,6 +44,26 @@
     </div>
 </div>
 
+<!-- modal dialog for selecting custom filter columns -->
+<div class="ui modal" id="custom-filter-column-dialog">
+    <i class="close icon"></i>
+    <div class="header">
+        Select custom filter column(s)
+    </div>
+    <div class="content">
+        <div class="ui form">
+            <div class="export-column-checkboxes-flex-container" id="custom-filter-column-checkboxes"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div id="custom-filter-dialog-cancel-button" class="ui deny button">Cancel</div>
+        <div id="custom-filter-dialog-add-button" class="ui positive right labeled icon button">
+            Add Filters
+            <i class="filter icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for polymorphism allele frequencies -->
 <div class="ui modal" id="polymorphism-dialog">
     <i class="close icon"></i>
@@ -277,7 +297,7 @@
                                     <input type="checkbox" name="keepLociThatOverlapLocusSet">
                                     <label>Overlaps loci from</label>
                                 </div>
-                                <div class="ui selection dropdown" id="overlap-locus-set-dropdown" style="min-width: 155px;">
+                                <div class="ui selection dropdown" id="overlap-locus-set-dropdown" style="min-width: 220px;">
                                     <input type="hidden" name="keepLociThatOverlapLocusSetSelection">
                                     <i class="dropdown icon"></i>
                                     <div class="default text">Select catalog</div>
@@ -356,6 +376,8 @@
                         </div>
                     </div>
 
+                    <div id="custom-filter-rows"></div>
+                    <a href="#" id="add-custom-filter-link">Add Custom Filter...</a>
                 </form>
             </div>
         </div>
@@ -518,12 +540,17 @@
 
     ]
 
+    // Columns that can be used for filtering in the UI, with their display names and group
+    const CUSTOM_FILTER_COLUMNS = {{ custom_filter_columns_json }}
+
     // Columns available for TSV/JSON export with their display names and group
     // Generated from BIGQUERY_COLUMNS in global_constants.py
     const EXPORT_COLUMN_OPTIONS = {{ exportable_columns_json }}
 
     // Store pending export type when showing the dialog
     let pendingExportType = null
+
+    const escapeHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -542,7 +569,7 @@
             if (diseaseInfo.STRipyId) {
                 resources.push(`<a href='https://stripy.org/database/${diseaseInfo.STRipyId}' target='_blank'>STRipy</a>`)
             }
-            if (diseaseInfo.locusId != 'RAI1') {
+            if (diseaseInfo.LocusId != 'RAI1') {
                 resources.push(`<a href='https://gnomad.broadinstitute.org/short-tandem-repeat/${diseaseInfo.LocusId}?dataset=gnomad_r4' target='_blank'>gnomAD</a>`)
             }
             if (diseaseInfo.Diseases.length > 0 && diseaseInfo.Diseases[0].OMIM) {
@@ -591,8 +618,8 @@
                 GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
-                if (key === 'showColumns') {
-                    GLOBAL_PAGE_STATE['showColumns'] = `${value}` // convert to string
+                if (key === 'showColumns' || key === 'customFilters') {
+                    GLOBAL_PAGE_STATE[key] = `${value}` // convert to string
                 }
             }
         }
@@ -642,6 +669,11 @@
         $('input[name="vcFilter"]').prop('checked', GLOBAL_PAGE_STATE['vcFilter'] === 1)
         $('select[name="vcFilterType"]').val(GLOBAL_PAGE_STATE['vcFilterType'])
         $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
+
+        // Restore custom filters from URL
+        $('#custom-filter-rows').empty()
+        deserializeAndCreateCustomFilters(GLOBAL_PAGE_STATE['customFilters'])
+
         // Restore custom track URLs
         for (let i = 1; i <= 3; i++) {
             $(`#igv-custom-track-url-${i}`).val(GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] || '')
@@ -839,7 +871,7 @@
             })
 
             // First page button
-            $container.find('.first-page').click(() => {
+            $container.find('.first-page').click(function() {
                 if (!$(this).hasClass('disabled')) {
                     GLOBAL_PAGE_STATE['currentPage'] = 1
                     writePersistentPageStateToUrl()
@@ -848,7 +880,7 @@
             })
 
             // Previous page button
-            $container.find('.prev-page').click(() => {
+            $container.find('.prev-page').click(function() {
                 if (!$(this).hasClass('disabled')) {
                     GLOBAL_PAGE_STATE['currentPage'] -= 1
                     writePersistentPageStateToUrl()
@@ -857,7 +889,7 @@
             })
 
             // Next page button
-            $container.find('.next-page').click(() => {
+            $container.find('.next-page').click(function() {
                 if (!$(this).hasClass('disabled')) {
                     GLOBAL_PAGE_STATE['currentPage'] += 1
                     writePersistentPageStateToUrl()
@@ -866,7 +898,7 @@
             })
 
             // Last page button
-            $container.find('.last-page').click(() => {
+            $container.find('.last-page').click(function() {
                 if (!$(this).hasClass('disabled')) {
                     GLOBAL_PAGE_STATE['currentPage'] = totalPages
                     writePersistentPageStateToUrl()
@@ -957,6 +989,8 @@
             'Polymorphism (TenK10K)',
             'Polymorphism (HPRC256)',
             'Polymorphism (AoU1027)',
+            'sc-eTRs (Tanudisastro 2024)',
+            'PheWAS (Manigbas 2024)',
         ]
 
         // Create HTML for each group in the specified order
@@ -999,6 +1033,306 @@
         // Show the dialog
         $('#export-column-dialog').modal('show')
     }
+
+    // --- Custom Filter Logic ---
+
+    let customFilterNextId = 0
+
+    const CUSTOM_FILTER_GROUP_ORDER = [
+        'Core',
+        'Additional Layers',
+        'Gene Annotations',
+        'Vamos',
+        'Polymorphism (TenK10K)',
+        'Polymorphism (HPRC256)',
+        'Polymorphism (AoU1027)',
+        'sc-eTRs (Tanudisastro 2024)',
+        'PheWAS (Manigbas 2024)',
+    ]
+
+    const getCustomFilterColumnInfo = (columnName) => {
+        return CUSTOM_FILTER_COLUMNS.find(c => c.name === columnName)
+    }
+
+    const getOperatorsForType = (colType) => {
+        if (colType === 'INTEGER' || colType === 'FLOAT') {
+            return [
+                { value: '=', label: '=' },
+                { value: '!=', label: '\u2260' },
+                { value: '>', label: '>' },
+                { value: '<', label: '<' },
+                { value: '>=', label: '\u2265' },
+                { value: '<=', label: '\u2264' },
+                { value: 'IS NULL', label: 'IS NULL' },
+                { value: 'IS NOT NULL', label: 'IS NOT NULL' },
+            ]
+        }
+        // STRING
+        return [
+            { value: '=', label: '=' },
+            { value: '!=', label: '\u2260' },
+            { value: 'LIKE', label: 'LIKE' },
+            { value: 'IS NULL', label: 'IS NULL' },
+            { value: 'IS NOT NULL', label: 'IS NOT NULL' },
+        ]
+    }
+
+    const getPlaceholderForType = (colType) => {
+        if (colType === 'FLOAT') return 'e.g., 0.5'
+        if (colType === 'INTEGER') return 'e.g., 3'
+        return 'e.g., CAG'
+    }
+
+    const buildColumnDropdownMenu = () => {
+        // Group columns
+        const grouped = {}
+        CUSTOM_FILTER_COLUMNS.forEach(col => {
+            if (!grouped[col.group]) grouped[col.group] = []
+            grouped[col.group].push(col)
+        })
+
+        let menuHtml = ''
+        CUSTOM_FILTER_GROUP_ORDER.filter(g => grouped[g]).forEach((groupName, idx) => {
+            if (idx > 0) menuHtml += '<div class="divider"></div>'
+            menuHtml += `<div class="header">${groupName}</div>`
+            grouped[groupName].forEach(col => {
+                menuHtml += `<div class="item" data-value="${escapeHtml(col.name)}">${escapeHtml(col.displayName)}</div>`
+            })
+        })
+        return menuHtml
+    }
+
+    const addCustomFilterRow = (columnName) => {
+        const filterId = customFilterNextId++
+        const colInfo = columnName ? getCustomFilterColumnInfo(columnName) : null
+        const colType = colInfo ? colInfo.type : 'STRING'
+        const operators = getOperatorsForType(colType)
+        const placeholder = getPlaceholderForType(colType)
+        const escapedDescription = colInfo && colInfo.description
+            ? colInfo.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            : ''
+
+        const operatorOptions = operators.map(op =>
+            `<div class="item" data-value="${op.value}">${op.label}</div>`
+        ).join('')
+
+        const rowHtml = `
+        <div class="custom-filter-row" data-filter-id="${filterId}">
+            <div class="ui selection search dropdown custom-filter-field" style="min-width: 220px;">
+                <input type="hidden" name="customFilterField_${filterId}">
+                <i class="dropdown icon"></i>
+                <div class="default text">Select column</div>
+                <div class="menu">${buildColumnDropdownMenu()}</div>
+            </div>
+            <div class="ui selection dropdown custom-filter-op" style="min-width: 100px;">
+                <input type="hidden" name="customFilterOp_${filterId}">
+                <i class="dropdown icon"></i>
+                <div class="default text">Op</div>
+                <div class="menu">${operatorOptions}</div>
+            </div>
+            <input type="text" class="custom-filter-value" placeholder="${placeholder}" style="max-width: 300px; flex-grow: 1;">
+            <span class="custom-filter-help-icon" data-tooltip="${escapedDescription}" data-position="top center"${!escapedDescription ? ' style="display:none"' : ''}>(?)</span>
+            <i class="close icon custom-filter-delete"></i>
+        </div>
+        `
+
+        $('#custom-filter-rows').append(rowHtml)
+        const $row = $(`.custom-filter-row[data-filter-id="${filterId}"]`)
+
+        // Initialize dropdowns
+        $row.find('.custom-filter-field').dropdown({
+            onShow: function() { $(this).css('z-index', 10001) },
+            onHide: function() { $(this).css('z-index', '') },
+            onChange: function(value) {
+                const info = getCustomFilterColumnInfo(value)
+                if (!info) return
+                const ops = getOperatorsForType(info.type)
+                const $opDropdown = $row.find('.custom-filter-op')
+
+                // Rebuild operator menu
+                const newMenu = ops.map(op =>
+                    `<div class="item" data-value="${op.value}">${op.label}</div>`
+                ).join('')
+                $opDropdown.find('.menu').html(newMenu)
+                $opDropdown.dropdown('clear')
+                $opDropdown.dropdown('refresh')
+
+                // Update placeholder
+                $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(info.type))
+
+                // Update help icon
+                const $helpIcon = $row.find('.custom-filter-help-icon')
+                if (info.description) {
+                    const escaped = info.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    $helpIcon.attr('data-tooltip', escaped).show()
+                } else {
+                    $helpIcon.hide()
+                }
+            }
+        })
+
+        $row.find('.custom-filter-op').dropdown({
+            onShow: function() { $(this).css('z-index', 10001) },
+            onHide: function() { $(this).css('z-index', '') },
+            onChange: function(value) {
+                if (value === 'IS NULL' || value === 'IS NOT NULL') {
+                    $row.find('.custom-filter-value').hide()
+                } else {
+                    $row.find('.custom-filter-value').show()
+                }
+            }
+        })
+
+        // Set initial column value if provided
+        if (columnName) {
+            $row.find('.custom-filter-field').dropdown('set selected', columnName)
+        }
+
+        // Delete button
+        $row.find('.custom-filter-delete').click(function() {
+            $row.remove()
+        })
+
+        // Initialize tooltip
+        $row.find('.custom-filter-help-icon').popup({ on: 'hover' })
+
+        return $row
+    }
+
+    const showCustomFilterColumnDialog = () => {
+        // Get currently active filter columns
+        const activeColumns = new Set()
+        $('#custom-filter-rows .custom-filter-row').each(function() {
+            const val = $(this).find('.custom-filter-field').dropdown('get value')
+            if (val) activeColumns.add(val)
+        })
+
+        // Build grouped checkboxes
+        const checkboxesContainer = $('#custom-filter-column-checkboxes')
+        checkboxesContainer.empty()
+
+        const grouped = {}
+        CUSTOM_FILTER_COLUMNS.forEach(col => {
+            if (!grouped[col.group]) grouped[col.group] = []
+            grouped[col.group].push(col)
+        })
+
+        CUSTOM_FILTER_GROUP_ORDER.filter(g => grouped[g]).forEach(groupName => {
+            const columns = grouped[groupName]
+            const groupDiv = $(`<div class="export-column-group">
+                <div class="export-column-group-header">${groupName}</div>
+                <div class="export-column-group-items"></div>
+            </div>`)
+
+            const itemsContainer = groupDiv.find('.export-column-group-items')
+
+            columns.forEach(col => {
+                const isChecked = activeColumns.has(col.name) ? 'checked' : ''
+                const escapedDescription = col.description
+                    ? col.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    : ''
+                const helpIcon = col.description
+                    ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                    : ''
+                const checkboxHtml = `
+                    <div class="export-column-checkbox-item">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="cf_col_${col.name}" data-column-name="${col.name}" ${isChecked}>
+                            <label>${col.displayName}</label>
+                        </div>
+                        ${helpIcon}
+                    </div>
+                `
+                itemsContainer.append(checkboxHtml)
+            })
+
+            checkboxesContainer.append(groupDiv)
+        })
+
+        // Initialize checkboxes and tooltips
+        $('#custom-filter-column-checkboxes .ui.checkbox').checkbox()
+        $('#custom-filter-column-checkboxes .export-column-help-icon').popup({ on: 'hover' })
+
+        $('#custom-filter-column-dialog').modal('show')
+    }
+
+    // Wire the "Add Custom Filter..." link
+    $('#add-custom-filter-link').click(function(e) {
+        e.preventDefault()
+        showCustomFilterColumnDialog()
+    })
+
+    // "Add Filters" button handler in modal
+    $('#custom-filter-dialog-add-button').click(function() {
+        const checkedColumns = new Set()
+        $('#custom-filter-column-checkboxes input[type="checkbox"]:checked').each(function() {
+            checkedColumns.add($(this).data('column-name'))
+        })
+
+        // Get currently existing filter column names
+        const existingColumns = new Map()
+        $('#custom-filter-rows .custom-filter-row').each(function() {
+            const val = $(this).find('.custom-filter-field').dropdown('get value')
+            if (val) existingColumns.set(val, $(this))
+        })
+
+        // Remove rows for columns that were unchecked
+        existingColumns.forEach(($row, colName) => {
+            if (!checkedColumns.has(colName)) {
+                $row.remove()
+            }
+        })
+
+        // Add rows for newly checked columns
+        checkedColumns.forEach(colName => {
+            if (!existingColumns.has(colName)) {
+                addCustomFilterRow(colName)
+            }
+        })
+
+        $('#custom-filter-column-dialog').modal('hide')
+    })
+
+    const serializeCustomFilters = () => {
+        const parts = []
+        $('#custom-filter-rows .custom-filter-row').each(function() {
+            const col = $(this).find('.custom-filter-field').dropdown('get value')
+            const op = $(this).find('.custom-filter-op').dropdown('get value')
+            const val = $(this).find('.custom-filter-value').val()
+            if (col && op) {
+                parts.push(`${col}|${op}|${encodeURIComponent(val || '')}`)
+            }
+        })
+        return parts.join(';')
+    }
+
+    const deserializeAndCreateCustomFilters = (serialized) => {
+        if (!serialized) return
+        const parts = serialized.split(';')
+        parts.forEach(part => {
+            const segments = part.split('|')
+            if (segments.length < 2) return
+            const col = segments[0]
+            const op = segments[1]
+            let val
+            try {
+                val = decodeURIComponent(segments.slice(2).join('|'))
+            } catch (e) {
+                val = segments.slice(2).join('|')
+            } // value might contain pipes in theory
+            const $row = addCustomFilterRow(col)
+            // Set operator and value after a brief delay to let dropdown initialize
+            setTimeout(() => {
+                $row.find('.custom-filter-op').dropdown('set selected', op)
+                $row.find('.custom-filter-value').val(val)
+                if (op === 'IS NULL' || op === 'IS NOT NULL') {
+                    $row.find('.custom-filter-value').hide()
+                }
+            }, 50)
+        })
+    }
+
+    // --- End Custom Filter Logic ---
 
     const performExport = async (value, selectedColumns = null) => {
         // Format data based on export type
@@ -1312,8 +1646,8 @@
         }
 
         const [_, chrom, start, end] = match
-        const paddedStart = Math.max(0, parseInt(start.replace(',', '')) - IGV_LOCUS_PADDING)
-        const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
+        const paddedStart = Math.max(0, parseInt(start.replace(/,/g, '')) - IGV_LOCUS_PADDING)
+        const paddedEnd = parseInt(end.replace(/,/g, '')) + IGV_LOCUS_PADDING
         const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
 
         window.igvNavIndex = index
@@ -1453,7 +1787,7 @@
             if (urlArgs) {
                 const currentPageUrlParams = new URLSearchParams(urlArgs)
                 for (const [key, value] of currentPageUrlParams.entries()) {
-                    if (key != 'locusId' & key != 'igvLoc') {
+                    if (key != 'locusId' && key != 'igvLoc') {
                         locusPageUrlArgs += `&${key}=${value}`
                     }
                 }
@@ -1477,8 +1811,8 @@
             }
 
             const [_, chrom, start, end] = match
-            const paddedStart = Math.max(0, parseInt(start.replace(',', '')) - IGV_LOCUS_PADDING)
-            const paddedEnd = parseInt(end.replace(',', '')) + IGV_LOCUS_PADDING
+            const paddedStart = Math.max(0, parseInt(start.replace(/,/g, '')) - IGV_LOCUS_PADDING)
+            const paddedEnd = parseInt(end.replace(/,/g, '')) + IGV_LOCUS_PADDING
             const paddedReferenceRegion = `${chrom}:${paddedStart}-${paddedEnd}`
 
             // Update navigation index
@@ -1797,7 +2131,7 @@
                 }
 
                 // Add known disease-associated loci condition
-                let knownDiseaseLoci = $('input[name="keepKdLoci"]').prop('checked')
+                let knownDiseaseLoci = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked')
                 if (knownDiseaseLoci) {
                     conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL AND KnownDiseaseAssociatedLocus != ''")
                 }
@@ -1926,6 +2260,33 @@
                 if (regionConditions.length > 0) {
                     conditions.push(`(${regionConditions.join(' OR ')})`)
                 }
+
+                // Add custom filter conditions
+                const allowedFilterColumns = new Set(CUSTOM_FILTER_COLUMNS.map(c => c.name))
+                const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'])
+                $('#custom-filter-rows .custom-filter-row').each(function() {
+                    const columnName = $(this).find('.custom-filter-field').dropdown('get value')
+                    const operator = $(this).find('.custom-filter-op').dropdown('get value')
+                    const value = $(this).find('.custom-filter-value').val()
+
+                    if (!columnName || !operator) return
+                    if (!allowedFilterColumns.has(columnName) || !allowedFilterOps.has(operator)) return
+
+                    const colInfo = getCustomFilterColumnInfo(columnName)
+                    const colType = colInfo ? colInfo.type : 'STRING'
+
+                    if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
+                        conditions.push(`${columnName} ${operator}`)
+                    } else if (operator === 'LIKE') {
+                        const escapedValue = value.replace(/'/g, "''")
+                        conditions.push(`${columnName} LIKE '${escapedValue}'`)
+                    } else if (colType === 'STRING') {
+                        const escapedValue = value.replace(/'/g, "''")
+                        conditions.push(`${columnName} ${operator} '${escapedValue}'`)
+                    } else {
+                        conditions.push(`${columnName} ${operator} ${Number(value)}`)
+                    }
+                })
             }
 
             //retrieve all required columns for the visible columns
@@ -2003,6 +2364,7 @@
             GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
             GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
+            GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilters()
             writePersistentPageStateToUrl()
 
             displaySearchResults()
@@ -2149,7 +2511,7 @@
                 if (!polymorphismFilterType) {
                     $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the polymorphism filter dropdown').show();
                 } else {
-                    $('#form-error-message').html(`<b>ERROR:</b> The polymorphism filter value '${polymorphismThreshold}' is invalid`).show();
+                    $('#form-error-message').html(`<b>ERROR:</b> The polymorphism filter value '${escapeHtml(polymorphismThreshold)}' is invalid`).show();
                 }
                 $('#polymorphism-threshold').closest('.field').addClass('error');
                 return false;
@@ -2170,11 +2532,61 @@
             }
         }
 
+        // Validate custom filters
+        let customFilterValid = true
+        $('#custom-filter-rows .custom-filter-row').each(function() {
+            const $row = $(this)
+            const col = $row.find('.custom-filter-field').dropdown('get value')
+            const op = $row.find('.custom-filter-op').dropdown('get value')
+            const val = $row.find('.custom-filter-value').val()
+            const colInfo = col ? getCustomFilterColumnInfo(col) : null
+            const displayName = colInfo ? colInfo.displayName : 'unknown'
+
+            if (!col) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html('<b>ERROR:</b> Please select a column for all custom filters').show()
+                $row.addClass('error')
+                customFilterValid = false
+                return false // break .each
+            }
+            if (!colInfo) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> Unknown filter column: <i>${escapeHtml(col)}</i>`).show()
+                $row.addClass('error')
+                customFilterValid = false
+                return false
+            }
+            if (!op) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> Please select an operator for the <i>${displayName}</i> custom filter`).show()
+                $row.addClass('error')
+                customFilterValid = false
+                return false
+            }
+            if (op !== 'IS NULL' && op !== 'IS NOT NULL' && !val) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> Please enter a value for the <i>${displayName}</i> custom filter`).show()
+                $row.addClass('error')
+                customFilterValid = false
+                return false
+            }
+            if (op !== 'IS NULL' && op !== 'IS NOT NULL' && colInfo && (colInfo.type === 'INTEGER' || colInfo.type === 'FLOAT') && (val.trim() === '' || !isFinite(Number(val)))) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> The value '${escapeHtml(val)}' is not a valid number for the <i>${displayName}</i> filter`).show()
+                $row.addClass('error')
+                customFilterValid = false
+                return false
+            }
+            $row.removeClass('error')
+        })
+        if (!customFilterValid) return false
+
         // Clear any form errors
         $('#form-error-message').hide();
         $('.field.error').removeClass('error');
+        $('.custom-filter-row.error').removeClass('error');
         return true;
-    }        
+    }
 
     function showPolymorphismDialog() {
         const row = $(this).data()

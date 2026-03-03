@@ -444,7 +444,6 @@
     /* Misc UI elements */
     .no-results {
         margin-top: 2em;
-        text-align: left;
         color: #888;
         font-size: 1.2em;
         text-align: center;
@@ -573,6 +572,54 @@
 
     .export-column-help-icon:hover {
         color: #333;
+    }
+
+    /* Custom filter rows */
+    .custom-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .custom-filter-row .custom-filter-field {
+        min-width: 220px;
+    }
+
+    .custom-filter-row .custom-filter-op {
+        min-width: 100px;
+        font-size: 1.1em;
+    }
+
+    .custom-filter-row .custom-filter-value {
+        flex-grow: 1;
+        max-width: 300px;
+    }
+
+    .custom-filter-help-icon {
+        margin-left: 2px;
+        color: #888;
+        cursor: pointer;
+        font-size: 0.85em;
+    }
+
+    .custom-filter-help-icon:hover {
+        color: #333;
+    }
+
+    .custom-filter-delete {
+        cursor: pointer;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    .custom-filter-delete:hover {
+        color: #db2828;
+    }
+
+    #custom-filter-column-dialog {
+        width: 900px !important;
+        max-width: 95vw;
     }
 
 </style>
