@@ -198,21 +198,12 @@ BIGQUERY_COLUMNS = [
         "group": GROUP_CORE,
     },
 
-    # Non-overlapping locus flags
+    # Overlap group ID for deduplication
     {
         "type": "INTEGER",
-        "name": "NonOverlappingLongestLocus",
-        "description": "Whether this is the longest locus among overlapping loci at this position (1 = yes, 0 = no).",
-        "displayName": "Non-Overlapping Longest",
-        "allowCustomFilter": True,
-        "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS,
-    },
-    {
-        "type": "INTEGER",
-        "name": "NonOverlappingPurestLocus",
-        "description": "Whether this is the purest locus among overlapping loci at this position (1 = yes, 0 = no).",
-        "displayName": "Non-Overlapping Purest",
+        "name": "OverlapGroupId",
+        "description": "Group ID shared by overlapping loci. NULL for non-overlapping loci.",
+        "displayName": "Overlap Group ID",
         "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,

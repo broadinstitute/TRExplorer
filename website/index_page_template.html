@@ -32,6 +32,25 @@
     </div>
     <div class="content">
         <div class="ui form">
+            <!-- Overlap handling options -->
+            <div id="export-overlap-options" style="margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
+                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">For overlapping TR loci:</label>
+                <div class="grouped fields" style="margin: 0;">
+                    <div class="field"><div class="ui radio checkbox">
+                        <input type="radio" name="overlapHandling" value="all" checked>
+                        <label>Export all loci</label>
+                    </div></div>
+                    <div class="field"><div class="ui radio checkbox">
+                        <input type="radio" name="overlapHandling" value="longest">
+                        <label>Keep only the longest TR per overlap group</label>
+                    </div></div>
+                    <div class="field"><div class="ui radio checkbox">
+                        <input type="radio" name="overlapHandling" value="purest">
+                        <label>Keep only the purest TR per overlap group</label>
+                    </div></div>
+                </div>
+            </div>
+            <!-- Column checkboxes -->
             <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
         </div>
     </div>
@@ -1027,8 +1046,9 @@
             checkboxesContainer.append(groupDiv)
         })
 
-        // Initialize Semantic UI checkboxes
+        // Initialize Semantic UI checkboxes and radio buttons
         $('#export-column-checkboxes .ui.checkbox').checkbox()
+        $('#export-overlap-options .ui.radio.checkbox').checkbox()
 
         // Show the dialog
         $('#export-column-dialog').modal('show')
@@ -1334,7 +1354,7 @@
 
     // --- End Custom Filter Logic ---
 
-    const performExport = async (value, selectedColumns = null) => {
+    const performExport = async (value, selectedColumns = null, overlapHandling = 'all') => {
         // Format data based on export type
         let fileFormat
         if (value === 'expansion_hunter' || value == 'json') {
@@ -1415,7 +1435,15 @@
             $('body').css('cursor', 'wait')
 
             const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-            const query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            let query
+            if (overlapHandling !== 'all') {
+                const orderByRank = overlapHandling === 'longest'
+                    ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
+                    : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
+                query = `WITH filtered AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY IFNULL(OverlapGroupId, id) ORDER BY ${orderByRank}) AS _overlap_rank FROM ${COMPLETE_TABLE_ID} ${whereClause}) SELECT ${selectClause} FROM filtered WHERE _overlap_rank = 1 ORDER BY ${sortClause}`
+            } else {
+                query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+            }
             const results = await queryBigQuery(query, null, null, fileFormat, toolName)
 
             if (results.public_urls) {
@@ -1483,11 +1511,14 @@
         // Save selections to localStorage
         localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
 
+        // Read overlap handling preference
+        const overlapHandling = $('input[name="overlapHandling"]:checked').val() || 'all'
+
         // Hide the dialog
         $('#export-column-dialog').modal('hide')
 
         // Perform the export with selected columns
-        await performExport(pendingExportType, selectedColumns)
+        await performExport(pendingExportType, selectedColumns, overlapHandling)
 
         pendingExportType = null
     })
