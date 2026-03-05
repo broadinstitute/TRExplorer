@@ -599,6 +599,11 @@ gtag('config', 'G-6R8FPBQRFH');
         color: #333;
     }
 
+    .export-column-help-icon[data-tooltip]::after {
+        max-width: 400px;
+        white-space: normal;
+    }
+
     /* Custom filter rows */
     .custom-filter-row {
         display: flex;
@@ -630,6 +635,11 @@ gtag('config', 'G-6R8FPBQRFH');
 
     .custom-filter-help-icon:hover {
         color: #333;
+    }
+
+    .custom-filter-help-icon[data-tooltip]::after {
+        max-width: 400px;
+        white-space: normal;
     }
 
     .custom-filter-delete {
@@ -3498,14 +3508,14 @@ gtag('config', 'G-6R8FPBQRFH');
 <div class="ui modal" id="export-column-dialog">
     <i class="close icon"></i>
     <div class="header" id="export-dialog-title">
-        Select columns to include
+        TSV export options
     </div>
     <div class="content">
         <div class="ui form">
             <!-- Overlap handling options -->
             <div id="export-overlap-options" style="margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
                 <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">For overlapping TR loci:</label>
-                <div class="grouped fields" style="margin: 0;">
+                <div class="inline fields" style="margin: 0;">
                     <div class="field"><div class="ui radio checkbox">
                         <input type="radio" name="overlapHandling" value="all" checked>
                         <label>Export all loci</label>
@@ -3521,6 +3531,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 </div>
             </div>
             <!-- Column checkboxes -->
+            <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">Columns to include:</label>
             <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
         </div>
     </div>
@@ -4474,8 +4485,8 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Set dialog title based on export type
         const titleText = exportType === 'json'
-            ? 'Select fields to include in the JSON file'
-            : 'Select columns to include in the TSV'
+            ? 'JSON export options'
+            : 'TSV export options'
         $('#export-dialog-title').text(titleText)
 
         // Get currently visible columns in the results table
