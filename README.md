@@ -11,12 +11,18 @@ An online portal for exploring genome-wide tandem repeat (TR) catalogs: <br />
     </ul>
 </p>
 
-<hr>
+<br />
+<b>TRExplorer catalog:</b><br />
+<br />
+This portal is a companion resource to the genome-wide TR catalog defined at  
 
-If you use TRExplorer, please cite:
+https://github.com/broadinstitute/TRExplorer-catalog
 
+<br />
+<b>Publication:</b><br />
+<br />
 <b>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases</b><br />
-Ben Weisburd, Egor Dolzhenko, Mark F. Bennett, Matt C. Danzi, Adam English, Laurel Hiatt, Hope Tanudisastro, Nehir Edibe Kurtas, Helyaneh Ziaei Jam, Harrison Brand, Fritz J. Sedlazeck, Melissa Gymrek, Harriet Dashnow, Michael A. Eberle, Heidi L. Rehm bioRxiv 2024.10.04.615514; doi: https://doi.org/10.1101/2024.10.04.615514
+Ben Weisburd, Egor Dolzhenko, Mark F. Bennett, Matt C. Danzi, Adam English, Laurel Hiatt, Hope Tanudisastro, Nehir Edibe Kurtas, Helyaneh Ziaei Jam, Harrison Brand, Fritz J. Sedlazeck, Melissa Gymrek, Harriet Dashnow, Michael A. Eberle, Heidi L. Rehm bioRxiv 2024.10.04.615514; doi: https://www.biorxiv.org/content/10.1101/2024.10.04.615514v6
 
 
 
