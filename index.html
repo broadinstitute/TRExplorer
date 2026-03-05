@@ -1830,6 +1830,20 @@ gtag('config', 'G-6R8FPBQRFH');
         ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
         ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
         ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
+        ["igv_kd_loci_v2", "Known disease-associated TR loci v2", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:KnownDiseaseAssociatedLociV2.bed.gz`, 7],
+        ["igv_polymorphic_trs_in_t2t_v2", "Polymorphic TRs in T2T assemblies v2", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:PolymorphicTRsInT2TAssembliesV2.bed.gz`, 280262],
+        ["igv_known_functional_vntrs", "Known functional VNTRs", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:KnownFunctionalVNTRs.bed.gz`, 13],
+        ["igv_hipstr_catalog", "HipSTR catalog", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:HipSTRCatalog.bed.gz`, 129523],
+        ["igv_adotto_danzi_2025", "Adotto TRs from Danzi 2025", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:AdottoTRsFromDanzi2025.bed.gz`, 263108],
+        ["igv_clinvar_indels_trs_2025", "ClinVar indels that are TRs (2025)", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:ClinvarIndelsThatAreTRs2025.bed.gz`, 815],
+        ["igv_tanudisastro_2025", "Tanudisastro 2025", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Tanudisastro2025.bed.gz`, 1209],
+        ["igv_manigbas_2024", "Manigbas 2024", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Manigbas2024.bed.gz`, 2347],
+        ["igv_sulovari_2021", "Sulovari 2021", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Sulovari2021.bed.gz`, 388],
+        ["igv_garg_2021", "Garg 2021", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Garg2021.bed.gz`, 1300],
+        ["igv_mukamel_2021", "Mukamel 2021", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Mukamel2021.bed.gz`, 39],
+        ["igv_annear_2021", "Annear 2021", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Annear2021.bed.gz`, 156],
+        ["igv_hause_2016", "Hause 2016", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:Hause2016.bed.gz`, 604],
+        ["igv_vamos_v3", "Vamos v3", `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:VamosV3.bed.gz`, 56846],
     ]
 
     const TR_EXPLORER_CATALOG  = [
@@ -1838,8 +1852,7 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
     const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/trs_and_vcs-v2.bed.gz`, 5020583, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
-        // ["igv_vc_v2", "Variation clusters v2", `${TR_CATALOG_BASE_URL}/v2.0/variation_clusters_v1.hg38.TRGT.bed.gz`, 4439813, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
+        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.variation_clusters_and_isolated_TRs_v2.hg38.TRGT.bed.gz`, 5339786, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
         ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
         ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://www.biorxiv.org/content/10.1101/2024.10.04.615514v2' target=_blank>Weisburd, Dolzhenko et al. 2024</a>]."],
     ];
@@ -4565,6 +4578,24 @@ gtag('config', 'G-6R8FPBQRFH');
         ]
     }
 
+    const LIKE_HELP_TEXT = ' The LIKE operator does pattern matching. Use % to match any sequence of characters and _ to match any single character. For example, "SCN_A" would match "SCN2A", "SCN3A", etc, while "SCN%" would match any name that starts with "SCN".'
+
+    const updateFilterTooltip = ($row) => {
+        const fieldValue = $row.find('.custom-filter-field').dropdown('get value')
+        const opValue = $row.find('.custom-filter-op').dropdown('get value')
+        const info = getCustomFilterColumnInfo(fieldValue)
+        const $helpIcon = $row.find('.custom-filter-help-icon')
+        let text = info ? (info.description || '') : ''
+        if (opValue === 'LIKE' && text) text += LIKE_HELP_TEXT
+        else if (opValue === 'LIKE') text = LIKE_HELP_TEXT.trim()
+        if (text) {
+            const escaped = text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            $helpIcon.attr('data-tooltip', escaped).show()
+        } else {
+            $helpIcon.hide()
+        }
+    }
+
     const getPlaceholderForType = (colType) => {
         if (colType === 'FLOAT') return 'e.g., 0.5'
         if (colType === 'INTEGER') return 'e.g., 3'
@@ -4650,13 +4681,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(info.type))
 
                 // Update help icon
-                const $helpIcon = $row.find('.custom-filter-help-icon')
-                if (info.description) {
-                    const escaped = info.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    $helpIcon.attr('data-tooltip', escaped).show()
-                } else {
-                    $helpIcon.hide()
-                }
+                updateFilterTooltip($row)
             }
         })
 
@@ -4669,6 +4694,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 } else {
                     $row.find('.custom-filter-value').show()
                 }
+                updateFilterTooltip($row)
             }
         })
 

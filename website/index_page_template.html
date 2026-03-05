@@ -1075,6 +1075,24 @@
         ]
     }
 
+    const LIKE_HELP_TEXT = ' The LIKE operator does pattern matching. Use % to match any sequence of characters and _ to match any single character. For example, "SCN_A" would match "SCN2A", "SCN3A", etc, while "SCN%" would match any name that starts with "SCN".'
+
+    const updateFilterTooltip = ($row) => {
+        const fieldValue = $row.find('.custom-filter-field').dropdown('get value')
+        const opValue = $row.find('.custom-filter-op').dropdown('get value')
+        const info = getCustomFilterColumnInfo(fieldValue)
+        const $helpIcon = $row.find('.custom-filter-help-icon')
+        let text = info ? (info.description || '') : ''
+        if (opValue === 'LIKE' && text) text += LIKE_HELP_TEXT
+        else if (opValue === 'LIKE') text = LIKE_HELP_TEXT.trim()
+        if (text) {
+            const escaped = text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            $helpIcon.attr('data-tooltip', escaped).show()
+        } else {
+            $helpIcon.hide()
+        }
+    }
+
     const getPlaceholderForType = (colType) => {
         if (colType === 'FLOAT') return 'e.g., 0.5'
         if (colType === 'INTEGER') return 'e.g., 3'
@@ -1160,13 +1178,7 @@
                 $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(info.type))
 
                 // Update help icon
-                const $helpIcon = $row.find('.custom-filter-help-icon')
-                if (info.description) {
-                    const escaped = info.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    $helpIcon.attr('data-tooltip', escaped).show()
-                } else {
-                    $helpIcon.hide()
-                }
+                updateFilterTooltip($row)
             }
         })
 
@@ -1179,6 +1191,7 @@
                 } else {
                     $row.find('.custom-filter-value').show()
                 }
+                updateFilterTooltip($row)
             }
         })
 
