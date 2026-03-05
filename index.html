@@ -3513,20 +3513,29 @@ gtag('config', 'G-6R8FPBQRFH');
         <div class="ui form">
             <!-- Overlap handling options -->
             <div id="export-overlap-options" style="margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
-                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">For overlapping TR loci:</label>
-                <div class="inline fields" style="margin: 0;">
-                    <div class="field"><div class="ui radio checkbox">
-                        <input type="radio" name="overlapHandling" value="all" checked>
-                        <label>Export all loci</label>
-                    </div></div>
-                    <div class="field"><div class="ui radio checkbox">
-                        <input type="radio" name="overlapHandling" value="longest">
-                        <label>Keep only the longest TR per overlap group</label>
-                    </div></div>
-                    <div class="field"><div class="ui radio checkbox">
-                        <input type="radio" name="overlapHandling" value="purest">
-                        <label>Keep only the purest TR per overlap group</label>
-                    </div></div>
+                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">How to handle overlapping TR loci:</label>
+                <div id="export-overlap-fields" class="inline fields" style="margin: 0;">
+                    <div class="field">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="overlapHandling" value="all" checked>
+                            <label>Export all loci</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="Export all TR loci, even when they overlap each other." data-position="right center">(?)</span>
+                    </div>
+                    <div class="field">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="overlapHandling" value="longest">
+                            <label>Export only the longest TR locus</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the longest reference region." data-position="right center">(?)</span>
+                    </div>
+                    <div class="field">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="overlapHandling" value="purest">
+                            <label>Export only the highest-purity TR locus</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the highest purity reference sequence." data-position="right center">(?)</span>
+                    </div>
                 </div>
             </div>
             <!-- TRGT catalog type options -->
@@ -3538,21 +3547,21 @@ gtag('config', 'G-6R8FPBQRFH');
                             <input type="radio" name="trgtCatalogType" value="simple">
                             <label>Simple repeats</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry with STRUC=(MOTIF)n format. This is the standard TRGT catalog format where each repeat is genotyped individually." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry, ignoring variation clusters." data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="vc_and_isolated" checked>
                             <label>Variation clusters and isolated repeats</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="Variation clusters are genomic regions containing one or more TRs embedded within a wider region that harbors multiple common polymorphisms. Resolving the sequence of entire variation clusters instead of individually genotyping constituent TRs leads to more accurate analysis. This option exports one row per variation cluster (using VC region coordinates) plus isolated TRs not part of any cluster. Loci filtered due to DEPTH or EXTENSION are excluded." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="This export option groups TR loci into variation clusters and exports one entry per variation cluster as well as one entry per TR locus that is outside of a variation cluster. Variation clusters are genomic regions that contain one or more TRs embedded within a wider polymorphic region. This option is the recommended default for TRGT catalogs because resolving the sequence of an entire variation cluster (rather than individually genotyping its constituent TRs) leads to more accurate analysis. NOTE: Loci are excluded where variation cluster computation failed due to low depth of coverage or where the variation cluster region exceeded a maximum size threshold." data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="vc_only">
                             <label>Variation clusters only</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="Exports only variation cluster regions, excluding isolated TRs. The human genome contains at least 25,000 complex variation clusters, most spanning over 120 bp and containing 5 or more TRs. Loci filtered due to DEPTH or EXTENSION are excluded." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="This export option groups TR loci into variation clusters and exports one entry per variation cluster. Loci outside of variation clusters are excluded." data-position="right center">(?)</span>
                     </div>
                 </div>
             </div>
@@ -4526,6 +4535,8 @@ gtag('config', 'G-6R8FPBQRFH');
         // Show/hide sections
         $('#export-column-section').toggle(showColumns)
         $('#export-trgt-options').toggle(showTrgtOptions)
+        // Use vertical radio buttons when there are no column checkboxes
+        $('#export-overlap-fields').toggleClass('inline fields', showColumns).toggleClass('grouped fields', !showColumns)
 
         // Reset overlap radio to 'all'
         $('input[name="overlapHandling"][value="all"]').prop('checked', true)
