@@ -29,7 +29,7 @@ if len(table_ids) > 1:
         print(f"  {table_id}")
     print()
     user_input = input("Continue? [Y/n] ")
-    if user_input.lower() == "y":
+    if user_input.lower() in ("y", ""):
         for table_id in table_ids[:-1]:
             print(f"Deleting table {table_id}...")
             table_ref = dataset_ref.table(table_id)

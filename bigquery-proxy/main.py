@@ -36,7 +36,7 @@ def return_query_results(client, result_table, start_index=0, page_size=100):
         response_dict = {
             "rows": [dict(row) for row in row_iterator],
             "current_page": start_index // page_size + 1,
-            "total_pages": result_table.num_rows // page_size + 1,
+            "total_pages": (result_table.num_rows + page_size - 1) // page_size if result_table.num_rows > 0 else 0,
             "total_results": result_table.num_rows,
             "page_size": page_size,
             "current_page_start_index": start_index,
@@ -106,6 +106,10 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None):
             response_dict = {"error": f"Export to file did not complete successfully."}
             print(f"ERROR: {response_dict['error']}")
             return jsonify(response_dict), 400
+
+        if export_to_file_format == "JSON" and len(blobs) > 1:
+            # Multi-shard exports remain NDJSON; use accurate extension
+            export_to_file_format = "NDJSON"
 
         public_urls = []
         for i, output_blob in enumerate(blobs):
@@ -197,7 +201,11 @@ def query_db(request):
         response_dict = {"error": f"Failed to parse JSON: {request.get_data(as_text=True)}"}
         print(f"ERROR: {response_dict['error']}")
         return jsonify(response_dict), 400, response_headers
-    
+
+    if data is None:
+        response_dict = {"error": f"Request body is not valid JSON: {request.get_data(as_text=True)}"}
+        print(f"ERROR: {response_dict['error']}")
+        return jsonify(response_dict), 400, response_headers
 
     sql = data.get("sql")
     if not sql:

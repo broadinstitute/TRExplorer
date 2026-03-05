@@ -50,9 +50,38 @@
                     </div></div>
                 </div>
             </div>
+            <!-- TRGT catalog type options -->
+            <div id="export-trgt-options" style="display: none; margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
+                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">TRGT catalog type:</label>
+                <div class="grouped fields" style="margin: 0;">
+                    <div class="field" style="display: flex; align-items: center;">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="trgtCatalogType" value="simple">
+                            <label>Simple repeats</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry with STRUC=(MOTIF)n format. This is the standard TRGT catalog format where each repeat is genotyped individually." data-position="right center">(?)</span>
+                    </div>
+                    <div class="field" style="display: flex; align-items: center;">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="trgtCatalogType" value="vc_and_isolated" checked>
+                            <label>Variation clusters and isolated repeats</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="Variation clusters are genomic regions containing one or more TRs embedded within a wider region that harbors multiple common polymorphisms. Resolving the sequence of entire variation clusters instead of individually genotyping constituent TRs leads to more accurate analysis. This option exports one row per variation cluster (using VC region coordinates) plus isolated TRs not part of any cluster. Loci filtered due to DEPTH or EXTENSION are excluded." data-position="right center">(?)</span>
+                    </div>
+                    <div class="field" style="display: flex; align-items: center;">
+                        <div class="ui radio checkbox">
+                            <input type="radio" name="trgtCatalogType" value="vc_only">
+                            <label>Variation clusters only</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="Exports only variation cluster regions, excluding isolated TRs. The human genome contains at least 25,000 complex variation clusters, most spanning over 120 bp and containing 5 or more TRs. Loci filtered due to DEPTH or EXTENSION are excluded." data-position="right center">(?)</span>
+                    </div>
+                </div>
+            </div>
             <!-- Column checkboxes -->
-            <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">Columns to include:</label>
-            <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
+            <div id="export-column-section">
+                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">Columns to include:</label>
+                <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
+            </div>
         </div>
     </div>
     <div class="actions">
@@ -225,7 +254,7 @@
                                 </div>
                                 <div class="item" data-value="source_Tanudisastro2025">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
-                                        <span style="white-space: nowrap;">Tanudisastro et al. 2025</span>
+                                        <span style="white-space: nowrap;">Tanudisastro et al. 2024</span>
                                         <span style="color: #888; margin-left: 20px; white-space: nowrap;">1,209 loci</span>
                                     </div>
                                 </div>
@@ -955,89 +984,112 @@
 
                 $('.export-dropdown').dropdown('clear')
 
-                // For TSV and JSON exports, show the column selection dialog
-                if (value === 'tsv' || value === 'json') {
-                    showExportColumnDialog(value)
-                    return
+                if (value === 'vamos') {
+                    await performExport(value)
+                } else if (value === 'tsv' || value === 'json') {
+                    showExportOptionsDialog(value, {showColumns: true, showTrgtOptions: false})
+                } else if (value === 'trgt') {
+                    showExportOptionsDialog(value, {showColumns: false, showTrgtOptions: true})
+                } else {
+                    showExportOptionsDialog(value, {showColumns: false, showTrgtOptions: false})
                 }
-
-                // For all other formats, proceed with the export directly
-                await performExport(value)
             }
         })
     }
 
-    const showExportColumnDialog = (exportType) => {
+    const showExportOptionsDialog = (exportType, {showColumns = false, showTrgtOptions = false} = {}) => {
         pendingExportType = exportType
 
-        // Set dialog title based on export type
-        const titleText = exportType === 'json'
-            ? 'JSON export options'
-            : 'TSV export options'
-        $('#export-dialog-title').text(titleText)
+        // Set dialog title
+        const FORMAT_NAMES = {
+            tsv: 'TSV', json: 'JSON', trgt: 'TRGT', bed: 'BED',
+            expansion_hunter: 'ExpansionHunter', gangstr: 'GangSTR', hipstr: 'HipSTR',
+            longtr: 'LongTR', medaka: 'Medaka', strdust: 'STRdust'
+        }
+        $('#export-dialog-title').text(`${FORMAT_NAMES[exportType] || exportType} export options`)
 
-        // Get currently visible columns in the results table
-        const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-        const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
+        // Toggle compact class for dialogs without column checkboxes
+        $('#export-column-dialog').toggleClass('compact-export-dialog', !showColumns)
 
-        // Load saved export column selections from localStorage, or fall back to visible table columns
-        const savedSelections = localStorage.getItem('exportColumnSelections')
-        const preSelectedExportColumns = savedSelections
-            ? new Set(JSON.parse(savedSelections))
-            : new Set(visibleColumnNames.flatMap(columnName =>
-                TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
+        // Show/hide sections
+        $('#export-column-section').toggle(showColumns)
+        $('#export-trgt-options').toggle(showTrgtOptions)
 
-        // Build checkboxes grouped by category
-        const checkboxesContainer = $('#export-column-checkboxes')
-        checkboxesContainer.empty()
+        // Reset overlap radio to 'all'
+        $('input[name="overlapHandling"][value="all"]').prop('checked', true)
 
-        // Group columns by their group property
-        const groupedColumns = {}
-        EXPORT_COLUMN_OPTIONS.forEach(opt => {
-            if (!groupedColumns[opt.group]) {
-                groupedColumns[opt.group] = []
-            }
-            groupedColumns[opt.group].push(opt)
-        })
+        // Reset TRGT radio to 'vc_and_isolated'
+        if (showTrgtOptions) {
+            $('input[name="trgtCatalogType"][value="vc_and_isolated"]').prop('checked', true)
+        }
 
+        if (showColumns) {
+            // Get currently visible columns in the results table
+            const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
+            const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
 
-        // Create HTML for each group in the specified order
-        BIGQUERY_COLUMN_GROUPS.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
-            const columns = groupedColumns[groupName]
-            const groupDiv = $(`<div class="export-column-group">
-                <div class="export-column-group-header">${groupName}</div>
-                <div class="export-column-group-items"></div>
-            </div>`)
+            // Load saved export column selections from localStorage, or fall back to visible table columns
+            const savedSelections = localStorage.getItem('exportColumnSelections')
+            const preSelectedExportColumns = savedSelections
+                ? new Set(JSON.parse(savedSelections))
+                : new Set(visibleColumnNames.flatMap(columnName =>
+                    TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
 
-            const itemsContainer = groupDiv.find('.export-column-group-items')
+            // Build checkboxes grouped by category
+            const checkboxesContainer = $('#export-column-checkboxes')
+            checkboxesContainer.empty()
 
-            columns.forEach(opt => {
-                const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
-                // Escape description for HTML attribute (replace quotes and special chars)
-                const escapedDescription = opt.description
-                    ? opt.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    : ''
-                const helpIcon = opt.description
-                    ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
-                    : ''
-                const checkboxHtml = `
-                    <div class="export-column-checkbox-item">
-                        <div class="ui checkbox">
-                            <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
-                            <label>${opt.displayName}</label>
-                        </div>
-                        ${helpIcon}
-                    </div>
-                `
-                itemsContainer.append(checkboxHtml)
+            // Group columns by their group property
+            const groupedColumns = {}
+            EXPORT_COLUMN_OPTIONS.forEach(opt => {
+                if (!groupedColumns[opt.group]) {
+                    groupedColumns[opt.group] = []
+                }
+                groupedColumns[opt.group].push(opt)
             })
 
-            checkboxesContainer.append(groupDiv)
-        })
+            // Create HTML for each group in the specified order
+            BIGQUERY_COLUMN_GROUPS.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+                const columns = groupedColumns[groupName]
+                const groupDiv = $(`<div class="export-column-group">
+                    <div class="export-column-group-header">${groupName}</div>
+                    <div class="export-column-group-items"></div>
+                </div>`)
 
-        // Initialize Semantic UI checkboxes and radio buttons
-        $('#export-column-checkboxes .ui.checkbox').checkbox()
+                const itemsContainer = groupDiv.find('.export-column-group-items')
+
+                columns.forEach(opt => {
+                    const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                    const escapedDescription = opt.description
+                        ? opt.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        : ''
+                    const helpIcon = opt.description
+                        ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                        : ''
+                    const checkboxHtml = `
+                        <div class="export-column-checkbox-item">
+                            <div class="ui checkbox">
+                                <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
+                                <label>${opt.displayName}</label>
+                            </div>
+                            ${helpIcon}
+                        </div>
+                    `
+                    itemsContainer.append(checkboxHtml)
+                })
+
+                checkboxesContainer.append(groupDiv)
+            })
+
+            // Initialize Semantic UI checkboxes
+            $('#export-column-checkboxes .ui.checkbox').checkbox()
+        }
+
+        // Initialize Semantic UI radio buttons
         $('#export-overlap-options .ui.radio.checkbox').checkbox()
+        if (showTrgtOptions) {
+            $('#export-trgt-options .ui.radio.checkbox').checkbox()
+        }
 
         // Show the dialog
         $('#export-column-dialog').modal('show')
@@ -1348,7 +1400,7 @@
 
     // --- End Custom Filter Logic ---
 
-    const performExport = async (value, selectedColumns = null, overlapHandling = 'all') => {
+    const performExport = async (value, selectedColumns = null, overlapHandling = 'all', trgtCatalogType = 'simple') => {
         // Format data based on export type
         let fileFormat
         if (value === 'expansion_hunter' || value == 'json') {
@@ -1380,7 +1432,10 @@
             alert('Note: The exported HipSTR catalog will only include loci with motif sizes < 10bp since HipSTR does not support larger motifs.')
         } else if(value === 'trgt') {
             toolName = 'TRGT'
-            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+            if (trgtCatalogType === 'simple') {
+                selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=(', ReferenceMotif, ')n') AS InfoField`
+            }
+            // vc_and_isolated and vc_only are handled via customQuery below
         } else if(value === 'vamos') {
             toolName = 'vamos'
             selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, CASE WHEN VamosUniqueMotifs IS NOT NULL THEN VamosUniqueMotifs ELSE ReferenceMotif END AS UniqueMotifs, CONCAT('Export_', FORMAT_TIMESTAMP('%Y%m%d_%H%M%S', CURRENT_TIMESTAMP()), ':', source) AS Source, CASE WHEN MotifSize > 6 THEN 'VNTR' ELSE 'STR' END AS LocusType, MotifSize, -1 AS TEOverlap1, -1 AS TEOverlap2`
@@ -1430,7 +1485,31 @@
 
             const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
             let query
-            if (overlapHandling !== 'all') {
+
+            // For TRGT VC modes, build a custom query
+            if (value === 'trgt' && (trgtCatalogType === 'vc_and_isolated' || trgtCatalogType === 'vc_only')) {
+                // Build the base table (with overlap filtering if needed)
+                let baseTable
+                if (overlapHandling !== 'all') {
+                    const orderByRank = overlapHandling === 'longest'
+                        ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
+                        : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
+                    baseTable = `(SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY IFNULL(OverlapGroupId, id) ORDER BY ${orderByRank}) AS _overlap_rank FROM ${COMPLETE_TABLE_ID} ${whereClause}) WHERE _overlap_rank = 1)`
+                } else {
+                    baseTable = `(SELECT * FROM ${COMPLETE_TABLE_ID} ${whereClause})`
+                }
+
+                // VC rows: one row per unique VariationCluster
+                const vcQuery = `SELECT vc_chrom, vc_start, vc_end, InfoField FROM (SELECT SPLIT(VariationCluster, ':')[OFFSET(0)] AS vc_chrom, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(0)] AS INT64) AS vc_start, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(1)] AS INT64) AS vc_end, CONCAT('ID=', VariationClusterId, ';MOTIFS=', VariationClusterMotifs, ';STRUC=<VC:', REPLACE(VariationCluster, 'chr', ''), '>') AS InfoField, ROW_NUMBER() OVER (PARTITION BY VariationCluster ORDER BY id) AS _vc_rank FROM ${baseTable} WHERE VariationCluster IS NOT NULL AND VariationCluster != '' AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')) WHERE _vc_rank = 1`
+
+                if (trgtCatalogType === 'vc_only') {
+                    query = `${vcQuery} ORDER BY vc_chrom, vc_start, vc_end`
+                } else {
+                    // Isolated rows: loci not in any VC
+                    const isolatedQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable} WHERE (VariationCluster IS NULL OR VariationCluster = '') AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')`
+                    query = `${vcQuery} UNION ALL ${isolatedQuery} ORDER BY vc_chrom, vc_start, vc_end`
+                }
+            } else if (overlapHandling !== 'all') {
                 const orderByRank = overlapHandling === 'longest'
                     ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
                     : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
@@ -1488,31 +1567,37 @@
     $('#export-dialog-download-button').click(async () => {
         if (!pendingExportType) return
 
-        // Collect selected columns
-        const selectedColumns = []
-        $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
-            const columnName = $(this).data('column-name')
-            if (columnName) {
-                selectedColumns.push(columnName)
+        let selectedColumns = null
+        if (pendingExportType === 'tsv' || pendingExportType === 'json') {
+            // Collect selected columns
+            selectedColumns = []
+            $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
+                const columnName = $(this).data('column-name')
+                if (columnName) {
+                    selectedColumns.push(columnName)
+                }
+            })
+
+            if (selectedColumns.length === 0) {
+                alert('Please select at least one column to export.')
+                return
             }
-        })
 
-        if (selectedColumns.length === 0) {
-            alert('Please select at least one column to export.')
-            return
+            // Save selections to localStorage
+            localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
         }
-
-        // Save selections to localStorage
-        localStorage.setItem('exportColumnSelections', JSON.stringify(selectedColumns))
 
         // Read overlap handling preference
         const overlapHandling = $('input[name="overlapHandling"]:checked').val() || 'all'
 
+        // Read TRGT catalog type
+        const trgtCatalogType = $('input[name="trgtCatalogType"]:checked').val() || 'simple'
+
         // Hide the dialog
         $('#export-column-dialog').modal('hide')
 
-        // Perform the export with selected columns
-        await performExport(pendingExportType, selectedColumns, overlapHandling)
+        // Perform the export
+        await performExport(pendingExportType, selectedColumns, overlapHandling, trgtCatalogType)
 
         pendingExportType = null
     })
@@ -1995,6 +2080,8 @@
                 // Process each query value and create query conditions
                 const queryClauses = queryValues.map(queryValue => {
                     queryValue = queryValue.trim()
+                    // Escape single quotes to prevent SQL injection
+                    const sanitizedQueryValue = queryValue.replace(/'/g, "''")
                     // Check if it's a genomic region (chr:start-end)
                     const regionMatch = queryValue.match(REFERENCE_REGION_REGEXP)
                     if (regionMatch) {
@@ -2013,21 +2100,21 @@
                             const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
                             //end = parseInt(end.replace(/,/g, ''))
 
-                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${queryValue}')`
+                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${sanitizedQueryValue}')`
 
                         } else {
                             // Try other fields
                             return `
-                                (UPPER(GencodeGeneName) = UPPER('${queryValue}')
-                                OR UPPER(GencodeGeneId) = UPPER('${queryValue}')
-                                OR UPPER(GencodeTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(RefseqGeneName) = UPPER('${queryValue}')
-                                OR UPPER(RefseqGeneId) = UPPER('${queryValue}')
-                                OR UPPER(RefseqTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(ManeGeneName) = UPPER('${queryValue}')
-                                OR UPPER(ManeGeneId) = UPPER('${queryValue}')
-                                OR UPPER(ManeTranscriptId) = UPPER('${queryValue}')
-                                OR UPPER(LocusId) = UPPER('${queryValue}'))
+                                (UPPER(GencodeGeneName) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(GencodeGeneId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(GencodeTranscriptId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(RefseqGeneName) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(RefseqGeneId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(RefseqTranscriptId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(ManeGeneName) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(ManeGeneId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(ManeTranscriptId) = UPPER('${sanitizedQueryValue}')
+                                OR UPPER(LocusId) = UPPER('${sanitizedQueryValue}'))
                             `
                         }
                     }

@@ -37,10 +37,10 @@ test:
 	curl --silent --show-error --fail -X POST "https://us-central1-cmg-analysis.cloudfunctions.net/query_db" \
 		-H "Content-Type: application/json" \
 		-d '{ "sql": "SELECT COUNT(*) AS c FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = '\''HTT'\''" }' | jq '.'
-	@echo "\nTesting query: SELECT chrom, start_0based, end_1based, GencodeGeneName FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = 'HTT' AND chrom = 'chr4' AND start_0based > 3123000 AND end_1based < 3124000 LIMIT 100"
+	@echo "\nTesting query: SELECT chrom, start_0based, end_1based, GencodeGeneName FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = 'HTT' AND chrom = '4' AND start_0based > 3123000 AND end_1based < 3124000 LIMIT 100"
 	@curl --silent --show-error --fail -X POST "https://us-central1-cmg-analysis.cloudfunctions.net/query_db" \
 		-H "Content-Type: application/json" \
-		-d '{ "sql": "SELECT chrom, start_0based, end_1based, GencodeGeneName FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = '\''HTT'\'' AND chrom = '\''chr4'\'' AND start_0based > 3123000 AND end_1based < 3124000 LIMIT 100" }' | jq '.'
+		-d '{ "sql": "SELECT chrom, start_0based, end_1based, GencodeGeneName FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = '\''HTT'\'' AND chrom = '\''4'\'' AND start_0based > 3123000 AND end_1based < 3124000 LIMIT 100" }' | jq '.'
 	@echo "\nTesting query: SELECT chrom, start_0based, end_1based, GencodeGeneName FROM cmg-analysis.tandem_repeat_explorer.catalog WHERE GencodeGeneName = 'HTT'"
 	curl --silent --show-error --fail -X POST "https://us-central1-cmg-analysis.cloudfunctions.net/query_db" \
 		-H "Content-Type: application/json" \

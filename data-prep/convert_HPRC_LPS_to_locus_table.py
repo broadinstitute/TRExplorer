@@ -172,11 +172,12 @@ def main():
         df_metadata = df_metadata[df_metadata.Sex == args.sex]
         print(f"Kept {len(df_metadata):,d} samples from sex {args.sex}")
 
-    sample_ids_to_include = [s for s in sample_ids_in_input_table if s in set(df_metadata.SampleId)]
-    if args.num_samples is not None and len(sample_ids_to_include) > args.num_samples:
-        sample_ids_to_include = sample_ids_to_include[:args.num_samples]
+    sample_ids_to_include_list = [s for s in sample_ids_in_input_table if s in set(df_metadata.SampleId)]
+    if args.num_samples is not None and len(sample_ids_to_include_list) > args.num_samples:
+        sample_ids_to_include_list = sample_ids_to_include_list[:args.num_samples]
+    sample_ids_to_include = set(sample_ids_to_include_list)
 
-    print(f"Included sample ids: {', '.join(sample_ids_to_include)}")
+    print(f"Included sample ids: {', '.join(sample_ids_to_include_list)}")
     output_dir = os.path.dirname(args.sample_metadata_tsv)    
     output_path = os.path.join(output_dir, "hprc_lps.2025_12.per_locus_and_motif")
     if args.population:
@@ -184,9 +185,9 @@ def main():
     if args.sex:
         output_path += f".only_{args.sex}"
 
-    output_path += f".{len(sample_ids_to_include)}_samples"
+    output_path += f".{len(sample_ids_to_include_list)}_samples"
     output_path += ".tsv.gz"
-    print(f"Writing data from {len(sample_ids_to_include):,d} samples to {output_path}")
+    print(f"Writing data from {len(sample_ids_to_include_list):,d} samples to {output_path}")
     with fopen(args.input_table, "rt") as infile, gzip.open(output_path, "wt") as outfile:
         next(infile)  # skip header
 

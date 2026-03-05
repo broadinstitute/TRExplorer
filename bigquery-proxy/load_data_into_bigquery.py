@@ -602,7 +602,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         chrom_fasta_obj = str(fasta_obj[chrom])
 
     record["ReferenceRepeatSequence"] = chrom_fasta_obj[start_0based:end_1based]
-    record["ReferenceLeftFlank"] = chrom_fasta_obj[start_0based - flanking_sequence_size:start_0based]
+    record["ReferenceLeftFlank"] = chrom_fasta_obj[max(0, start_0based - flanking_sequence_size):start_0based]
     record["ReferenceRightFlank"] = chrom_fasta_obj[end_1based:end_1based + flanking_sequence_size]
 
     if record.get("StdevFromT2TAssemblies"):

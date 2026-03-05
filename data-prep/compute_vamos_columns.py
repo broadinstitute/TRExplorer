@@ -19,14 +19,8 @@ def get_reference_region_size(record):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vamos-ori-motifs-tsv", action="append", default=[
-        "../data-prep/oriMotifFinal.all.tsv.gz",
-        #"../data-prep/vamosGenomicTR_v3.0_oriMotifs.tsv.gz",
-    ])
-    parser.add_argument("--vamos-eff-motifs-tsv", action="append", default=[
-        "../data-prep/effMotifFinal.all.tsv.gz",
-        #"../data-prep/vamosGenomicTR_v3.0_effMotifs-0.1.tsv.gz",
-    ])
+    parser.add_argument("--vamos-ori-motifs-tsv", action="append", default=None)
+    parser.add_argument("--vamos-eff-motifs-tsv", action="append", default=None)
     
     parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
                         #default="https://github.com/broadinstitute/tandem-repeat-catalog/releases/download/v1.0/repeat_catalog_v1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
@@ -34,6 +28,15 @@ def main():
     parser.add_argument("-n", type=int, help="Number of records to process from the catalog")
     parser.add_argument("-o", "--output-tsv", default="../data-prep/vamos_ori_and_eff_motif_columns.tsv.gz")
     args = parser.parse_args()
+
+    if args.vamos_ori_motifs_tsv is None:
+        args.vamos_ori_motifs_tsv = ["../data-prep/oriMotifFinal.all.tsv.gz"]
+    if args.vamos_eff_motifs_tsv is None:
+        args.vamos_eff_motifs_tsv = ["../data-prep/effMotifFinal.all.tsv.gz"]
+
+    if len(args.vamos_ori_motifs_tsv) != len(args.vamos_eff_motifs_tsv):
+        parser.error(f"--vamos-ori-motifs-tsv and --vamos-eff-motifs-tsv must be specified the same number of times "
+                     f"({len(args.vamos_ori_motifs_tsv)} vs {len(args.vamos_eff_motifs_tsv)})")
 
     vamos_data_lookup = {}
     for vamos_ori_motifs_tsv, vamos_eff_motifs_tsv in zip(args.vamos_ori_motifs_tsv, args.vamos_eff_motifs_tsv):

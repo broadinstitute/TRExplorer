@@ -331,8 +331,9 @@ def main():
         ordered_traits = []
         for assoc in all_associations:
             trait = assoc["trait"]
-            if trait not in details:
-                ordered_traits.append(trait)
+            if trait in details:
+                continue
+            ordered_traits.append(trait)
             details[trait] = {
                 "traitType": assoc["traitType"],
                 "pvalue": assoc["pvalue"],

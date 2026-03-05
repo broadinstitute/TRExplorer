@@ -45,7 +45,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--non-coding-annotations-bed", default="ncAnnot.v0.14.jul2024.bed.gz")
 args = parser.parse_args()
 
-output_path = args.non_coding_annotations_bed.replace(".bed.gz", "") + ".filtered.bed.gz"
+output_path = args.non_coding_annotations_bed.replace(".bed.gz", "") + ".filtered.bed"
 print(f"Filtering {args.non_coding_annotations_bed} to {output_path}")
 
 categories_to_keep = {
@@ -114,10 +114,10 @@ with open(output_path, "wt") as f:
         f.write(f"{chrom}\t{start}\t{end}\t{category}\n")
 
 os.system(f"bgzip -f {output_path}")
-os.system(f"tabix -f {output_path}")
+os.system(f"tabix -f {output_path}.gz")
 
 spanning_size = sum(category_span_counters[category] for category in categories_to_keep)
-print(f"Wrote {len(output_records):,d} annotations to {output_path} spanning {spanning_size  / 1024 / 1024:.2f} MB:")
+print(f"Wrote {len(output_records):,d} annotations to {output_path}.gz spanning {spanning_size  / 1024 / 1024:.2f} MB:")
 for category_to_keep in sorted(categories_to_keep, key=lambda x: -category_span_counters[x]):
     print(f" {category_item_counters[category_to_keep]:10,d} intervals  spanning {category_span_counters[category_to_keep] / 1024 / 1024:5.2f} MB  ({category_span_counters[category_to_keep] / spanning_size:5.1%}) {category_to_keep} ")
 

@@ -86,7 +86,7 @@ print(f"Resulting dataframe has {len(df):,} rows with {len(df.TRID.unique()):,} 
 df["OE_len_percentile"] = df["OE_len"].rank(pct=True)
 
 df_grouped_by_motif = df.groupby("canonical_motif")
-df['StdevRankByMotif'] = df_grouped_by_motif["Stdev"].rank(ascending=False).astype(int)
+df['StdevRankByMotif'] = df_grouped_by_motif["Stdev"].rank(ascending=False, method='min').astype(int)
 df['StdevRankTotalNumberByMotif'] = df_grouped_by_motif["TRID"].transform("count").astype(int)
 
 output_filename = "AoULR_phase1_TRGT_Weisburd_v1_combined.txt.gz"
