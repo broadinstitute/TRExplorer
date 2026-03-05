@@ -102,7 +102,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260203_075711'
+    const TABLE_ID = 'catalog_20260304_141401'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -190,6 +190,8 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // BigQuery column descriptions - generated from global_constants.py via Jinja2
     const BIGQUERY_COLUMN_DESCRIPTIONS = {{ column_descriptions | tojson }}
+
+    const BIGQUERY_COLUMN_GROUPS = {{ column_groups | tojson }}
 
     const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
 
@@ -1148,11 +1150,25 @@ gtag('config', 'G-6R8FPBQRFH');
                     return `<span class="action-cell show-popup" data-html='${clusterDetails}'>
                             <i class="check circle icon"></i><span class="action-link">Yes</span>
                         </span>: +${row['VariationClusterSizeDiff']}bp`
+                } else if ( row['VariationClusterFilterReason'] ) {
+                    if (row['VariationClusterFilterReason'] == 'DEPTH') {
+                        return `<span class="action-cell show-popup" data-html="<b>Depth Filter:</b> Variation cluster not computed due to low depth in this region in the PacBio HiFi population dataset used to generate variation clusters">
+                                <i class="times circle outline icon" style="color:gold"></i>
+                            </span>`
+                    } else if (row['VariationClusterFilterReason'] == 'EXTENSION') {
+                        return `<span class="action-cell show-popup" data-html="<b>Size Filter:</b> Variation cluster filtered out because its width exceeded the maximum variation cluster size threshold">
+                                <i class="times circle outline icon" style="color:darkred"></i>
+                            </span>`
+                    } else {
+                        return `<span class="action-cell show-popup" data-html="${row['VariationClusterFilterReason']}">
+                                <i class="times circle outline icon" style="color:darkorange"></i>
+                            </span>`
+                    }
                 }
                 return ''
             },
             getSortColumns: () => ['VariationClusterSizeDiff'],
-            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster']
+            getRequiredColumns: () => ['VariationClusterSizeDiff', 'VariationCluster', 'VariationClusterFilterReason']
         },
         NumRepeatsInReference: {
             displayName: '# of Repeats',

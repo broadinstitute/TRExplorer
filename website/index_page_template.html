@@ -999,21 +999,9 @@
             groupedColumns[opt.group].push(opt)
         })
 
-        // Define the order in which groups should appear
-        const groupOrder = [
-            'Core',
-            'Additional Layers',
-            'Gene Annotations',
-            'Vamos',
-            'Polymorphism (TenK10K)',
-            'Polymorphism (HPRC256)',
-            'Polymorphism (AoU1027)',
-            'sc-eTRs (Tanudisastro 2024)',
-            'PheWAS (Manigbas 2024)',
-        ]
 
         // Create HTML for each group in the specified order
-        groupOrder.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+        BIGQUERY_COLUMN_GROUPS.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
             const columns = groupedColumns[groupName]
             const groupDiv = $(`<div class="export-column-group">
                 <div class="export-column-group-header">${groupName}</div>

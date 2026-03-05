@@ -13,14 +13,21 @@ GENE_REGION_PRIORITY = (
 # Export group names for organizing columns in the export dialog
 GROUP_CORE = "Core"
 GROUP_ADDITIONAL_LAYERS = "Additional Layers"
+GROUP_ADDITIONAL_LAYERS2 = "Additional Layers #2"
 GROUP_GENE_ANNOTATIONS = "Gene Annotations"
 GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
-GROUP_VAMOS = "Vamos"
-GROUP_SC_ETRS = "sc-eTRs (Tanudisastro 2024)"
-GROUP_PHEWAS = "PheWAS (Manigbas 2024)"
 
+GROUP_ORDER = [
+    GROUP_CORE,
+    GROUP_ADDITIONAL_LAYERS,
+    GROUP_ADDITIONAL_LAYERS2,
+    GROUP_GENE_ANNOTATIONS,
+    GROUP_POLYMORPHISM_HPRC256,
+    GROUP_POLYMORPHISM_AOU1027,
+    GROUP_POLYMORPHISM_TENK10K,
+]
 
 BIGQUERY_COLUMNS = [
     # Core locus identifiers
@@ -202,11 +209,11 @@ BIGQUERY_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "OverlapGroupId",
-        "description": "Group ID shared by overlapping loci. NULL for non-overlapping loci.",
+        "description": "Group ID shared by each set of overlapping TR loci. NULL for TR loci that don't overlap another TR locus.",
         "displayName": "Overlap Group ID",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
 
     # Source catalog membership flags
@@ -266,7 +273,16 @@ BIGQUERY_COLUMNS = [
             "Variation Clusters (VCs) are genomic intervals that contain one or more TRs "
             "embedded within a wider region that harbors multiple common polymorphisms."
         ),
-        "displayName": "Variation Cluster",
+        "displayName": "Variation Cluster Interval",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
+    },
+    {
+        "type": "STRING",
+        "name": "VariationClusterId",
+        "description": "Comma-separated list of locus IDs of all TR loci in the same variation cluster.",
+        "displayName": "Variation Cluster ID",
         "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,
@@ -283,7 +299,11 @@ BIGQUERY_COLUMNS = [
     {
         "type": "STRING",
         "name": "VariationClusterFilterReason",
-        "description": "Reason this locus was filtered from the variation cluster analysis, if applicable.",
+        "description": "Reason why this locus was excluded from the variation cluster analysis.",
+        "displayName": "VC Filter Reason",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
     },
 
     # Disease association
@@ -802,7 +822,7 @@ BIGQUERY_COLUMNS = [
         "description": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies.",
         "displayName": "Vamos Unique Motifs",
         "allowExport": True,
-        "group": GROUP_VAMOS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "STRING",
@@ -810,7 +830,7 @@ BIGQUERY_COLUMNS = [
         "description": "Efficient motif representation for Vamos genotyping.",
         "displayName": "Vamos Efficient Motifs",
         "allowExport": True,
-        "group": GROUP_VAMOS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "STRING",
@@ -818,7 +838,7 @@ BIGQUERY_COLUMNS = [
         "description": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies.",
         "displayName": "Vamos Motif Frequencies",
         "allowExport": True,
-        "group": GROUP_VAMOS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "INTEGER",
@@ -827,7 +847,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "Vamos Num Unique Motifs",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_VAMOS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "INTEGER",
@@ -836,7 +856,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "Include In Vamos Catalog",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_VAMOS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
 
     # Tanudisastro 2024 sc-eTR data
@@ -847,7 +867,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "sc-eTRs: Cell Types",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_SC_ETRS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "FLOAT",
@@ -856,7 +876,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "sc-eTRs: Min P-value",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_SC_ETRS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "STRING",
@@ -872,7 +892,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "PheWAS: Traits",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_PHEWAS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "FLOAT",
@@ -881,7 +901,7 @@ BIGQUERY_COLUMNS = [
         "displayName": "PheWAS: Min P-value",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_PHEWAS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
     {
         "type": "STRING",
@@ -889,7 +909,7 @@ BIGQUERY_COLUMNS = [
         "description": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId.",
         "displayName": "PheWAS: Details",
         "allowExport": True,
-        "group": GROUP_PHEWAS,
+        "group": GROUP_ADDITIONAL_LAYERS2,
     },
 
     # Reference sequence data
