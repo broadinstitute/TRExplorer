@@ -4536,17 +4536,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     let customFilterNextId = 0
 
-    const CUSTOM_FILTER_GROUP_ORDER = [
-        'Core',
-        'Additional Layers',
-        'Gene Annotations',
-        'Vamos',
-        'Polymorphism (TenK10K)',
-        'Polymorphism (HPRC256)',
-        'Polymorphism (AoU1027)',
-        'sc-eTRs (Tanudisastro 2024)',
-        'PheWAS (Manigbas 2024)',
-    ]
+    const CUSTOM_FILTER_GROUP_ORDER = BIGQUERY_COLUMN_GROUPS.filter(g => g !== 'Additional Layers #2')
 
     const getCustomFilterColumnInfo = (columnName) => {
         return CUSTOM_FILTER_COLUMNS.find(c => c.name === columnName)
@@ -4582,11 +4572,12 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const buildColumnDropdownMenu = () => {
-        // Group columns
+        // Group columns (merge "Additional Layers #2" into "Additional Layers")
         const grouped = {}
         CUSTOM_FILTER_COLUMNS.forEach(col => {
-            if (!grouped[col.group]) grouped[col.group] = []
-            grouped[col.group].push(col)
+            const group = col.group === 'Additional Layers #2' ? 'Additional Layers' : col.group
+            if (!grouped[group]) grouped[group] = []
+            grouped[group].push(col)
         })
 
         let menuHtml = ''
@@ -4711,8 +4702,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const grouped = {}
         CUSTOM_FILTER_COLUMNS.forEach(col => {
-            if (!grouped[col.group]) grouped[col.group] = []
-            grouped[col.group].push(col)
+            const group = col.group === 'Additional Layers #2' ? 'Additional Layers' : col.group
+            if (!grouped[group]) grouped[group] = []
+            grouped[group].push(col)
         })
 
         CUSTOM_FILTER_GROUP_ORDER.filter(g => grouped[g]).forEach(groupName => {
