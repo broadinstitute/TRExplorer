@@ -26,7 +26,7 @@ deploy:
 
 # View recent logs
 logs:
-	gcloud functions logs read query_db --region=us-central1 --limit=10
+	gcloud functions logs read query_db --region=us-central1 --limit=100
 
 # Alias for logs target
 log: logs

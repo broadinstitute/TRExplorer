@@ -35,27 +35,27 @@
             <!-- Overlap handling options -->
             <div id="export-overlap-options" style="margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
                 <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">How to handle overlapping TR loci:</label>
-                <div id="export-overlap-fields" class="inline fields" style="margin: 0;">
+                <div id="export-overlap-fields" class="fields inline" style="margin: 0;">
                     <div class="field">
                         <div class="ui radio checkbox">
                             <input type="radio" name="overlapHandling" value="all" checked>
                             <label>Export all loci</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="Export all TR loci, even when they overlap each other." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="Export all TR loci, regardless of whether they overlap each other" data-position="right center">(?)</span>
                     </div>
                     <div class="field">
                         <div class="ui radio checkbox">
                             <input type="radio" name="overlapHandling" value="longest">
                             <label>Export only the longest TR locus</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the longest reference region." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the longest reference region" data-position="right center">(?)</span>
                     </div>
                     <div class="field">
                         <div class="ui radio checkbox">
                             <input type="radio" name="overlapHandling" value="purest">
                             <label>Export only the highest-purity TR locus</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the highest purity reference sequence." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="When two or more TR locus definitions overlap, export only one of them: the one with the highest purity reference sequence" data-position="right center">(?)</span>
                     </div>
                 </div>
             </div>
@@ -68,7 +68,7 @@
                             <input type="radio" name="trgtCatalogType" value="simple">
                             <label>Simple repeats</label>
                         </div>
-                        <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry, ignoring variation clusters." data-position="right center">(?)</span>
+                        <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry, ignoring variation clusters" data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
@@ -1024,7 +1024,7 @@
         $('#export-column-section').toggle(showColumns)
         $('#export-trgt-options').toggle(showTrgtOptions)
         // Use vertical radio buttons when there are no column checkboxes
-        $('#export-overlap-fields').toggleClass('inline fields', showColumns).toggleClass('grouped fields', !showColumns)
+        $('#export-overlap-fields').toggleClass('inline', showColumns).toggleClass('grouped', !showColumns)
 
         // Reset overlap radio to 'all'
         $('input[name="overlapHandling"][value="all"]').prop('checked', true)
