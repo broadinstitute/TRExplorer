@@ -1910,7 +1910,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260305_221515'
+    const TABLE_ID = 'catalog_20260306_055435'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
@@ -5028,9 +5028,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 if (trgtCatalogType === 'vc_only') {
                     query = `${vcQuery} ORDER BY vc_chrom, vc_start, vc_end`
                 } else {
-                    // Isolated rows: loci not in any VC
-                    const isolatedQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable} WHERE (VariationCluster IS NULL OR VariationCluster = '') AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')`
-                    query = `${vcQuery} UNION ALL ${isolatedQuery} ORDER BY vc_chrom, vc_start, vc_end`
+                    // Isolated repeats rows: loci not in any VC
+                    const isolatedRepeatsQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable} WHERE (VariationCluster IS NULL OR VariationCluster = '') AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')`
+                    query = `${vcQuery} UNION ALL ${isolatedRepeatsQuery} ORDER BY vc_chrom, vc_start, vc_end`
                 }
             } else if (overlapHandling !== 'all') {
                 const orderByRank = overlapHandling === 'longest'

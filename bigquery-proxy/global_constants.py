@@ -281,8 +281,17 @@ BIGQUERY_COLUMNS = [
     {
         "type": "STRING",
         "name": "VariationClusterId",
-        "description": "Comma-separated list of locus IDs of all TR loci in the same variation cluster.",
+        "description": "Comma-separated list of locus IDs of all TR loci in the variation cluster.",
         "displayName": "Variation Cluster ID",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
+    },
+    {
+        "type": "STRING",
+        "name": "VariationClusterMotifs",
+        "description": "Comma-separated list of unique motifs of TR loci in the variation cluster.",
+        "displayName": "Variation Cluster Motifs",
         "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,

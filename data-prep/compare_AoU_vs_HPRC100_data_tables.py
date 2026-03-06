@@ -49,8 +49,8 @@ print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows 
 df["chrom"] = df["TRID2"].str.split("-").str[0]
 df["motif_size"] = df["motif"].str.len()
 
-df["Mode"] = df.apply(lambda m: m["Mode"] / len(m["longestPureSegmentMotif"]), axis=1)
-df["Stdev"] = df.apply(lambda m: m["Stdev"] / len(m["longestPureSegmentMotif"]), axis=1)
+df["Mode"] = df["Mode"] / df["longestPureSegmentMotif"].str.len()
+df["Stdev"] = df["Stdev"] / df["longestPureSegmentMotif"].str.len()
 df["isVariationCluster"] = np.where(df["TRID"].str.contains(","), 1, 0)
 
 df = df[["TRID2", "Mode", "Stdev", "isVariationCluster", "chrom", "motif_size"]]

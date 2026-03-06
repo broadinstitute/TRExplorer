@@ -229,7 +229,8 @@ def parse_vamos_efficient_motif_lookup(efficient_motif_tsv_path):
             ori_motifs = fields[col_indices['oriMotifs']].split(",")
             efficient_motifs_q01 = fields[col_indices['effMotif_counterparts']].split(",")
 
-            assert len(ori_motifs) == len(efficient_motifs_q01), line
+            if len(ori_motifs) != len(efficient_motifs_q01):
+                raise ValueError(f"Mismatch in motif counts: {line.strip()}")
 
             reference_region = f"{chrom}:{start_0based}-{end_1based}"
             efficient_motif_lookup[reference_region] = dict(zip(ori_motifs, efficient_motifs_q01))

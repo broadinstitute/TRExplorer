@@ -107,7 +107,7 @@ for category, count in sorted(category_item_counters.items(), key=lambda x: -x[1
 
 print("Category size counters:")
 for category, size in sorted(category_span_counters.items(), key=lambda x: -x[1]):
-    print(f" {size:10,d} MB   {category}")
+    print(f" {size / 1_000_000:10,.1f} Mb   {category}")
 
 with open(output_path, "wt") as f:
     for chrom, start, end, category in sorted(output_records):

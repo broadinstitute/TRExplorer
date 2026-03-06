@@ -576,6 +576,7 @@
                 return
             }
             let [_, chrom, start_0based, end_1based, motif] = locusIdMatch
+            locusId = `${chrom}-${start_0based}-${end_1based}-${motif}`
 
             // Set page titles immediately (before waiting for search results)
             const referenceRegion = `chr${chrom}:${start_0based}-${end_1based}`
@@ -597,7 +598,7 @@
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
 
-            if (!window.searchResults.rows || window.searchResults.rows.length == 0) {
+            if (!window.searchResults.rows || window.searchResults.rows.length === 0) {
                 console.error("ERROR: row not found", whereClause)
                 displayError(`Locus not found: ${locusId}`)
                 return

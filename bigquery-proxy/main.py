@@ -216,7 +216,7 @@ def query_db(request):
     sql = str(sql).strip()
 
     pattern = rf"^SELECT\s+(.+)\s+FROM[\s`]+{BIGQUERY_PROJECT}\.{BIGQUERY_DATASET}"
-    if not re.search(pattern, sql, re.IGNORECASE | re.VERBOSE | re.MULTILINE):
+    if not re.search(pattern, sql, re.IGNORECASE | re.MULTILINE):
         response_dict = {"error": f"Invalid SQL query: {sql}. It must be a SELECT from the expected project and dataset and must pass the validation regexp."}
         print(f"ERROR: {response_dict['error']}")
         return jsonify(response_dict), 400, response_headers
