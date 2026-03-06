@@ -61,26 +61,26 @@
             </div>
             <!-- TRGT catalog type options -->
             <div id="export-trgt-options" style="display: none; margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
-                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">TRGT catalog type:</label>
+                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">How to handle variation clusters:</label>
                 <div class="grouped fields" style="margin: 0;">
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="simple">
-                            <label>Simple repeats</label>
+                            <label>Export simple repeats</label>
                         </div>
                         <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry, ignoring variation clusters" data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="vc_and_isolated" checked>
-                            <label>Variation clusters and isolated repeats</label>
+                            <label>Export variation clusters and isolated repeats</label>
                         </div>
                         <span class="export-column-help-icon" data-tooltip="This export option groups TR loci into variation clusters and exports one entry per variation cluster as well as one entry per TR locus that is outside of a variation cluster. Variation clusters are genomic regions that contain one or more TRs embedded within a wider polymorphic region. This option is the recommended default for TRGT catalogs because resolving the sequence of an entire variation cluster (rather than individually genotyping its constituent TRs) leads to more accurate analysis. NOTE: Loci are excluded where variation cluster computation failed due to low depth of coverage or where the variation cluster region exceeded a maximum size threshold." data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="vc_only">
-                            <label>Variation clusters only</label>
+                            <label>Export variation clusters only</label>
                         </div>
                         <span class="export-column-help-icon" data-tooltip="This export option groups TR loci into variation clusters and exports one entry per variation cluster. Loci outside of variation clusters are excluded." data-position="right center">(?)</span>
                     </div>
