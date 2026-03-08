@@ -21,7 +21,15 @@ import pandas as pd
 import numpy as np
 import tqdm
 
-    
+
+
+def _format_decimal(value):
+    """Format a numeric value as an integer if whole, otherwise round to 2 decimal places."""
+    if value == int(value):
+        return int(value)
+    return round(float(value), 2)
+
+
 HEADER_FIELDS = [
     "locus_id",
     "motif",
@@ -34,6 +42,8 @@ HEADER_FIELDS = [
     "median",
     "99th_percentile",
     "max_allele",
+    "short_allele_99th_percentile",
+    "short_allele_max",
     "unique_allele_lengths",
     "num_called_alleles",
 ]
@@ -66,19 +76,23 @@ def write_line(locus_id, motif, allele_sizes, alleles_by_sample_id, output_file)
     # Calculate statistics
     allele_sizes = list(sorted(allele_sizes))
     allele_counts = collections.Counter(allele_sizes)
-    mode_allele, _ = allele_counts.most_common(1)[0]
+    mode_allele = min(size for size, count in allele_counts.items() if count == allele_counts.most_common(1)[0][1])
 
     genotype_counts = collections.defaultdict(int)
+    short_alleles = []
     for sample_id, allele_list in alleles_by_sample_id.items():
         if len(allele_list) == 1:
+            short_alleles.append(allele_list[0])
             allele_list = allele_list * 2
-        elif len(allele_list) != 2:
+        elif len(allele_list) == 2:
+            short_alleles.append(min(allele_list))
+        else:
             raise ValueError(f"Found {len(allele_list)} alleles for {sample_id} in {locus_id} {motif}")
 
         genotype_counts[tuple(sorted(allele_list))] += 1
 
     allele_size_histogram = ",".join(f"{allele_size}x:{count}" for allele_size, count in sorted(allele_counts.items()))
-    biallelic_histogram = ",".join(f"{genotype[0]}/{genotype[1]}:{count}" for genotype, count in sorted(genotype_counts.items(), key=lambda x: (x[0][1], x[0][0])))
+    biallelic_histogram = ",".join(f"{genotype[0]}/{genotype[1]}:{count}" for genotype, count in sorted(genotype_counts.items(), key=lambda x: (x[0][0], x[0][1])))
 
     # Write to output file
     output_file.write("\t".join(map(str, [
@@ -88,11 +102,13 @@ def write_line(locus_id, motif, allele_sizes, alleles_by_sample_id, output_file)
         biallelic_histogram,
         int(min(allele_sizes)),
         mode_allele, 
-        f"{np.mean(allele_sizes):.3f}",
-        f"{np.std(allele_sizes):.3f}", 
-        int(np.median(allele_sizes)),
-        int(np.percentile(allele_sizes, 99)),
+        f"{np.mean(allele_sizes):.2f}",
+        f"{np.std(allele_sizes):.2f}",
+        _format_decimal(np.median(allele_sizes)),
+        _format_decimal(np.percentile(allele_sizes, 99)),
         int(max(allele_sizes)),
+        _format_decimal(np.percentile(short_alleles, 99)),
+        int(max(short_alleles)),
         len(set(allele_sizes)),
         len(allele_sizes),
     ])) + "\n")

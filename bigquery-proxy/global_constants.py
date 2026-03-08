@@ -703,6 +703,18 @@ BIGQUERY_COLUMNS = [
         "allowExport": True,
         "group": GROUP_POLYMORPHISM_HPRC256,
     },
+    {
+        "type": "STRING",
+        "name": "HPRC256_AlleleSizeAndPurityDistribution",
+        "description": "Joint distribution of allele size (repeat count) and allele purity from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/purity:count pairs.",
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
+        "type": "STRING",
+        "name": "HPRC256_AlleleSizeAndMethylationDistribution",
+        "description": "Joint distribution of allele size (repeat count) and methylation from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/methylation:count pairs.",
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
 
     # AoU1027 data
     {

@@ -66,14 +66,21 @@
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="simple">
-                            <label>Export simple repeats</label>
+                            <label>Export all TRs</label>
                         </div>
                         <span class="export-column-help-icon" data-tooltip="Each TR locus is exported as a separate entry, ignoring variation clusters" data-position="right center">(?)</span>
                     </div>
                     <div class="field" style="display: flex; align-items: center;">
                         <div class="ui radio checkbox">
+                            <input type="radio" name="trgtCatalogType" value="all_and_vc">
+                            <label>Export all TRs and variation clusters</label>
+                        </div>
+                        <span class="export-column-help-icon" data-tooltip="Export all TR loci as individual entries, plus one entry per variation cluster. Unlike 'Export isolated TRs and variation clusters', this includes TRs that are inside variation clusters as well." data-position="right center">(?)</span>
+                    </div>
+                    <div class="field" style="display: flex; align-items: center;">
+                        <div class="ui radio checkbox">
                             <input type="radio" name="trgtCatalogType" value="vc_and_isolated" checked>
-                            <label>Export variation clusters and isolated repeats</label>
+                            <label>Export isolated TRs and variation clusters</label>
                         </div>
                         <span class="export-column-help-icon" data-tooltip="This export option groups TR loci into variation clusters and exports one entry per variation cluster as well as one entry per TR locus that is outside of a variation cluster. Variation clusters are genomic regions that contain one or more TRs embedded within a wider polymorphic region. This option is the recommended default for TRGT catalogs because resolving the sequence of an entire variation cluster (rather than individually genotyping its constituent TRs) leads to more accurate analysis. NOTE: Loci are excluded where variation cluster computation failed due to low depth of coverage or where the variation cluster region exceeded a maximum size threshold." data-position="right center">(?)</span>
                     </div>
@@ -1498,7 +1505,7 @@
             let query
 
             // For TRGT VC modes, build a custom query
-            if (value === 'trgt' && (trgtCatalogType === 'vc_and_isolated' || trgtCatalogType === 'vc_only')) {
+            if (value === 'trgt' && (trgtCatalogType === 'vc_and_isolated' || trgtCatalogType === 'vc_only' || trgtCatalogType === 'all_and_vc')) {
                 // Build the base table (with overlap filtering if needed)
                 let baseTable
                 if (overlapHandling !== 'all') {
@@ -1515,6 +1522,10 @@
 
                 if (trgtCatalogType === 'vc_only') {
                     query = `${vcQuery} ORDER BY vc_chrom, vc_start, vc_end`
+                } else if (trgtCatalogType === 'all_and_vc') {
+                    // All TRs (regardless of VC membership) plus VC rows
+                    const allTrsQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable}`
+                    query = `${vcQuery} UNION ALL ${allTrsQuery} ORDER BY vc_chrom, vc_start, vc_end`
                 } else {
                     // Isolated rows: loci not in any VC
                     const isolatedQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable} WHERE (VariationCluster IS NULL OR VariationCluster = '') AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')`

@@ -156,6 +156,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
         'HPRC256_BiallelicHistogram': 'Repeat Count: LPS',
         'TenK10K_BiallelicHistogram': 'Repeat Count',
+        'HPRC256_AlleleSizeAndPurityDistribution': 'Repeat Count',
+        'HPRC256_AlleleSizeAndMethylationDistribution': 'Repeat Count',
     }
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
@@ -165,6 +167,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
         'HPRC256_BiallelicHistogram': 'HPRC256',
         'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
+        'HPRC256_AlleleSizeAndPurityDistribution': 'HPRC256',
+        'HPRC256_AlleleSizeAndMethylationDistribution': 'HPRC256',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
         'HPRC256_AlleleHistogram': 'Allele Frequencies from HPRC 256 PacBio samples',
@@ -173,6 +177,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromT2TAssemblies': 'Allele Frequencies from 78 diploid T2T assemblies',
         'HPRC256_BiallelicHistogram': 'Genotype Heatmap from HPRC 256 PacBio samples',
         'TenK10K_BiallelicHistogram': 'Genotype Heatmap from TenK10K Phase 1 short-read genomes',
+        'HPRC256_AlleleSizeAndPurityDistribution': 'Allele Purity Heatmap from HPRC 256 PacBio samples',
+        'HPRC256_AlleleSizeAndMethylationDistribution': 'Allele Methylation Heatmap from HPRC 256 PacBio samples',
     }
 
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
@@ -182,6 +188,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
         'HPRC256_BiallelicHistogram': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
         'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+        'HPRC256_AlleleSizeAndPurityDistribution': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'HPRC256_AlleleSizeAndMethylationDistribution': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
     }
 
     const STDEV_HELP_TEXTS = {
@@ -657,6 +665,10 @@ gtag('config', 'G-6R8FPBQRFH');
         const stdevColumns = ['HPRC256_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
         const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
         const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+        const sizeAndValueDistColumns = [
+            {column: 'HPRC256_AlleleSizeAndPurityDistribution', yAxisLabel: 'Allele Purity'},
+            {column: 'HPRC256_AlleleSizeAndMethylationDistribution', yAxisLabel: 'Methylation'},
+        ]
 
         const nStdevsNotAvailable = stdevColumns.filter(key => row[key] == null).length
 
@@ -754,6 +766,25 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += '</div></div>'
         }
 
+        const sizeAndValueDistColumnsAvailable = sizeAndValueDistColumns.some(entry => row[entry.column] != null)
+        if (sizeAndValueDistColumnsAvailable) {
+            polymorphismDialogContent1 += `
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            `
+            for (const {column: columnName, yAxisLabel} of sizeAndValueDistColumns) {
+                if (row[columnName] != null) {
+                    polymorphismDialogContent1 += `
+                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
+                            <canvas class="size-and-value-dist-chart" data-frequencies-column="${columnName}" data-y-axis-label="${yAxisLabel}" data-chart-width="500px" style="width: 100%; height: 100px;"></canvas>
+                        </div>
+                    `
+                }
+            }
+            polymorphismDialogContent1 += '</div></div>'
+        }
+
         polymorphismDialogContent1 += '</div>'
         return polymorphismDialogContent1
     }
@@ -823,6 +854,20 @@ gtag('config', 'G-6R8FPBQRFH');
             chartData.maxAlleleSize = overallMaxAlleleSize
 
             createBiallelicHistogramChart(chartData)
+        })
+
+        $('.size-and-value-dist-chart').each(function() {
+            const frequenciesColumn = $(this).data('frequencies-column')
+            const frequenciesString = row[frequenciesColumn]
+            if (!frequenciesString) return
+
+            const data = parseSizeAndValueDistributionString(frequenciesString)
+            createSizeAndValueHeatmapChart({
+                data: data,
+                thisObj: this,
+                chartWidth: $(this).data('chart-width'),
+                yAxisLabel: $(this).data('y-axis-label'),
+            })
         })
     }
 
