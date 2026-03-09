@@ -596,6 +596,15 @@ BIGQUERY_COLUMNS = [
         "allowExport": True,
         "group": GROUP_POLYMORPHISM_TENK10K,
     },
+    {
+        "type": "FLOAT",
+        "name": "TenK10K_StdevRankPercentile",
+        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "displayName": "TenK10K Stdev Rank Percentile",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_TENK10K,
+    },
 
     # HPRC256 data
     {
@@ -704,6 +713,15 @@ BIGQUERY_COLUMNS = [
         "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
+        "type": "FLOAT",
+        "name": "HPRC256_StdevRankPercentile",
+        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "displayName": "HPRC256 Stdev Rank Percentile",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
         "type": "STRING",
         "name": "HPRC256_AlleleSizeAndPurityDistribution",
         "description": "Joint distribution of allele size (repeat count) and allele purity from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/purity:count pairs.",
@@ -794,6 +812,15 @@ BIGQUERY_COLUMNS = [
         "name": "AoU1027_StdevRankTotalNumberByMotif",
         "description": "Total number of loci with the same motif used for ranking in AoU1027.",
         "displayName": "AoU1027 Stdev Rank Total",
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_AOU1027,
+    },
+    {
+        "type": "FLOAT",
+        "name": "AoU1027_StdevRankPercentile",
+        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "displayName": "AoU1027 Stdev Rank Percentile",
+        "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_POLYMORPHISM_AOU1027,
     },

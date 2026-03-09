@@ -148,6 +148,7 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
             "num_called_alleles": int(row["num_called_alleles"]),
             "stdev_rank_by_motif": int(row["stdev_rank_by_motif"]),
             "stdev_rank_total_number_by_motif": int(row["stdev_rank_total_number_by_motif"]),
+            "stdev_rank_percentile": row["stdev_rank_by_motif"] / row["stdev_rank_total_number_by_motif"],
         }
         if not pd.isna(row["biallelic_histogram"]):
             lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
@@ -196,6 +197,7 @@ def parse_AoU1027_data_from_tsv(tsv_path):
 
                 "stdev_rank_by_motif": int(fields[col_indices["StdevRankByMotif"]]),
                 "stdev_rank_total_number_by_motif": int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
+                "stdev_rank_percentile": int(fields[col_indices["StdevRankByMotif"]]) / int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
                 #"combined_lps_stdev": float(fields[col_indices["combinedLPSStdev"]]),
                 #"expected_lps_stdev": float(fields[col_indices["expectedCombinedLPSStdev"]]),
                 "oe_length": float(fields[col_indices["OE_len"]]) if fields[col_indices["OE_len"]] != "" else None,
@@ -759,6 +761,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["TenK10K_NumCalledAlleles"] = tenk10k_record["num_called_alleles"]
         record["TenK10K_StdevRankByMotif"] = tenk10k_record["stdev_rank_by_motif"]
         record["TenK10K_StdevRankTotalNumberByMotif"] = tenk10k_record["stdev_rank_total_number_by_motif"]
+        record["TenK10K_StdevRankPercentile"] = tenk10k_record["stdev_rank_percentile"]
 
     if record["LocusId"] in hprc256_lookup:
         counters["rows_with_hprc256_data"] += 1
@@ -775,6 +778,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["HPRC256_NumCalledAlleles"] = hprc256_record["num_called_alleles"]
         record["HPRC256_StdevRankByMotif"] = hprc256_record["stdev_rank_by_motif"]
         record["HPRC256_StdevRankTotalNumberByMotif"] = hprc256_record["stdev_rank_total_number_by_motif"]
+        record["HPRC256_StdevRankPercentile"] = hprc256_record["stdev_rank_percentile"]
 
     if record["LocusId"] in hprc256_purity_methylation_lookup:
         pm_record = hprc256_purity_methylation_lookup[record["LocusId"]]
@@ -796,6 +800,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["AoU1027_NumCalledAlleles"] = aou1027_record["num_called_alleles"]
         record["AoU1027_StdevRankByMotif"] = aou1027_record["stdev_rank_by_motif"]
         record["AoU1027_StdevRankTotalNumberByMotif"] = aou1027_record["stdev_rank_total_number_by_motif"]
+        record["AoU1027_StdevRankPercentile"] = aou1027_record["stdev_rank_percentile"]
 
         #record["AoU1027_CombinedLPSStdev"] = aou1027_record["combined_lps_stdev"]
         #record["AoU1027_ExpectedLPSStdev"] = aou1027_record["expected_lps_stdev"]
