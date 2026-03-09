@@ -2321,7 +2321,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
 
-    const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null) => {
+    const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null, overlapHandling=null, trgtCatalogType=null) => {
         try {
             const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
             console.log("Page state:", GLOBAL_PAGE_STATE)
@@ -2330,6 +2330,8 @@ gtag('config', 'G-6R8FPBQRFH');
                 sql: query,
                 export_to_file_format: exportToFileFormat,
                 tool_name: toolName,
+                overlap_handling: overlapHandling,
+                trgt_catalog_type: trgtCatalogType,
                 start_index: startIndex,
                 page_size: pageSize,
             }
@@ -5216,7 +5218,7 @@ gtag('config', 'G-6R8FPBQRFH');
             } else {
                 query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
             }
-            const results = await queryBigQuery(query, null, null, fileFormat, toolName)
+            const results = await queryBigQuery(query, null, null, fileFormat, toolName, overlapHandling, value === 'trgt' ? trgtCatalogType : null)
 
             if (results.public_urls) {
                 if (results.public_urls.length > 1) {

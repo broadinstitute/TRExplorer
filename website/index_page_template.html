@@ -1539,7 +1539,7 @@
             } else {
                 query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
             }
-            const results = await queryBigQuery(query, null, null, fileFormat, toolName)
+            const results = await queryBigQuery(query, null, null, fileFormat, toolName, overlapHandling, value === 'trgt' ? trgtCatalogType : null)
 
             if (results.public_urls) {
                 if (results.public_urls.length > 1) {

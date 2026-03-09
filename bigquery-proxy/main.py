@@ -51,7 +51,7 @@ def return_query_results(client, result_table, start_index=0, page_size=100):
         return response, 500
 
 
-def export_to_file(client, result_table, export_to_file_format, tool_name=None):
+def export_to_file(client, result_table, export_to_file_format, tool_name=None, overlap_handling=None, trgt_catalog_type=None):
     """Export query results to GCS in the specified format.
     
     Args:
@@ -146,10 +146,12 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None):
 
             # Set the Content-Disposition metadata to specify the download filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename_label = f"_for_{tool_name}" if tool_name else ""
-            if len(blobs) > 1:
-                filename_label += f".shard_{i+1:02d}_of_{len(blobs):02d}"
-            output_filename = f"TR_catalog{filename_label}.{result_table.num_rows}_loci.{timestamp}.{export_to_file_format.lower()}.gz"
+            shard_suffix = f".shard_{i+1:02d}_of_{len(blobs):02d}" if len(blobs) > 1 else ""
+            overlap_suffix = f".{overlap_handling}_among_overlapping" if overlap_handling in ("longest", "purest") else ""
+            vc_suffix_map = {"simple": ".all_TRs", "vc_and_isolated": ".isolated_TRs_and_VCs", "all_and_vc": ".all_TRs_and_VCs", "vc_only": ".VCs_only"}
+            vc_suffix = vc_suffix_map.get(trgt_catalog_type, "")
+            tool_suffix = f".{tool_name}" if tool_name else ""
+            output_filename = f"TR_catalog{shard_suffix}.{result_table.num_rows}_loci.{overlap_suffix}{timestamp}{vc_suffix}{tool_suffix}.{export_to_file_format.lower()}.gz"
             output_blob.content_type = 'application/gzip'
             output_blob.content_disposition = f'attachment; filename="{output_filename}"'
             output_blob.patch()
@@ -234,8 +236,10 @@ def query_db(request):
     if export_to_file_format:
         # Export to file
         tool_name = data.get("tool_name")  # optional tool name to add to the filename
+        overlap_handling = data.get("overlap_handling")  # optional overlap handling mode to add to the filename
+        trgt_catalog_type = data.get("trgt_catalog_type")  # optional TRGT catalog type to add to the filename
         response_json, response_status_code = export_to_file(
-            client, result_table, export_to_file_format, tool_name=tool_name)
+            client, result_table, export_to_file_format, tool_name=tool_name, overlap_handling=overlap_handling, trgt_catalog_type=trgt_catalog_type)
         
         return response_json, response_status_code, response_headers
 
