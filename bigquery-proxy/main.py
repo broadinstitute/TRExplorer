@@ -151,7 +151,7 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None, 
             vc_suffix_map = {"simple": ".all_TRs", "vc_and_isolated": ".isolated_TRs_and_VCs", "all_and_vc": ".all_TRs_and_VCs", "vc_only": ".VCs_only"}
             vc_suffix = vc_suffix_map.get(trgt_catalog_type, "")
             tool_suffix = f".{tool_name}" if tool_name else ""
-            output_filename = f"TR_catalog{shard_suffix}.{result_table.num_rows}_loci.{overlap_suffix}{timestamp}{vc_suffix}{tool_suffix}.{export_to_file_format.lower()}.gz"
+            output_filename = f"TR_catalog{shard_suffix}.{result_table.num_rows}_loci{overlap_suffix}.{timestamp}{vc_suffix}{tool_suffix}.{export_to_file_format.lower()}.gz"
             output_blob.content_type = 'application/gzip'
             output_blob.content_disposition = f'attachment; filename="{output_filename}"'
             output_blob.patch()
