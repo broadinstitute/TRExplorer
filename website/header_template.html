@@ -118,7 +118,7 @@ gtag('config', 'G-6R8FPBQRFH');
     const TABLE_ID = 'catalog_20260309_161431'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
 
-    const SHOW_COLUMNS_VALUE_DELIMITER = 'i'
+    const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
     const IGV_LOCUS_PADDING = 150
     const LOCUS_ID_REGEXP = /^[\s]*(?:chr)?(\w+)[\s]*-([\d,]+)-([\d,]+)-([ACGTNRYMKSWHBVD]+)[\s]*$/i
@@ -1182,7 +1182,8 @@ gtag('config', 'G-6R8FPBQRFH');
             getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row['AoU1027_OE_LengthPercentile']).toFixed(1)}%` : '',
             getCellStyle: (row) => {
                 const oe = row['AoU1027_OE_Length']
-                if (oe != null && (oe <= 0.33 || oe >= 2)) return ' background-color: #ffcccc;'
+                if (oe != null && oe <= 0.33) return ' background-color: #ffcccc;'
+                if (oe != null && oe >= 2) return ' background-color: #ccffcc;'
                 return ''
             },
             getSortColumns: () => ['AoU1027_OE_LengthPercentile'],

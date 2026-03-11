@@ -550,7 +550,7 @@
         'VamosMotifFrequencies',
         'RepeatMaskerIntervals',
         //'NonCodingAnnotations',
-    ].map(columnName => RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)).join(SHOW_COLUMNS_VALUE_DELIMITER)
+    ].join(SHOW_COLUMNS_VALUE_DELIMITER)
 
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
@@ -683,7 +683,21 @@
                 GLOBAL_PAGE_STATE[key] = value === 'true' ? true :
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
-                if (key === 'showColumns' || key === 'customFilters') {
+                if (key === 'showColumns') {
+                    // Backward compat: detect old numeric-index format (e.g. "0i1i5i8")
+                    const parts = value.split('i')
+                    let names
+                    if (parts.every(p => /^\d+$/.test(p))) {
+                        names = parts.map(idx => RESULTS_TABLE_COLUMN_NAMES[parseInt(idx)]).filter(Boolean)
+                    } else {
+                        names = value.split(SHOW_COLUMNS_VALUE_DELIMITER)
+                    }
+                    // Validate: drop any unrecognized column names
+                    names = names.filter(name => RESULTS_TABLE_COLUMN_NAMES.includes(name))
+                    GLOBAL_PAGE_STATE[key] = names.length > 0
+                        ? names.join(SHOW_COLUMNS_VALUE_DELIMITER)
+                        : DEFAULT_GLOBAL_PAGE_STATE[key]
+                } else if (key === 'customFilters') {
                     GLOBAL_PAGE_STATE[key] = `${value}` // convert to string
                 }
             }
@@ -1043,8 +1057,7 @@
 
         if (showColumns) {
             // Get currently visible columns in the results table
-            const visibleColumnIds = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            const visibleColumnNames = visibleColumnIds.map(id => RESULTS_TABLE_COLUMN_NAMES[parseInt(id)])
+            const visibleColumnNames = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
 
             // Load saved export column selections from localStorage, or fall back to visible table columns
             const savedSelections = localStorage.getItem('exportColumnSelections')
@@ -1824,7 +1837,7 @@
         </th>`
 
         Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-            if (visibleColumns.includes(columnId)) {
+            if (visibleColumns.includes(columnName)) {
                 const columnObject = TABLE_COLUMNS[columnName]
                 const isSorted = columnName === sortColumn
                 let icon = '<i class="sort icon"></i>'
@@ -1850,7 +1863,7 @@
             </td>`
 
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-                if (visibleColumns.includes(columnId)) {
+                if (visibleColumns.includes(columnName)) {
                     const columnObject = TABLE_COLUMNS[columnName]
                     let value
                     if (!columnObject || !columnObject.getValue) {
@@ -1899,7 +1912,7 @@
         })
 
         Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-            if (visibleColumns.includes(columnId)) {
+            if (visibleColumns.includes(columnName)) {
                 const initValueFunc = TABLE_COLUMNS[columnName].initializeValue
                 if (initValueFunc) {
                     initValueFunc()
@@ -2015,12 +2028,11 @@
 
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
             const checkboxes = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES.map((columnName) => {
-                const columnId = RESULTS_TABLE_COLUMN_NAMES.indexOf(columnName)
-                const isChecked = visibleColumns.includes(columnId.toString())
+                const isChecked = visibleColumns.includes(columnName)
                 return `
                     <div class="results-table-column-settings-checkbox-item">
                         <div class="ui checkbox" style="display: inline-block; padding-right: 10px">
-                            <input type="checkbox" name="show_column_${columnId}" ${isChecked ? 'checked' : ''}>
+                            <input type="checkbox" name="show_column_${columnName}" ${isChecked ? 'checked' : ''}>
                             <label>${TABLE_COLUMNS[columnName]?.displayName || ''}</label>
                         </div>
                         ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
@@ -2040,8 +2052,8 @@
             const selectedColumns = []
             $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {
                 if ($(this).prop('checked')) {
-                    const columnId = $(this).attr('name').replace('show_column_', '')
-                    selectedColumns.push(columnId)
+                    const columnName = $(this).attr('name').replace('show_column_', '')
+                    selectedColumns.push(columnName)
                 }
             })
 
@@ -2434,7 +2446,7 @@
             //add the visible columns to the selected columns
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
             Object.entries(RESULTS_TABLE_COLUMN_NAMES).forEach(([columnId, columnName]) => {
-                if (visibleColumns.includes(columnId)) {
+                if (visibleColumns.includes(columnName)) {
                     const columnObject = TABLE_COLUMNS[columnName]
                     columnObject.getRequiredColumns().forEach(column => {
                         if (!selectedColumns.includes(column)) {
