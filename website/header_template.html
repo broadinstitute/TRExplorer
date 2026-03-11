@@ -1180,8 +1180,13 @@ gtag('config', 'G-6R8FPBQRFH');
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
             getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row['AoU1027_OE_LengthPercentile']).toFixed(1)}%` : '',
+            getCellStyle: (row) => {
+                const oe = row['AoU1027_OE_Length']
+                if (oe != null && (oe <= 0.33 || oe >= 2)) return ' background-color: #ffcccc;'
+                return ''
+            },
             getSortColumns: () => ['AoU1027_OE_LengthPercentile'],
-            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile']
+            getRequiredColumns: () => ['AoU1027_OE_LengthPercentile', 'AoU1027_OE_Length']
         },
         isPathogenic: {
             displayName: 'Disease-associated?',
@@ -1521,6 +1526,16 @@ gtag('config', 'G-6R8FPBQRFH');
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
+            getCellStyle: (row) => {
+                if (row[`${columnName}RankByMotif`] == null || row[`${columnName}RankTotalNumberByMotif`] == null) return ''
+                if (row[`${columnName}RankTotalNumberByMotif`] <= 1) return ''
+                const percentByMotif = row[`${columnName}RankByMotif`] / row[`${columnName}RankTotalNumberByMotif`]
+                if (percentByMotif <= 0.001) return ' background-color: #ff9999;'
+                if (percentByMotif <= 0.01) return ' background-color: #ffcccc;'
+                if (percentByMotif <= 0.05) return ' background-color: #ffe8cc;'
+                if (percentByMotif <= 0.1) return ' background-color: #ffffcc;'
+                return ''
+            },
             getValue: (row) => {
                 if (row[columnName]) {
                     let tagText = ''
