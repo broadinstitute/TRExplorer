@@ -443,7 +443,7 @@
 
         // Generate the tables at the top of the page
         let locusPageRow1Box1 = '<table class="locus-info-table">'
-        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link">IGV</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
+        locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Region:</td><td>${TABLE_COLUMNS['ReferenceRegion'].getValue(row)} &nbsp; &nbsp; (<a id="show-igv-button" class="action-link" title="Show in IGV.js">IGV</a>)</td><td>${getHelpIcon('ReferenceRegion')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Reference Motif:</td><td>${TABLE_COLUMNS['ReferenceMotif'].getValue(row, 35)}</td><td>${getHelpIcon('ReferenceMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Canonical Motif:</td><td>${TABLE_COLUMNS['CanonicalMotif'].getValue(row, 35)}</td><td>${getHelpIcon('CanonicalMotif')}</td></tr>`
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Repeats in Reference:</td><td>${TABLE_COLUMNS['NumRepeatsInReference'].getValue(row)}</td><td>${getHelpIcon('NumRepeatsInReference')}</td></tr>`
