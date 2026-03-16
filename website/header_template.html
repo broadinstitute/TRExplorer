@@ -1575,8 +1575,8 @@ gtag('config', 'G-6R8FPBQRFH');
                     return ''
                 }
             },
-            defaultSortDirection: 'DESC',
-            getSortColumns: () => [columnName],
+            defaultSortDirection: 'ASC',
+            getSortColumns: () => [`${columnName}RankByMotif`],
             getRequiredColumns: () => [columnName, `${columnName}RankByMotif`, `${columnName}RankTotalNumberByMotif`]
         }
     }
