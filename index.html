@@ -4745,7 +4745,7 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#export-overlap-fields').toggleClass('inline', showColumns).toggleClass('grouped', !showColumns)
 
         // Update beta tag tooltip based on export type
-        const betaTooltipLines = ['NOTE: There is ambiguity in how transitive overlaps should be handled and the current implementation may not be optimal (e.g. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, only one of them will be exported).']
+        const betaTooltipLines = ['<b>NOTE:</b> Feedback is welcome on this first-attempt implementation of overlap filtering. There is ambiguity in how to handle transitive overlaps and the current implementation may not be optimal - eg. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, only one of them will be exported.']
         if (showTrgtOptions) {
             betaTooltipLines.push('Also, overlap between isolated TRs and variation clusters (VCs) or between VCs and VCs is not currently taken into account when applying overlap filters - only overlap between TRs and TRs is considered.')
         }
