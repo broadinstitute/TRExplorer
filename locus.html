@@ -2321,37 +2321,52 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
     const queryBigQuery = async (query, startIndex=null, pageSize=null, exportToFileFormat=null, toolName=null, overlapHandling=null, trgtCatalogType=null) => {
-        try {
-            const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
-            console.log("Page state:", GLOBAL_PAGE_STATE)
-            console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
-            const requestBody = {
-                sql: query,
-                export_to_file_format: exportToFileFormat,
-                tool_name: toolName,
-                overlap_handling: overlapHandling,
-                trgt_catalog_type: trgtCatalogType,
-                start_index: startIndex,
-                page_size: pageSize,
-            }
+        const url = `https://us-central1-cmg-analysis.cloudfunctions.net/query_db`
+        console.log("Page state:", GLOBAL_PAGE_STATE)
+        console.log(exportToFileFormat ? `Exporting to ${toolName || ''} ${exportToFileFormat}:`: `Sending query:`, query.replace(/[\n\r\s]+/g, ' '))
+        const requestBody = {
+            sql: query,
+            export_to_file_format: exportToFileFormat,
+            tool_name: toolName,
+            overlap_handling: overlapHandling,
+            trgt_catalog_type: trgtCatalogType,
+            start_index: startIndex,
+            page_size: pageSize,
+        }
 
-            const response = await fetch(url, {
+        let response
+        try {
+            response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(requestBody),
             })
-
-            if (!response.ok) {
-                throw new Error(`BigQuery API error: ${response.status} ${response.statusText}`)
-            }
-
-            return await response.json()
         } catch (error) {
+            // fetch() throws TypeError for network-level failures, including responses that arrive
+            // without CORS headers (e.g. Cloud Function infra-level timeouts). The browser surfaces
+            // those as "CORS policy" errors, which is misleading — translate to something actionable.
             console.error('Error querying BigQuery:', error)
+            if (error instanceof TypeError) {
+                throw new Error(
+                    'The server did not respond. This usually means the request timed out or there is a network problem. Please retry after double-checking that your internet connection is working.'
+                )
+            }
             throw new Error(`BigQuery query error: ${error.message || 'Unknown error'}`)
         }
+
+        if (!response.ok) {
+            let detail = response.statusText
+            try {
+                const body = await response.json()
+                if (body && body.error) detail = body.error
+            } catch (e) {
+                // response body wasn't JSON — keep statusText
+            }
+            console.error(`BigQuery API error ${response.status}:`, detail)
+            throw new Error(`BigQuery API error (HTTP ${response.status}): ${detail}`)
+        }
+
+        return await response.json()
     }
 
     const parseAlleleFrequenciesString = (frequenciesString) => {

@@ -1,7 +1,6 @@
 import datetime
 from flask import jsonify
 import gzip
-import json
 import os
 import re
 import uuid
@@ -116,32 +115,30 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None, 
             print(f"DEBUG: Processing output file {i+1} of {len(blobs)}: gs://{bucket_name}/{output_blob.name}")
 
             if export_to_file_format == "JSON" and len(blobs) == 1:
-                # Download the original file
-                temp_file = f"/tmp/{filename_prefix}_original.json.gz"
-                output_blob.download_to_filename(temp_file)
-
+                # Stream-convert NDJSON -> JSON array directly between GCS blobs.
+                # Each source line is already a valid JSON object, so we pass it through
+                # without a parse/re-dump round-trip. Output stays gzipped.
                 new_filename = f"{filename_prefix}_converted.json.gz"
-                new_temp_file = f"/tmp/{new_filename}"
-
-                # Read and convert the newline-delimited JSON to a proper JSON array
-                with gzip.open(temp_file, 'rt') as f, gzip.open(new_temp_file, 'wt') as f_out:
-                    f_out.write('[')
-                    for i, line in enumerate(f):
-                        row = json.loads(line)
-                        if i > 0:
-                            f_out.write(', ')
-                        f_out.write(json.dumps(row, indent=4))
-                    f_out.write(']\n')
-
-                # Upload the converted file to GCS and clean up temporary files
                 new_blob = bucket.blob(new_filename)
-                new_blob.upload_from_filename(new_temp_file)
 
-                os.remove(temp_file)
-                os.remove(new_temp_file)
+                with output_blob.open('rb') as src_raw, \
+                        gzip.open(src_raw, 'rt') as src, \
+                        new_blob.open('wb', ignore_flush=True) as dst_raw, \
+                        gzip.open(dst_raw, 'wt') as dst:
+                    dst.write('[')
+                    first = True
+                    for line in src:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        if first:
+                            first = False
+                        else:
+                            dst.write(', ')
+                        dst.write(line)
+                    dst.write(']\n')
+
                 output_blob.delete()
-
-                # Update the blob reference to the new file
                 output_blob = new_blob
 
             # Set the Content-Disposition metadata to specify the download filename

@@ -22,6 +22,7 @@ deploy:
 		--entry-point query_db \
 		--region=us-central1 \
 		--memory 256MB \
+		--timeout=540s \
 		--gen2
 
 # View recent logs
