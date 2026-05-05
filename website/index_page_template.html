@@ -2024,6 +2024,7 @@
         $('.show-popup').popup({ on: 'click', hoverable: true })
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
         $('.disease-associated-icon').popup({ on: 'click' })
+        initGeneInfoLinks(resultsTableElement)
 
         // init click handler for "Column settings" modal
         $('#results-table-settings-button').click((e) => {

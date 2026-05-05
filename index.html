@@ -656,6 +656,98 @@ gtag('config', 'G-6R8FPBQRFH');
         max-width: 95vw;
     }
 
+    .gene-info-popup-content {
+        font-size: 0.95em;
+        color: #333;
+    }
+
+    .gene-info-popup-content .gene-info-popup-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        align-items: flex-start;
+    }
+
+    .gene-info-popup-content .gene-info-popup-table {
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    .gene-info-popup-content .gene-info-popup-table td {
+        padding: 3px 8px;
+        vertical-align: top;
+    }
+
+    .gene-info-popup-content .gene-info-popup-label {
+        font-weight: bold;
+        white-space: nowrap;
+        text-align: right;
+        color: #333;
+    }
+
+    .gene-info-popup-content .gene-info-no-disease {
+        margin: 4px 0 12px 0;
+        font-style: italic;
+        color: #555;
+    }
+
+    .gene-info-source-attribution {
+        font-size: 1.1em;
+        color: #888;
+        text-align: right;
+        margin-bottom: 6px;
+    }
+
+    .gene-info-divider {
+        margin: 12px 0 10px 0;
+        border: 0;
+        border-top: 1px solid #eee;
+    }
+
+    .gene-info-phenotype-summary {
+        margin-bottom: 8px;
+        line-height: 1.45;
+    }
+
+    .gene-info-sources-section {
+        margin-bottom: 6px;
+        line-height: 1.6;
+    }
+
+    .gene-info-section-label {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 4px;
+        margin-right: 6px;
+        white-space: nowrap;
+    }
+
+    .gene-info-source-attribution a {
+        color: #2185d0;
+    }
+
+    .gene-info-external-links {
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid #ccc;
+        line-height: 1.8em;
+    }
+
+    .gene-info-external-links a {
+        margin: 0 6px;
+        color: #2185d0;
+        white-space: nowrap;
+    }
+
+    .gene-info-popup-error {
+        color: #c0392b;
+        padding: 8px;
+    }
+
+    .ui.popup.gene-info-popup {
+        max-width: 760px;
+    }
+
 </style>
 
 <script>
@@ -3002,6 +3094,229 @@ gtag('config', 'G-6R8FPBQRFH');
         return html
     }
 
+    // Gene info popup helpers (used by GencodeGeneName, RefseqGeneName, ManeGeneName columns)
+    const GENE_INFO_API_URL = 'https://us-central1-cmg-analysis.cloudfunctions.net/query_gene_lookup_db'
+    const GENE_INFO_CACHE = new Map()
+
+    const escapeHtmlText = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+    const generateGeneNameCellValue = (geneName) => {
+        if (!geneName) return ''
+        return String(geneName).split(',').map(part => {
+            const trimmed = part.trim()
+            if (!trimmed) return ''
+            const escaped = escapeHtmlText(trimmed)
+            return `<span class="gene-info-link action-link" data-gene-name="${escaped}">${escaped}</span>`
+        }).filter(s => s).join(', ')
+    }
+
+    const fetchGeneInfo = async (geneName) => {
+        if (GENE_INFO_CACHE.has(geneName)) {
+            return GENE_INFO_CACHE.get(geneName)
+        }
+        const escapedName = String(geneName).replace(/'/g, "''")
+        const sql = `SELECT * FROM \`cmg-analysis.gene_lookup.combined_gene_disease_association_table\` WHERE UPPER(gene_symbol) = UPPER('${escapedName}')`
+        const response = await fetch(GENE_INFO_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sql, start_index: 0, page_size: 1 }),
+        })
+        if (!response.ok) {
+            throw new Error(`Gene lookup API error: ${response.status} ${response.statusText}`)
+        }
+        const data = await response.json()
+        const row = (data && data.rows && data.rows.length > 0) ? data.rows[0] : null
+        GENE_INFO_CACHE.set(geneName, row)
+        return row
+    }
+
+    const buildGeneExternalLinks = ({ geneSymbol, hgncId, ensemblId, aliases, mimNumber, excludeNames }) => {
+        const exclude = excludeNames || new Set()
+        const link = (label, url) => `<a href="${url}" target="_blank">${escapeHtmlText(label)}</a>`
+        const pubmedNames = geneSymbol
+            ? [geneSymbol, ...(aliases || '').split(',').map(s => s.trim()).filter(s => s)]
+            : []
+        const linkSpecs = {
+            OMIM:           mimNumber  ? link('OMIM', `https://omim.org/entry/${encodeURIComponent(mimNumber)}`) : '',
+            ClinGen:        hgncId     ? link('ClinGen', `https://search.clinicalgenome.org/kb/gene-dosage/${hgncId}`) : '',
+            ClinVar:        geneSymbol ? link('ClinVar', `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]`) : '',
+            HGMD:           geneSymbol ? link('HGMD', `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}`) : '',
+            GeneCards:      ensemblId  ? link('GeneCards', `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${ensemblId}`) : '',
+            Decipher:       ensemblId  ? link('Decipher', `https://www.deciphergenomics.org/gene/${ensemblId}/overview/protein-genomic-info`) : '',
+            Geno2MP:        geneSymbol ? link('Geno2MP', `https://geno2mp.gs.washington.edu/Geno2MP/#/gene/${geneSymbol}/gene/0/0/0`) : '',
+            Monarch:        geneSymbol ? link('Monarch', `https://monarchinitiative.org/explore?search=${geneSymbol}#search`) : '',
+            gnomAD:         ensemblId  ? link('gnomAD', `https://gnomad.broadinstitute.org/gene/${ensemblId}?dataset=gnomad_r4`) : '',
+            'Protein Atlas':ensemblId  ? link('Protein Atlas', `https://www.proteinatlas.org/${ensemblId}/tissue`) : '',
+            GTEx:           ensemblId  ? link('GTEx', `https://www.gtexportal.org/home/gene/${ensemblId}`) : '',
+            UniProt:        ensemblId  ? link('UniProt', `https://www.uniprot.org/uniprot?query=${ensemblId}+AND(reviewed:true)+AND(organism_id:9606)`) : '',
+            primAD:         geneSymbol ? link('primAD', `https://primad.basespace.illumina.com/gene/${geneSymbol}`) : '',
+            KEGG:           geneSymbol ? link('KEGG', `https://www.kegg.jp/kegg-bin/search_pathway_text?keyword=${geneSymbol}&viewImage=true`) : '',
+            PubMed:         pubmedNames.length ? link('PubMed', `https://www.ncbi.nlm.nih.gov/pubmed/?term=(${pubmedNames.join(' OR ')})`) : '',
+            'NCBI Gene':    ensemblId  ? link('NCBI Gene', `https://www.ncbi.nlm.nih.gov/gene/?term=${ensemblId}`) : '',
+        }
+        const order = ['OMIM', 'ClinGen', 'ClinVar', 'HGMD', 'GeneCards', 'Decipher', 'Geno2MP', 'Monarch', 'Protein Atlas', 'GTEx', 'UniProt', 'gnomAD', 'primAD', 'KEGG', 'PubMed', 'NCBI Gene']
+        const linksHtml = order.filter(k => !exclude.has(k)).map(k => linkSpecs[k]).filter(s => s).join('')
+        if (!linksHtml) return ''
+        return `<div class="gene-info-external-links"><span class="gene-info-section-label">Extra Links:</span>${linksHtml}</div>`
+    }
+
+    const buildGeneLookupSourceAttribution = (hgncId, ensemblId) => {
+        let url = ''
+        if (hgncId) url = `https://genelookup.broadinstitute.org/gene.html#hgnc_gene_id=${encodeURIComponent(hgncId)}`
+        else if (ensemblId) url = `https://genelookup.broadinstitute.org/gene.html#ensembl_gene_id=${encodeURIComponent(ensemblId)}`
+        if (!url) return ''
+        return `<div class="gene-info-source-attribution">Loaded from <a href="${url}" target="_blank">GeneLookup</a></div>`
+    }
+
+    const SOURCE_GENE_PAGE_URL_BUILDERS = {
+        'OMIM':       ({ mimNumber }) => mimNumber ? `https://omim.org/entry/${encodeURIComponent(mimNumber)}` : null,
+        'ClinGen':    ({ hgncId }) => hgncId ? `https://search.clinicalgenome.org/kb/gene-dosage/${hgncId}` : null,
+        'GenCC':      ({ hgncId }) => hgncId ? `https://search.thegencc.org/genes/${hgncId}` : null,
+        'PanelAppUK': ({ geneSymbol }) => geneSymbol ? `https://panelapp.genomicsengland.co.uk/panels/entities/${geneSymbol}` : null,
+        'PanelAppAU': ({ geneSymbol }) => geneSymbol ? `https://panelapp-aus.org/panels/entities/${geneSymbol}` : null,
+        'Decipher':   ({ ensemblId }) => ensemblId ? `https://www.deciphergenomics.org/gene/${ensemblId}/overview/protein-genomic-info` : null,
+        'ClinVar':    ({ geneSymbol }) => geneSymbol ? `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]` : null,
+        'HGMD':       ({ geneSymbol }) => geneSymbol ? `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}` : null,
+        'GWAS':       ({ geneSymbol }) => geneSymbol ? `https://www.ebi.ac.uk/gwas/genes/${geneSymbol}` : null,
+    }
+
+    const renderGeneInfoSourcesBadges = (sourcesStr, ids = {}) => {
+        if (!sourcesStr) return ''
+        const match = String(sourcesStr).match(/^(\d+):\s*(.*)$/)
+        if (!match) return escapeHtmlText(sourcesStr)
+        const sourcesList = match[2].split(',').map(s => s.trim()).filter(s => s)
+        const pastelColors = ['#e8d5d5', '#d5dfe8', '#d5e8db', '#e8e2d5', '#ddd5e8', '#d5e8e6', '#e8d5e0', '#e0e8d5']
+        return sourcesList.map((src, i) => {
+            const bg = pastelColors[i % pastelColors.length]
+            const badge = `<span class="ui mini label" style="background-color: ${bg}; color: #333; margin: 1px;">${escapeHtmlText(src)}</span>`
+            const builder = SOURCE_GENE_PAGE_URL_BUILDERS[src]
+            const url = builder ? builder(ids) : null
+            return url ? `<a href="${url}" target="_blank" style="text-decoration: none;">${badge}</a>` : badge
+        }).join(' ')
+    }
+
+    const renderGeneInfoPopupContent = (row, queryGeneName) => {
+        if (!row) {
+            return `<div class="gene-info-popup-content">
+                <div class="gene-info-no-disease">This gene has no known monogenic disease associations</div>
+                ${buildGeneExternalLinks({ geneSymbol: queryGeneName })}
+            </div>`
+        }
+
+        const geneSymbol = row['gene_symbol'] || ''
+        const hgncId = row['hgnc_gene_id'] || ''
+        const ensemblId = row['ensembl_gene_id'] || ''
+        const chrom = row['gene_chrom'] || ''
+        const start = row['gene_start']
+        const end = row['gene_end']
+        const aliases = row['gene_aliases'] || ''
+        const inheritance = row['inheritance'] || ''
+        const sources = row['sources'] || ''
+        const coordinates = (chrom !== '' && start != null && end != null)
+            ? `${String(chrom).startsWith('chr') ? '' : 'chr'}${chrom}:${start}-${end}`
+            : ''
+
+        const formatScore = (v, threshold, threshDir) => {
+            if (v == null) return ''
+            const formatted = Number(v).toFixed(2)
+            const highlight = (threshDir === 'high' && v >= threshold) || (threshDir === 'low' && v <= threshold)
+            return highlight ? `<span style="color: #c0392b; font-weight: bold;">${formatted}</span>` : formatted
+        }
+
+        const pliV2 = row['pLI_v2'] != null ? Number(row['pLI_v2']).toFixed(2) : ''
+        const pliV4 = formatScore(row['pLI_v4'], 0.9, 'high')
+        const loeuf = formatScore(row['lof_oe_ci_upper_v4'], 0.35, 'low')
+        const moeuf = row['mis_oe_ci_upper_v4'] != null ? Number(row['mis_oe_ci_upper_v4']).toFixed(2) : ''
+
+        const mimNumbers = String(row['OMIM_mim_number'] || '').split(';').map(m => m.trim()).filter(m => m)
+
+        const sourceNamesMatch = String(sources).match(/^\d+:\s*(.*)$/)
+        const sourceNames = sourceNamesMatch
+            ? new Set(sourceNamesMatch[1].split(',').map(s => s.trim()).filter(s => s))
+            : new Set()
+
+        const externalLinks = buildGeneExternalLinks({
+            geneSymbol, hgncId, ensemblId, aliases, mimNumber: mimNumbers[0] || '',
+            excludeNames: sourceNames,
+        })
+
+        const hgncCell = hgncId ? `<a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${encodeURIComponent(hgncId)}" target="_blank">${escapeHtmlText(hgncId)}</a>` : ''
+        const ensemblCell = ensemblId ? `<a href="https://ensembl.org/Homo_sapiens/Gene/Summary?g=${encodeURIComponent(ensemblId)}" target="_blank">${escapeHtmlText(ensemblId)}</a>` : ''
+
+        const infoRow = (label, value) => (value === null || value === undefined || value === '')
+            ? ''
+            : `<tr><td class="gene-info-popup-label">${label}</td><td>${value}</td></tr>`
+
+        const leftRows = [
+            infoRow('Gene Symbol:', geneSymbol ? `<span style="font-weight: bold;">${escapeHtmlText(geneSymbol)}</span>` : ''),
+            infoRow('HGNC ID:', hgncCell),
+            infoRow('Gene ID:', ensemblCell),
+            infoRow('Aliases:', escapeHtmlText(aliases)),
+            infoRow('Coordinates (hg38):', escapeHtmlText(coordinates)),
+        ].join('')
+
+        const rightRows = [
+            infoRow('Inheritance:', escapeHtmlText(inheritance)),
+            infoRow('pLI (v2):', pliV2),
+            infoRow('pLI (v4):', pliV4),
+            infoRow('LOEUF (v4):', loeuf),
+            infoRow('Missense O/E (v4):', moeuf),
+        ].join('')
+
+        const phenotypeSummary = row['LLM_phenotype_summary'] || ''
+        const phenotypeSection = phenotypeSummary
+            ? `<hr class="gene-info-divider"><div class="gene-info-phenotype-summary"><div class="gene-info-section-label">Monogenic Phenotype Summary:</div><div>${escapeHtmlText(phenotypeSummary)}</div></div>`
+            : ''
+
+        const sourcesBadges = renderGeneInfoSourcesBadges(sources, {
+            geneSymbol, hgncId, ensemblId, mimNumber: mimNumbers[0] || '',
+        })
+        const sourcesSection = sourcesBadges
+            ? `<hr class="gene-info-divider"><div class="gene-info-sources-section"><span class="gene-info-section-label">Sources:</span> ${sourcesBadges}</div>`
+            : ''
+
+        return `<div class="gene-info-popup-content">
+            ${buildGeneLookupSourceAttribution(hgncId, ensemblId)}
+            <div class="gene-info-popup-row">
+                ${leftRows ? `<table class="gene-info-popup-table">${leftRows}</table>` : ''}
+                ${rightRows ? `<table class="gene-info-popup-table">${rightRows}</table>` : ''}
+            </div>
+            ${phenotypeSection}
+            ${sourcesSection}
+            ${externalLinks}
+        </div>`
+    }
+
+    const loadingPopupHtml = (geneName) => `<div class="gene-info-popup-content" style="min-width: 320px; padding: 6px;">Loading gene info${geneName ? ' for ' + escapeHtmlText(geneName) : ''}...</div>`
+
+    const initGeneInfoLinks = (rootSelector) => {
+        const $root = rootSelector ? $(rootSelector) : $(document)
+        $root.find('.gene-info-link').each(function () {
+            const $elem = $(this)
+            if ($elem.data('geneInfoInitialized')) return
+            $elem.data('geneInfoInitialized', true)
+            $elem.popup({
+                on: 'click',
+                hoverable: true,
+                position: 'bottom left',
+                lastResort: 'bottom left',
+                className: { popup: 'ui popup gene-info-popup' },
+                html: loadingPopupHtml(),
+                onShow: function () {
+                    const geneName = $elem.data('gene-name')
+                    if (!geneName) return
+                    // Reset content first so stale content from a prior gene isn't shown while we render.
+                    $elem.popup('change content', loadingPopupHtml(geneName))
+                    fetchGeneInfo(geneName).then(row => {
+                        $elem.popup('change content', renderGeneInfoPopupContent(row, geneName))
+                    }).catch(err => {
+                        $elem.popup('change content', `<div class="gene-info-popup-content gene-info-popup-error">Error loading gene info: ${escapeHtmlText(err && err.message ? err.message : String(err))}</div>`)
+                    })
+                },
+            })
+        })
+    }
+
     let TABLE_COLUMNS = {
         LocusId: {
             displayName: 'LocusId',
@@ -3063,7 +3378,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Gene',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneName'],
-            getValue: (row) => row['GencodeGeneName'],
+            getValue: (row) => generateGeneNameCellValue(row['GencodeGeneName']),
             getSortColumns: () => ['GencodeGeneName'],
             getRequiredColumns: () => ['GencodeGeneName'],
         },
@@ -3274,7 +3589,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'RefSeq Gene',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneName'],
-            getValue: (row) => row['RefseqGeneName'],
+            getValue: (row) => generateGeneNameCellValue(row['RefseqGeneName']),
             getSortColumns: () => ['RefseqGeneName'],
             getRequiredColumns: () => ['RefseqGeneName']
         },
@@ -3306,7 +3621,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'MANE Gene',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneName'],
-            getValue: (row) => row['ManeGeneName'],
+            getValue: (row) => generateGeneNameCellValue(row['ManeGeneName']),
             getSortColumns: () => ['ManeGeneName'],
             getRequiredColumns: () => ['ManeGeneName']
         },
@@ -5734,6 +6049,7 @@ gtag('config', 'G-6R8FPBQRFH');
         $('.show-popup').popup({ on: 'click', hoverable: true })
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
         $('.disease-associated-icon').popup({ on: 'click' })
+        initGeneInfoLinks(resultsTableElement)
 
         // init click handler for "Column settings" modal
         $('#results-table-settings-button').click((e) => {
