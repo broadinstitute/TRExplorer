@@ -1134,7 +1134,7 @@ gtag('config', 'G-6R8FPBQRFH');
             ClinGen:        hgncId     ? link('ClinGen', `https://search.clinicalgenome.org/kb/gene-dosage/${hgncId}`) : '',
             ClinVar:        geneSymbol ? link('ClinVar', `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]`) : '',
             HGMD:           geneSymbol ? link('HGMD', `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}`) : '',
-            GeneCards:      ensemblId  ? link('GeneCards', `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${ensemblId}`) : '',
+            GeneCards:      geneSymbol ? link('GeneCards', `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${geneSymbol}`) : '',
             Decipher:       ensemblId  ? link('Decipher', `https://www.deciphergenomics.org/gene/${ensemblId}/overview/protein-genomic-info`) : '',
             Geno2MP:        geneSymbol ? link('Geno2MP', `https://geno2mp.gs.washington.edu/Geno2MP/#/gene/${geneSymbol}/gene/0/0/0`) : '',
             Monarch:        geneSymbol ? link('Monarch', `https://monarchinitiative.org/explore?search=${geneSymbol}#search`) : '',
