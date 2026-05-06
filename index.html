@@ -3178,6 +3178,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'ClinVar':    ({ geneSymbol }) => geneSymbol ? `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]` : null,
         'HGMD':       ({ geneSymbol }) => geneSymbol ? `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}` : null,
         'GWAS':       ({ geneSymbol }) => geneSymbol ? `https://www.ebi.ac.uk/gwas/genes/${geneSymbol}` : null,
+        'Fridman':    () => 'https://pubmed.ncbi.nlm.nih.gov/40374730/',
+        'dbNSFP':     () => 'https://www.dbnsfp.org/',
     }
 
     const renderGeneInfoSourcesBadges = (sourcesStr, ids = {}) => {
