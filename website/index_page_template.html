@@ -97,7 +97,13 @@
             </div>
             <!-- Column checkboxes -->
             <div id="export-column-section">
-                <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">Columns to include:</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
+                    <label style="font-weight: 700; margin: 0;">Columns to include:</label>
+                    <span style="font-size: 14px; font-weight: normal;">
+                        <a href="#" id="export-columns-clear-all" class="action-link" style="margin-right: 15px;">clear all</a>
+                        <a href="#" id="export-columns-select-all" class="action-link">select all</a>
+                    </span>
+                </div>
                 <div class="export-column-checkboxes-flex-container" id="export-column-checkboxes"></div>
             </div>
         </div>
@@ -1124,6 +1130,16 @@
             // Initialize Semantic UI checkboxes
             $('#export-column-checkboxes .ui.checkbox').checkbox()
         }
+
+        $('#export-columns-select-all').off('click').on('click', (e) => {
+            e.preventDefault()
+            $('#export-column-checkboxes .ui.checkbox').checkbox('check')
+        })
+
+        $('#export-columns-clear-all').off('click').on('click', (e) => {
+            e.preventDefault()
+            $('#export-column-checkboxes .ui.checkbox').checkbox('uncheck')
+        })
 
         // Initialize Semantic UI radio buttons
         $('#export-overlap-options .ui.radio.checkbox').checkbox()
