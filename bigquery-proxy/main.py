@@ -222,7 +222,11 @@ def query_db(request):
 
     try:
         client = bigquery.Client()
-        job = client.query(sql, job_config=bigquery.QueryJobConfig(use_query_cache=True))
+        # Cap bytes scanned per query to 10 GB (the catalog table is ~5 GB, so a full-table read
+        # fits within this cap; bounds cost-drain attacks even if the SQL gate is bypassed).
+        max_bytes_billed = 10 * 1024 ** 3
+        job_config = bigquery.QueryJobConfig(use_query_cache=True, maximum_bytes_billed=max_bytes_billed)
+        job = client.query(sql, job_config=job_config)
         job.result()  # wait for the query to complete
         result_table = client.get_table(job.destination)  # get the temporary destination table object
     except Exception as e:
