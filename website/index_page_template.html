@@ -2131,6 +2131,9 @@
                     const regionMatch = queryValue.match(REFERENCE_REGION_REGEXP)
                     if (regionMatch) {
                         let [_, chrom, start, end] = regionMatch
+                        // CHROM_TO_CHROM_INDEX keys are uppercase; the regex (with /i) accepts
+                        // any case, so normalize before lookup or `chrx`/`chrm` returns undefined.
+                        chrom = chrom.toUpperCase()
                         start = parseInt(start.replace(/,/g, ''))
                         end = parseInt(end.replace(/,/g, ''))
                         const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
@@ -2141,6 +2144,7 @@
                         const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
                         if (locusIdMatch) {
                             let [_, chrom, start_0based, __, ___] = locusIdMatch
+                            chrom = chrom.toUpperCase()
                             start_0based = parseInt(start_0based.replace(/,/g, ''))
                             const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
                             //end = parseInt(end.replace(/,/g, ''))

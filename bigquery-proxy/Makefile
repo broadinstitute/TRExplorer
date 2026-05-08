@@ -19,6 +19,13 @@ help:
 # gs://tandem-repeat-explorer-export). This is a defence-in-depth mitigation for the SQL-gate
 # weakness in main.py: even if the regex is bypassed, the SA cannot read other datasets in the
 # project.
+#
+# For V4 signed export URLs the runtime SA must also have
+# roles/iam.serviceAccountTokenCreator on ITSELF (so it can call IAM signBlob):
+#   gcloud iam service-accounts add-iam-policy-binding \
+#       trexplorer-proxy-sa@cmg-analysis.iam.gserviceaccount.com \
+#       --member=serviceAccount:trexplorer-proxy-sa@cmg-analysis.iam.gserviceaccount.com \
+#       --role=roles/iam.serviceAccountTokenCreator
 deploy:
 	gcloud functions deploy query_db \
 		--runtime python310 \

@@ -6,10 +6,35 @@ import re
 import uuid
 
 from functions_framework import create_app
+import google.auth
+import google.auth.transport.requests
 from google.cloud import bigquery, storage
 
 BIGQUERY_PROJECT = "cmg-analysis"
 BIGQUERY_DATASET = "tandem_repeat_explorer"
+
+# Cache the SA email + signing-capable credentials across invocations of the
+# warm Cloud Function instance.
+_SIGNING_CREDENTIALS = None
+_SIGNING_SA_EMAIL = None
+
+
+def _get_signing_credentials():
+    """Return (credentials, service_account_email) for generating V4 signed URLs.
+
+    Cloud Functions Gen2 don't ship a private key, so we sign via the IAM
+    signBlob API. The function's runtime SA must have
+    roles/iam.serviceAccountTokenCreator on itself.
+    """
+    global _SIGNING_CREDENTIALS, _SIGNING_SA_EMAIL
+    if _SIGNING_CREDENTIALS is None:
+        credentials, _ = google.auth.default()
+        credentials.refresh(google.auth.transport.requests.Request())
+        _SIGNING_CREDENTIALS = credentials
+        _SIGNING_SA_EMAIL = getattr(credentials, "service_account_email", None) \
+            or os.getenv("K_SERVICE_ACCOUNT") \
+            or os.getenv("FUNCTION_IDENTITY")
+    return _SIGNING_CREDENTIALS, _SIGNING_SA_EMAIL
 
 
 def return_query_results(client, result_table, start_index=0, page_size=100):
@@ -153,7 +178,15 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None, 
             output_blob.content_disposition = f'attachment; filename="{output_filename}"'
             output_blob.patch()
 
-            public_urls.append(f"https://storage.cloud.google.com/{bucket_name}/{output_blob.name}")
+            credentials, sa_email = _get_signing_credentials()
+            signed_url = output_blob.generate_signed_url(
+                version="v4",
+                expiration=datetime.timedelta(hours=1),
+                method="GET",
+                service_account_email=sa_email,
+                access_token=credentials.token,
+            )
+            public_urls.append(signed_url)
 
         return jsonify({
             'status': 'success', 
