@@ -14,11 +14,17 @@ help:
 	@echo "  help      - Show this help message (default)"
 
 # Deploy the Cloud Function (allowed memory settings: 256Mb, 512M, 1024Mi, 2G, 4Gi, etc.)
+# --service-account binds the function to a least-privilege SA (READER on
+# cmg-analysis.tandem_repeat_explorer only, jobUser project-wide, objectAdmin on
+# gs://tandem-repeat-explorer-export). This is a defence-in-depth mitigation for the SQL-gate
+# weakness in main.py: even if the regex is bypassed, the SA cannot read other datasets in the
+# project.
 deploy:
 	gcloud functions deploy query_db \
 		--runtime python310 \
 		--trigger-http \
 		--allow-unauthenticated \
+		--service-account=trexplorer-proxy-sa@cmg-analysis.iam.gserviceaccount.com \
 		--entry-point query_db \
 		--region=us-central1 \
 		--memory 256MB \
