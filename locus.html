@@ -2122,9 +2122,13 @@ gtag('config', 'G-6R8FPBQRFH');
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
     const TABLE_ID = 'catalog_20260309_161431'
+    const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260510_160304'
     const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260510_113927'
     const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260510_105719'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
+    const HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID  = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_LPS_STRATIFIED_TABLE_ID}\``
+    const HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID   = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_ALLELE_PURITY_TABLE_ID}\``
+    const HPRC256_METHYLATION_COMPLETE_TABLE_ID     = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_METHYLATION_TABLE_ID}\``
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -2215,6 +2219,74 @@ gtag('config', 'G-6R8FPBQRFH');
         'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
         'HPRC256_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_BiallelicHistogram']}.`,
         'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
+    }
+
+    const HPRC256_SEX_UI_TO_DATA = { '': '', 'XX': 'female', 'XY': 'male' }
+    const HPRC256_SEX_DATA_TO_UI = { '': 'All', 'female': 'XX', 'male': 'XY' }
+    const HPRC256_POPULATIONS    = ['AFR', 'AMR', 'EAS', 'EUR', 'SAS']
+    const HPRC256_STRATUM_FROM_SELECTION = (pop, sexData) => {
+        if (!pop && !sexData) return ''
+        if (pop && sexData)   return `${pop}_${sexData}`
+        return pop || sexData
+    }
+
+    // Config for the four HPRC256 stratified-chart kinds. Keys feed the dropdown HTML,
+    // the change handler, and the URL state.
+    const HPRC256_STRATIFIED_CHARTS = {
+        allele: {
+            mainColumn:          'HPRC256_AlleleHistogram',
+            stratColPrefix:      'AlleleSizeHistogram__',
+            getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
+            cacheKey:            '_hprc256LpsStratifiedRow',
+            urlPopField:         'hprc256_allele_pop',
+            urlSexField:         'hprc256_allele_sex',
+        },
+        biallelic: {
+            mainColumn:          'HPRC256_BiallelicHistogram',
+            stratColPrefix:      'BiallelicHistogram__',
+            getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
+            cacheKey:            '_hprc256LpsStratifiedRow',
+            urlPopField:         'hprc256_biallelic_pop',
+            urlSexField:         'hprc256_biallelic_sex',
+        },
+        purity: {
+            mainColumn:          'HPRC256_AlleleSizeAndPurityDistribution',
+            stratColPrefix:      'AlleleSizeAndPurityDistribution__',
+            getCompleteTableId:  () => HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID,
+            cacheKey:            '_hprc256PurityStratifiedRow',
+            urlPopField:         'hprc256_purity_pop',
+            urlSexField:         'hprc256_purity_sex',
+        },
+        methylation: {
+            mainColumn:          'HPRC256_AlleleSizeAndMethylationDistribution',
+            stratColPrefix:      'AlleleSizeAndMethylationDistribution__',
+            getCompleteTableId:  () => HPRC256_METHYLATION_COMPLETE_TABLE_ID,
+            cacheKey:            '_hprc256MethylationStratifiedRow',
+            urlPopField:         'hprc256_methylation_pop',
+            urlSexField:         'hprc256_methylation_sex',
+        },
+    }
+
+    const renderHprc256StratumControls = (chartKind) => {
+        const cfg     = HPRC256_STRATIFIED_CHARTS[chartKind]
+        const popState = GLOBAL_PAGE_STATE[cfg.urlPopField]
+        const sexData  = GLOBAL_PAGE_STATE[cfg.urlSexField]
+        const sexUi    = HPRC256_SEX_DATA_TO_UI[sexData] || 'All'
+        const popOpts  = ['All', ...HPRC256_POPULATIONS]
+            .map(v => {
+                const val = (v === 'All' ? '' : v)
+                return `<option value="${val}" ${val === popState ? 'selected' : ''}>${v}</option>`
+            }).join('')
+        const sexOpts  = ['All', 'XX', 'XY']
+            .map(v => `<option value="${v === 'All' ? '' : v}" ${v === sexUi ? 'selected' : ''}>${v}</option>`).join('')
+        return `
+            <div class="hprc256-stratum-controls" data-chart-kind="${chartKind}"
+                 style="margin-top: 0.5em; display: flex; justify-content: flex-start; align-items: center; gap: 1em; flex-wrap: wrap;">
+                <label style="display: inline-flex; align-items: center;">Population:&nbsp;<select class="hprc256-pop-select">${popOpts}</select></label>
+                <label style="display: inline-flex; align-items: center;">Sex:&nbsp;<select class="hprc256-sex-select">${sexOpts}</select></label>
+                <span class="hprc256-stratum-empty-note" style="display:none; color:#686868; font-style: italic;">No HPRC256 alleles for this stratum at this locus</span>
+            </div>
+        `
     }
 
     // BigQuery column descriptions - generated from global_constants.py via Jinja2
@@ -2313,6 +2385,15 @@ gtag('config', 'G-6R8FPBQRFH');
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
         igv_custom_track_url_3: '',
+
+        hprc256_allele_pop: '',
+        hprc256_allele_sex: '',
+        hprc256_biallelic_pop: '',
+        hprc256_biallelic_sex: '',
+        hprc256_purity_pop: '',
+        hprc256_purity_sex: '',
+        hprc256_methylation_pop: '',
+        hprc256_methylation_sex: '',
     }
 
     // set default IGV.js tracks
@@ -2378,6 +2459,14 @@ gtag('config', 'G-6R8FPBQRFH');
         'igv_custom_track_url_1': 'igv_ct_url1',
         'igv_custom_track_url_2': 'igv_ct_url2',
         'igv_custom_track_url_3': 'igv_ct_url3',
+        'hprc256_allele_pop':      'hprc256ap',
+        'hprc256_allele_sex':      'hprc256as',
+        'hprc256_biallelic_pop':   'hprc256bp',
+        'hprc256_biallelic_sex':   'hprc256bs',
+        'hprc256_purity_pop':      'hprc256pp',
+        'hprc256_purity_sex':      'hprc256ps',
+        'hprc256_methylation_pop': 'hprc256mp',
+        'hprc256_methylation_sex': 'hprc256ms',
     }
 
     // Reverse mapping from URL param names to internal state names
@@ -2461,6 +2550,105 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         return await response.json()
+    }
+
+    const fetchHprc256StratifiedRow = async (chartKind, locusId) => {
+        const cfg = HPRC256_STRATIFIED_CHARTS[chartKind]
+        if (window.searchResults && cfg.cacheKey in window.searchResults) {
+            return window.searchResults[cfg.cacheKey]
+        }
+        const escapedLocusId = locusId.replace(/'/g, "\\'")
+        const locusCol = (chartKind === 'allele' || chartKind === 'biallelic') ? 'LocusId' : 'locus_id'
+        const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${locusCol} = '${escapedLocusId}'`
+        const result = await queryBigQuery(query, 0, 1, null, null)
+        const stratifiedRow = (result && result.rows && result.rows.length > 0) ? result.rows[0] : null
+        if (window.searchResults) window.searchResults[cfg.cacheKey] = stratifiedRow
+        return stratifiedRow
+    }
+
+    const showHprc256SpinnerOverlay = (containerEl) => {
+        if (containerEl.querySelector('.hprc256-spinner-overlay')) return
+        const overlay = document.createElement('div')
+        overlay.className = 'hprc256-spinner-overlay'
+        overlay.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.7); z-index:5;'
+        overlay.innerHTML = '<div class="ui active loader"></div>'
+        containerEl.style.position = 'relative'
+        containerEl.appendChild(overlay)
+    }
+
+    const hideHprc256SpinnerOverlay = (containerEl) => {
+        const overlay = containerEl.querySelector('.hprc256-spinner-overlay')
+        if (overlay) overlay.remove()
+    }
+
+    const handleHprc256DropdownChange = async (controlsEl, mainCatalogRow) => {
+        const chartKind = controlsEl.dataset.chartKind
+        const cfg       = HPRC256_STRATIFIED_CHARTS[chartKind]
+        const containerEl = controlsEl.parentElement
+        const canvasEl    = containerEl.querySelector('canvas')
+        const emptyNoteEl = controlsEl.querySelector('.hprc256-stratum-empty-note')
+
+        const pop     = controlsEl.querySelector('.hprc256-pop-select').value
+        const sexData = HPRC256_SEX_UI_TO_DATA[controlsEl.querySelector('.hprc256-sex-select').value] || ''
+        const stratum = HPRC256_STRATUM_FROM_SELECTION(pop, sexData)
+
+        GLOBAL_PAGE_STATE[cfg.urlPopField] = pop
+        GLOBAL_PAGE_STATE[cfg.urlSexField] = sexData
+        writePersistentPageStateToUrl()
+
+        let histogramString
+        if (!stratum) {
+            histogramString = mainCatalogRow[cfg.mainColumn]
+        } else {
+            const stratifiedColName = cfg.stratColPrefix + stratum
+            const alreadyCached = window.searchResults && cfg.cacheKey in window.searchResults
+            if (!alreadyCached) {
+                showHprc256SpinnerOverlay(containerEl)
+                try {
+                    const fetchedRow = await fetchHprc256StratifiedRow(chartKind, mainCatalogRow.LocusId)
+                    histogramString = fetchedRow ? fetchedRow[stratifiedColName] : null
+                } finally {
+                    hideHprc256SpinnerOverlay(containerEl)
+                }
+            } else {
+                const cached = window.searchResults[cfg.cacheKey]
+                histogramString = cached ? cached[stratifiedColName] : null
+            }
+        }
+
+        const safeString = histogramString || ''
+        emptyNoteEl.style.display = safeString ? 'none' : 'inline'
+
+        const refAlleleSize = parseInt(canvasEl.dataset.refAlleleSize)
+        const sharedOpts = {
+            thisObj: canvasEl, refAlleleSize,
+            axisUnits: canvasEl.dataset.axisUnits,
+            chartWidth: canvasEl.dataset.chartWidth, chartHeight: canvasEl.dataset.chartHeight,
+            label: canvasEl.dataset.label,
+        }
+        if (chartKind === 'allele') {
+            const freqs = parseAlleleFrequenciesString(safeString)
+            const sizes = freqs.map(f => f.size)
+            createAlleleFrequencyChart({
+                ...sharedOpts, frequencies: freqs,
+                minAlleleSize: sizes.length ? Math.min(...sizes) : refAlleleSize,
+                maxAlleleSize: sizes.length ? Math.max(...sizes) : refAlleleSize,
+            })
+        } else if (chartKind === 'biallelic') {
+            const [data, lookup] = parseBiallelicHistogramString(safeString)
+            createBiallelicHistogramChart({
+                ...sharedOpts, data, lookup,
+                minAlleleSize: data.length ? Math.min(...data.map(f => Math.min(f.x, f.y))) : refAlleleSize,
+                maxAlleleSize: data.length ? Math.max(...data.map(f => Math.max(f.x, f.y))) : refAlleleSize,
+            })
+        } else {
+            const data = parseSizeAndValueDistributionString(safeString)
+            createSizeAndValueHeatmapChart({
+                data, thisObj: canvasEl,
+                chartWidth: canvasEl.dataset.chartWidth,
+                yAxisLabel: canvasEl.dataset.yAxisLabel,
+            })
+        }
     }
 
     const parseAlleleFrequenciesString = (frequenciesString) => {
@@ -2766,6 +2954,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
                             <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${row.NumRepeatsInReference}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            ${columnName === 'HPRC256_AlleleHistogram' ? renderHprc256StratumControls('allele') : ''}
                         </div>
                     `
                 }
@@ -2784,6 +2973,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
                             <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${row.NumRepeatsInReference}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            ${columnName === 'HPRC256_BiallelicHistogram' ? renderHprc256StratumControls('biallelic') : ''}
                         </div>
                     `
                 }
@@ -2803,6 +2993,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
                             <canvas class="size-and-value-dist-chart" data-frequencies-column="${columnName}" data-y-axis-label="${yAxisLabel}" data-chart-width="500px" style="width: 100%; height: 100px;"></canvas>
+                            ${columnName === 'HPRC256_AlleleSizeAndPurityDistribution' ? renderHprc256StratumControls('purity') : (columnName === 'HPRC256_AlleleSizeAndMethylationDistribution' ? renderHprc256StratumControls('methylation') : '')}
                         </div>
                     `
                 }
@@ -2893,6 +3084,15 @@ gtag('config', 'G-6R8FPBQRFH');
                 chartWidth: $(this).data('chart-width'),
                 yAxisLabel: $(this).data('y-axis-label'),
             })
+        })
+
+        $('.hprc256-stratum-controls').each(function() {
+            const controlsEl = this
+            $(controlsEl).find('select').on('change', () => handleHprc256DropdownChange(controlsEl, row))
+            const cfg = HPRC256_STRATIFIED_CHARTS[controlsEl.dataset.chartKind]
+            if (GLOBAL_PAGE_STATE[cfg.urlPopField] || GLOBAL_PAGE_STATE[cfg.urlSexField]) {
+                handleHprc256DropdownChange(controlsEl, row)
+            }
         })
     }
 
