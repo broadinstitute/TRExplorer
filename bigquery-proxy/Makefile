@@ -10,7 +10,7 @@ help:
 	@echo "  logs      - View recent logs from the deployed function"
 	@echo "  test      - Run test queries against the deployed function"
 	@echo "  undeploy  - Remove the deployed function and its logs"
-	@echo "  load      - Load data into BigQuery by running load_data_into_bigquery.py"
+	@echo "  load      - Load data into BigQuery by running load_bigquery_main_table.py"
 	@echo "  help      - Show this help message (default)"
 
 # Deploy the Cloud Function (allowed memory settings: 256Mb, 512M, 1024Mi, 2G, 4Gi, etc.)
@@ -70,4 +70,4 @@ undeploy:
 
 # Load the annotated TR catalog into BigQuery
 load:
-	python3 load_data_into_bigquery.py
+	python3 load_bigquery_main_table.py

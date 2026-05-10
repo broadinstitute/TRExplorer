@@ -988,6 +988,58 @@ BIGQUERY_COLUMNS = [
 ]
 
 
+# HPRC256 stratification labels — must match the labels emitted by the upstream scripts when
+# running with `--stratify-by-population --stratify-by-sex`. The set is: 5 populations
+# (AFR/AMR/EAS/EUR/SAS) + 2 sexes (female/male) + 10 Pop_Sex cells = 17 strata, sorted as the
+# upstream scripts emit them.
+HPRC256_STRATA_LABELS = sorted(
+    ["female", "male"]
+    + ["AFR", "AMR", "EAS", "EUR", "SAS"]
+    + [f"{pop}_{sex}"
+       for pop in ("AFR", "AMR", "EAS", "EUR", "SAS")
+       for sex in ("female", "male")]
+)
+
+# Schema for the HPRC256 stratified LPS frequency table.
+# Source file: hprc-lps.per_locus_and_motif.by_population.by_sex.<N>_samples.tsv.gz
+# Uses PascalCase column names to match the canonical convert_multisample_LPS_table_to_allele_frequency_histograms.py output.
+HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
+    [{"type": "STRING", "name": "LocusId", "mode": "REQUIRED",
+      "description": "Locus identifier matching LocusId in the main catalog table."}]
+    + [{"type": "STRING", "name": f"AlleleSizeHistogram__{label}",
+        "description": f"Allele size histogram for stratum '{label}'. Format: 'sizex:count,sizex:count,...'."}
+       for label in HPRC256_STRATA_LABELS]
+    + [{"type": "STRING", "name": f"BiallelicHistogram__{label}",
+        "description": f"Biallelic genotype histogram for stratum '{label}'. Format: 'short/long:count,...'."}
+       for label in HPRC256_STRATA_LABELS]
+)
+
+# Schema for the HPRC256 stratified allele-size-and-purity table.
+# Source file: trgt-hprc.allele_size_purity.stratified.by_population.by_sex.<N>_samples.tsv.gz
+# Uses snake_case column names to match the upstream methylation/purity script output.
+HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
+    [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
+      "description": "Locus identifier matching LocusId in the main catalog table."}]
+    + [{"type": "STRING", "name": f"allele_size_and_purity_distribution__{label}",
+        "description": (
+            f"Joint distribution of (repeat_count, allele purity) for stratum '{label}'. "
+            "Format: 'repeat_count/binned_purity:count,...'.")}
+       for label in HPRC256_STRATA_LABELS]
+)
+
+# Schema for the HPRC256 stratified allele-size-and-methylation table.
+# Source file: trgt-hprc.methylation.stratified.by_population.by_sex.<N>_samples.tsv.gz
+HPRC256_METHYLATION_BIGQUERY_COLUMNS = (
+    [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
+      "description": "Locus identifier matching LocusId in the main catalog table."}]
+    + [{"type": "STRING", "name": f"allele_size_and_methylation_distribution__{label}",
+        "description": (
+            f"Joint distribution of (repeat_count, allele methylation) for stratum '{label}'. "
+            "Format: 'repeat_count/binned_methylation:count,...'.")}
+       for label in HPRC256_STRATA_LABELS]
+)
+
+
 def get_column_descriptions():
     """Return a dictionary mapping column names to their descriptions.
 
