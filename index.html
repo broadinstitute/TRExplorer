@@ -2617,15 +2617,19 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const fetchHprc256StratifiedRow = async (chartKind, locusId) => {
         const cfg = HPRC256_STRATIFIED_CHARTS[chartKind]
-        if (window.searchResults && cfg.cacheKey in window.searchResults) {
-            return window.searchResults[cfg.cacheKey]
+        // Cache is locus-scoped: on the index page, dialogs can open for many
+        // different rows in one session, so a single cache slot per chart kind
+        // would return stale rows for all loci after the first.
+        const cacheKey = cfg.cacheKey + '__' + locusId
+        if (window.searchResults && cacheKey in window.searchResults) {
+            return window.searchResults[cacheKey]
         }
         const escapedLocusId = locusId.replace(/'/g, "\\'")
         const locusCol = (chartKind === 'allele' || chartKind === 'biallelic') ? 'LocusId' : 'locus_id'
         const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${locusCol} = '${escapedLocusId}'`
         const result = await queryBigQuery(query, 0, 1, null, null)
         const stratifiedRow = (result && result.rows && result.rows.length > 0) ? result.rows[0] : null
-        if (window.searchResults) window.searchResults[cfg.cacheKey] = stratifiedRow
+        if (window.searchResults) window.searchResults[cacheKey] = stratifiedRow
         return stratifiedRow
     }
 
@@ -2664,7 +2668,8 @@ gtag('config', 'G-6R8FPBQRFH');
             histogramString = mainCatalogRow[cfg.mainColumn]
         } else {
             const stratifiedColName = cfg.stratColPrefix + stratum
-            const alreadyCached = window.searchResults && cfg.cacheKey in window.searchResults
+            const cacheKey = cfg.cacheKey + '__' + mainCatalogRow.LocusId
+            const alreadyCached = window.searchResults && cacheKey in window.searchResults
             if (!alreadyCached) {
                 showHprc256SpinnerOverlay(containerEl)
                 try {
@@ -2674,7 +2679,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     hideHprc256SpinnerOverlay(containerEl)
                 }
             } else {
-                const cached = window.searchResults[cfg.cacheKey]
+                const cached = window.searchResults[cacheKey]
                 histogramString = cached ? cached[stratifiedColName] : null
             }
         }
@@ -4081,6 +4086,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
 
     const REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN = [
+        'LocusId',
         'ReferenceRegion',
         'NumRepeatsInReference',
         'ReferenceMotif',
