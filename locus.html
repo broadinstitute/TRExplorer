@@ -1842,7 +1842,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         labels: longAlleleLabels,
                         title: {
                             display: true,
-                            text: `Long allele (${axisUnits})`,
+                            text: `Long Allele: ${axisUnits}`,
                             font: {
                                 size: 12
                             }
@@ -1858,7 +1858,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         labels: shortAlleleLabels,
                         title: {
                             display: true,
-                            text: `Short allele (${axisUnits})`,
+                            text: `Short Allele: ${axisUnits}`,
                             font: {
                                 size: 12
                             }
@@ -2017,7 +2017,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         labels: xLabels,
                         title: {
                             display: true,
-                            text: 'Repeat Count',
+                            text: 'Raw Repeat Count (TRGT Allele Length / Motif Size)',
                             font: { size: 12 }
                         },
                         grid: { display: true }
@@ -2224,14 +2224,14 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const AXIS_UNITS = {
-        'HPRC256_AlleleHistogram': 'Repeat Count: LPS',
+        'HPRC256_AlleleHistogram': 'Repeat Count in Longest Pure Segment (LPS)',
         'TenK10K_AlleleHistogram': 'Repeat Count',
         'AlleleFrequenciesFromIllumina174k': 'Repeat Count',
         'AlleleFrequenciesFromT2TAssemblies': 'Repeat Count',
-        'HPRC256_BiallelicHistogram': 'Repeat Count: LPS',
+        'HPRC256_BiallelicHistogram': 'Repeat Count in Longest Pure Segment (LPS)',
         'TenK10K_BiallelicHistogram': 'Repeat Count',
-        'HPRC256_AlleleSizeAndPurityDistribution': 'Repeat Count',
-        'HPRC256_AlleleSizeAndMethylationDistribution': 'Repeat Count',
+        'HPRC256_AlleleSizeAndPurityDistribution': 'Raw Repeat Count (TRGT Allele Length / Motif Size)',
+        'HPRC256_AlleleSizeAndMethylationDistribution': 'Raw Repeat Count (TRGT Allele Length / Motif Size)',
     }
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
@@ -2953,8 +2953,8 @@ gtag('config', 'G-6R8FPBQRFH');
         const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
         const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
         const sizeAndValueDistColumns = [
-            {column: 'HPRC256_AlleleSizeAndPurityDistribution', yAxisLabel: 'Allele Purity'},
-            {column: 'HPRC256_AlleleSizeAndMethylationDistribution', yAxisLabel: 'Methylation'},
+            {column: 'HPRC256_AlleleSizeAndPurityDistribution', yAxisLabel: 'TRGT Allele Purity'},
+            {column: 'HPRC256_AlleleSizeAndMethylationDistribution', yAxisLabel: 'TRGT Allele Methylation'},
         ]
 
         const nStdevsNotAvailable = stdevColumns.filter(key => row[key] == null).length
