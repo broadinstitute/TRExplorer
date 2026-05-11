@@ -2490,7 +2490,12 @@
             const sortDirection = GLOBAL_PAGE_STATE['sd']
 
             const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-            const sortColumns = TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom', 'start_0based']
+            // DEFAULT_SORT_COLUMN is a comma-joined multi-column spec ("chrom_index, start_0based")
+            // that has no TABLE_COLUMNS entry; parse it directly. The single-column lookup falls
+            // back to chrom_index (numeric) rather than the STRING chrom (which sorts lexically).
+            const sortColumns = sortColumn.includes(',')
+                ? sortColumn.split(',').map(s => s.trim())
+                : (TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom_index', 'start_0based'])
             const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
 
             // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
