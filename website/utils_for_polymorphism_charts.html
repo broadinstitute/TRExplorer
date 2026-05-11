@@ -229,8 +229,10 @@
             }
         }
 
-        // Calculate maxCount from the binned data
-        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
+        // Calculate maxCount from the binned data. When fixedMaxCount is supplied
+        // (HPRC256 charts on the locus page), use it so the color scale stays
+        // consistent as the user flips between Population/Sex strata.
+        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
@@ -298,6 +300,9 @@
                 plugins: {
                     tooltip: {
                         displayColors: false,
+                        position: 'nearest',
+                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
+                        xAlign: 'center',
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]
@@ -364,18 +369,46 @@
     }
 
     const createSizeAndValueHeatmapChart = (chartData) => {
-        const data = chartData.data
         const thisObj = chartData.thisObj
         const chartWidth = chartData.chartWidth
         const yAxisLabel = chartData.yAxisLabel
 
-        // Get unique sorted x (repeat count) and y (value) labels
-        const xLabelsSet = new Set(data.map(d => d.x))
-        const yLabelsSet = new Set(data.map(d => d.y))
-        const xLabels = [...xLabelsSet].sort((a, b) => a - b)
-        const yLabels = [...yLabelsSet].sort((a, b) => b - a)  // descending: 1.00 at top
+        // x-axis: when a fixed range is supplied (HPRC256 charts on the locus page)
+        // use it so the axis matches across the Purity and Methylation heatmaps and
+        // stays put as the user changes Population/Sex strata.
+        let xLabels
+        if (chartData.fixedMinX != null && chartData.fixedMaxX != null) {
+            xLabels = []
+            for (let i = chartData.fixedMinX; i <= chartData.fixedMaxX; i++) xLabels.push(i)
+        } else {
+            xLabels = [...new Set(chartData.data.map(d => d.x))].sort((a, b) => a - b)
+        }
 
-        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
+        // y-axis: fixedYAxisZeroToOne forces a [0, 1] range with cells centered on
+        // the 0.02 bins that the data is generated at (see bin_value in
+        // compute_allele_size_purity_and_methylation_distributions_from_vcf.py).
+        // Only multiples of 0.1 get a visible tick label. Labels are ascending so
+        // 1.0 sits at the top and 0 at the bottom of the category axis.
+        const Y_BIN = 0.02
+        const N_Y_BINS = 50
+        let yLabels
+        const yIsFixed = !!chartData.fixedYAxisZeroToOne
+        if (yIsFixed) {
+            yLabels = []
+            for (let i = 0; i <= N_Y_BINS; i++) yLabels.push(parseFloat((i * Y_BIN).toFixed(2)))
+        } else {
+            yLabels = [...new Set(chartData.data.map(d => d.y))].sort((a, b) => b - a)
+        }
+
+        // Snap data y values to the binned grid so chart.js can match them to the
+        // category labels even if the parsed floats picked up rounding error.
+        const data = yIsFixed
+            ? chartData.data.map(d => ({ x: d.x, y: parseFloat((Math.round(d.y / Y_BIN) * Y_BIN).toFixed(2)), v: d.v }))
+            : chartData.data
+
+        const yTickIsVisible = (label) => Math.abs(label * 10 - Math.round(label * 10)) < 1e-6
+
+        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
@@ -427,12 +460,25 @@
                             text: yAxisLabel,
                             font: { size: 12 }
                         },
-                        grid: { display: true }
+                        ticks: yIsFixed ? {
+                            autoSkip: false,
+                            callback: function(value, index) {
+                                const label = yLabels[index]
+                                return yTickIsVisible(label) ? label.toFixed(1) : ''
+                            },
+                        } : undefined,
+                        grid: yIsFixed ? {
+                            display: true,
+                            color: (context) => yTickIsVisible(yLabels[context.index]) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0)',
+                        } : { display: true },
                     }
                 },
                 plugins: {
                     tooltip: {
                         displayColors: false,
+                        position: 'nearest',
+                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
+                        xAlign: 'center',
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]

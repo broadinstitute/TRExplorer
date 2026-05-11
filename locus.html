@@ -1800,8 +1800,10 @@ gtag('config', 'G-6R8FPBQRFH');
             }
         }
 
-        // Calculate maxCount from the binned data
-        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
+        // Calculate maxCount from the binned data. When fixedMaxCount is supplied
+        // (HPRC256 charts on the locus page), use it so the color scale stays
+        // consistent as the user flips between Population/Sex strata.
+        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
@@ -1869,6 +1871,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 plugins: {
                     tooltip: {
                         displayColors: false,
+                        position: 'nearest',
+                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
+                        xAlign: 'center',
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]
@@ -1935,18 +1940,46 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const createSizeAndValueHeatmapChart = (chartData) => {
-        const data = chartData.data
         const thisObj = chartData.thisObj
         const chartWidth = chartData.chartWidth
         const yAxisLabel = chartData.yAxisLabel
 
-        // Get unique sorted x (repeat count) and y (value) labels
-        const xLabelsSet = new Set(data.map(d => d.x))
-        const yLabelsSet = new Set(data.map(d => d.y))
-        const xLabels = [...xLabelsSet].sort((a, b) => a - b)
-        const yLabels = [...yLabelsSet].sort((a, b) => b - a)  // descending: 1.00 at top
+        // x-axis: when a fixed range is supplied (HPRC256 charts on the locus page)
+        // use it so the axis matches across the Purity and Methylation heatmaps and
+        // stays put as the user changes Population/Sex strata.
+        let xLabels
+        if (chartData.fixedMinX != null && chartData.fixedMaxX != null) {
+            xLabels = []
+            for (let i = chartData.fixedMinX; i <= chartData.fixedMaxX; i++) xLabels.push(i)
+        } else {
+            xLabels = [...new Set(chartData.data.map(d => d.x))].sort((a, b) => a - b)
+        }
 
-        const maxCount = data.length > 0 ? Math.max(...data.map(d => d.v)) : 1
+        // y-axis: fixedYAxisZeroToOne forces a [0, 1] range with cells centered on
+        // the 0.02 bins that the data is generated at (see bin_value in
+        // compute_allele_size_purity_and_methylation_distributions_from_vcf.py).
+        // Only multiples of 0.1 get a visible tick label. Labels are ascending so
+        // 1.0 sits at the top and 0 at the bottom of the category axis.
+        const Y_BIN = 0.02
+        const N_Y_BINS = 50
+        let yLabels
+        const yIsFixed = !!chartData.fixedYAxisZeroToOne
+        if (yIsFixed) {
+            yLabels = []
+            for (let i = 0; i <= N_Y_BINS; i++) yLabels.push(parseFloat((i * Y_BIN).toFixed(2)))
+        } else {
+            yLabels = [...new Set(chartData.data.map(d => d.y))].sort((a, b) => b - a)
+        }
+
+        // Snap data y values to the binned grid so chart.js can match them to the
+        // category labels even if the parsed floats picked up rounding error.
+        const data = yIsFixed
+            ? chartData.data.map(d => ({ x: d.x, y: parseFloat((Math.round(d.y / Y_BIN) * Y_BIN).toFixed(2)), v: d.v }))
+            : chartData.data
+
+        const yTickIsVisible = (label) => Math.abs(label * 10 - Math.round(label * 10)) < 1e-6
+
+        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
         // Destroy any existing chart
         const existingChart = Chart.getChart(thisObj)
@@ -1998,12 +2031,25 @@ gtag('config', 'G-6R8FPBQRFH');
                             text: yAxisLabel,
                             font: { size: 12 }
                         },
-                        grid: { display: true }
+                        ticks: yIsFixed ? {
+                            autoSkip: false,
+                            callback: function(value, index) {
+                                const label = yLabels[index]
+                                return yTickIsVisible(label) ? label.toFixed(1) : ''
+                            },
+                        } : undefined,
+                        grid: yIsFixed ? {
+                            display: true,
+                            color: (context) => yTickIsVisible(yLabels[context.index]) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0)',
+                        } : { display: true },
                     }
                 },
                 plugins: {
                     tooltip: {
                         displayColors: false,
+                        position: 'nearest',
+                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
+                        xAlign: 'center',
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]
@@ -2121,7 +2167,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260309_161431'
+    const TABLE_ID = 'catalog_20260510_194344'
     const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260510_160304'
     const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260510_113927'
     const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260510_105719'
@@ -2129,6 +2175,22 @@ gtag('config', 'G-6R8FPBQRFH');
     const HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID  = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_LPS_STRATIFIED_TABLE_ID}\``
     const HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID   = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_ALLELE_PURITY_TABLE_ID}\``
     const HPRC256_METHYLATION_COMPLETE_TABLE_ID     = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_METHYLATION_TABLE_ID}\``
+
+    // TODO(allele-sequences): replace <yyyymmdd_hhmmss> with the actual timestamp
+    // printed by data-prep/upload_decomposed_alleles.sh after the first pipeline run.
+    const HPRC256_DECOMPOSED_ALLELES_TABLE_ID =
+        '`cmg-analysis.tandem_repeat_explorer.hprc256_decomposed_alleles_<yyyymmdd_hhmmss>`'
+
+    // Ported from the trviz CACNA1C example. Motifs at this locus are assigned
+    // colors by rank (descending occurrence count); past the palette length, fall
+    // back to OTHER_MOTIFS_COLOR.
+    const MOTIF_COLORS = [
+        "#08519c", "#4292c6", "#9ecae1",
+        "#f8bbd0", "#f48fb1", "#d81b60",
+        "#1b9e77", "#66c2a5", "#8dd3c7",
+        "#f9c74f", "#fee191", "#fcbba1",
+    ]
+    const OTHER_MOTIFS_COLOR = "#333333"
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -2282,8 +2344,8 @@ gtag('config', 'G-6R8FPBQRFH');
         return `
             <div class="hprc256-stratum-controls" data-chart-kind="${chartKind}"
                  style="margin-top: 0.5em; display: flex; justify-content: flex-start; align-items: center; gap: 1em; flex-wrap: wrap;">
-                <label style="display: inline-flex; align-items: center;">Population:&nbsp;<select class="hprc256-pop-select">${popOpts}</select></label>
-                <label style="display: inline-flex; align-items: center;">Sex:&nbsp;<select class="hprc256-sex-select">${sexOpts}</select></label>
+                <label style="display: inline-flex; align-items: center;"><b>Population:</b>&nbsp;&nbsp;<select class="hprc256-pop-select">${popOpts}</select></label>
+                <label style="display: inline-flex; align-items: center;"><b>Sex:</b>&nbsp;&nbsp;<select class="hprc256-sex-select">${sexOpts}</select></label>
                 <span class="hprc256-stratum-empty-note" style="display:none; color:#686868; font-style: italic;">No HPRC256 alleles for this stratum at this locus</span>
             </div>
         `
@@ -2626,27 +2688,39 @@ gtag('config', 'G-6R8FPBQRFH');
             chartWidth: canvasEl.dataset.chartWidth, chartHeight: canvasEl.dataset.chartHeight,
             label: canvasEl.dataset.label,
         }
+        // Pull fixed global ranges seeded by renderChartsInPolymorphismDialog so the
+        // axis and color scale don't change as the user flips between strata.
+        const fixedMinAlleleSize = canvasEl.dataset.fixedMinAlleleSize != null ? parseFloat(canvasEl.dataset.fixedMinAlleleSize) : null
+        const fixedMaxAlleleSize = canvasEl.dataset.fixedMaxAlleleSize != null ? parseFloat(canvasEl.dataset.fixedMaxAlleleSize) : null
+        const fixedMaxCount      = canvasEl.dataset.fixedMaxCount      != null ? parseFloat(canvasEl.dataset.fixedMaxCount)      : null
         if (chartKind === 'allele') {
             const freqs = parseAlleleFrequenciesString(safeString)
             const sizes = freqs.map(f => f.size)
             createAlleleFrequencyChart({
                 ...sharedOpts, frequencies: freqs,
-                minAlleleSize: sizes.length ? Math.min(...sizes) : refAlleleSize,
-                maxAlleleSize: sizes.length ? Math.max(...sizes) : refAlleleSize,
+                minAlleleSize: fixedMinAlleleSize != null ? fixedMinAlleleSize : (sizes.length ? Math.min(...sizes) : refAlleleSize),
+                maxAlleleSize: fixedMaxAlleleSize != null ? fixedMaxAlleleSize : (sizes.length ? Math.max(...sizes) : refAlleleSize),
             })
         } else if (chartKind === 'biallelic') {
             const [data, lookup] = parseBiallelicHistogramString(safeString)
             createBiallelicHistogramChart({
                 ...sharedOpts, data, lookup,
-                minAlleleSize: data.length ? Math.min(...data.map(f => Math.min(f.x, f.y))) : refAlleleSize,
-                maxAlleleSize: data.length ? Math.max(...data.map(f => Math.max(f.x, f.y))) : refAlleleSize,
+                minAlleleSize: fixedMinAlleleSize != null ? fixedMinAlleleSize : (data.length ? Math.min(...data.map(f => Math.min(f.x, f.y))) : refAlleleSize),
+                maxAlleleSize: fixedMaxAlleleSize != null ? fixedMaxAlleleSize : (data.length ? Math.max(...data.map(f => Math.max(f.x, f.y))) : refAlleleSize),
+                fixedMaxCount: fixedMaxCount,
             })
         } else {
             const data = parseSizeAndValueDistributionString(safeString)
+            const fixedMinX = canvasEl.dataset.fixedMinX != null ? parseFloat(canvasEl.dataset.fixedMinX) : null
+            const fixedMaxX = canvasEl.dataset.fixedMaxX != null ? parseFloat(canvasEl.dataset.fixedMaxX) : null
             createSizeAndValueHeatmapChart({
                 data, thisObj: canvasEl,
                 chartWidth: canvasEl.dataset.chartWidth,
                 yAxisLabel: canvasEl.dataset.yAxisLabel,
+                fixedMinX: fixedMinX,
+                fixedMaxX: fixedMaxX,
+                fixedMaxCount: fixedMaxCount,
+                fixedYAxisZeroToOne: true,
             })
         }
     }
@@ -3006,7 +3080,47 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
 
+    // Compute the global (unstratified) HPRC256 plot ranges so the LPS-based charts
+    // (Allele Frequencies + Genotype Heatmap) and the repeat-count-based heatmaps
+    // (Allele Purity + Methylation) keep a fixed axis/color scale when users change
+    // the Population/Sex stratum.
+    const computeHprc256GlobalRanges = (row) => {
+        const result = {}
+
+        if (row.HPRC256_BiallelicHistogram) {
+            const [data] = parseBiallelicHistogramString(row.HPRC256_BiallelicHistogram)
+            if (data.length > 0) {
+                const allSizes = data.flatMap(d => [d.x, d.y])
+                result.lpsXMin = Math.min(...allSizes)
+                result.lpsXMax = Math.max(...allSizes)
+                result.lpsMaxCount = Math.max(...data.map(d => d.v))
+            }
+        }
+        if (result.lpsXMin == null && row.HPRC256_AlleleHistogram) {
+            const freqs = parseAlleleFrequenciesString(row.HPRC256_AlleleHistogram)
+            if (freqs.length > 0) {
+                const sizes = freqs.map(f => f.size)
+                result.lpsXMin = Math.min(...sizes)
+                result.lpsXMax = Math.max(...sizes)
+            }
+        }
+
+        const purityData = row.HPRC256_AlleleSizeAndPurityDistribution ? parseSizeAndValueDistributionString(row.HPRC256_AlleleSizeAndPurityDistribution) : []
+        const methData   = row.HPRC256_AlleleSizeAndMethylationDistribution ? parseSizeAndValueDistributionString(row.HPRC256_AlleleSizeAndMethylationDistribution) : []
+        const combined = purityData.concat(methData)
+        if (combined.length > 0) {
+            const xs = combined.map(d => d.x)
+            result.repeatXMin = Math.min(...xs)
+            result.repeatXMax = Math.max(...xs)
+            result.repeatMaxCount = Math.max(...combined.map(d => d.v))
+        }
+
+        return result
+    }
+
     const renderChartsInPolymorphismDialog = (row) => {
+
+        const hprc256Globals = computeHprc256GlobalRanges(row)
 
         let alleleFrequencyChartData = []
         $('.allele-frequency-chart').each(function() {
@@ -3025,18 +3139,28 @@ gtag('config', 'G-6R8FPBQRFH');
                 chartHeight: $(this).data('chart-height'),
                 label: $(this).data('label'),
                 minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                maxAlleleSize: Math.max(...frequencies.map(f => f.size))
+                maxAlleleSize: Math.max(...frequencies.map(f => f.size)),
+                isHprc256: frequenciesColumn === 'HPRC256_AlleleHistogram',
             })
         })
 
-        //compute overall min, max for all charts and then create the charts
-        let overallMinAlleleSize = alleleFrequencyChartData.length > 0 ? Math.min(...alleleFrequencyChartData.map(d => d.minAlleleSize)) : 0
-        let overallMaxAlleleSize = alleleFrequencyChartData.length > 0 ? Math.max(...alleleFrequencyChartData.map(d => d.maxAlleleSize)) : 0
+        // Non-HPRC256 charts keep their pre-existing shared range; the HPRC256 chart
+        // gets its range from the global biallelic histogram so the axis matches the
+        // Genotype Heatmap and stays fixed across Population/Sex changes.
+        const nonHprc256AlleleData = alleleFrequencyChartData.filter(d => !d.isHprc256)
+        let overallMinAlleleSize = nonHprc256AlleleData.length > 0 ? Math.min(...nonHprc256AlleleData.map(d => d.minAlleleSize)) : 0
+        let overallMaxAlleleSize = nonHprc256AlleleData.length > 0 ? Math.max(...nonHprc256AlleleData.map(d => d.maxAlleleSize)) : 0
 
         alleleFrequencyChartData.forEach((chartData) => {
-            chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize
-
+            if (chartData.isHprc256 && hprc256Globals.lpsXMin != null) {
+                chartData.minAlleleSize = hprc256Globals.lpsXMin
+                chartData.maxAlleleSize = hprc256Globals.lpsXMax
+                chartData.thisObj.dataset.fixedMinAlleleSize = hprc256Globals.lpsXMin
+                chartData.thisObj.dataset.fixedMaxAlleleSize = hprc256Globals.lpsXMax
+            } else {
+                chartData.minAlleleSize = overallMinAlleleSize
+                chartData.maxAlleleSize = overallMaxAlleleSize
+            }
             createAlleleFrequencyChart(chartData)
         })
 
@@ -3058,17 +3182,27 @@ gtag('config', 'G-6R8FPBQRFH');
                 chartHeight: $(this).data('chart-height'),
                 label: $(this).data('label'),
                 minAlleleSize: Math.min(...data.map(f => Math.min(f.x, f.y))),
-                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y)))
+                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y))),
+                isHprc256: frequenciesColumn === 'HPRC256_BiallelicHistogram',
             })
         })
 
-        overallMinAlleleSize = biallelicHistogramChartData.length > 0 ? Math.min(...biallelicHistogramChartData.map(d => d.minAlleleSize)) : 0
-        overallMaxAlleleSize = biallelicHistogramChartData.length > 0 ? Math.max(...biallelicHistogramChartData.map(d => d.maxAlleleSize)) : 0
+        const nonHprc256BiallelicData = biallelicHistogramChartData.filter(d => !d.isHprc256)
+        overallMinAlleleSize = nonHprc256BiallelicData.length > 0 ? Math.min(...nonHprc256BiallelicData.map(d => d.minAlleleSize)) : 0
+        overallMaxAlleleSize = nonHprc256BiallelicData.length > 0 ? Math.max(...nonHprc256BiallelicData.map(d => d.maxAlleleSize)) : 0
 
         biallelicHistogramChartData.forEach((chartData) => {
-            chartData.minAlleleSize = overallMinAlleleSize
-            chartData.maxAlleleSize = overallMaxAlleleSize
-
+            if (chartData.isHprc256 && hprc256Globals.lpsXMin != null) {
+                chartData.minAlleleSize = hprc256Globals.lpsXMin
+                chartData.maxAlleleSize = hprc256Globals.lpsXMax
+                chartData.fixedMaxCount = hprc256Globals.lpsMaxCount
+                chartData.thisObj.dataset.fixedMinAlleleSize = hprc256Globals.lpsXMin
+                chartData.thisObj.dataset.fixedMaxAlleleSize = hprc256Globals.lpsXMax
+                chartData.thisObj.dataset.fixedMaxCount = hprc256Globals.lpsMaxCount
+            } else {
+                chartData.minAlleleSize = overallMinAlleleSize
+                chartData.maxAlleleSize = overallMaxAlleleSize
+            }
             createBiallelicHistogramChart(chartData)
         })
 
@@ -3078,12 +3212,25 @@ gtag('config', 'G-6R8FPBQRFH');
             if (!frequenciesString) return
 
             const data = parseSizeAndValueDistributionString(frequenciesString)
-            createSizeAndValueHeatmapChart({
+            const isHprc256 = frequenciesColumn === 'HPRC256_AlleleSizeAndPurityDistribution'
+                              || frequenciesColumn === 'HPRC256_AlleleSizeAndMethylationDistribution'
+
+            const chartArgs = {
                 data: data,
                 thisObj: this,
                 chartWidth: $(this).data('chart-width'),
                 yAxisLabel: $(this).data('y-axis-label'),
-            })
+                fixedYAxisZeroToOne: true,
+            }
+            if (isHprc256 && hprc256Globals.repeatXMin != null) {
+                chartArgs.fixedMinX = hprc256Globals.repeatXMin
+                chartArgs.fixedMaxX = hprc256Globals.repeatXMax
+                chartArgs.fixedMaxCount = hprc256Globals.repeatMaxCount
+                this.dataset.fixedMinX = hprc256Globals.repeatXMin
+                this.dataset.fixedMaxX = hprc256Globals.repeatXMax
+                this.dataset.fixedMaxCount = hprc256Globals.repeatMaxCount
+            }
+            createSizeAndValueHeatmapChart(chartArgs)
         })
 
         $('.hprc256-stratum-controls').each(function() {
@@ -4040,6 +4187,358 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    // ----- HPRC256 decomposed-allele rendering -----
+
+    // Per-section state. Keyed off the DOM so we don't keep stale state if the page
+    // is re-rendered for a different locus.
+    const DECOMPOSED_ALLELES_STATE = {
+        alleles: [],            // parsed { seq, count, isRef, skipReason, motifUnits } records
+        totalCalledHaplotypes: 0,
+        visibleCount: 0,
+        motifColorMap: {},      // motif -> hex
+        observer: null,         // IntersectionObserver instance (recreated per fetch)
+    }
+
+    const DECOMPOSED_ALLELES_PAGE_SIZE = 20
+    const RLE_THRESHOLD = 200    // collapse runs once allele has more than this many motif units
+    const MAX_BOXES_PER_ALLELE = 500  // hard cap on visible blocks per allele
+
+    const fetchAndRenderDecomposedAlleles = async (chromIndex, start_0based, end_1based) => {
+        if (chromIndex == null || start_0based == null || end_1based == null) {
+            // Catalog row missing the join key — render nothing.
+            $('#locus-page-allele-sequences').html('')
+            return
+        }
+        const sql = `
+            SELECT total_called_haplotypes, total_unique_alleles, motifs, allele_data
+            FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
+            WHERE chrom_index = ${chromIndex}
+              AND start_0based = ${start_0based}
+              AND end_1based  = ${end_1based}
+            LIMIT 1`
+        try {
+            const result = await queryBigQuery(sql, 0, 1, null, null)
+            const queryRow = result?.rows?.[0]
+            if (!queryRow) {
+                $('#locus-page-allele-sequences').html('')
+                return
+            }
+            $('#locus-page-allele-sequences').html(renderDecomposedAllelesSection(queryRow))
+            wireLoadMoreButton()
+        } catch (e) {
+            // Table may not exist yet (placeholder timestamp). Fail silently — log only.
+            console.warn('Decomposed alleles fetch failed:', e)
+            $('#locus-page-allele-sequences').html('')
+        }
+    }
+
+    // Parses the `allele_data` STRING column into an array of records.
+    // Format: `seq|composition|count|isRef` (4 fields, success) OR
+    //         `seq|composition|count|isRef|skipReason` (5 fields, skipped).
+    // For non-skipped alleles, `skipReason` is undefined; rendering branches
+    // (`=== 'spanning_del'`, falsy check) treat undefined the same as ''.
+    const parseAlleleData = (alleleDataStr) => {
+        if (!alleleDataStr) return []
+        return alleleDataStr.split(';').map(rec => {
+            const parts = rec.split('|')
+            const compositionCsv = parts[1] || ''
+            return {
+                seq: parts[0] || '',
+                count: parseInt(parts[2] || '0', 10) || 0,
+                isRef: parts[3] === '1',
+                skipReason: parts[4],
+                // "".split(",") returns [""], which would otherwise inject a fake empty motif.
+                motifUnits: compositionCsv ? compositionCsv.split(',') : [],
+            }
+        })
+    }
+
+    // Build a per-locus motif color map. Motifs ranked by descending occurrence count
+    // across all alleles (excluding skipped ones). Tokens that are not in the locus's
+    // INFO/MOTIFS list are treated as interruption substrings (the worker's mono/di
+    // bypass emits literal non-motif bases): they fall through to OTHER_MOTIFS_COLOR
+    // via the `colorMap[b.motif] || OTHER_MOTIFS_COLOR` fallback in renderCompositionBoxes,
+    // and are summarized as a single "interruption" entry in the legend.
+    const buildMotifColorMap = (alleles, locusMotifs) => {
+        const motifSet = new Set(locusMotifs)
+        const counts = {}
+        let interruptionCount = 0
+        alleles.forEach(a => {
+            a.motifUnits.forEach(m => {
+                counts[m] = (counts[m] || 0) + 1
+                if (!motifSet.has(m)) interruptionCount += 1
+            })
+        })
+        const ranked = Object.keys(counts)
+            .filter(m => motifSet.has(m))
+            .sort((x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0))
+        const colorMap = {}
+        ranked.forEach((m, i) => {
+            colorMap[m] = i < MOTIF_COLORS.length ? MOTIF_COLORS[i] : OTHER_MOTIFS_COLOR
+        })
+        return { colorMap, motifCounts: counts, rankedMotifs: ranked, interruptionCount }
+    }
+
+    // Collapse consecutive identical motif units into single labeled blocks.
+    // Each block: { motif, runLength, mixedMotifs (for windowed merges) }.
+    const rleCollapse = (motifUnits) => {
+        const blocks = []
+        for (const m of motifUnits) {
+            if (blocks.length > 0 && blocks[blocks.length - 1].motif === m) {
+                blocks[blocks.length - 1].runLength += 1
+            } else {
+                blocks.push({ motif: m, runLength: 1 })
+            }
+        }
+        return blocks
+    }
+
+    // If RLE alone leaves > MAX_BOXES_PER_ALLELE blocks (e.g. alternating motifs),
+    // coalesce consecutive blocks into mixed-motif blocks until block count <= cap.
+    const coalesceToMixed = (blocks, cap) => {
+        if (blocks.length <= cap) return blocks
+        const windowSize = Math.ceil(blocks.length / cap)
+        const result = []
+        for (let i = 0; i < blocks.length; i += windowSize) {
+            const chunk = blocks.slice(i, i + windowSize)
+            const unique = new Set(chunk.map(b => b.motif))
+            if (unique.size === 1 && chunk.length === 1) {
+                result.push(chunk[0])
+            } else {
+                const totalRun = chunk.reduce((a, b) => a + b.runLength, 0)
+                const mixedList = Array.from(unique)
+                result.push({
+                    motif: null,
+                    mixedMotifs: mixedList,
+                    runLength: totalRun,
+                    isMixed: true,
+                })
+            }
+        }
+        return result
+    }
+
+    // Returns an array of render blocks for one allele's composition viz.
+    const buildAlleleBlocks = (motifUnits) => {
+        if (motifUnits.length === 0) return []
+        // RLE collapse if too many motif units. For short alleles, render every motif
+        // as its own block (so they read like a continuous bar of small boxes).
+        let blocks
+        if (motifUnits.length > RLE_THRESHOLD) {
+            blocks = rleCollapse(motifUnits)
+        } else {
+            blocks = motifUnits.map(m => ({ motif: m, runLength: 1 }))
+        }
+        // Hard cap to MAX_BOXES_PER_ALLELE via windowed coalesce.
+        return coalesceToMixed(blocks, MAX_BOXES_PER_ALLELE)
+    }
+
+    // Build the HTML for a single composition viz (the row of colored boxes).
+    const renderCompositionBoxes = (blocks, colorMap) => {
+        const boxParts = blocks.map(b => {
+            let color, title, label
+            if (b.isMixed) {
+                color = OTHER_MOTIFS_COLOR
+                title = `~${b.runLength}x mixed (${b.mixedMotifs.join('/')})`
+                label = `~${b.runLength}x mixed`
+            } else {
+                color = colorMap[b.motif] || OTHER_MOTIFS_COLOR
+                if (b.runLength === 1) {
+                    title = b.motif
+                    label = ''
+                } else {
+                    title = `${b.runLength}x ${b.motif}`
+                    label = `${b.runLength}x${b.motif.length <= 6 ? ' ' + b.motif : ''}`
+                }
+            }
+            // Wide block (run > 1) renders inline text; single boxes are 12px wide.
+            const isRun = b.runLength > 1 || b.isMixed
+            const style = isRun
+                ? `display:inline-flex; align-items:center; justify-content:center; min-width:42px; height:24px; padding:0 4px; background:${color}; color:#fff; font-size:11px; font-family:monospace; border-right:1px solid #fff; box-sizing:border-box;`
+                : `display:inline-block; width:12px; height:24px; background:${color}; border-right:1px solid #fff; box-sizing:border-box;`
+            return `<span style="${style}" title="${escapeHtmlText(title)}">${escapeHtmlText(label)}</span>`
+        })
+        return `<div style="display:flex; flex-wrap:wrap; align-items:stretch; line-height:0;">${boxParts.join('')}</div>`
+    }
+
+    // Build the HTML for a single allele row. The composition viz markup is stored in
+    // a data attribute and only injected into the DOM when the row scrolls into view
+    // (see IntersectionObserver wiring in wireLoadMoreButton).
+    const renderAlleleRow = (allele, rank, totalCalled, colorMap) => {
+        const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
+        const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
+        const refBadge = allele.isRef
+            ? '<span style="display:inline-block; margin-left:8px; padding:1px 6px; background:#eee; color:#555; font-size:0.85em; border-radius:3px;">reference</span>'
+            : ''
+
+        let compositionHtml = ''
+        let metaLine = ''
+        let sequenceDisclosure = ''
+
+        if (allele.skipReason === 'spanning_del') {
+            compositionHtml = `<div style="font-style:italic; color:#888;">(spanning deletion)</div>`
+            metaLine = ''
+        } else if (allele.skipReason) {
+            let note
+            if (allele.skipReason === 'too_long') {
+                note = '(decomposition skipped: too long)'
+            } else if (allele.skipReason === 'invalid_chars') {
+                note = '(skipped: contains N or other non-ACGT)'
+            } else {
+                note = `(skipped: ${allele.skipReason})`
+            }
+            compositionHtml = `<div style="font-style:italic; color:#888;">${escapeHtmlText(note)}</div>`
+            metaLine = `${lengthBp} bp`
+            sequenceDisclosure = `
+                <details style="margin-top:6px;">
+                    <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
+                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; word-break:break-all; color:#333;">${escapeHtmlText(allele.seq)}</div>
+                </details>`
+        } else {
+            const blocks = buildAlleleBlocks(allele.motifUnits)
+            const blocksHtml = renderCompositionBoxes(blocks, colorMap)
+            // Stash markup in a data attribute; the IntersectionObserver will inject it
+            // when the row scrolls into view.
+            compositionHtml = `<div class="allele-composition-placeholder" data-blocks-html="${escapeHtmlText(blocksHtml)}" style="min-height:24px;"></div>`
+            metaLine = `${lengthBp} bp &middot; ${allele.motifUnits.length} motif unit${allele.motifUnits.length === 1 ? '' : 's'}`
+            sequenceDisclosure = `
+                <details style="margin-top:6px;">
+                    <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
+                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; word-break:break-all; color:#333;">${escapeHtmlText(allele.seq)}</div>
+                </details>`
+        }
+
+        return `
+            <div class="decomposed-allele-row" style="padding:8px 0; border-bottom:1px solid #eee;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                    <div>
+                        <span style="font-weight:600; color:#555;">#${rank}</span>
+                        <span style="margin-left:10px; color:#333;">${allele.count}/${totalCalled} (${freq}%)</span>
+                        ${refBadge}
+                    </div>
+                    <div style="color:#888; font-size:0.9em;">${metaLine}</div>
+                </div>
+                ${compositionHtml}
+                ${sequenceDisclosure}
+            </div>`
+    }
+
+    const renderLegend = (rankedMotifs, motifCounts, colorMap, interruptionCount) => {
+        const items = rankedMotifs.map(m => {
+            const color = colorMap[m] || OTHER_MOTIFS_COLOR
+            return `<span style="display:inline-flex; align-items:center; margin:0 10px 4px 0;">
+                <span style="display:inline-block; width:14px; height:14px; background:${color}; margin-right:5px; border:1px solid #ccc;"></span>
+                <span style="font-family:monospace; font-size:0.9em; color:#333;">${escapeHtmlText(m)}</span>
+                <span style="color:#888; font-size:0.85em; margin-left:4px;">(${motifCounts[m]})</span>
+            </span>`
+        })
+        if (interruptionCount > 0) {
+            items.push(`<span style="display:inline-flex; align-items:center; margin:0 10px 4px 0;">
+                <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
+                <span style="font-size:0.9em; color:#333;">interruption</span>
+                <span style="color:#888; font-size:0.85em; margin-left:4px;">(${interruptionCount})</span>
+            </span>`)
+        }
+        return `<div style="display:flex; flex-wrap:wrap; justify-content:flex-end; max-width:60%;">${items.join('')}</div>`
+    }
+
+    const renderDecomposedAllelesSection = (queryRow) => {
+        const alleles = parseAlleleData(queryRow.allele_data)
+        const totalCalled = parseInt(queryRow.total_called_haplotypes, 10) || 0
+        const totalUnique = parseInt(queryRow.total_unique_alleles, 10) || alleles.length
+        const locusMotifs = (queryRow.motifs || '').split(',').filter(Boolean)
+
+        const { colorMap, motifCounts, rankedMotifs, interruptionCount } = buildMotifColorMap(alleles, locusMotifs)
+
+        // Stash state for the "Load more" button.
+        DECOMPOSED_ALLELES_STATE.alleles = alleles
+        DECOMPOSED_ALLELES_STATE.totalCalledHaplotypes = totalCalled
+        DECOMPOSED_ALLELES_STATE.motifColorMap = colorMap
+        DECOMPOSED_ALLELES_STATE.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
+
+        const initialRowsHtml = alleles
+            .slice(0, DECOMPOSED_ALLELES_STATE.visibleCount)
+            .map((a, i) => renderAlleleRow(a, i + 1, totalCalled, colorMap))
+            .join('')
+
+        const loadMoreHtml = alleles.length > DECOMPOSED_ALLELES_STATE.visibleCount
+            ? `<div style="text-align:center; margin-top:12px;">
+                   <button id="decomposed-alleles-load-more" class="ui small button">
+                       Load more (showing ${DECOMPOSED_ALLELES_STATE.visibleCount} of ${alleles.length})
+                   </button>
+               </div>`
+            : ''
+
+        return `
+            <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:20px;">
+                    <div>
+                        <h3 style="margin:0;">HPRC256 Allele Sequences</h3>
+                        <div style="color:#666; font-size:0.95em; margin-top:4px;">
+                            ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} across ${totalCalled} haplotype${totalCalled === 1 ? '' : 's'}
+                        </div>
+                    </div>
+                    ${renderLegend(rankedMotifs, motifCounts, colorMap, interruptionCount)}
+                </div>
+                <div id="decomposed-alleles-list">${initialRowsHtml}</div>
+                <div id="decomposed-alleles-load-more-container">${loadMoreHtml}</div>
+            </div>`
+    }
+
+    // Inject composition markup for an allele row when it scrolls into view, then stop
+    // observing it. Off-screen alleles never pay DOM cost for the colored boxes.
+    const observeCompositionPlaceholders = () => {
+        if (DECOMPOSED_ALLELES_STATE.observer) {
+            DECOMPOSED_ALLELES_STATE.observer.disconnect()
+        }
+        if (typeof IntersectionObserver === 'undefined') {
+            // Fallback: render everything immediately.
+            $('.allele-composition-placeholder').each(function() {
+                const html = $(this).attr('data-blocks-html') || ''
+                $(this).removeClass('allele-composition-placeholder')
+                $(this).html(html)
+            })
+            return
+        }
+        DECOMPOSED_ALLELES_STATE.observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return
+                const el = entry.target
+                const html = el.getAttribute('data-blocks-html') || ''
+                el.classList.remove('allele-composition-placeholder')
+                el.innerHTML = html
+                el.removeAttribute('data-blocks-html')
+                observer.unobserve(el)
+            })
+        }, { rootMargin: '200px 0px' })
+        document.querySelectorAll('.allele-composition-placeholder').forEach(el => {
+            DECOMPOSED_ALLELES_STATE.observer.observe(el)
+        })
+    }
+
+    const wireLoadMoreButton = () => {
+        observeCompositionPlaceholders()
+        $('#decomposed-alleles-load-more').off('click').on('click', () => {
+            const state = DECOMPOSED_ALLELES_STATE
+            const nextCount = Math.min(state.visibleCount + DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
+            const newRowsHtml = state.alleles
+                .slice(state.visibleCount, nextCount)
+                .map((a, i) => renderAlleleRow(a, state.visibleCount + i + 1, state.totalCalledHaplotypes, state.motifColorMap))
+                .join('')
+            $('#decomposed-alleles-list').append(newRowsHtml)
+            state.visibleCount = nextCount
+
+            if (state.visibleCount >= state.alleles.length) {
+                $('#decomposed-alleles-load-more-container').html('')
+            } else {
+                $('#decomposed-alleles-load-more').text(
+                    `Load more (showing ${state.visibleCount} of ${state.alleles.length})`
+                )
+            }
+            // Observe the newly-added composition placeholders.
+            observeCompositionPlaceholders()
+        })
+    }
 
 </script>
 </head>
@@ -4232,7 +4731,7 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav" style="min-width: 700px">
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(3/5/2026)</span></a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(5/10/2026)</span></a>
         <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
@@ -4329,6 +4828,13 @@ gtag('config', 'G-6R8FPBQRFH');
         </div>
         <div class="three wide column"></div>
     </div>
+    <div class="ui row">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
+            <div id="locus-page-allele-sequences"></div>
+        </div>
+        <div class="three wide column"></div>
+    </div>
 </div>
 <div style="min-height: 50px;"></div>
 
@@ -4351,6 +4857,9 @@ gtag('config', 'G-6R8FPBQRFH');
     const REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE = [
         "LocusId",
         "ReferenceRegion",
+        "chrom_index",
+        "start_0based",
+        "end_1based",
 
         "NumRepeatsInReference",
         "ReferenceMotif",
@@ -4739,11 +5248,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Generate allele frequency charts section (hide sigma summary since we show the table above)
         const polymorphismContent = generatePolymorphismDialogContent(row, { showSigmaSummary: false })
-        if (polymorphismContent) {
-            $('#locus-page-polymorphism-data').html(`<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">${polymorphismContent}</div>`.replace(/\s+/g, ' ').trim())
-        } else {
-            $('#locus-page-polymorphism-data').html('')
-        }
+        $('#locus-page-polymorphism-data').html(polymorphismContent ? polymorphismContent.replace(/\s+/g, ' ').trim() : '')
 
         renderChartsInPolymorphismDialog(row);
 
@@ -4759,6 +5264,9 @@ gtag('config', 'G-6R8FPBQRFH');
         } else {
             $('#locus-page-literature-review').html('')
         }
+
+        // Lazy-fetch HPRC256 allele sequences for this locus.
+        fetchAndRenderDecomposedAlleles(row['chrom_index'], row['start_0based'], row['end_1based'])
 
         $('.question').popup({ on: 'click' })
         $('.show-popup').popup({ on: 'click', hoverable: true })
