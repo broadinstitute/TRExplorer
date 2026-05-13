@@ -158,7 +158,8 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
             "num_called_alleles": int(row["num_called_alleles"]),
             "stdev_rank_by_motif": int(row["stdev_rank_by_motif"]),
             "stdev_rank_total_number_by_motif": int(row["stdev_rank_total_number_by_motif"]),
-            "stdev_rank_percentile": row["stdev_rank_by_motif"] / row["stdev_rank_total_number_by_motif"],
+            # Flipped so that high percentile = more polymorphic (rank 1 = highest stdev -> ~1.0).
+            "stdev_rank_percentile": (row["stdev_rank_total_number_by_motif"] - row["stdev_rank_by_motif"] + 1) / row["stdev_rank_total_number_by_motif"],
         }
         if not pd.isna(row["biallelic_histogram"]):
             lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
@@ -207,7 +208,8 @@ def parse_AoU1027_data_from_tsv(tsv_path):
 
                 "stdev_rank_by_motif": int(fields[col_indices["StdevRankByMotif"]]),
                 "stdev_rank_total_number_by_motif": int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
-                "stdev_rank_percentile": int(fields[col_indices["StdevRankByMotif"]]) / int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
+                # Flipped so that high percentile = more polymorphic (rank 1 = highest stdev -> ~1.0).
+                "stdev_rank_percentile": (int(fields[col_indices["StdevRankTotalNumberByMotif"]]) - int(fields[col_indices["StdevRankByMotif"]]) + 1) / int(fields[col_indices["StdevRankTotalNumberByMotif"]]),
                 #"combined_lps_stdev": float(fields[col_indices["combinedLPSStdev"]]),
                 #"expected_lps_stdev": float(fields[col_indices["expectedCombinedLPSStdev"]]),
                 "oe_length": float(fields[col_indices["OE_len"]]) if fields[col_indices["OE_len"]] != "" else None,

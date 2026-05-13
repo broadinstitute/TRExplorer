@@ -582,7 +582,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "TenK10K_StdevRankByMotif",
-        "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1.",
+        "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "TenK10K Stdev Rank",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -599,7 +599,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "TenK10K_StdevRankPercentile",
-        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).",
         "displayName": "TenK10K Stdev Rank Percentile",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -698,7 +698,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "HPRC256_StdevRankByMotif",
-        "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256.",
+        "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "HPRC256 Stdev Rank",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -715,7 +715,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "HPRC256_StdevRankPercentile",
-        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).",
         "displayName": "HPRC256 Stdev Rank Percentile",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -801,7 +801,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "AoU1027_StdevRankByMotif",
-        "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027.",
+        "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "AoU1027 Stdev Rank",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -818,7 +818,7 @@ BIGQUERY_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "AoU1027_StdevRankPercentile",
-        "description": "Fraction of loci with the same motif that have equal or higher stdev (rank/total). Lower = more variable.",
+        "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).",
         "displayName": "AoU1027 Stdev Rank Percentile",
         "allowCustomFilter": True,
         "allowExport": True,

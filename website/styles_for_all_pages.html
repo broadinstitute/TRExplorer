@@ -594,6 +594,16 @@
         font-size: 1.1em;
     }
 
+    /* Conjunction dropdown only appears on the 2nd+ rows */
+    .custom-filter-row .ui.selection.dropdown.custom-filter-conjunction {
+        min-width: 80px;
+        width: 80px;
+    }
+
+    .custom-filter-row:first-child .custom-filter-conjunction {
+        display: none;
+    }
+
     .custom-filter-row .custom-filter-value {
         flex-grow: 1;
         max-width: 300px;
@@ -626,10 +636,67 @@
         color: #db2828;
     }
 
+
     #custom-filter-column-dialog {
         width: 900px !important;
         max-width: 95vw;
     }
+
+    /* Extra polymorphism filter rows */
+    .polymorphism-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    /* The enable-checkbox has an empty label; shrink its padding so the label
+       width matches just the checkbox icon (no trailing empty padding).
+       Selector must beat Semantic UI's '.ui.checkbox label' specificity. */
+    .ui.checkbox.polymorphism-filter-enable-checkbox label,
+    .ui.checkbox.custom-filter-enable-checkbox label {
+        padding-left: 17px;
+        min-height: 17px;
+    }
+
+    /* Cancel the flex gap after the enable-checkbox so the following control's
+       own internal padding provides the visual spacing (matches the tighter
+       look of the original polymorphism filter row). */
+    .polymorphism-filter-row .ui.checkbox.polymorphism-filter-enable-checkbox,
+    .custom-filter-row .ui.checkbox.custom-filter-enable-checkbox {
+        margin-right: -8px;
+    }
+
+    .polymorphism-filter-row .ui.selection.dropdown.polymorphism-filter-conjunction {
+        min-width: 80px;
+        width: 80px;
+    }
+
+    .polymorphism-filter-row .ui.selection.dropdown.polymorphism-filter-sigma-dropdown {
+        min-width: 110px;
+    }
+
+    /* Don't wrap items in the polymorphism filter dropdowns (e.g. "σ rank %HPRC256")
+       and let the menu grow wider than the parent dropdown if needed to fit them. */
+    #polymorphism-filter-dropdown .menu > .item,
+    .polymorphism-filter-sigma-dropdown .menu > .item {
+        white-space: nowrap;
+    }
+    #polymorphism-filter-dropdown .menu,
+    .polymorphism-filter-sigma-dropdown .menu {
+        width: auto !important;
+    }
+
+    .polymorphism-filter-delete {
+        cursor: pointer;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    .polymorphism-filter-delete:hover {
+        color: #db2828;
+    }
+
 
     .gene-info-popup-content {
         font-size: 0.95em;

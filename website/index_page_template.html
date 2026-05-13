@@ -329,6 +329,11 @@
                     </div>
 
                     <div class="field" style="padding-top: 5px">
+                        <div id="custom-filter-rows"></div>
+                        <a href="#" id="add-custom-filter-link">Add Custom Filter...</a>
+                    </div>
+
+                    <div class="field" style="padding-top: 5px">
                         <label>Gene Region(s) or Locus Set(s)</label>
                         <div class="checkbox-group" style="padding-bottom: 15px">
                             <div class="ui checkbox">
@@ -410,6 +415,12 @@
                                     <div class="default text">Select filter</div>
                                     <div class="menu">
                                         <div class="item" data-value=""></div>
+                                        <div class="header">Stdev rank percentile</div>
+                                        <div class="item" data-value="pctile_HPRC256">σ rank % <sub>HPRC256</sub></div>
+                                        <div class="item" data-value="pctile_AoU1027">σ rank % <sub>AoU1027</sub></div>
+                                        <div class="item" data-value="pctile_TenK10K">σ rank % <sub>10k10k</sub></div>
+                                        <div class="divider"></div>
+                                        <div class="header">Stdev</div>
                                         <div class="item" data-value="sigma_HPRC256">σ<sub>HPRC256</sub></div>
                                         <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027</sub></div>
                                         <div class="item" data-value="sigma_TenK10K">σ<sub>10k10k</sub></div>
@@ -449,8 +460,9 @@
                         </div>
                     </div>
 
-                    <div id="custom-filter-rows"></div>
-                    <a href="#" id="add-custom-filter-link">Add Custom Filter...</a>
+                    <div id="polymorphism-filter-rows"></div>
+                    <a href="#" id="add-polymorphism-filter-link">Add another polymorphism filter...</a>
+
                 </form>
             </div>
         </div>
@@ -676,6 +688,15 @@
 
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
+        // Suppress URL-hash writes while we apply state to the form — the
+        // onChange handlers we wired up would otherwise immediately overwrite
+        // the URL with intermediate form state during repopulation. The flag
+        // is reset to false either explicitly (after the form is populated,
+        // so the auto-search at the end sees live persistence) or in the
+        // finally block (catch-all if an earlier await rejects).
+        suppressFormStatePersistence = true
+        try {
+
         GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
         const hash = window.location.hash.substring(1)
@@ -705,7 +726,7 @@
                     GLOBAL_PAGE_STATE[key] = names.length > 0
                         ? names.join(SHOW_COLUMNS_VALUE_DELIMITER)
                         : DEFAULT_GLOBAL_PAGE_STATE[key]
-                } else if (key === 'customFilters') {
+                } else if (key === 'customFilters' || key === 'extraPolymorphismFilters') {
                     GLOBAL_PAGE_STATE[key] = `${value}` // convert to string
                 }
             }
@@ -761,16 +782,29 @@
         $('#custom-filter-rows').empty()
         deserializeAndCreateCustomFilters(GLOBAL_PAGE_STATE['customFilters'])
 
+        // Restore extra polymorphism filter rows from URL
+        $('#polymorphism-filter-rows').empty()
+        deserializeAndCreateExtraPolymorphismFilters(GLOBAL_PAGE_STATE['extraPolymorphismFilters'])
+
         // Restore custom track URLs
         for (let i = 1; i <= 3; i++) {
             $(`#igv-custom-track-url-${i}`).val(GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] || '')
         }
 
+        // Form is fully populated from URL state; from now on, form edits
+        // immediately propagate back to the URL hash.
+        suppressFormStatePersistence = false
+
         if (GLOBAL_PAGE_STATE['showRs'] === 1) {
             if (!validateForm()) {
                 return;
-            }            
+            }
             await performSearch(false)
+        }
+        } finally {
+            // Ensure live URL persistence is re-enabled even if an earlier
+            // await (e.g. updateIgv) rejected before the explicit reset above.
+            suppressFormStatePersistence = false
         }
     }
 
@@ -1228,7 +1262,9 @@
         return menuHtml
     }
 
-    const addCustomFilterRow = (columnName) => {
+    const addCustomFilterRow = (columnName, conjunction) => {
+        // New rows inherit the existing shared conjunction if not explicitly provided.
+        if (conjunction !== 'OR' && conjunction !== 'AND') conjunction = getCurrentCustomFilterConjunction()
         const filterId = customFilterNextId++
         const colInfo = columnName ? getCustomFilterColumnInfo(columnName) : null
         const colType = colInfo ? colInfo.type : 'STRING'
@@ -1242,8 +1278,23 @@
             `<div class="item" data-value="${op.value}">${op.label}</div>`
         ).join('')
 
+        const conjActive = (val) => conjunction === val ? ' active selected' : ''
+
         const rowHtml = `
         <div class="custom-filter-row" data-filter-id="${filterId}">
+            <div class="ui checkbox custom-filter-enable-checkbox">
+                <input type="checkbox" name="customFilterEnabled_${filterId}" checked>
+                <label></label>
+            </div>
+            <div class="ui selection dropdown custom-filter-conjunction">
+                <input type="hidden" name="customFilterConjunction_${filterId}" value="${conjunction}">
+                <i class="dropdown icon"></i>
+                <div class="text">${conjunction}</div>
+                <div class="menu">
+                    <div class="item${conjActive('AND')}" data-value="AND">AND</div>
+                    <div class="item${conjActive('OR')}" data-value="OR">OR</div>
+                </div>
+            </div>
             <div class="ui selection search dropdown custom-filter-field" style="min-width: 220px;">
                 <input type="hidden" name="customFilterField_${filterId}">
                 <i class="dropdown icon"></i>
@@ -1271,7 +1322,10 @@
             onHide: function() { $(this).css('z-index', '') },
             onChange: function(value) {
                 const info = getCustomFilterColumnInfo(value)
-                if (!info) return
+                if (!info) {
+                    persistCustomFiltersToUrl()
+                    return
+                }
                 const ops = getOperatorsForType(info.type)
                 const $opDropdown = $row.find('.custom-filter-op')
 
@@ -1288,6 +1342,8 @@
 
                 // Update help icon
                 updateFilterTooltip($row)
+
+                persistCustomFiltersToUrl()
             }
         })
 
@@ -1301,6 +1357,16 @@
                     $row.find('.custom-filter-value').show()
                 }
                 updateFilterTooltip($row)
+                persistCustomFiltersToUrl()
+            }
+        })
+
+        $row.find('.custom-filter-conjunction').dropdown({
+            onShow: function() { $(this).css('z-index', 10001) },
+            onHide: function() { $(this).css('z-index', '') },
+            onChange: function(value) {
+                syncCustomFilterConjunctions(value)
+                persistCustomFiltersToUrl()
             }
         })
 
@@ -1309,15 +1375,94 @@
             $row.find('.custom-filter-field').dropdown('set selected', columnName)
         }
 
+        // Persist value edits to URL when the field loses focus
+        $row.find('.custom-filter-value').on('change', persistCustomFiltersToUrl)
+
+        // Enable/disable checkbox
+        $row.find('.custom-filter-enable-checkbox').checkbox({
+            onChange: function() {
+                applyCustomFilterRowEnabledState($row)
+                persistCustomFiltersToUrl()
+            }
+        })
+
         // Delete button
         $row.find('.custom-filter-delete').click(function() {
             $row.remove()
+            persistAllAdvancedFormStateToUrl()
         })
 
         // Initialize tooltip
         $row.find('.custom-filter-help-icon').popup({ on: 'hover' })
 
         return $row
+    }
+
+    const applyCustomFilterRowEnabledState = ($row) => {
+        const enabled = $row.find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+        // Only a visual indication — controls remain interactive so the user can edit while disabled
+        $row.toggleClass('custom-filter-disabled', !enabled)
+    }
+
+    // Captures the current state of every control in the advanced search form
+    // (dropdowns, checkboxes, AND text inputs) into GLOBAL_PAGE_STATE and writes
+    // the URL hash. Wired up to onChange events so the URL reflects edits in real
+    // time without waiting for the Search button.
+    let suppressFormStatePersistence = true
+    const persistAllAdvancedFormStateToUrl = () => {
+        if (suppressFormStatePersistence) return
+        GLOBAL_PAGE_STATE['searchQuery'] = $('#search-query').val()
+        GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
+        GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
+        GLOBAL_PAGE_STATE['keepMotif'] = $('#motif-input').val()
+        GLOBAL_PAGE_STATE['keepCodingLoci'] = $('input[name="keepCodingLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepFiveUTRLoci'] = $('input[name="keepFiveUTRLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepThreeUTRLoci'] = $('input[name="keepThreeUTRLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepPromoterLoci'] = $('input[name="keepPromoterLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepIntronLoci'] = $('input[name="keepIntronLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] = $('input[name="keepLociThatOverlapLocusSet"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'] = $('#overlap-locus-set-dropdown').dropdown('get value')
+        GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
+        GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
+        GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
+        GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilters()
+        GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
+        writePersistentPageStateToUrl()
+    }
+
+    // Aliases for the section-specific helpers used by older event handlers —
+    // all delegate to the comprehensive helper now.
+    const persistCustomFiltersToUrl = persistAllAdvancedFormStateToUrl
+
+    // Returns the current shared conjunction value across all custom filter rows,
+    // or 'AND' if none exist yet (used as default for new rows).
+    const getCurrentCustomFilterConjunction = () => {
+        const $existing = $('#custom-filter-rows .custom-filter-conjunction')
+        if (!$existing.length) return 'AND'
+        return $existing.first().dropdown('get value') || 'AND'
+    }
+
+    // Synchronize all custom-filter conjunction dropdowns to the same value.
+    // Mixing AND/OR across rows is not allowed — toggling one toggles all.
+    let suppressCustomConjunctionSync = false
+    const syncCustomFilterConjunctions = (value) => {
+        if (suppressCustomConjunctionSync) return
+        const newConj = value === 'OR' ? 'OR' : 'AND'
+        suppressCustomConjunctionSync = true
+        try {
+            $('#custom-filter-rows .custom-filter-conjunction').each(function() {
+                if ($(this).dropdown('get value') !== newConj) {
+                    $(this).dropdown('set selected', newConj)
+                }
+            })
+        } finally {
+            suppressCustomConjunctionSync = false
+        }
     }
 
     const showCustomFilterColumnDialog = () => {
@@ -1412,6 +1557,13 @@
             }
         })
 
+        persistAllAdvancedFormStateToUrl()
+
+        $('#custom-filter-column-dialog').modal('hide')
+    })
+
+    // Handle custom filter dialog cancel button
+    $('#custom-filter-dialog-cancel-button').click(() => {
         $('#custom-filter-column-dialog').modal('hide')
     })
 
@@ -1421,8 +1573,17 @@
             const col = $(this).find('.custom-filter-field').dropdown('get value')
             const op = $(this).find('.custom-filter-op').dropdown('get value')
             const val = $(this).find('.custom-filter-value').val()
-            if (col && op) {
-                parts.push(`${col}|${op}|${encodeURIComponent(val || '')}`)
+            const enabled = $(this).find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+            const conjunction = $(this).find('.custom-filter-conjunction').dropdown('get value') || 'AND'
+            // Persist rows that have at least a column so partial filters survive a reload.
+            // Disabled filters are prefixed with '!' for backward-compatible URL parsing.
+            // Format: [!]col|op|encoded_val|conj — the conjunction is always written
+            // explicitly so a value literally equal to 'AND' or 'OR' can't be
+            // mistaken for the conjunction segment on reload.
+            if (col) {
+                const colSegment = enabled ? col : `!${col}`
+                const conjSegment = conjunction === 'OR' ? 'OR' : 'AND'
+                parts.push(`${colSegment}|${op || ''}|${encodeURIComponent(val || '')}|${conjSegment}`)
             }
         })
         return parts.join(';')
@@ -1434,27 +1595,224 @@
         parts.forEach(part => {
             const segments = part.split('|')
             if (segments.length < 2) return
-            const col = segments[0]
+            let col = segments[0]
+            let enabled = true
+            if (col.startsWith('!')) {
+                enabled = false
+                col = col.slice(1)
+            }
             const op = segments[1]
+            // New format: col|op|encoded_val|conj (4 segments). The value field
+            // is URL-encoded so a literal '|' in the value is %7C and cannot be
+            // confused with the conjunction segment.
+            // Legacy format: col|op|encoded_val (3 segments, before per-row
+            // conjunction existed) — parsed with the default AND conjunction.
+            let conjunction = 'AND'
+            let valueEncoded
+            if (segments.length === 3) {
+                valueEncoded = segments[2]
+            } else if (segments.length >= 4 && (segments[segments.length - 1] === 'AND' || segments[segments.length - 1] === 'OR')) {
+                conjunction = segments[segments.length - 1]
+                valueEncoded = segments.slice(2, -1).join('|')
+            } else {
+                valueEncoded = segments.slice(2).join('|')
+            }
             let val
             try {
-                val = decodeURIComponent(segments.slice(2).join('|'))
+                val = decodeURIComponent(valueEncoded)
             } catch (e) {
-                val = segments.slice(2).join('|')
-            } // value might contain pipes in theory
-            const $row = addCustomFilterRow(col)
-            // Set operator and value after a brief delay to let dropdown initialize
-            setTimeout(() => {
+                val = valueEncoded
+            }
+            const $row = addCustomFilterRow(col, conjunction)
+            if (!enabled) {
+                $row.find('.custom-filter-enable-checkbox').checkbox('uncheck')
+            }
+            if (op) {
                 $row.find('.custom-filter-op').dropdown('set selected', op)
-                $row.find('.custom-filter-value').val(val)
-                if (op === 'IS NULL' || op === 'IS NOT NULL') {
-                    $row.find('.custom-filter-value').hide()
-                }
-            }, 50)
+            }
+            $row.find('.custom-filter-value').val(val)
+            if (op === 'IS NULL' || op === 'IS NOT NULL') {
+                $row.find('.custom-filter-value').hide()
+            }
         })
     }
 
     // --- End Custom Filter Logic ---
+
+    // --- Extra Polymorphism Filter Logic ---
+
+    const POLYMORPHISM_SIGMA_COLUMNS = {
+        'sigma_HPRC256': 'HPRC256_Stdev',
+        'sigma_AoU1027': 'AoU1027_Stdev',
+        'sigma_TenK10K': 'TenK10K_Stdev',
+        'sigma_1kGP': 'StdevFromIllumina174k',
+        'sigma_T2T': 'StdevFromT2TAssemblies',
+        'pctile_HPRC256': 'HPRC256_StdevRankPercentile',
+        'pctile_AoU1027': 'AoU1027_StdevRankPercentile',
+        'pctile_TenK10K': 'TenK10K_StdevRankPercentile',
+    }
+
+    // Source of truth for the polymorphism-filter dropdown menu is the static HTML
+    // at #polymorphism-filter-dropdown above; addPolymorphismFilterRow reuses it
+    // so new options don't have to be added in two places.
+    const POLYMORPHISM_FILTER_MENU_HTML = document.getElementById('polymorphism-filter-dropdown').querySelector('.menu').outerHTML
+
+    let polymorphismFilterNextId = 0
+
+    const applyPolymorphismFilterRowEnabledState = ($row) => {
+        const enabled = $row.find('.polymorphism-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+        // Only a visual indication — controls remain interactive so the user can edit while disabled
+        $row.toggleClass('polymorphism-filter-disabled', !enabled)
+    }
+
+    const persistExtraPolymorphismFiltersToUrl = persistAllAdvancedFormStateToUrl
+
+    // Returns the current shared conjunction across all extra polymorphism filter rows,
+    // or 'OR' (the default) if none exist yet.
+    const getCurrentPolymorphismFilterConjunction = () => {
+        const $existing = $('#polymorphism-filter-rows .polymorphism-filter-conjunction')
+        if (!$existing.length) return 'OR'
+        return $existing.first().dropdown('get value') || 'OR'
+    }
+
+    // Synchronize all polymorphism-filter conjunction dropdowns to the same value.
+    // Mixing AND/OR across rows is not allowed — toggling one toggles all.
+    let suppressPolymorphismConjunctionSync = false
+    const syncPolymorphismFilterConjunctions = (value) => {
+        if (suppressPolymorphismConjunctionSync) return
+        const newConj = value === 'AND' ? 'AND' : 'OR'
+        suppressPolymorphismConjunctionSync = true
+        try {
+            $('#polymorphism-filter-rows .polymorphism-filter-conjunction').each(function() {
+                if ($(this).dropdown('get value') !== newConj) {
+                    $(this).dropdown('set selected', newConj)
+                }
+            })
+        } finally {
+            suppressPolymorphismConjunctionSync = false
+        }
+    }
+
+    const addPolymorphismFilterRow = (conjunction, sigmaType, threshold, enabled) => {
+        // New rows inherit the existing shared conjunction if not explicitly provided.
+        if (conjunction !== 'AND' && conjunction !== 'OR') conjunction = getCurrentPolymorphismFilterConjunction()
+        if (enabled == null) enabled = true
+        const filterId = polymorphismFilterNextId++
+        const conjActive = (val) => conjunction === val ? ' active selected' : ''
+        const rowHtml = `
+        <div class="polymorphism-filter-row" data-poly-filter-id="${filterId}">
+            <div class="ui checkbox polymorphism-filter-enable-checkbox">
+                <input type="checkbox" name="extraPolymorphismFilterEnabled_${filterId}"${enabled ? ' checked' : ''}>
+                <label></label>
+            </div>
+            <div class="ui selection dropdown polymorphism-filter-conjunction">
+                <input type="hidden" name="extraPolymorphismFilterConjunction_${filterId}" value="${conjunction}">
+                <i class="dropdown icon"></i>
+                <div class="text">${conjunction}</div>
+                <div class="menu">
+                    <div class="item${conjActive('OR')}" data-value="OR">OR</div>
+                    <div class="item${conjActive('AND')}" data-value="AND">AND</div>
+                </div>
+            </div>
+            <label class="polymorphism-filter-label">Polymorphism filter:</label>
+            <div class="ui selection dropdown polymorphism-filter-sigma-dropdown">
+                <input type="hidden" name="extraPolymorphismFilterSigma_${filterId}">
+                <i class="dropdown icon"></i>
+                <div class="default text">Select filter</div>
+                ${POLYMORPHISM_FILTER_MENU_HTML}
+            </div>
+            <span class="polymorphism-filter-ge">≥</span>
+            <input type="text" class="polymorphism-filter-threshold" placeholder="0.5" style="width: 60px;" value="${threshold != null ? escapeHtml(threshold) : ''}">
+            <i class="close icon polymorphism-filter-delete"></i>
+        </div>
+        `
+        $('#polymorphism-filter-rows').append(rowHtml)
+        const $row = $(`.polymorphism-filter-row[data-poly-filter-id="${filterId}"]`)
+
+        const zIndexOpts = {
+            onShow: function() { $(this).css('z-index', 10001) },
+            onHide: function() { $(this).css('z-index', '') },
+        }
+        $row.find('.polymorphism-filter-conjunction').dropdown({
+            ...zIndexOpts,
+            onChange: function(value) {
+                syncPolymorphismFilterConjunctions(value)
+                persistExtraPolymorphismFiltersToUrl()
+            },
+        })
+        $row.find('.polymorphism-filter-sigma-dropdown').dropdown({
+            ...zIndexOpts,
+            onChange: function() { persistExtraPolymorphismFiltersToUrl() },
+        })
+        if (sigmaType) {
+            $row.find('.polymorphism-filter-sigma-dropdown').dropdown('set selected', sigmaType)
+        }
+
+        $row.find('.polymorphism-filter-threshold').on('change', persistExtraPolymorphismFiltersToUrl)
+
+        $row.find('.polymorphism-filter-enable-checkbox').checkbox({
+            onChange: function() {
+                applyPolymorphismFilterRowEnabledState($row)
+                persistExtraPolymorphismFiltersToUrl()
+            }
+        })
+        if (!enabled) {
+            applyPolymorphismFilterRowEnabledState($row)
+        }
+
+        $row.find('.polymorphism-filter-delete').click(function() {
+            $row.remove()
+            persistExtraPolymorphismFiltersToUrl()
+        })
+
+        return $row
+    }
+
+    $('#add-polymorphism-filter-link').click(function(e) {
+        e.preventDefault()
+        addPolymorphismFilterRow()
+        persistAllAdvancedFormStateToUrl()
+    })
+
+    const serializeExtraPolymorphismFilters = () => {
+        const parts = []
+        $('#polymorphism-filter-rows .polymorphism-filter-row').each(function() {
+            const conjunction = $(this).find('.polymorphism-filter-conjunction').dropdown('get value') || 'OR'
+            const sigma = $(this).find('.polymorphism-filter-sigma-dropdown').dropdown('get value')
+            const threshold = $(this).find('.polymorphism-filter-threshold').val()
+            const enabled = $(this).find('.polymorphism-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+            // Skip empty rows so a freshly added (unconfigured) row doesn't poison the saved URL.
+            if (!sigma && !threshold) return
+            // Disabled rows prefixed with '!' for backward-compatible URL parsing
+            const conjSegment = enabled ? conjunction : `!${conjunction}`
+            parts.push(`${conjSegment}|${sigma || ''}|${encodeURIComponent(threshold || '')}`)
+        })
+        return parts.join(';')
+    }
+
+    const deserializeAndCreateExtraPolymorphismFilters = (serialized) => {
+        if (!serialized) return
+        serialized.split(';').forEach(part => {
+            const segments = part.split('|')
+            if (segments.length < 2) return
+            let conjunction = segments[0]
+            let enabled = true
+            if (conjunction.startsWith('!')) {
+                enabled = false
+                conjunction = conjunction.slice(1)
+            }
+            const sigma = segments[1]
+            let threshold = ''
+            try {
+                threshold = decodeURIComponent(segments.slice(2).join('|'))
+            } catch (e) {
+                threshold = segments.slice(2).join('|')
+            }
+            addPolymorphismFilterRow(conjunction, sigma, threshold, enabled)
+        })
+    }
+
+    // --- End Extra Polymorphism Filter Logic ---
 
     const performExport = async (value, selectedColumns = null, overlapHandling = 'all', trgtCatalogType = 'simple') => {
         // Format data based on export type
@@ -2037,7 +2395,14 @@
         $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
 
         // init popups
-        $('.show-popup').popup({ on: 'click', hoverable: true })
+        $('.show-popup').popup({
+            on: 'click',
+            hoverable: true,
+            onVisible: function() {
+                // Initialize any nested help icons (.nested-help-icon) inside this just-opened popup.
+                $(this).popup('get popup').find('.nested-help-icon').popup({ on: 'hover' })
+            }
+        })
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
         $('.disease-associated-icon').popup({ on: 'click' })
         initGeneInfoLinks(resultsTableElement)
@@ -2281,29 +2646,39 @@
                     }
                 }
 
-                // Add polymorphism filter conditions
-                const polymorphismFilter = $('input[name="polymorphismFilter"]').prop('checked')
-                const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
-                const polymorphismThreshold = $('input[name="polymorphismThreshold"]').val()
-                if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold) {
-                    switch (polymorphismFilterType) {
-                        case 'sigma_HPRC256':
-                            conditions.push(`HPRC256_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_AoU1027':
-                            conditions.push(`AoU1027_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_TenK10K':
-                            conditions.push(`TenK10K_Stdev > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_1kGP':
-                            conditions.push(`StdevFromIllumina174k > ${polymorphismThreshold}`)
-                            break
-                        case 'sigma_T2T':
-                            conditions.push(`StdevFromT2TAssemblies > ${polymorphismThreshold}`)
-                            break
-                        default:
-                            console.error(`Unknown polymorphism filter type: ${polymorphismFilterType}`)
+                // Add polymorphism filter conditions (original + extra rows, combined with per-row conjunction)
+                {
+                    const polyClauses = [] // list of {conjunction, clause}
+                    const polymorphismFilter = $('input[name="polymorphismFilter"]').prop('checked')
+                    const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
+                    const polymorphismThreshold = ($('input[name="polymorphismThreshold"]').val() || '').trim()
+                    if (polymorphismFilter && polymorphismFilterType && polymorphismThreshold && POLYMORPHISM_SIGMA_COLUMNS[polymorphismFilterType]) {
+                        polyClauses.push({
+                            conjunction: null, // first clause has no preceding conjunction
+                            clause: `${POLYMORPHISM_SIGMA_COLUMNS[polymorphismFilterType]} >= ${Number(polymorphismThreshold)}`
+                        })
+                    }
+                    $('#polymorphism-filter-rows .polymorphism-filter-row').each(function() {
+                        const enabled = $(this).find('.polymorphism-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+                        if (!enabled) return
+                        const sigma = $(this).find('.polymorphism-filter-sigma-dropdown').dropdown('get value')
+                        const threshold = ($(this).find('.polymorphism-filter-threshold').val() || '').trim()
+                        if (!sigma || !POLYMORPHISM_SIGMA_COLUMNS[sigma]) return
+                        if (threshold === '' || !isFinite(Number(threshold))) return
+                        const conjunction = $(this).find('.polymorphism-filter-conjunction').dropdown('get value') || 'OR'
+                        polyClauses.push({
+                            conjunction: conjunction === 'AND' ? 'AND' : 'OR',
+                            clause: `${POLYMORPHISM_SIGMA_COLUMNS[sigma]} >= ${Number(threshold)}`
+                        })
+                    })
+                    if (polyClauses.length === 1) {
+                        conditions.push(polyClauses[0].clause)
+                    } else if (polyClauses.length > 1) {
+                        let combined = polyClauses[0].clause
+                        for (let i = 1; i < polyClauses.length; i++) {
+                            combined += ` ${polyClauses[i].conjunction} ${polyClauses[i].clause}`
+                        }
+                        conditions.push(`(${combined})`)
                     }
                 }
 
@@ -2438,32 +2813,52 @@
                     conditions.push(`(${regionConditions.join(' OR ')})`)
                 }
 
-                // Add custom filter conditions
-                const allowedFilterColumns = new Set(CUSTOM_FILTER_COLUMNS.map(c => c.name))
-                const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'])
-                $('#custom-filter-rows .custom-filter-row').each(function() {
-                    const columnName = $(this).find('.custom-filter-field').dropdown('get value')
-                    const operator = $(this).find('.custom-filter-op').dropdown('get value')
-                    const value = $(this).find('.custom-filter-value').val()
+                // Add custom filter conditions — multiple rows are combined with per-row
+                // conjunction (AND/OR); the first row's conjunction is ignored.
+                {
+                    const allowedFilterColumns = new Set(CUSTOM_FILTER_COLUMNS.map(c => c.name))
+                    const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'])
+                    const customClauses = [] // {conjunction, clause}
+                    $('#custom-filter-rows .custom-filter-row').each(function(idx) {
+                        const enabled = $(this).find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
+                        if (!enabled) return
 
-                    if (!columnName || !operator) return
-                    if (!allowedFilterColumns.has(columnName) || !allowedFilterOps.has(operator)) return
+                        const columnName = $(this).find('.custom-filter-field').dropdown('get value')
+                        const operator = $(this).find('.custom-filter-op').dropdown('get value')
+                        const value = $(this).find('.custom-filter-value').val()
+                        const conjunctionRaw = $(this).find('.custom-filter-conjunction').dropdown('get value') || 'AND'
+                        const conjunction = conjunctionRaw === 'OR' ? 'OR' : 'AND'
 
-                    const colInfo = getCustomFilterColumnInfo(columnName)
-                    const colType = colInfo ? colInfo.type : 'STRING'
+                        if (!columnName || !operator) return
+                        if (!allowedFilterColumns.has(columnName) || !allowedFilterOps.has(operator)) return
 
-                    if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
-                        conditions.push(`${columnName} ${operator}`)
-                    } else if (operator === 'LIKE') {
-                        const escapedValue = value.replace(/'/g, "''")
-                        conditions.push(`${columnName} LIKE '${escapedValue}'`)
-                    } else if (colType === 'STRING') {
-                        const escapedValue = value.replace(/'/g, "''")
-                        conditions.push(`${columnName} ${operator} '${escapedValue}'`)
-                    } else {
-                        conditions.push(`${columnName} ${operator} ${Number(value)}`)
+                        const colInfo = getCustomFilterColumnInfo(columnName)
+                        const colType = colInfo ? colInfo.type : 'STRING'
+
+                        let clause
+                        if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
+                            clause = `${columnName} ${operator}`
+                        } else if (operator === 'LIKE') {
+                            const escapedValue = value.replace(/'/g, "''")
+                            clause = `${columnName} LIKE '${escapedValue}'`
+                        } else if (colType === 'STRING') {
+                            const escapedValue = value.replace(/'/g, "''")
+                            clause = `${columnName} ${operator} '${escapedValue}'`
+                        } else {
+                            clause = `${columnName} ${operator} ${Number(value)}`
+                        }
+                        customClauses.push({ conjunction, clause })
+                    })
+                    if (customClauses.length === 1) {
+                        conditions.push(customClauses[0].clause)
+                    } else if (customClauses.length > 1) {
+                        let combined = customClauses[0].clause
+                        for (let i = 1; i < customClauses.length; i++) {
+                            combined += ` ${customClauses[i].conjunction} ${customClauses[i].clause}`
+                        }
+                        conditions.push(`(${combined})`)
                     }
-                })
+                }
             }
 
             //retrieve all required columns for the visible columns
@@ -2547,6 +2942,7 @@
             GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
             GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
             GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilters()
+            GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
             writePersistentPageStateToUrl()
 
             displaySearchResults()
@@ -2683,15 +3079,25 @@
         // Validate polymorphism threshold input
         if ($('input[name="polymorphismFilter"]').prop('checked')) {
             const polymorphismFilterType = $('#polymorphism-filter-dropdown').dropdown('get value')
-            const polymorphismThreshold = $('#polymorphism-threshold').val();
+            const polymorphismThresholdRaw = $('#polymorphism-threshold').val();
+            // Trim because Number(" ") === 0 — without trimming, a whitespace-only
+            // input would pass isNaN/parseFloat checks and emit a `>= 0` clause
+            // that silently widens the filter to match everything non-negative.
+            const polymorphismThreshold = (polymorphismThresholdRaw || '').trim();
+            // pctile_* columns store fractions in [0, 1]; thresholds outside that
+            // range silently return zero rows, so reject them up-front.
+            const isPercentile = polymorphismFilterType && polymorphismFilterType.startsWith('pctile_')
+            const thresholdOutOfPctileRange = isPercentile && (parseFloat(polymorphismThreshold) > 1)
 
-            if (!polymorphismFilterType || isNaN(polymorphismThreshold) || parseFloat(polymorphismThreshold) < 0) {
+            if (!polymorphismFilterType || polymorphismThreshold === '' || isNaN(polymorphismThreshold) || parseFloat(polymorphismThreshold) < 0 || thresholdOutOfPctileRange) {
                 // Ensure advanced search form is visible
                 if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
                     toggleAdvancedSearch()
                 }
                 if (!polymorphismFilterType) {
                     $('#form-error-message').html('<b>ERROR:</b> Nothing selected in the polymorphism filter dropdown').show();
+                } else if (thresholdOutOfPctileRange) {
+                    $('#form-error-message').html(`<b>ERROR:</b> The σ-rank percentile threshold '${escapeHtml(polymorphismThreshold)}' must be between 0 and 1`).show();
                 } else {
                     $('#form-error-message').html(`<b>ERROR:</b> The polymorphism filter value '${escapeHtml(polymorphismThreshold)}' is invalid`).show();
                 }
@@ -2701,6 +3107,45 @@
                 $('#polymorphism-threshold').closest('.field').removeClass('error');
             }
         }
+
+        // Validate extra polymorphism filter rows
+        let extraPolyValid = true
+        $('#polymorphism-filter-rows .polymorphism-filter-row').each(function() {
+            const $row = $(this)
+            if (!$row.find('.polymorphism-filter-enable-checkbox input[type="checkbox"]').is(':checked')) {
+                $row.removeClass('error')
+                return
+            }
+            const sigma = $row.find('.polymorphism-filter-sigma-dropdown').dropdown('get value')
+            const thresholdRaw = $row.find('.polymorphism-filter-threshold').val()
+            // Trim — Number(" ") === 0 so an untrimmed whitespace-only value
+            // would pass and emit a `>= 0` clause.
+            const threshold = (thresholdRaw || '').trim()
+            if (!sigma) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html('<b>ERROR:</b> Nothing selected in an extra polymorphism filter dropdown').show()
+                $row.addClass('error')
+                extraPolyValid = false
+                return false
+            }
+            if (threshold === '' || isNaN(threshold) || parseFloat(threshold) < 0) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> The extra polymorphism filter value '${escapeHtml(threshold)}' is invalid`).show()
+                $row.addClass('error')
+                extraPolyValid = false
+                return false
+            }
+            // pctile_* columns are fractions in [0, 1]; reject out-of-range thresholds.
+            if (sigma.startsWith('pctile_') && parseFloat(threshold) > 1) {
+                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
+                $('#form-error-message').html(`<b>ERROR:</b> The σ-rank percentile threshold '${escapeHtml(threshold)}' must be between 0 and 1`).show()
+                $row.addClass('error')
+                extraPolyValid = false
+                return false
+            }
+            $row.removeClass('error')
+        })
+        if (!extraPolyValid) return false
 
         // Validate variation cluster filter
         if ($('input[name="vcFilter"]').prop('checked')) {
@@ -2718,6 +3163,11 @@
         let customFilterValid = true
         $('#custom-filter-rows .custom-filter-row').each(function() {
             const $row = $(this)
+            // Skip validation for disabled filters since they won't be applied
+            if (!$row.find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')) {
+                $row.removeClass('error')
+                return
+            }
             const col = $row.find('.custom-filter-field').dropdown('get value')
             const op = $row.find('.custom-filter-op').dropdown('get value')
             const val = $row.find('.custom-filter-value').val()
@@ -2832,8 +3282,10 @@
     })
 
     // Initialize source catalog dropdown
-    $('#source-catalog-dropdown').dropdown()
-    
+    $('#source-catalog-dropdown').dropdown({
+        onChange: persistAllAdvancedFormStateToUrl
+    })
+
     // Polymorphism filter dropdown
     $('#polymorphism-filter-dropdown').dropdown({
         onShow: function() {
@@ -2843,9 +3295,10 @@
             $(this).css('z-index', '')
         },
         onChange: (value) => {
-            if (value) {
+            if (value && !suppressFormStatePersistence) {
                 $('input[name="polymorphismFilter"]').prop('checked', true)
             }
+            persistAllAdvancedFormStateToUrl()
         }
     })
 
@@ -2858,9 +3311,10 @@
             $(this).css('z-index', '')
         },
         onChange: (value) => {
-            if (value) {
+            if (value && !suppressFormStatePersistence) {
                 $('input[name="vcFilter"]').prop('checked', true)
             }
+            persistAllAdvancedFormStateToUrl()
         }
     })
 
@@ -2873,11 +3327,20 @@
             $(this).css('z-index', '')
         },
         onChange: (value) => {
-            if (value) {
+            if (value && !suppressFormStatePersistence) {
                 $('input[name="keepLociThatOverlapLocusSet"]').prop('checked', true)
             }
+            persistAllAdvancedFormStateToUrl()
         }
     })
+
+    // Persist changes to checkboxes and text inputs in the advanced form
+    // (and the main search input) immediately to the URL hash. Dropdowns are
+    // handled by their own Semantic-UI onChange callbacks above and in
+    // addCustomFilterRow / addPolymorphismFilterRow. Text inputs fire 'change'
+    // on blur so the URL doesn't churn on every keystroke.
+    $('#advanced-search-form').on('change', 'input[type="checkbox"], input[type="text"]', persistAllAdvancedFormStateToUrl)
+    $('#search-query').on('change', persistAllAdvancedFormStateToUrl)
 
     $('#known-disease-motifs-link').click((e) => {
         e.preventDefault()

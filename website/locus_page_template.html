@@ -541,7 +541,14 @@
         fetchAndRenderDecomposedAlleles(row['chrom_index'], row['start_0based'], row['end_1based'])
 
         $('.question').popup({ on: 'click' })
-        $('.show-popup').popup({ on: 'click', hoverable: true })
+        $('.show-popup').popup({
+            on: 'click',
+            hoverable: true,
+            onVisible: function() {
+                // Initialize any nested help icons (.nested-help-icon) inside this just-opened popup.
+                $(this).popup('get popup').find('.nested-help-icon').popup({ on: 'hover' })
+            }
+        })
         initGeneInfoLinks()
 
         // Consolidated click handler for showing IGV and navigating to the locus
