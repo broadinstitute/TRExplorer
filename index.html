@@ -6201,10 +6201,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Enable/disable checkbox
         $row.find('.custom-filter-enable-checkbox').checkbox({
-            onChange: function() {
-                applyCustomFilterRowEnabledState($row)
-                persistCustomFiltersToUrl()
-            }
+            onChange: persistCustomFiltersToUrl,
         })
 
         // Delete button
@@ -6217,12 +6214,6 @@ gtag('config', 'G-6R8FPBQRFH');
         $row.find('.custom-filter-help-icon').popup({ on: 'hover' })
 
         return $row
-    }
-
-    const applyCustomFilterRowEnabledState = ($row) => {
-        const enabled = $row.find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
-        // Only a visual indication — controls remain interactive so the user can edit while disabled
-        $row.toggleClass('custom-filter-disabled', !enabled)
     }
 
     // Captures the current state of every control in the advanced search form
@@ -6357,23 +6348,25 @@ gtag('config', 'G-6R8FPBQRFH');
             checkedColumns.add($(this).data('column-name'))
         })
 
-        // Get currently existing filter column names
-        const existingColumns = new Map()
+        // Single pass: remove every row whose column is no longer checked, and
+        // collect the set of columns that remain. Iterating directly (rather
+        // than via a Map<columnName, $row>) ensures that duplicate-column rows
+        // — which can arise if the user manually retargets one row's column
+        // dropdown to match another — are all removed, not just one.
+        const remainingColumns = new Set()
         $('#custom-filter-rows .custom-filter-row').each(function() {
             const val = $(this).find('.custom-filter-field').dropdown('get value')
-            if (val) existingColumns.set(val, $(this))
-        })
-
-        // Remove rows for columns that were unchecked
-        existingColumns.forEach(($row, colName) => {
-            if (!checkedColumns.has(colName)) {
-                $row.remove()
+            if (!val) return
+            if (checkedColumns.has(val)) {
+                remainingColumns.add(val)
+            } else {
+                $(this).remove()
             }
         })
 
         // Add rows for newly checked columns
         checkedColumns.forEach(colName => {
-            if (!existingColumns.has(colName)) {
+            if (!remainingColumns.has(colName)) {
                 addCustomFilterRow(colName)
             }
         })
@@ -6480,12 +6473,6 @@ gtag('config', 'G-6R8FPBQRFH');
 
     let polymorphismFilterNextId = 0
 
-    const applyPolymorphismFilterRowEnabledState = ($row) => {
-        const enabled = $row.find('.polymorphism-filter-enable-checkbox input[type="checkbox"]').is(':checked')
-        // Only a visual indication — controls remain interactive so the user can edit while disabled
-        $row.toggleClass('polymorphism-filter-disabled', !enabled)
-    }
-
     const persistExtraPolymorphismFiltersToUrl = persistAllAdvancedFormStateToUrl
 
     // Returns the current shared conjunction across all extra polymorphism filter rows,
@@ -6572,14 +6559,8 @@ gtag('config', 'G-6R8FPBQRFH');
         $row.find('.polymorphism-filter-threshold').on('change', persistExtraPolymorphismFiltersToUrl)
 
         $row.find('.polymorphism-filter-enable-checkbox').checkbox({
-            onChange: function() {
-                applyPolymorphismFilterRowEnabledState($row)
-                persistExtraPolymorphismFiltersToUrl()
-            }
+            onChange: persistExtraPolymorphismFiltersToUrl,
         })
-        if (!enabled) {
-            applyPolymorphismFilterRowEnabledState($row)
-        }
 
         $row.find('.polymorphism-filter-delete').click(function() {
             $row.remove()

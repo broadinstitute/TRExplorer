@@ -139,7 +139,11 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
     df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
     df_grouped_by_motif = df.groupby("canonical_motif")
-    df["stdev_rank_by_motif"] = df_grouped_by_motif["stdev"].rank(ascending=False)
+    # method="min" so tied top-stdev loci all get rank 1, which makes
+    # `stdev_rank_percentile = (N - rank + 1) / N` evaluate to 1.0 for every
+    # tied maximum — matching the column description that the percentile is
+    # the fraction of motif-mates with equal-or-lower stdev.
+    df["stdev_rank_by_motif"] = df_grouped_by_motif["stdev"].rank(method="min", ascending=False)
     df["stdev_rank_total_number_by_motif"] = df_grouped_by_motif["locus_id"].transform("count")
 
     total_records = len(df)
