@@ -200,7 +200,8 @@
                 <!-- Advanced Search (Initially Hidden) -->
                 <form id="advanced-search-form" class="ui form" style="display:none">
 
-                    <div class="field" style="padding-top: 5px; max-width: 155px">
+                    <div style="display: flex; gap: 120px; align-items: flex-end;">
+                    <div class="field" style="padding-top: 5px; max-width: 420px">
                         <label>Search TR Catalog</label>
                         <div class="ui selection dropdown" id="source-catalog-dropdown" style="min-width: 420px !important">
                             <input type="hidden" name="sourceCatalog">
@@ -335,9 +336,13 @@
                         </div>
                     </div>
 
+                    <div style="padding-bottom: 0.6em;">
+                        <a href="#" id="add-custom-filter-link">Add custom filter...</a>
+                    </div>
+                    </div>
+
                     <div class="field" style="padding-top: 5px">
                         <div id="custom-filter-rows"></div>
-                        <a href="#" id="add-custom-filter-link">Add custom filter...</a>
                     </div>
 
                     <div class="field" style="padding-top: 5px">
