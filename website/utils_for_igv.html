@@ -224,6 +224,12 @@
                 $('#igv-track-selection-dialog').modal('show')
                 $('.question').popup({ on: 'click' })
             })
+
+            $('#igv-tracks-clear-all').click((e) => {
+                e.preventDefault()
+                $('#igv-track-selection-dialog .igv-track-checkbox').checkbox('uncheck')
+            })
+
             $('#igv-tracks-modal-apply-button').click(async() => {
                 // update GLOBAL_PAGE_STATE with selected tracks
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {

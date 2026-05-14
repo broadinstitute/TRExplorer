@@ -1175,6 +1175,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 $('#igv-track-selection-dialog').modal('show')
                 $('.question').popup({ on: 'click' })
             })
+
+            $('#igv-tracks-clear-all').click((e) => {
+                e.preventDefault()
+                $('#igv-track-selection-dialog .igv-track-checkbox').checkbox('uncheck')
+            })
+
             $('#igv-tracks-modal-apply-button').click(async() => {
                 // update GLOBAL_PAGE_STATE with selected tracks
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -4639,8 +4645,11 @@ gtag('config', 'G-6R8FPBQRFH');
 <!-- modal dialog for selecting IGV tracks -->
 <div class="ui modal" id="igv-track-selection-dialog">
     <i class="close icon"></i>
-    <div class="header" style="white-space: nowrap;">
+    <div class="header" style="white-space: nowrap; display: flex; justify-content: space-between; align-items: center;">
         Select IGV Tracks
+        <span style="font-size: 14px; font-weight: normal;">
+            <a href="#" id="igv-tracks-clear-all" class="action-link">clear all</a>
+        </span>
     </div>
     <div class="content" style="padding-top:0px; max-height: 70vh; overflow-y: auto;">
         <div class="ui form">

@@ -7,8 +7,12 @@
 <!-- modal dialog for selecting results table columns -->
 <div class="ui modal" id="results-table-column-settings-dialog">
     <i class="close icon"></i>
-    <div class="header">
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
         Results Table Columns
+        <span style="font-size: 14px; font-weight: normal;">
+            <a href="#" id="results-columns-clear-all" class="action-link" style="margin-right: 15px;">clear all</a>
+            <a href="#" id="results-columns-select-all" class="action-link">select all</a>
+        </span>
     </div>
     <div class="content">
         <div class="ui form">
@@ -120,8 +124,11 @@
 <!-- modal dialog for selecting custom filter columns -->
 <div class="ui modal" id="custom-filter-column-dialog">
     <i class="close icon"></i>
-    <div class="header">
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
         Select custom filter column(s)
+        <span style="font-size: 14px; font-weight: normal;">
+            <a href="#" id="custom-filter-columns-clear-all" class="action-link">clear all</a>
+        </span>
     </div>
     <div class="content">
         <div class="ui form">
@@ -1520,6 +1527,11 @@
         showCustomFilterColumnDialog()
     })
 
+    $('#custom-filter-columns-clear-all').click((e) => {
+        e.preventDefault()
+        $('#custom-filter-column-checkboxes .ui.checkbox').checkbox('uncheck')
+    })
+
     // "Add Filters" button handler in modal
     $('#custom-filter-dialog-add-button').click(function() {
         const checkedColumns = new Set()
@@ -1587,7 +1599,10 @@
         const parts = serialized.split(';')
         parts.forEach(part => {
             const segments = part.split('|')
-            if (segments.length < 2) return
+            // Format: col|op|encoded_val|conj (4 segments). The value is
+            // URL-encoded so a literal '|' in it is %7C and the last segment is
+            // unambiguously the conjunction.
+            if (segments.length < 4) return
             let col = segments[0]
             let enabled = true
             if (col.startsWith('!')) {
@@ -1595,21 +1610,8 @@
                 col = col.slice(1)
             }
             const op = segments[1]
-            // New format: col|op|encoded_val|conj (4 segments). The value field
-            // is URL-encoded so a literal '|' in the value is %7C and cannot be
-            // confused with the conjunction segment.
-            // Legacy format: col|op|encoded_val (3 segments, before per-row
-            // conjunction existed) — parsed with the default AND conjunction.
-            let conjunction = 'AND'
-            let valueEncoded
-            if (segments.length === 3) {
-                valueEncoded = segments[2]
-            } else if (segments.length >= 4 && (segments[segments.length - 1] === 'AND' || segments[segments.length - 1] === 'OR')) {
-                conjunction = segments[segments.length - 1]
-                valueEncoded = segments.slice(2, -1).join('|')
-            } else {
-                valueEncoded = segments.slice(2).join('|')
-            }
+            const conjunction = segments[segments.length - 1] === 'OR' ? 'OR' : 'AND'
+            const valueEncoded = segments.slice(2, -1).join('|')
             let val
             try {
                 val = decodeURIComponent(valueEncoded)
@@ -2419,6 +2421,16 @@
             $('.question').popup({ on: 'click' })
         })
 
+        $('#results-columns-select-all').click((e) => {
+            e.preventDefault()
+            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('check')
+        })
+
+        $('#results-columns-clear-all').click((e) => {
+            e.preventDefault()
+            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('uncheck')
+        })
+
         // handle Apply button click in column settings dialog
         $('#results-table-column-settings-apply-button').click(() => {
             const selectedColumns = []
@@ -2899,32 +2911,7 @@
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
 
-            GLOBAL_PAGE_STATE['searchQuery'] = searchQuery
-
-            GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
-
-            GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
-            GLOBAL_PAGE_STATE['keepMotif'] = $('#motif-input').val()
-
-            GLOBAL_PAGE_STATE['keepCodingLoci'] = $('input[name="keepCodingLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepFiveUTRLoci'] = $('input[name="keepFiveUTRLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepThreeUTRLoci'] = $('input[name="keepThreeUTRLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepPromoterLoci'] = $('input[name="keepPromoterLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepIntronLoci'] = $('input[name="keepIntronLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepIntergenicLoci'] = $('input[name="keepIntergenicLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepNonCodingExonLoci'] = $('input[name="keepNonCodingExonLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepLociThatOverlapDiseaseAssociatedLoci'] = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSet'] = $('input[name="keepLociThatOverlapLocusSet"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'] = $('#overlap-locus-set-dropdown').dropdown('get value')
-
-            GLOBAL_PAGE_STATE['polymorphismFilter'] = $('input[name="polymorphismFilter"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
-            GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
-            GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
-            GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
-            GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilters()
-            GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
-            writePersistentPageStateToUrl()
+            persistAllAdvancedFormStateToUrl()
 
             displaySearchResults()
 
