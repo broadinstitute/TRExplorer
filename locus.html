@@ -4597,9 +4597,14 @@ gtag('config', 'G-6R8FPBQRFH');
     const renderAlleleRow = (allele, rank, totalCalled, colorMap) => {
         const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
         const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
-        const refBadge = allele.isRef
-            ? '<span style="display:inline-block; margin-left:8px; padding:1px 6px; background:#eee; color:#555; font-size:0.85em; border-radius:3px;">reference</span>'
-            : ''
+        // The reference row gets a sentence-style header with an orange "reference allele"
+        // badge (matching the histogram's ref-allele bar color). Non-reference rows keep
+        // the terse "count/total (freq%)" form.
+        const countFreqHtml = `${allele.count}/${totalCalled} (${freq}%)`
+        const rowHeader = allele.isRef
+            ? `<span style="display:inline-block; margin-left:10px; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px;">reference allele</span>
+               <span style="margin-left:10px; color:#333;">represents ${countFreqHtml} of HPRC256 haplotypes</span>`
+            : `<span style="margin-left:10px; color:#333;">${countFreqHtml}</span>`
 
         let compositionHtml = ''
         let metaLine = ''
@@ -4643,8 +4648,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                     <div>
                         <span style="font-weight:600; color:#555;">#${rank}</span>
-                        <span style="margin-left:10px; color:#333;">${allele.count}/${totalCalled} (${freq}%)</span>
-                        ${refBadge}
+                        ${rowHeader}
                     </div>
                     <div style="color:#888; font-size:0.9em;">${metaLine}</div>
                 </div>
