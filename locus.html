@@ -4435,8 +4435,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const DECOMPOSED_ALLELES_PAGE_SIZE = 100
-    const RLE_THRESHOLD = 200    // collapse runs once allele has more than this many motif units
-    const MAX_BOXES_PER_ALLELE = 500  // hard cap on visible blocks per allele
+    const MAX_BOXES_PER_ALLELE = 500  // hard cap on visible blocks per allele, applied only in 'collapsed' mode
 
     // Canonical-motif equivalence. Two motifs share a canonical form iff one can be
     // turned into the other by some cyclic shift and/or reverse complement. The
@@ -4465,18 +4464,24 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // Column definitions for the HPRC256 allele table. Each column has a sort key and a
     // default sort direction (clicked-from-default applies this direction first).
+    // Numeric columns have fixed widths so re-sorting (which changes value lengths)
+    // doesn't reshuffle the table layout. The Sequence column has no width and absorbs
+    // the remaining horizontal space.
     const ALLELE_TABLE_COLUMNS = {
         sequence: { displayName: 'Sequence', defaultSortDirection: 'ASC', align: 'left',
+                    width: null,
                     getSortKey: a => a.motifUnits.join(',') },
-        ref:      { displayName: '', defaultSortDirection: 'DESC', align: 'center',
-                    getSortKey: a => a.isRef ? 1 : 0 },
         percent:  { displayName: 'Percent', defaultSortDirection: 'DESC', align: 'right',
+                    width: '90px',
                     getSortKey: a => a.count },
         fraction: { displayName: 'Fraction', defaultSortDirection: 'DESC', align: 'right',
+                    width: '95px',
                     getSortKey: a => a.count },
         repeats:  { displayName: 'Repeats', defaultSortDirection: 'DESC', align: 'right',
+                    width: '90px',
                     getSortKey: a => a.motifUnits.length },
         size:     { displayName: 'Allele size', defaultSortDirection: 'DESC', align: 'right',
+                    width: '110px',
                     getSortKey: a => a.skipReason === 'spanning_del' ? -1 : a.seq.length },
     }
 
@@ -4622,18 +4627,15 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     // Returns an array of render blocks for one allele's composition viz. `mode`
-    // is 'boxes' (default — one box per repeat unit, RLE only when over the threshold)
-    // or 'collapsed' (always RLE — every run becomes a labeled block).
+    // is 'boxes' (one box per repeat unit, regardless of allele length) or
+    // 'collapsed' (always RLE — every run becomes a labeled block; capped at
+    // MAX_BOXES_PER_ALLELE via windowed coalesce for adversarially long alleles).
     const buildAlleleBlocks = (motifUnits, mode) => {
         if (motifUnits.length === 0) return []
-        let blocks
-        if (mode === 'collapsed' || motifUnits.length > RLE_THRESHOLD) {
-            blocks = rleCollapse(motifUnits)
-        } else {
-            blocks = motifUnits.map(m => ({ motif: m, runLength: 1 }))
+        if (mode === 'collapsed') {
+            return coalesceToMixed(rleCollapse(motifUnits), MAX_BOXES_PER_ALLELE)
         }
-        // Hard cap to MAX_BOXES_PER_ALLELE via windowed coalesce.
-        return coalesceToMixed(blocks, MAX_BOXES_PER_ALLELE)
+        return motifUnits.map(m => ({ motif: m, runLength: 1 }))
     }
 
     // Build the HTML for a single composition viz (the row of colored boxes).
@@ -4697,17 +4699,19 @@ gtag('config', 'G-6R8FPBQRFH');
     const renderAlleleTableRow = (allele, totalCalled, colorMap, mode) => {
         const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
         const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
+        // Reference rows prepend the orange badge above the composition viz inside
+        // the Sequence cell — no dedicated badge column.
         const refBadge = allele.isRef
-            ? `<span style="display:inline-block; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px; white-space:nowrap;">reference allele</span>`
+            ? `<div style="margin-bottom:6px;"><span style="display:inline-block; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px; white-space:nowrap;">reference allele</span></div>`
             : ''
         const seqCell = renderAlleleSequenceCell(allele, colorMap, mode)
+        const widthFor = key => ALLELE_TABLE_COLUMNS[key].width ? `width:${ALLELE_TABLE_COLUMNS[key].width};` : ''
         return `<tr>
-            <td style="padding:6px 8px; vertical-align:middle;">${seqCell}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:center;">${refBadge}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; font-weight:600; color:#333;">${freq}%</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; color:#666;">${allele.count}/${totalCalled}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap;">${allele.motifUnits.length}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap;">${lengthBp} bp</td>
+            <td style="padding:6px 8px; vertical-align:middle;">${refBadge}${seqCell}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp} bp</td>
         </tr>`
     }
 
@@ -4720,9 +4724,10 @@ gtag('config', 'G-6R8FPBQRFH');
             if (isSorted) {
                 icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
             }
+            const widthStyle = col.width ? `width:${col.width};` : ''
             return `<th class="${isSorted ? 'sorted' : ''} decomposed-alleles-sortable-header"
                         data-column="${key}"
-                        style="cursor:pointer; user-select:none; text-align:${col.align}; padding:8px; white-space:nowrap;">
+                        style="cursor:pointer; user-select:none; text-align:${col.align}; padding:8px; white-space:nowrap; ${widthStyle}">
                 ${escapeHtmlText(col.displayName)} ${icon}
             </th>`
         }).join('')
