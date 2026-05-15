@@ -3254,7 +3254,8 @@
 
     $('#search-form').submit(handleSearch)
     $('#advanced-search-form').submit(handleSearch)
-    $('#advanced-search-form').find('input').keypress((e) => {
+    // Delegated handler so dynamically-added inputs (e.g. custom filter rows) submit on Enter
+    $('#advanced-search-form').on('keypress', 'input', (e) => {
         if (e.which === 13) {
             e.preventDefault()
             handleSearch(e)
