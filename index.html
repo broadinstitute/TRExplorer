@@ -4814,10 +4814,14 @@ gtag('config', 'G-6R8FPBQRFH');
         })
         if (rankedRare.length > 0) {
             // Single-quoted data-html to allow inline <div> markup without attribute escaping.
+            // `break-inside:avoid` keeps each motif on a single column line; the outer
+            // CSS-columns + max-height/overflow combo flows long rare lists into a
+            // multi-column grid that stays inside the viewport (Semantic UI otherwise
+            // errors with "Popup does not fit within the boundaries of the viewport").
             const rareHtml = rankedRare
-                .map(m => `<div style="font-family:monospace; line-height:1.5;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
+                .map(m => `<div style="font-family:monospace; break-inside:avoid;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
                 .join('')
-            const popupHtml = `<div style="min-width:140px;"><div style="font-size:0.85em; color:#666; margin-bottom:4px;">Rare motif units</div>${rareHtml}</div>`
+            const popupHtml = `<div style="min-width:240px; max-width:520px;"><div style="font-size:0.85em; color:#666; margin-bottom:6px;">Rare motif units</div><div style="column-width:100px; column-gap:18px; max-height:50vh; overflow-y:auto; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div>`
             items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
                 style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
