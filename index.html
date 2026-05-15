@@ -4662,7 +4662,10 @@ gtag('config', 'G-6R8FPBQRFH');
             const style = isRun
                 ? `display:inline-flex; align-items:center; justify-content:center; min-width:42px; height:24px; padding:0 4px; background:${color}; color:#fff; font-size:11px; font-family:monospace; border-right:1px solid #fff; box-sizing:border-box;`
                 : `display:inline-block; width:12px; height:24px; background:${color}; border-right:1px solid #fff; box-sizing:border-box;`
-            return `<span style="${style}" title="${escapeHtmlText(title)}">${escapeHtmlText(label)}</span>`
+            // Semantic UI's `.popup()` reads `data-content` and removes its own copy
+            // after init; the `allele-motif-box` class is the selector we bind to in
+            // observeCompositionPlaceholders right after the placeholder is injected.
+            return `<span class="allele-motif-box" style="${style}" data-content="${escapeHtmlText(title)}">${escapeHtmlText(label)}</span>`
         })
         return `<div style="display:flex; flex-wrap:wrap; align-items:stretch; line-height:0;">${boxParts.join('')}</div>`
     }
@@ -4685,8 +4688,14 @@ gtag('config', 'G-6R8FPBQRFH');
                 <div style="margin-top:4px; font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${escapeHtmlText(allele.seq)}</div>`
         }
         if (mode === 'dotted') {
-            const dotted = allele.motifUnits.map(escapeHtmlText).join('&middot;')
-            return `<div style="font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${dotted}</div>`
+            // Each motif unit is colored by its canonical-class color (same map used for
+            // the boxes). The parent div's gray `color` shows through on the &middot;
+            // separators between motifs.
+            const parts = allele.motifUnits.map(m => {
+                const color = colorMap[m] || OTHER_MOTIFS_COLOR
+                return `<span style="color:${color}; font-weight:600;">${escapeHtmlText(m)}</span>`
+            })
+            return `<div style="font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#aaa;">${parts.join('&middot;')}</div>`
         }
         // 'boxes' or 'collapsed' — same renderer, different block-building strategy.
         const blocks = buildAlleleBlocks(allele.motifUnits, mode)
@@ -4700,19 +4709,23 @@ gtag('config', 'G-6R8FPBQRFH');
     const renderAlleleTableRow = (allele, totalCalled, colorMap, mode) => {
         const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
         const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
-        // Reference rows prepend the orange badge above the composition viz inside
-        // the Sequence cell — no dedicated badge column.
+        // Reference rows place the orange badge at the right edge of the Sequence cell.
+        // `margin-left:auto` pushes the badge to the right within the flex container;
+        // `flex-wrap:wrap` lets it drop to its own line when the composition viz wraps.
         const refBadge = allele.isRef
-            ? `<div style="margin-bottom:6px;"><span style="display:inline-block; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px; white-space:nowrap;">reference allele</span></div>`
+            ? `<span style="display:inline-block; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px; white-space:nowrap; margin-left:auto;">reference allele</span>`
             : ''
         const seqCell = renderAlleleSequenceCell(allele, colorMap, mode)
+        const cellContent = refBadge
+            ? `<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">${seqCell}${refBadge}</div>`
+            : seqCell
         const widthFor = key => ALLELE_TABLE_COLUMNS[key].width ? `width:${ALLELE_TABLE_COLUMNS[key].width};` : ''
         return `<tr>
-            <td style="padding:6px 8px; vertical-align:middle;">${refBadge}${seqCell}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
-            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp} bp</td>
+            <td style="padding:8px; vertical-align:top;">${cellContent}</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp} bp</td>
         </tr>`
     }
 
@@ -4841,30 +4854,55 @@ gtag('config', 'G-6R8FPBQRFH');
             </div>`
     }
 
+    // Shared Semantic UI tooltip element + delegated hover handler for the motif boxes.
+    // We never call `.popup()` per-box: with thousands of boxes per allele the
+    // per-element binding cost is prohibitive. Instead one floating `.ui.popup` div
+    // gets repositioned on hover via a single event-delegated handler on document.
+    let motifBoxTooltipEl = null
+    let motifBoxTooltipBound = false
+    const ensureMotifBoxTooltip = () => {
+        if (motifBoxTooltipBound) return
+        motifBoxTooltipBound = true
+        motifBoxTooltipEl = $('<div class="ui inverted mini popup" style="position:absolute; display:none; z-index:9999; pointer-events:none;"></div>')
+            .appendTo('body')
+        $(document)
+            .on('mouseenter', '.allele-motif-box', function() {
+                const content = this.getAttribute('data-content') || ''
+                if (!content) return
+                motifBoxTooltipEl.text(content).css({ visibility: 'hidden' }).show()
+                const trigger = this.getBoundingClientRect()
+                const popup = motifBoxTooltipEl[0].getBoundingClientRect()
+                motifBoxTooltipEl.css({
+                    top: trigger.top + window.scrollY - popup.height - 6,
+                    left: trigger.left + window.scrollX + trigger.width / 2 - popup.width / 2,
+                    visibility: 'visible',
+                })
+            })
+            .on('mouseleave', '.allele-motif-box', () => motifBoxTooltipEl.hide())
+    }
+
     // Inject composition markup for an allele row when it scrolls into view, then stop
     // observing it. Off-screen alleles never pay DOM cost for the colored boxes.
     const observeCompositionPlaceholders = () => {
+        ensureMotifBoxTooltip()
         if (DECOMPOSED_ALLELES_STATE.observer) {
             DECOMPOSED_ALLELES_STATE.observer.disconnect()
         }
+        const injectCompositionBoxes = (placeholderEl) => {
+            const html = placeholderEl.getAttribute('data-blocks-html') || ''
+            placeholderEl.classList.remove('allele-composition-placeholder')
+            placeholderEl.innerHTML = html
+            placeholderEl.removeAttribute('data-blocks-html')
+        }
         if (typeof IntersectionObserver === 'undefined') {
-            // Fallback: render everything immediately.
-            $('.allele-composition-placeholder').each(function() {
-                const html = $(this).attr('data-blocks-html') || ''
-                $(this).removeClass('allele-composition-placeholder')
-                $(this).html(html)
-            })
+            document.querySelectorAll('.allele-composition-placeholder').forEach(injectCompositionBoxes)
             return
         }
         DECOMPOSED_ALLELES_STATE.observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (!entry.isIntersecting) return
-                const el = entry.target
-                const html = el.getAttribute('data-blocks-html') || ''
-                el.classList.remove('allele-composition-placeholder')
-                el.innerHTML = html
-                el.removeAttribute('data-blocks-html')
-                observer.unobserve(el)
+                injectCompositionBoxes(entry.target)
+                observer.unobserve(entry.target)
             })
         }, { rootMargin: '200px 0px' })
         document.querySelectorAll('.allele-composition-placeholder').forEach(el => {
