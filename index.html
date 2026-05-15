@@ -2609,6 +2609,7 @@ gtag('config', 'G-6R8FPBQRFH');
         'hprc256_purity_sex':      'hprc256ps',
         'hprc256_methylation_pop': 'hprc256mp',
         'hprc256_methylation_sex': 'hprc256ms',
+        'hprc256_decomposed_alleles_mode': 'hprc256dam',
     }
 
     // Reverse mapping from URL param names to internal state names
@@ -4830,7 +4831,8 @@ gtag('config', 'G-6R8FPBQRFH');
         state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
         state.sortColumn = null
         state.sortDirection = null
-        state.sequenceMode = 'boxes'
+        // sequenceMode persists across page loads via the URL hash (hprc256dam).
+        state.sequenceMode = GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_mode']
 
         const visible = getVisibleAlleles()
         const colorInfo = buildMotifColorMap(visible)
@@ -4970,7 +4972,10 @@ gtag('config', 'G-6R8FPBQRFH');
             rerenderDecomposedAllelesTable()
         })
         $('#decomposed-alleles-sequence-mode').off('change').on('change', function() {
-            DECOMPOSED_ALLELES_STATE.sequenceMode = $(this).val()
+            const newMode = $(this).val()
+            DECOMPOSED_ALLELES_STATE.sequenceMode = newMode
+            GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_mode'] = newMode
+            writePersistentPageStateToUrl()
             rerenderDecomposedAllelesTable()
         })
     }
