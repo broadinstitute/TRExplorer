@@ -2509,7 +2509,7 @@ gtag('config', 'G-6R8FPBQRFH');
             // Stash markup in a data attribute; the IntersectionObserver will inject it
             // when the row scrolls into view.
             compositionHtml = `<div class="allele-composition-placeholder" data-blocks-html="${escapeHtmlText(blocksHtml)}" style="min-height:24px;"></div>`
-            metaLine = `${lengthBp} bp &middot; ${allele.motifUnits.length} repeat${allele.motifUnits.length === 1 ? '' : 's'}`
+            metaLine = `${allele.motifUnits.length} repeat${allele.motifUnits.length === 1 ? '' : 's'} (${lengthBp} bp)`
             sequenceDisclosure = `
                 <details style="margin-top:6px;">
                     <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
