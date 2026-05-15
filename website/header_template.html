@@ -139,7 +139,7 @@ gtag('config', 'G-6R8FPBQRFH');
         "#f9c74f", "#fee191", "#fcbba1",
     ]
     const OTHER_MOTIFS_COLOR = "#333333"
-    const MAX_COLORED_MOTIFS = 5
+    const MAX_COLORED_MOTIFS = 10
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -2303,11 +2303,70 @@ gtag('config', 'G-6R8FPBQRFH');
         totalCalledHaplotypes: 0,
         visibleCount: 0,
         observer: null,         // IntersectionObserver instance (recreated per fetch)
+        sortColumn: null,       // null = default order (input order = by count desc)
+        sortDirection: null,    // 'ASC' | 'DESC' | null
+        sequenceMode: 'boxes',  // 'boxes' | 'dotted' | 'collapsed'
     }
 
-    const DECOMPOSED_ALLELES_PAGE_SIZE = 20
+    const DECOMPOSED_ALLELES_PAGE_SIZE = 100
     const RLE_THRESHOLD = 200    // collapse runs once allele has more than this many motif units
     const MAX_BOXES_PER_ALLELE = 500  // hard cap on visible blocks per allele
+
+    // Canonical-motif equivalence for color assignment. Two motifs share a color iff
+    // their canonical forms are equal — where canonical = min lex of all rotations of
+    // the motif AND of its reverse complement. So `AAG`, `AGA`, `GAA`, `TTC`, `TCT`,
+    // `CTT` all canonicalize to `AAG`.
+    const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C', N: 'N' }
+    const reverseComplement = (s) => {
+        let rc = ''
+        for (let i = s.length - 1; i >= 0; i--) rc += (COMPLEMENT[s[i]] || s[i])
+        return rc
+    }
+    const minRotation = (s) => {
+        let best = s
+        for (let i = 1; i < s.length; i++) {
+            const rot = s.slice(i) + s.slice(0, i)
+            if (rot < best) best = rot
+        }
+        return best
+    }
+    const canonicalMotif = (m) => {
+        // Non-ACGT tokens (e.g. interruption substrings from the worker's mono/di bypass)
+        // are returned as-is — each forms its own canonical class.
+        if (!/^[ACGT]+$/.test(m)) return m
+        const a = minRotation(m)
+        const b = minRotation(reverseComplement(m))
+        return a < b ? a : b
+    }
+
+    // Column definitions for the HPRC256 allele table. Each column has a sort key and a
+    // default sort direction (clicked-from-default applies this direction first).
+    const ALLELE_TABLE_COLUMNS = {
+        sequence: { displayName: 'Sequence', defaultSortDirection: 'ASC', align: 'left',
+                    getSortKey: a => a.motifUnits.join(',') },
+        ref:      { displayName: '', defaultSortDirection: 'DESC', align: 'center',
+                    getSortKey: a => a.isRef ? 1 : 0 },
+        percent:  { displayName: 'Percent', defaultSortDirection: 'DESC', align: 'right',
+                    getSortKey: a => a.count },
+        fraction: { displayName: 'Fraction', defaultSortDirection: 'DESC', align: 'right',
+                    getSortKey: a => a.count },
+        repeats:  { displayName: 'Repeats', defaultSortDirection: 'DESC', align: 'right',
+                    getSortKey: a => a.motifUnits.length },
+        size:     { displayName: 'Allele size', defaultSortDirection: 'DESC', align: 'right',
+                    getSortKey: a => a.skipReason === 'spanning_del' ? -1 : a.seq.length },
+    }
+
+    // Stable sort: returns a new array; null sortColumn/Direction means default order.
+    const sortAlleles = (alleles, sortColumn, sortDirection) => {
+        if (!sortColumn || !sortDirection) return alleles.slice()
+        const col = ALLELE_TABLE_COLUMNS[sortColumn]
+        if (!col) return alleles.slice()
+        const dir = sortDirection === 'ASC' ? 1 : -1
+        return alleles
+            .map((a, i) => ({ a, k: col.getSortKey(a), i }))
+            .sort((x, y) => (x.k < y.k ? -dir : x.k > y.k ? dir : x.i - y.i))
+            .map(o => o.a)
+    }
 
     const fetchAndRenderDecomposedAlleles = async (chromIndex, start_0based, end_1based) => {
         if (chromIndex == null || start_0based == null || end_1based == null) {
@@ -2330,7 +2389,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 return
             }
             $('#locus-page-allele-sequences').html(renderDecomposedAllelesSection(queryRow))
-            wireLoadMoreButton()
+            wireDecomposedAlleles()
         } catch (e) {
             // Table may not exist yet (placeholder timestamp). Fail silently — log only.
             console.warn('Decomposed alleles fetch failed:', e)
@@ -2362,8 +2421,13 @@ gtag('config', 'G-6R8FPBQRFH');
     // Build a motif color map from the alleles currently being displayed. For each
     // displayed allele, every motif-unit occurrence in its composition contributes 1
     // to that motif's count (so e.g. "A,A,A,T,A" adds A+=4, T+=1). Motifs are then
-    // ranked by descending count (alphabetical tiebreak); the top MAX_COLORED_MOTIFS
-    // get unique palette colors and the rest are reported as "rare".
+    // ranked by descending count (alphabetical tiebreak).
+    //
+    // Color assignment is *per canonical class* (rotation + reverse complement):
+    // motifs sharing a canonical class share a color. The first MOTIF_COLORS.length
+    // canonical classes (in rank order) get unique palette colors; later classes
+    // fall back to OTHER_MOTIFS_COLOR. The legend shows the top MAX_COLORED_MOTIFS
+    // motifs by count; the rest are aggregated under a clickable "Other" entry.
     const buildMotifColorMap = (alleles) => {
         const counts = {}
         alleles.forEach(a => {
@@ -2374,11 +2438,22 @@ gtag('config', 'G-6R8FPBQRFH');
         const ranked = Object.keys(counts).sort(
             (x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0)
         )
-        const colorBudget = Math.min(MAX_COLORED_MOTIFS, MOTIF_COLORS.length)
-        const rankedTop = ranked.slice(0, colorBudget)
-        const rankedRare = ranked.slice(colorBudget)
+        const canonicalColor = new Map()
+        let nextColorIdx = 0
         const colorMap = {}
-        rankedTop.forEach((m, i) => { colorMap[m] = MOTIF_COLORS[i] })
+        ranked.forEach(m => {
+            const canon = canonicalMotif(m)
+            if (!canonicalColor.has(canon)) {
+                canonicalColor.set(
+                    canon,
+                    nextColorIdx < MOTIF_COLORS.length ? MOTIF_COLORS[nextColorIdx] : OTHER_MOTIFS_COLOR
+                )
+                nextColorIdx += 1
+            }
+            colorMap[m] = canonicalColor.get(canon)
+        })
+        const rankedTop = ranked.slice(0, MAX_COLORED_MOTIFS)
+        const rankedRare = ranked.slice(MAX_COLORED_MOTIFS)
         const rareTotal = rankedRare.reduce((acc, m) => acc + counts[m], 0)
         return { colorMap, motifCounts: counts, rankedTop, rankedRare, rareTotal }
     }
@@ -2422,13 +2497,13 @@ gtag('config', 'G-6R8FPBQRFH');
         return result
     }
 
-    // Returns an array of render blocks for one allele's composition viz.
-    const buildAlleleBlocks = (motifUnits) => {
+    // Returns an array of render blocks for one allele's composition viz. `mode`
+    // is 'boxes' (default — one box per repeat unit, RLE only when over the threshold)
+    // or 'collapsed' (always RLE — every run becomes a labeled block).
+    const buildAlleleBlocks = (motifUnits, mode) => {
         if (motifUnits.length === 0) return []
-        // RLE collapse if too many motif units. For short alleles, render every motif
-        // as its own block (so they read like a continuous bar of small boxes).
         let blocks
-        if (motifUnits.length > RLE_THRESHOLD) {
+        if (mode === 'collapsed' || motifUnits.length > RLE_THRESHOLD) {
             blocks = rleCollapse(motifUnits)
         } else {
             blocks = motifUnits.map(m => ({ motif: m, runLength: 1 }))
@@ -2465,74 +2540,96 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<div style="display:flex; flex-wrap:wrap; align-items:stretch; line-height:0;">${boxParts.join('')}</div>`
     }
 
-    // Build the HTML for a single allele row. The composition viz markup is stored in
-    // a data attribute and only injected into the DOM when the row scrolls into view
-    // (see IntersectionObserver wiring in wireLoadMoreButton).
-    const renderAlleleRow = (allele, rank, totalCalled, colorMap) => {
+    // Build the HTML for the Sequence cell. `mode` controls the form:
+    //   'boxes'     — colored composition viz (RLE only when over RLE_THRESHOLD).
+    //   'collapsed' — always RLE; every run is a labeled block.
+    //   'dotted'    — text form like "CAG&middot;CAG&middot;CAT" (no boxes).
+    // Skipped alleles ignore `mode` and show the skip note + raw sequence inline.
+    const renderAlleleSequenceCell = (allele, colorMap, mode) => {
+        if (allele.skipReason === 'spanning_del') {
+            return `<div style="font-style:italic; color:#888;">(spanning deletion)</div>`
+        }
+        if (allele.skipReason) {
+            let note
+            if (allele.skipReason === 'too_long') note = '(decomposition skipped: too long)'
+            else if (allele.skipReason === 'invalid_chars') note = '(skipped: contains N or other non-ACGT)'
+            else note = `(skipped: ${allele.skipReason})`
+            return `<div style="font-style:italic; color:#888;">${escapeHtmlText(note)}</div>
+                <div style="margin-top:4px; font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${escapeHtmlText(allele.seq)}</div>`
+        }
+        if (mode === 'dotted') {
+            const dotted = allele.motifUnits.map(escapeHtmlText).join('&middot;')
+            return `<div style="font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${dotted}</div>`
+        }
+        // 'boxes' or 'collapsed' — same renderer, different block-building strategy.
+        const blocks = buildAlleleBlocks(allele.motifUnits, mode)
+        const blocksHtml = renderCompositionBoxes(blocks, colorMap)
+        // Lazy-render: stash the markup in a data attribute and let
+        // observeCompositionPlaceholders swap it in when the row scrolls into view.
+        return `<div class="allele-composition-placeholder" data-blocks-html="${escapeHtmlText(blocksHtml)}" style="min-height:24px;"></div>`
+    }
+
+    // Build the HTML for a single allele <tr> in the table.
+    const renderAlleleTableRow = (allele, totalCalled, colorMap, mode) => {
         const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
         const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
-        // All rows lead with the percentage and demote the raw fraction to secondary
-        // metadata. Reference rows append an orange "reference allele" badge (color
-        // matches the histogram's ref-allele bar).
         const refBadge = allele.isRef
-            ? `<span style="display:inline-block; margin-left:10px; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px;">reference allele</span>`
+            ? `<span style="display:inline-block; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px; white-space:nowrap;">reference allele</span>`
             : ''
-        const rowHeader = `<span style="margin-left:10px; color:#333; font-weight:600;">${freq}%</span>
-            <span style="margin-left:10px; color:#888; font-size:0.9em;">(${allele.count}/${totalCalled} haplotypes)</span>
-            ${refBadge}`
+        const seqCell = renderAlleleSequenceCell(allele, colorMap, mode)
+        return `<tr>
+            <td style="padding:6px 8px; vertical-align:middle;">${seqCell}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:center;">${refBadge}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; font-weight:600; color:#333;">${freq}%</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap; color:#666;">${allele.count}/${totalCalled}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap;">${allele.motifUnits.length}</td>
+            <td style="padding:6px 8px; vertical-align:middle; text-align:right; white-space:nowrap;">${lengthBp} bp</td>
+        </tr>`
+    }
 
-        let compositionHtml = ''
-        let metaLine = ''
-        let sequenceDisclosure = ''
-
-        if (allele.skipReason === 'spanning_del') {
-            compositionHtml = `<div style="font-style:italic; color:#888;">(spanning deletion)</div>`
-            metaLine = ''
-        } else if (allele.skipReason) {
-            let note
-            if (allele.skipReason === 'too_long') {
-                note = '(decomposition skipped: too long)'
-            } else if (allele.skipReason === 'invalid_chars') {
-                note = '(skipped: contains N or other non-ACGT)'
-            } else {
-                note = `(skipped: ${allele.skipReason})`
+    // Build the sortable <thead>. The icon reflects the current sort state for the
+    // column (neutral / up / down). Click handling is wired in rewireDecomposedAllelesHandlers.
+    const renderAlleleTableHeader = (sortColumn, sortDirection) => {
+        const cells = Object.entries(ALLELE_TABLE_COLUMNS).map(([key, col]) => {
+            const isSorted = key === sortColumn && sortDirection != null
+            let icon = '<i class="sort icon"></i>'
+            if (isSorted) {
+                icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
             }
-            compositionHtml = `<div style="font-style:italic; color:#888;">${escapeHtmlText(note)}</div>`
-            metaLine = `${lengthBp} bp`
-            sequenceDisclosure = `
-                <details style="margin-top:6px;">
-                    <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
-                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; word-break:break-all; color:#333;">${escapeHtmlText(allele.seq)}</div>
-                </details>`
-        } else {
-            const blocks = buildAlleleBlocks(allele.motifUnits)
-            const blocksHtml = renderCompositionBoxes(blocks, colorMap)
-            // Stash markup in a data attribute; the IntersectionObserver will inject it
-            // when the row scrolls into view.
-            compositionHtml = `<div class="allele-composition-placeholder" data-blocks-html="${escapeHtmlText(blocksHtml)}" style="min-height:24px;"></div>`
-            metaLine = `${allele.motifUnits.length} repeat${allele.motifUnits.length === 1 ? '' : 's'} (${lengthBp} bp)`
-            // Render the sequence as its trviz repeat decomposition (dot-separated units),
-            // so it lines up visually with the composition boxes above it.
-            const dottedSeq = allele.motifUnits.map(escapeHtmlText).join('&middot;')
-            sequenceDisclosure = `
-                <details style="margin-top:6px;">
-                    <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
-                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${dottedSeq}</div>
-                </details>`
-        }
+            return `<th class="${isSorted ? 'sorted' : ''} decomposed-alleles-sortable-header"
+                        data-column="${key}"
+                        style="cursor:pointer; user-select:none; text-align:${col.align}; padding:8px; white-space:nowrap;">
+                ${escapeHtmlText(col.displayName)} ${icon}
+            </th>`
+        }).join('')
+        return `<thead><tr>${cells}</tr></thead>`
+    }
 
-        return `
-            <div class="decomposed-allele-row" style="padding:8px 0; border-bottom:1px solid #eee;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                    <div>
-                        <span style="font-weight:600; color:#555;">#${rank}</span>
-                        ${rowHeader}
-                    </div>
-                    <div style="color:#888; font-size:0.9em;">${metaLine}</div>
-                </div>
-                ${compositionHtml}
-                ${sequenceDisclosure}
-            </div>`
+    // Assemble the full <table> for the currently-visible slice.
+    const renderAlleleTable = (visible, totalCalled, colorMap, mode, sortColumn, sortDirection) => {
+        const rowsHtml = visible.map(a => renderAlleleTableRow(a, totalCalled, colorMap, mode)).join('')
+        return `<table class="ui sortable celled table" style="margin:0;">
+            ${renderAlleleTableHeader(sortColumn, sortDirection)}
+            <tbody>${rowsHtml}</tbody>
+        </table>`
+    }
+
+    // Dropdown above the table that toggles the sequence-column display mode.
+    const renderSequenceModeSelector = (mode) => {
+        const opts = [
+            { value: 'boxes', label: 'Repeat boxes' },
+            { value: 'dotted', label: 'Dotted text (e.g. CAG·CAG·CAT)' },
+            { value: 'collapsed', label: 'Collapsed boxes (e.g. 5x CAG  1x CAT)' },
+        ]
+        const optsHtml = opts.map(o =>
+            `<option value="${o.value}"${o.value === mode ? ' selected' : ''}>${o.label}</option>`
+        ).join('')
+        return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <label for="decomposed-alleles-sequence-mode" style="color:#666; font-size:0.95em;">Sequence display:</label>
+            <select id="decomposed-alleles-sequence-mode" style="padding:4px 8px; font-size:0.9em;">
+                ${optsHtml}
+            </select>
+        </div>`
     }
 
     const renderLegend = ({ colorMap, motifCounts, rankedTop, rankedRare, rareTotal }) => {
@@ -2560,29 +2657,44 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<div style="display:flex; flex-wrap:wrap; align-items:center;">${items.join('')}</div>`
     }
 
+    // Helpers for getting the currently-visible slice (after sort) and the
+    // load-more button HTML.
+    const getVisibleAlleles = () => {
+        const state = DECOMPOSED_ALLELES_STATE
+        const sorted = sortAlleles(state.alleles, state.sortColumn, state.sortDirection)
+        return sorted.slice(0, state.visibleCount)
+    }
+    const renderLoadMoreButton = () => {
+        const state = DECOMPOSED_ALLELES_STATE
+        if (state.visibleCount >= state.alleles.length) return ''
+        return `<div style="text-align:center; margin-top:12px;">
+                    <button id="decomposed-alleles-load-more" class="ui small button">
+                        Load more (showing ${state.visibleCount} of ${state.alleles.length})
+                    </button>
+                </div>`
+    }
+
     const renderDecomposedAllelesSection = (queryRow) => {
         const alleles = parseAlleleData(queryRow.allele_data)
         const totalCalled = parseInt(queryRow.total_allele_number, 10) || 0
         const totalUnique = parseInt(queryRow.total_unique_alleles, 10) || alleles.length
 
-        // Stash state for the "Load more" button.
-        DECOMPOSED_ALLELES_STATE.alleles = alleles
-        DECOMPOSED_ALLELES_STATE.totalCalledHaplotypes = totalCalled
-        DECOMPOSED_ALLELES_STATE.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
+        // Reset state for this locus. Sort and sequence-mode are reset to defaults so
+        // navigating between loci doesn't carry over stale settings.
+        const state = DECOMPOSED_ALLELES_STATE
+        state.alleles = alleles
+        state.totalCalledHaplotypes = totalCalled
+        state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
+        state.sortColumn = null
+        state.sortDirection = null
+        state.sequenceMode = 'boxes'
 
-        const visible = alleles.slice(0, DECOMPOSED_ALLELES_STATE.visibleCount)
+        const visible = getVisibleAlleles()
         const colorInfo = buildMotifColorMap(visible)
-        const initialRowsHtml = visible
-            .map((a, i) => renderAlleleRow(a, i + 1, totalCalled, colorInfo.colorMap))
-            .join('')
-
-        const loadMoreHtml = alleles.length > DECOMPOSED_ALLELES_STATE.visibleCount
-            ? `<div style="text-align:center; margin-top:12px;">
-                   <button id="decomposed-alleles-load-more" class="ui small button">
-                       Load more (showing ${DECOMPOSED_ALLELES_STATE.visibleCount} of ${alleles.length})
-                   </button>
-               </div>`
-            : ''
+        const tableHtml = renderAlleleTable(
+            visible, totalCalled, colorInfo.colorMap, state.sequenceMode,
+            state.sortColumn, state.sortDirection,
+        )
 
         return `
             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
@@ -2593,8 +2705,9 @@ gtag('config', 'G-6R8FPBQRFH');
                     </div>
                 </div>
                 <div id="decomposed-alleles-legend" style="margin-bottom:12px;">${renderLegend(colorInfo)}</div>
-                <div id="decomposed-alleles-list">${initialRowsHtml}</div>
-                <div id="decomposed-alleles-load-more-container">${loadMoreHtml}</div>
+                ${renderSequenceModeSelector(state.sequenceMode)}
+                <div id="decomposed-alleles-table-container">${tableHtml}</div>
+                <div id="decomposed-alleles-load-more-container">${renderLoadMoreButton()}</div>
             </div>`
     }
 
@@ -2636,36 +2749,71 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#decomposed-alleles-legend .show-popup').popup({ on: 'click', hoverable: true })
     }
 
-    const wireLoadMoreButton = () => {
-        observeCompositionPlaceholders()
+    // Re-render the table body + legend + load-more button using the current state.
+    // Called after any state change (sort, load-more, sequence-mode change).
+    const rerenderDecomposedAllelesTable = () => {
+        const state = DECOMPOSED_ALLELES_STATE
+        const visible = getVisibleAlleles()
+        const colorInfo = buildMotifColorMap(visible)
+        const tableHtml = renderAlleleTable(
+            visible, state.totalCalledHaplotypes, colorInfo.colorMap, state.sequenceMode,
+            state.sortColumn, state.sortDirection,
+        )
+        $('#decomposed-alleles-table-container').html(tableHtml)
+        $('#decomposed-alleles-legend').html(renderLegend(colorInfo))
+        $('#decomposed-alleles-load-more-container').html(renderLoadMoreButton())
         initLegendPopup()
+        wireDecomposedAllelesHandlers()
+        observeCompositionPlaceholders()
+    }
+
+    // Cycle sort state for the clicked column. Click sequence per column:
+    //   default order -> column's default direction
+    //   default direction -> opposite direction
+    //   opposite direction -> back to default order
+    const cycleSortForColumn = (column) => {
+        const state = DECOMPOSED_ALLELES_STATE
+        const col = ALLELE_TABLE_COLUMNS[column]
+        const defaultDir = col?.defaultSortDirection || 'ASC'
+        const oppositeDir = defaultDir === 'ASC' ? 'DESC' : 'ASC'
+        if (state.sortColumn !== column) {
+            state.sortColumn = column
+            state.sortDirection = defaultDir
+        } else if (state.sortDirection === defaultDir) {
+            state.sortDirection = oppositeDir
+        } else {
+            state.sortColumn = null
+            state.sortDirection = null
+        }
+        // Sorting reshuffles rows — reset paging to the first page.
+        state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
+    }
+
+    // Wire all click/change handlers on the section. Idempotent — uses `.off()` first
+    // so re-rendering doesn't double-bind.
+    const wireDecomposedAllelesHandlers = () => {
         $('#decomposed-alleles-load-more').off('click').on('click', () => {
             const state = DECOMPOSED_ALLELES_STATE
-            const nextCount = Math.min(state.visibleCount + DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
-            state.visibleCount = nextCount
-
-            // Re-tally over the now-visible alleles so the top-5 colors and legend
-            // counts reflect the expanded set. Then re-render every visible row so
-            // its composition boxes use the new color map.
-            const visible = state.alleles.slice(0, state.visibleCount)
-            const colorInfo = buildMotifColorMap(visible)
-            const rowsHtml = visible
-                .map((a, i) => renderAlleleRow(a, i + 1, state.totalCalledHaplotypes, colorInfo.colorMap))
-                .join('')
-            $('#decomposed-alleles-list').html(rowsHtml)
-            $('#decomposed-alleles-legend').html(renderLegend(colorInfo))
-            initLegendPopup()
-
-            if (state.visibleCount >= state.alleles.length) {
-                $('#decomposed-alleles-load-more-container').html('')
-            } else {
-                $('#decomposed-alleles-load-more').text(
-                    `Load more (showing ${state.visibleCount} of ${state.alleles.length})`
-                )
-            }
-            // Observe composition placeholders for the freshly-rendered rows.
-            observeCompositionPlaceholders()
+            state.visibleCount = Math.min(state.visibleCount + DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
+            rerenderDecomposedAllelesTable()
         })
+        $('.decomposed-alleles-sortable-header').off('click').on('click', function() {
+            cycleSortForColumn($(this).data('column'))
+            rerenderDecomposedAllelesTable()
+        })
+        $('#decomposed-alleles-sequence-mode').off('change').on('change', function() {
+            DECOMPOSED_ALLELES_STATE.sequenceMode = $(this).val()
+            rerenderDecomposedAllelesTable()
+        })
+    }
+
+    // Called once after the section is first rendered for a locus. Sets up handlers,
+    // observers, and the legend popup; subsequent state changes go through
+    // rerenderDecomposedAllelesTable.
+    const wireDecomposedAlleles = () => {
+        wireDecomposedAllelesHandlers()
+        initLegendPopup()
+        observeCompositionPlaceholders()
     }
 
 </script>
