@@ -2734,48 +2734,13 @@
                     }
                 }
 
-                const reverseCompliment = (m) => {
-                    const complement = {
-                        'A': 'T',
-                        'T': 'A',
-                        'C': 'G',
-                        'G': 'C',
-                        'R': 'Y',
-                        'Y': 'R',
-                        'M': 'K',
-                        'K': 'M',
-                        'B': 'V',
-                        'D': 'H',
-                        'H': 'D',
-                        'V': 'B',
-                    }
-                    
-                    return m.toUpperCase().split('').map(base => complement[base] || base).reverse().join('')
-                }
-
-                const computeCanonicalMotif = (m) => {
-                    m = m.toUpperCase()
-                    
-                    const rotations = []
-                    for (let i = 0; i < m.length; i++) {
-                        rotations.push(m.slice(i) + m.slice(0, i))
-                    }
-                    
-                    // Get reverse complement of each rotation
-                    const allVariants = [...rotations, ...rotations.map(rot => reverseCompliment(rot))]
-                    
-                    // Return the lexicographically smallest variant
-                    return allVariants.sort()[0]
-                }
-
-                
                 let motifInput = $('#motif-input').val()
                 if (motifInput) {
                     motifInput = motifInput.trim()
                     const motifs = motifInput.split(',').map(m => m.trim()).filter(m => m !== '')
                     if (motifs.length > 0) {
-                        const motifClauses = motifs.map(motif => 
-                            `UPPER(CanonicalMotif) = UPPER('${computeCanonicalMotif(motif)}')`
+                        const motifClauses = motifs.map(motif =>
+                            `UPPER(CanonicalMotif) = UPPER('${canonicalMotif(motif)}')`
                         )
                         conditions.push(`(${motifClauses.join(' OR ')})`)
                     }

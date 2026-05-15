@@ -4438,31 +4438,29 @@ gtag('config', 'G-6R8FPBQRFH');
     const RLE_THRESHOLD = 200    // collapse runs once allele has more than this many motif units
     const MAX_BOXES_PER_ALLELE = 500  // hard cap on visible blocks per allele
 
-    // Canonical-motif equivalence for color assignment. Two motifs share a color iff
-    // their canonical forms are equal — where canonical = min lex of all rotations of
-    // the motif AND of its reverse complement. So `AAG`, `AGA`, `GAA`, `TTC`, `TCT`,
-    // `CTT` all canonicalize to `AAG`.
-    const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C', N: 'N' }
-    const reverseComplement = (s) => {
-        let rc = ''
-        for (let i = s.length - 1; i >= 0; i--) rc += (COMPLEMENT[s[i]] || s[i])
-        return rc
+    // Canonical-motif equivalence. Two motifs share a canonical form iff one can be
+    // turned into the other by some cyclic shift and/or reverse complement. The
+    // canonical form is the lex-smallest string among all rotations of the motif and
+    // all rotations of its reverse complement — so `AAG`, `AGA`, `GAA`, `TTC`, `TCT`,
+    // `CTT` all canonicalize to `AAG`. Used both by the index page's motif search
+    // (CanonicalMotif column) and the locus page's allele-color assignment.
+    const COMPLEMENT = {
+        A: 'T', T: 'A', C: 'G', G: 'C',
+        R: 'Y', Y: 'R', M: 'K', K: 'M',
+        B: 'V', V: 'B', D: 'H', H: 'D',
+        N: 'N',
     }
-    const minRotation = (s) => {
-        let best = s
-        for (let i = 1; i < s.length; i++) {
-            const rot = s.slice(i) + s.slice(0, i)
-            if (rot < best) best = rot
-        }
-        return best
-    }
+    const reverseComplement = (m) =>
+        m.toUpperCase().split('').map(b => COMPLEMENT[b] || b).reverse().join('')
+
     const canonicalMotif = (m) => {
-        // Non-ACGT tokens (e.g. interruption substrings from the worker's mono/di bypass)
-        // are returned as-is — each forms its own canonical class.
-        if (!/^[ACGT]+$/.test(m)) return m
-        const a = minRotation(m)
-        const b = minRotation(reverseComplement(m))
-        return a < b ? a : b
+        m = m.toUpperCase()
+        const rotations = []
+        for (let i = 0; i < m.length; i++) {
+            rotations.push(m.slice(i) + m.slice(0, i))
+        }
+        const allVariants = [...rotations, ...rotations.map(reverseComplement)]
+        return allVariants.sort()[0]
     }
 
     // Column definitions for the HPRC256 allele table. Each column has a sort key and a
