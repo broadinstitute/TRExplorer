@@ -4598,14 +4598,15 @@ gtag('config', 'G-6R8FPBQRFH');
     const renderAlleleRow = (allele, rank, totalCalled, colorMap) => {
         const freq = totalCalled > 0 ? (100 * allele.count / totalCalled).toFixed(1) : '0.0'
         const lengthBp = allele.skipReason === 'spanning_del' ? 0 : allele.seq.length
-        // The reference row gets a sentence-style header with an orange "reference allele"
-        // badge (matching the histogram's ref-allele bar color). Non-reference rows lead
-        // with the percentage and demote the raw fraction to secondary metadata.
-        const rowHeader = allele.isRef
-            ? `<span style="display:inline-block; margin-left:10px; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px;">reference allele</span>
-               <span style="margin-left:10px; color:#333;">represents ${allele.count}/${totalCalled} (${freq}%) of HPRC256 haplotypes</span>`
-            : `<span style="margin-left:10px; color:#333; font-weight:600;">${freq}%</span>
-               <span style="margin-left:10px; color:#888; font-size:0.9em;">(${allele.count}/${totalCalled} haplotypes)</span>`
+        // All rows lead with the percentage and demote the raw fraction to secondary
+        // metadata. Reference rows append an orange "reference allele" badge (color
+        // matches the histogram's ref-allele bar).
+        const refBadge = allele.isRef
+            ? `<span style="display:inline-block; margin-left:10px; padding:1px 6px; background:rgba(255, 165, 0, 0.7); border:1px solid rgba(255, 165, 0, 1); color:#555; font-size:0.85em; border-radius:3px;">reference allele</span>`
+            : ''
+        const rowHeader = `<span style="margin-left:10px; color:#333; font-weight:600;">${freq}%</span>
+            <span style="margin-left:10px; color:#888; font-size:0.9em;">(${allele.count}/${totalCalled} haplotypes)</span>
+            ${refBadge}`
 
         let compositionHtml = ''
         let metaLine = ''
@@ -4637,10 +4638,13 @@ gtag('config', 'G-6R8FPBQRFH');
             // when the row scrolls into view.
             compositionHtml = `<div class="allele-composition-placeholder" data-blocks-html="${escapeHtmlText(blocksHtml)}" style="min-height:24px;"></div>`
             metaLine = `${allele.motifUnits.length} repeat${allele.motifUnits.length === 1 ? '' : 's'} (${lengthBp} bp)`
+            // Render the sequence as its trviz repeat decomposition (dot-separated units),
+            // so it lines up visually with the composition boxes above it.
+            const dottedSeq = allele.motifUnits.map(escapeHtmlText).join('&middot;')
             sequenceDisclosure = `
                 <details style="margin-top:6px;">
                     <summary style="cursor:pointer; color:#555; font-size:0.9em;">Show sequence</summary>
-                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; word-break:break-all; color:#333;">${escapeHtmlText(allele.seq)}</div>
+                    <div style="margin-top:6px; font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${dottedSeq}</div>
                 </details>`
         }
 
