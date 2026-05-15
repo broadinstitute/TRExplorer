@@ -4881,12 +4881,16 @@ gtag('config', 'G-6R8FPBQRFH');
             state.sortColumn, state.sortDirection,
         )
 
+        // Help-icon body for the summary line. Single-quoted data-html so the inner
+        // <a> tags can use double-quoted attributes without escaping.
+        const summaryHelpHtml = 'Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). TRGT alleles at this locus were split into motifs using <a href="https://github.com/Jong-hun-Park/trviz" target="_blank">TRViz decompose</a> (<a href="https://doi.org/10.1093/bioadv/vbad058" target="_blank">Park <i>et al.</i> 2023</a>).'
         return `
             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                 <div style="margin-bottom:10px;">
                     <h3 style="margin:0;">HPRC256 Allele Sequences</h3>
                     <div style="color:#666; font-size:0.95em; margin-top:4px;">
                         ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} across ${totalCalled} haplotype${totalCalled === 1 ? '' : 's'}
+                        <i class="question circle outline icon link decomposed-alleles-help" style="margin-left:4px; color:#888;" data-html='${summaryHelpHtml}'></i>
                     </div>
                 </div>
                 <div id="decomposed-alleles-legend" style="margin-bottom:12px;">${renderLegend(colorInfo)}</div>
@@ -5036,6 +5040,13 @@ gtag('config', 'G-6R8FPBQRFH');
         wireDecomposedAllelesHandlers()
         initLegendPopup()
         observeCompositionPlaceholders()
+        // The section header's `?` icon — appears once at initial render and is not
+        // touched by rerenderDecomposedAllelesTable, so a single bind here is enough.
+        $('.decomposed-alleles-help').popup({
+            on: 'click',
+            hoverable: true,
+            position: 'bottom left',
+        })
     }
 
 </script>
