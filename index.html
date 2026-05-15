@@ -4821,7 +4821,7 @@ gtag('config', 'G-6R8FPBQRFH');
             const rareHtml = rankedRare
                 .map(m => `<div style="font-family:monospace; break-inside:avoid;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
                 .join('')
-            const popupHtml = `<div style="min-width:240px; max-width:520px;"><div style="font-size:0.85em; color:#666; margin-bottom:6px;">Rare motif units</div><div style="column-width:100px; column-gap:18px; max-height:50vh; overflow-y:auto; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div>`
+            const popupHtml = `<div style="min-width:240px; max-width:520px;"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="column-width:100px; column-gap:18px; max-height:50vh; overflow-y:auto; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div>`
             items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
                 style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
