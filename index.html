@@ -6058,12 +6058,13 @@ gtag('config', 'G-6R8FPBQRFH');
             { value: '=', label: '=' },
             { value: '!=', label: '\u2260' },
             { value: 'LIKE', label: 'LIKE' },
+            { value: 'NOT LIKE', label: 'NOT LIKE' },
             { value: 'IS NULL', label: 'IS NULL' },
             { value: 'IS NOT NULL', label: 'IS NOT NULL' },
         ]
     }
 
-    const LIKE_HELP_TEXT = ' The LIKE operator does pattern matching. Use % to match any sequence of characters and _ to match any single character. For example, "SCN_A" would match "SCN2A", "SCN3A", etc, while "SCN%" would match any name that starts with "SCN".'
+    const LIKE_HELP_TEXT = ' The LIKE / NOT LIKE operators do pattern matching. Use % to match any sequence of characters and _ to match any single character. For example, "SCN_A" would match "SCN2A", "SCN3A", etc, while "SCN%" would match any name that starts with "SCN".'
 
     const updateFilterTooltip = ($row) => {
         const fieldValue = $row.find('.custom-filter-field').dropdown('get value')
@@ -6071,8 +6072,9 @@ gtag('config', 'G-6R8FPBQRFH');
         const info = getCustomFilterColumnInfo(fieldValue)
         const $helpIcon = $row.find('.custom-filter-help-icon')
         let text = info ? (info.description || '') : ''
-        if (opValue === 'LIKE' && text) text += LIKE_HELP_TEXT
-        else if (opValue === 'LIKE') text = LIKE_HELP_TEXT.trim()
+        const isLikeOp = opValue === 'LIKE' || opValue === 'NOT LIKE'
+        if (isLikeOp && text) text += LIKE_HELP_TEXT
+        else if (isLikeOp) text = LIKE_HELP_TEXT.trim()
         if (text) {
             const escaped = text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             $helpIcon.attr('data-tooltip', escaped).show()
@@ -6146,7 +6148,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 <div class="default text">Select column</div>
                 <div class="menu">${buildColumnDropdownMenu()}</div>
             </div>
-            <div class="ui selection dropdown custom-filter-op" style="min-width: 100px;">
+            <div class="ui selection dropdown custom-filter-op" style="min-width: 130px;">
                 <input type="hidden" name="customFilterOp_${filterId}">
                 <i class="dropdown icon"></i>
                 <div class="default text">Op</div>
@@ -7651,7 +7653,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 // conjunction (AND/OR); the first row's conjunction is ignored.
                 {
                     const allowedFilterColumns = new Set(CUSTOM_FILTER_COLUMNS.map(c => c.name))
-                    const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'])
+                    const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IS NULL', 'IS NOT NULL'])
                     const customClauses = [] // {conjunction, clause}
                     $('#custom-filter-rows .custom-filter-row').each(function(idx) {
                         const enabled = $(this).find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
@@ -7672,9 +7674,9 @@ gtag('config', 'G-6R8FPBQRFH');
                         let clause
                         if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
                             clause = `${columnName} ${operator}`
-                        } else if (operator === 'LIKE') {
+                        } else if (operator === 'LIKE' || operator === 'NOT LIKE') {
                             const escapedValue = value.replace(/'/g, "''")
-                            clause = `${columnName} LIKE '${escapedValue}'`
+                            clause = `${columnName} ${operator} '${escapedValue}'`
                         } else if (colType === 'STRING') {
                             const escapedValue = value.replace(/'/g, "''")
                             clause = `${columnName} ${operator} '${escapedValue}'`
