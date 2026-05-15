@@ -2,6 +2,8 @@
 
 import http.server
 import os
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -9,6 +11,9 @@ import pytest
 
 # Directory containing the generated HTML files (index.html, locus.html, etc.)
 WEBSITE_DIR = os.path.join(os.path.dirname(__file__), "..", "..")
+
+# Directory containing the Jinja2 templates and generate_website.py
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..")
 
 
 class QuietHTTPHandler(http.server.SimpleHTTPRequestHandler):
@@ -18,8 +23,22 @@ class QuietHTTPHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+@pytest.fixture(scope="session", autouse=True)
+def regenerate_website():
+    """Regenerate index.html / locus.html etc. from templates before tests run.
+
+    Tests serve the static HTML at the repo root, but the source of truth is the
+    Jinja2 templates in website/. Without this step, template-only changes would
+    not be picked up unless the developer manually re-ran generate_website.py.
+    """
+    subprocess.check_call(
+        [sys.executable, "generate_website.py"],
+        cwd=TEMPLATE_DIR,
+    )
+
+
 @pytest.fixture(scope="session")
-def base_url():
+def base_url(regenerate_website):
     """Start a local HTTP server serving the generated website files."""
     handler = lambda *args, **kwargs: QuietHTTPHandler(*args, directory=WEBSITE_DIR, **kwargs)
     server = http.server.HTTPServer(("127.0.0.1", 0), handler)

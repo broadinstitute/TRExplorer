@@ -5874,7 +5874,9 @@ gtag('config', 'G-6R8FPBQRFH');
             $container.find('.page-number-input').on('change keypress', function(e) {
                 if (e.type === 'change' || e.which === 13) {
                     const newPage = parseInt($(this).val())
-                    if (newPage !== currentPage) {
+                    if (!Number.isFinite(newPage)) {
+                        $(this).val(currentPage)
+                    } else if (newPage !== currentPage) {
                         GLOBAL_PAGE_STATE['currentPage'] = Math.max(1, Math.min(newPage, totalPages))
                         writePersistentPageStateToUrl()
                         performSearch(true)
@@ -7257,40 +7259,43 @@ gtag('config', 'G-6R8FPBQRFH');
             $('.question').popup({ on: 'click' })
         })
 
-        $('#results-columns-select-all').click((e) => {
-            e.preventDefault()
-            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('check')
-        })
-
-        $('#results-columns-clear-all').click((e) => {
-            e.preventDefault()
-            $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('uncheck')
-        })
-
-        // handle Apply button click in column settings dialog
-        $('#results-table-column-settings-apply-button').click(() => {
-            const selectedColumns = []
-            $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {
-                if ($(this).prop('checked')) {
-                    const columnName = $(this).attr('name').replace('show_column_', '')
-                    selectedColumns.push(columnName)
-                }
-            })
-
-            GLOBAL_PAGE_STATE['showColumns'] = selectedColumns.join(SHOW_COLUMNS_VALUE_DELIMITER)
-            writePersistentPageStateToUrl()
-            performSearch(true)
-
-            $('#results-table-column-settings-dialog').modal('hide')
-        })
-
-        $('#results-table-column-settings-cancel-button').click(() => {
-            $('#results-table-column-settings-dialog').modal('hide')
-        })
-
         GLOBAL_PAGE_STATE['showRs'] = 1
         writePersistentPageStateToUrl()
     }
+
+    // Column-settings modal controls live in the static modal HTML at the top of the page,
+    // so their click handlers must be bound exactly once at page init — not from inside
+    // displaySearchResults(), which would re-bind them on every search and cause Apply to
+    // fire performSearch(true) N times after N searches.
+    $('#results-columns-select-all').click((e) => {
+        e.preventDefault()
+        $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('check')
+    })
+
+    $('#results-columns-clear-all').click((e) => {
+        e.preventDefault()
+        $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox('uncheck')
+    })
+
+    $('#results-table-column-settings-apply-button').click(() => {
+        const selectedColumns = []
+        $('.results-table-column-settings-checkboxes input[type="checkbox"]').each(function() {
+            if ($(this).prop('checked')) {
+                const columnName = $(this).attr('name').replace('show_column_', '')
+                selectedColumns.push(columnName)
+            }
+        })
+
+        GLOBAL_PAGE_STATE['showColumns'] = selectedColumns.join(SHOW_COLUMNS_VALUE_DELIMITER)
+        writePersistentPageStateToUrl()
+        performSearch(true)
+
+        $('#results-table-column-settings-dialog').modal('hide')
+    })
+
+    $('#results-table-column-settings-cancel-button').click(() => {
+        $('#results-table-column-settings-dialog').modal('hide')
+    })
 
     const splitSearchQuery = (searchQuery) => {
         if (!searchQuery) {
