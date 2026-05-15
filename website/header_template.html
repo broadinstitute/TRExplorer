@@ -128,8 +128,9 @@ gtag('config', 'G-6R8FPBQRFH');
     // each time the decomposed-alleles parquet is loaded into BigQuery.
     const HPRC256_DECOMPOSED_ALLELES_TABLE_ID = '`cmg-analysis.tandem_repeat_explorer.hprc256_decomposed_alleles_20260511_210353`'
 
-    // Ported from the trviz CACNA1C example. Motifs at this locus are assigned
-    // colors by rank (descending occurrence count); past the palette length, fall
+    // Ported from the trviz CACNA1C example. Motifs at a locus are assigned
+    // colors by rank (descending occurrence count across currently-displayed
+    // alleles); the top MAX_COLORED_MOTIFS get unique colors, the rest fall
     // back to OTHER_MOTIFS_COLOR.
     const MOTIF_COLORS = [
         "#08519c", "#4292c6", "#9ecae1",
@@ -138,6 +139,7 @@ gtag('config', 'G-6R8FPBQRFH');
         "#f9c74f", "#fee191", "#fcbba1",
     ]
     const OTHER_MOTIFS_COLOR = "#333333"
+    const MAX_COLORED_MOTIFS = 5
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -1464,7 +1466,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const order = ['OMIM', 'ClinGen', 'ClinVar', 'HGMD', 'GeneCards', 'Decipher', 'Geno2MP', 'Monarch', 'Protein Atlas', 'GTEx', 'UniProt', 'gnomAD', 'primAD', 'KEGG', 'PubMed', 'NCBI Gene']
         const linksHtml = order.filter(k => !exclude.has(k)).map(k => linkSpecs[k]).filter(s => s).join('')
         if (!linksHtml) return ''
-        return `<div class="gene-info-external-links"><span class="gene-info-section-label">Extra Links:</span>${linksHtml}</div>`
+        return `<div class="gene-info-external-links"><span class="gene-info-section-label">Links:</span>${linksHtml}</div>`
     }
 
     const buildGeneLookupSourceAttribution = (hgncId, ensemblId) => {
@@ -1475,19 +1477,135 @@ gtag('config', 'G-6R8FPBQRFH');
         return `<div class="gene-info-source-attribution">Loaded from <a href="${url}" target="_blank">GeneLookup</a></div>`
     }
 
-    const SOURCE_GENE_PAGE_URL_BUILDERS = {
-        'OMIM':       ({ mimNumber }) => mimNumber ? `https://omim.org/entry/${encodeURIComponent(mimNumber)}` : null,
-        'ClinGen':    ({ hgncId }) => hgncId ? `https://search.clinicalgenome.org/kb/gene-dosage/${hgncId}` : null,
-        'GenCC':      ({ hgncId }) => hgncId ? `https://search.thegencc.org/genes/${hgncId}` : null,
-        'PanelAppUK': ({ geneSymbol }) => geneSymbol ? `https://panelapp.genomicsengland.co.uk/panels/entities/${geneSymbol}` : null,
-        'PanelAppAU': ({ geneSymbol }) => geneSymbol ? `https://panelapp-aus.org/panels/entities/${geneSymbol}` : null,
-        'Decipher':   ({ ensemblId }) => ensemblId ? `https://www.deciphergenomics.org/gene/${ensemblId}/overview/protein-genomic-info` : null,
-        'ClinVar':    ({ geneSymbol }) => geneSymbol ? `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]` : null,
-        'HGMD':       ({ geneSymbol }) => geneSymbol ? `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}` : null,
-        'GWAS':       ({ geneSymbol }) => geneSymbol ? `https://www.ebi.ac.uk/gwas/genes/${geneSymbol}` : null,
-        'Fridman':    () => 'https://pubmed.ncbi.nlm.nih.gov/40374730/',
-        'dbNSFP':     () => 'https://www.dbnsfp.org/',
+    const gnomadGeneUrl = (ensemblId, dataset) => ensemblId
+        ? `https://gnomad.broadinstitute.org/gene/${encodeURIComponent(ensemblId)}?dataset=${dataset}`
+        : 'https://gnomad.broadinstitute.org/'
+
+    // Constraint-score thresholds for red/yellow highlighting in the gene-info popup.
+    // pLI: higher = more constrained; LOEUF/MOEUF: lower = more constrained.
+    const CONSTRAINT_THRESHOLDS = {
+        'pLI_v2': { red: { value: 0.9, operator: '>=' } },
+        'pLI_v4': { red: { value: 0.9, operator: '>=' } },
+        'LOEUF':  { red: { value: 0.2, operator: '<'  }, yellow: { value: 0.6, operator: '<' } },
     }
+    const CONSTRAINT_RED_COLOR = '#c0392b'
+    const CONSTRAINT_YELLOW_COLOR = '#b8860b'
+
+    const constraintOpSymbol = (op) => op === '>=' ? '≥' : op === '<=' ? '≤' : op
+
+    const constraintCrosses = (cfg, val) => {
+        if (!cfg) return false
+        switch (cfg.operator) {
+            case '>=': return val >= cfg.value
+            case '<=': return val <= cfg.value
+            case '>':  return val >  cfg.value
+            case '<':  return val <  cfg.value
+        }
+        return false
+    }
+
+    const constraintPopupHtml = (label, key) => {
+        const t = CONSTRAINT_THRESHOLDS[key]
+        if (!t) return `<div style='white-space: nowrap;'><b>${label}</b></div>`
+        const lines = [`<b>${label}</b>`]
+        if (t.red)    lines.push(`<span style='color: ${CONSTRAINT_RED_COLOR}; font-weight: bold;'>Red</span> when ${constraintOpSymbol(t.red.operator)} ${t.red.value}`)
+        if (t.yellow) lines.push(`<span style='color: ${CONSTRAINT_YELLOW_COLOR}; font-weight: bold;'>Yellow</span> when ${constraintOpSymbol(t.yellow.operator)} ${t.yellow.value}`)
+        return `<div style='white-space: nowrap;'>${lines.join('<br>')}</div>`
+    }
+
+    const renderConstraintValue = (val, key, labelForPopup) => {
+        if (val == null) return ''
+        const formatted = Number(val).toFixed(2)
+        const t = CONSTRAINT_THRESHOLDS[key]
+        if (!t) return formatted
+        let color = null
+        if (constraintCrosses(t.red, val)) color = CONSTRAINT_RED_COLOR
+        else if (constraintCrosses(t.yellow, val)) color = CONSTRAINT_YELLOW_COLOR
+        if (!color) return formatted
+        const popup = constraintPopupHtml(labelForPopup, key).replace(/"/g, '&quot;')
+        return `<span class="constraint-hover-popup" data-html="${popup}" style="color: ${color}; font-weight: bold;">${formatted}</span>`
+    }
+
+    // Per-source config: URL builder for the on-click link, plus description for hover tooltips.
+    // Keys are the source labels emitted by the gene-lookup pipeline (constraint sources may also
+    // appear with a trailing ":<value>" suffix, which is stripped before lookup).
+    const SOURCES = {
+        'OMIM': {
+            description: '<b>OMIM</b>: Online Mendelian Inheritance in Man',
+            url: ({ mimNumber }) => mimNumber ? `https://omim.org/entry/${encodeURIComponent(mimNumber)}` : 'https://omim.org/',
+        },
+        'ClinGen': {
+            description: '<b>ClinGen</b>: gene-disease validity classifications',
+            url: ({ hgncId }) => hgncId ? `https://search.clinicalgenome.org/kb/genes/${encodeURIComponent(hgncId)}` : 'https://clinicalgenome.org/',
+        },
+        'GenCC': {
+            description: '<b>GenCC</b>: Gene Curation Coalition',
+            url: ({ hgncId }) => hgncId ? `https://search.thegencc.org/genes/${encodeURIComponent(hgncId)}` : 'https://thegencc.org/',
+        },
+        'PanelAppUK': {
+            description: '<b>PanelApp UK</b>: Genomics England PanelApp',
+            url: ({ geneSymbol }) => geneSymbol ? `https://panelapp.genomicsengland.co.uk/panels/entities/${encodeURIComponent(geneSymbol)}` : 'https://panelapp.genomicsengland.co.uk/',
+        },
+        'PanelAppAU': {
+            description: '<b>PanelApp AU</b>: Australian Genomics PanelApp',
+            url: ({ geneSymbol }) => geneSymbol ? `https://panelapp-aus.org/panels/entities/${encodeURIComponent(geneSymbol)}` : 'https://panelapp-aus.org/',
+        },
+        'Decipher': {
+            description: '<b>DECIPHER</b>: DDG2P gene-disease associations',
+            url: ({ ensemblId }) => ensemblId ? `https://www.deciphergenomics.org/gene/${encodeURIComponent(ensemblId)}/overview/protein-genomic-info` : 'https://www.deciphergenomics.org/',
+        },
+        'ClinVar': {
+            description: '<b>ClinVar</b>: pathogenic/likely pathogenic variant annotations',
+            url: ({ geneSymbol, ensemblId }) => {
+                const grch38 = '+AND+GRCh38%5BAssembly%5D'
+                if (geneSymbol) return `https://www.ncbi.nlm.nih.gov/clinvar?term=${encodeURIComponent(geneSymbol)}%5Bgene%5D${grch38}`
+                if (ensemblId)  return `https://www.ncbi.nlm.nih.gov/clinvar?term=${encodeURIComponent(ensemblId)}${grch38}`
+                return 'https://www.ncbi.nlm.nih.gov/clinvar/'
+            },
+        },
+        'HGMD': {
+            description: '<b>HGMD</b>: Human Gene Mutation Database',
+            url: ({ geneSymbol }) => geneSymbol ? `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${encodeURIComponent(geneSymbol)}` : null,
+        },
+        'GWAS': {
+            description: '<b>GWAS Catalog</b>: GWAS hits for MONDO rare-disease phenotypes',
+            url: ({ geneSymbol }) => geneSymbol ? `https://www.ebi.ac.uk/gwas/genes/${encodeURIComponent(geneSymbol)}` : 'https://www.ebi.ac.uk/gwas/',
+        },
+        'Fridman': {
+            description: '<b>Fridman et al. 2025</b>: autosomal recessive gene-disease associations',
+            url: () => 'https://pubmed.ncbi.nlm.nih.gov/40374730/',
+        },
+        'dbNSFP': {
+            description: '<b>dbNSFP</b>: variant-level functional annotations (e.g., model-organism phenotypes)',
+            url: () => 'https://www.dbnsfp.org/',
+        },
+        'pLI_v2': {
+            description: '<b>pLI (v2)</b>: Probability of loss-of-function intolerance from gnomAD v2',
+            thresholdKey: 'pLI_v2',
+            thresholdLabel: 'pLI (v2)',
+            url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r2_1'),
+        },
+        'pLI_v4': {
+            description: '<b>pLI (v4)</b>: Probability of loss-of-function intolerance from gnomAD v4',
+            thresholdKey: 'pLI_v4',
+            thresholdLabel: 'pLI (v4)',
+            url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
+        },
+        'LOEUF': {
+            description: '<b>LOEUF (v4)</b>: Loss-of-function observed/expected upper bound from gnomAD v4',
+            thresholdKey: 'LOEUF',
+            thresholdLabel: 'LOEUF (v4)',
+            url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
+        },
+        'MOEUF': {
+            description: '<b>Missense O/E (v4)</b>: Missense observed/expected ratio from gnomAD v4',
+            thresholdKey: 'MOEUF',
+            thresholdLabel: 'Missense O/E (v4)',
+            url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
+        },
+    }
+
+    const getSourceInfo = (src) => SOURCES[String(src).split(':')[0]] || {}
 
     const renderGeneInfoSourcesBadges = (sourcesStr, ids = {}) => {
         if (!sourcesStr) return ''
@@ -1498,9 +1616,21 @@ gtag('config', 'G-6R8FPBQRFH');
         return sourcesList.map((src, i) => {
             const bg = pastelColors[i % pastelColors.length]
             const badge = `<span class="ui mini label" style="background-color: ${bg}; color: #333; margin: 1px;">${escapeHtmlText(src)}</span>`
-            const builder = SOURCE_GENE_PAGE_URL_BUILDERS[src]
-            const url = builder ? builder(ids) : null
-            return url ? `<a href="${url}" target="_blank" style="text-decoration: none;">${badge}</a>` : badge
+            const info = getSourceInfo(src)
+            const url = info.url ? info.url(ids) : null
+            const descriptionParts = []
+            if (info.description) descriptionParts.push(info.description)
+            if (info.thresholdKey) {
+                const t = CONSTRAINT_THRESHOLDS[info.thresholdKey]
+                if (t && t.red)    descriptionParts.push(`<span style='color: ${CONSTRAINT_RED_COLOR}; font-weight: bold;'>Red</span> when ${constraintOpSymbol(t.red.operator)} ${t.red.value}`)
+                if (t && t.yellow) descriptionParts.push(`<span style='color: ${CONSTRAINT_YELLOW_COLOR}; font-weight: bold;'>Yellow</span> when ${constraintOpSymbol(t.yellow.operator)} ${t.yellow.value}`)
+            }
+            const popupAttr = descriptionParts.length
+                ? ` class="source-hover-popup" data-html="<div style='white-space: nowrap;'>${descriptionParts.join('<br>').replace(/"/g, '&quot;')}</div>"`
+                : ''
+            if (url) return `<a href="${url}" target="_blank" style="text-decoration: none;"${popupAttr}>${badge}</a>`
+            if (popupAttr) return `<span${popupAttr}>${badge}</span>`
+            return badge
         }).join(' ')
     }
 
@@ -1525,17 +1655,10 @@ gtag('config', 'G-6R8FPBQRFH');
             ? `${String(chrom).startsWith('chr') ? '' : 'chr'}${chrom}:${start}-${end}`
             : ''
 
-        const formatScore = (v, threshold, threshDir) => {
-            if (v == null) return ''
-            const formatted = Number(v).toFixed(2)
-            const highlight = (threshDir === 'high' && v >= threshold) || (threshDir === 'low' && v <= threshold)
-            return highlight ? `<span style="color: #c0392b; font-weight: bold;">${formatted}</span>` : formatted
-        }
-
-        const pliV2 = row['pLI_v2'] != null ? Number(row['pLI_v2']).toFixed(2) : ''
-        const pliV4 = formatScore(row['pLI_v4'], 0.9, 'high')
-        const loeuf = formatScore(row['lof_oe_ci_upper_v4'], 0.35, 'low')
-        const moeuf = row['mis_oe_ci_upper_v4'] != null ? Number(row['mis_oe_ci_upper_v4']).toFixed(2) : ''
+        const pliV2 = renderConstraintValue(row['pLI_v2'], 'pLI_v2', 'pLI (v2)')
+        const pliV4 = renderConstraintValue(row['pLI_v4'], 'pLI_v4', 'pLI (v4)')
+        const loeuf = renderConstraintValue(row['lof_oe_ci_upper_v4'], 'LOEUF', 'LOEUF (v4)')
+        const moeuf = renderConstraintValue(row['mis_oe_ci_upper_v4'], 'MOEUF', 'Missense O/E (v4)')
 
         const mimNumbers = String(row['OMIM_mim_number'] || '').split(';').map(m => m.trim()).filter(m => m)
 
@@ -1616,8 +1739,18 @@ gtag('config', 'G-6R8FPBQRFH');
                     if (!geneName) return
                     // Reset content first so stale content from a prior gene isn't shown while we render.
                     $elem.popup('change content', loadingPopupHtml(geneName))
+                    const initNestedHoverPopups = () => {
+                        const $popup = $elem.popup('get popup')
+                        if (!$popup) return
+                        $popup.find('.source-hover-popup, .constraint-hover-popup').popup({
+                            on: 'hover',
+                            delay: { show: 80, hide: 50 },
+                            position: 'top center',
+                        })
+                    }
                     fetchGeneInfo(geneName).then(row => {
                         $elem.popup('change content', renderGeneInfoPopupContent(row, geneName))
+                        initNestedHoverPopups()
                     }).catch(err => {
                         $elem.popup('change content', `<div class="gene-info-popup-content gene-info-popup-error">Error loading gene info: ${escapeHtmlText(err && err.message ? err.message : String(err))}</div>`)
                     })
@@ -2169,7 +2302,6 @@ gtag('config', 'G-6R8FPBQRFH');
         alleles: [],            // parsed { seq, count, isRef, skipReason, motifUnits } records
         totalCalledHaplotypes: 0,
         visibleCount: 0,
-        motifColorMap: {},      // motif -> hex
         observer: null,         // IntersectionObserver instance (recreated per fetch)
     }
 
@@ -2184,7 +2316,7 @@ gtag('config', 'G-6R8FPBQRFH');
             return
         }
         const sql = `
-            SELECT total_called_haplotypes, total_unique_alleles, motifs, allele_data
+            SELECT total_allele_number, total_unique_alleles, allele_data
             FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
             WHERE chrom_index = ${chromIndex}
               AND start_0based = ${start_0based}
@@ -2227,30 +2359,28 @@ gtag('config', 'G-6R8FPBQRFH');
         })
     }
 
-    // Build a per-locus motif color map. Motifs ranked by descending occurrence count
-    // across all alleles (excluding skipped ones). Tokens that are not in the locus's
-    // INFO/MOTIFS list are treated as interruption substrings (the worker's mono/di
-    // bypass emits literal non-motif bases): they fall through to OTHER_MOTIFS_COLOR
-    // via the `colorMap[b.motif] || OTHER_MOTIFS_COLOR` fallback in renderCompositionBoxes,
-    // and are summarized as a single "interruption" entry in the legend.
-    const buildMotifColorMap = (alleles, locusMotifs) => {
-        const motifSet = new Set(locusMotifs)
+    // Build a motif color map from the alleles currently being displayed. For each
+    // displayed allele, every motif-unit occurrence in its composition contributes 1
+    // to that motif's count (so e.g. "A,A,A,T,A" adds A+=4, T+=1). Motifs are then
+    // ranked by descending count (alphabetical tiebreak); the top MAX_COLORED_MOTIFS
+    // get unique palette colors and the rest are reported as "rare".
+    const buildMotifColorMap = (alleles) => {
         const counts = {}
-        let interruptionCount = 0
         alleles.forEach(a => {
             a.motifUnits.forEach(m => {
                 counts[m] = (counts[m] || 0) + 1
-                if (!motifSet.has(m)) interruptionCount += 1
             })
         })
-        const ranked = Object.keys(counts)
-            .filter(m => motifSet.has(m))
-            .sort((x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0))
+        const ranked = Object.keys(counts).sort(
+            (x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0)
+        )
+        const colorBudget = Math.min(MAX_COLORED_MOTIFS, MOTIF_COLORS.length)
+        const rankedTop = ranked.slice(0, colorBudget)
+        const rankedRare = ranked.slice(colorBudget)
         const colorMap = {}
-        ranked.forEach((m, i) => {
-            colorMap[m] = i < MOTIF_COLORS.length ? MOTIF_COLORS[i] : OTHER_MOTIFS_COLOR
-        })
-        return { colorMap, motifCounts: counts, rankedMotifs: ranked, interruptionCount }
+        rankedTop.forEach((m, i) => { colorMap[m] = MOTIF_COLORS[i] })
+        const rareTotal = rankedRare.reduce((acc, m) => acc + counts[m], 0)
+        return { colorMap, motifCounts: counts, rankedTop, rankedRare, rareTotal }
     }
 
     // Collapse consecutive identical motif units into single labeled blocks.
@@ -2397,42 +2527,45 @@ gtag('config', 'G-6R8FPBQRFH');
             </div>`
     }
 
-    const renderLegend = (rankedMotifs, motifCounts, colorMap, interruptionCount) => {
-        const items = rankedMotifs.map(m => {
-            const color = colorMap[m] || OTHER_MOTIFS_COLOR
-            return `<span style="display:inline-flex; align-items:center; margin:0 10px 4px 0;">
-                <span style="display:inline-block; width:14px; height:14px; background:${color}; margin-right:5px; border:1px solid #ccc;"></span>
+    const renderLegend = ({ colorMap, motifCounts, rankedTop, rankedRare, rareTotal }) => {
+        const items = rankedTop.map(m => {
+            return `<span style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
+                <span style="display:inline-block; width:14px; height:14px; background:${colorMap[m]}; margin-right:5px; border:1px solid #ccc;"></span>
                 <span style="font-family:monospace; font-size:0.9em; color:#333;">${escapeHtmlText(m)}</span>
                 <span style="color:#888; font-size:0.85em; margin-left:4px;">(${motifCounts[m]})</span>
             </span>`
         })
-        if (interruptionCount > 0) {
-            items.push(`<span style="display:inline-flex; align-items:center; margin:0 10px 4px 0;">
+        if (rankedRare.length > 0) {
+            // Single-quoted data-html to allow inline <div> markup without attribute escaping.
+            const rareHtml = rankedRare
+                .map(m => `<div style="font-family:monospace; line-height:1.5;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
+                .join('')
+            const popupHtml = `<div style="min-width:140px;"><div style="font-size:0.85em; color:#666; margin-bottom:4px;">Rare motif units</div>${rareHtml}</div>`
+            items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
+                style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
-                <span style="font-size:0.9em; color:#333;">interruption</span>
-                <span style="color:#888; font-size:0.85em; margin-left:4px;">(${interruptionCount})</span>
+                <span style="font-size:0.9em; color:#333;">Other</span>
+                <span style="color:#888; font-size:0.85em; margin-left:4px;">(${rareTotal})</span>
             </span>`)
         }
-        return `<div style="display:flex; flex-wrap:wrap; justify-content:flex-end; max-width:60%;">${items.join('')}</div>`
+        if (items.length === 0) return ''
+        return `<div style="display:flex; flex-wrap:wrap; align-items:center;">${items.join('')}</div>`
     }
 
     const renderDecomposedAllelesSection = (queryRow) => {
         const alleles = parseAlleleData(queryRow.allele_data)
-        const totalCalled = parseInt(queryRow.total_called_haplotypes, 10) || 0
+        const totalCalled = parseInt(queryRow.total_allele_number, 10) || 0
         const totalUnique = parseInt(queryRow.total_unique_alleles, 10) || alleles.length
-        const locusMotifs = (queryRow.motifs || '').split(',').filter(Boolean)
-
-        const { colorMap, motifCounts, rankedMotifs, interruptionCount } = buildMotifColorMap(alleles, locusMotifs)
 
         // Stash state for the "Load more" button.
         DECOMPOSED_ALLELES_STATE.alleles = alleles
         DECOMPOSED_ALLELES_STATE.totalCalledHaplotypes = totalCalled
-        DECOMPOSED_ALLELES_STATE.motifColorMap = colorMap
         DECOMPOSED_ALLELES_STATE.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
 
-        const initialRowsHtml = alleles
-            .slice(0, DECOMPOSED_ALLELES_STATE.visibleCount)
-            .map((a, i) => renderAlleleRow(a, i + 1, totalCalled, colorMap))
+        const visible = alleles.slice(0, DECOMPOSED_ALLELES_STATE.visibleCount)
+        const colorInfo = buildMotifColorMap(visible)
+        const initialRowsHtml = visible
+            .map((a, i) => renderAlleleRow(a, i + 1, totalCalled, colorInfo.colorMap))
             .join('')
 
         const loadMoreHtml = alleles.length > DECOMPOSED_ALLELES_STATE.visibleCount
@@ -2445,15 +2578,13 @@ gtag('config', 'G-6R8FPBQRFH');
 
         return `
             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:20px;">
-                    <div>
-                        <h3 style="margin:0;">HPRC256 Allele Sequences</h3>
-                        <div style="color:#666; font-size:0.95em; margin-top:4px;">
-                            ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} across ${totalCalled} haplotype${totalCalled === 1 ? '' : 's'}
-                        </div>
+                <div style="margin-bottom:10px;">
+                    <h3 style="margin:0;">HPRC256 Allele Sequences</h3>
+                    <div style="color:#666; font-size:0.95em; margin-top:4px;">
+                        ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} across ${totalCalled} haplotype${totalCalled === 1 ? '' : 's'}
                     </div>
-                    ${renderLegend(rankedMotifs, motifCounts, colorMap, interruptionCount)}
                 </div>
+                <div id="decomposed-alleles-legend" style="margin-bottom:12px;">${renderLegend(colorInfo)}</div>
                 <div id="decomposed-alleles-list">${initialRowsHtml}</div>
                 <div id="decomposed-alleles-load-more-container">${loadMoreHtml}</div>
             </div>`
@@ -2490,17 +2621,32 @@ gtag('config', 'G-6R8FPBQRFH');
         })
     }
 
+    // Attaches a fresh Semantic UI popup to the legend's "Other" entry, if any.
+    // Called after every legend (re-)render — the previous popup instance is
+    // discarded with the old DOM, so no teardown is needed.
+    const initLegendPopup = () => {
+        $('#decomposed-alleles-legend .show-popup').popup({ on: 'click', hoverable: true })
+    }
+
     const wireLoadMoreButton = () => {
         observeCompositionPlaceholders()
+        initLegendPopup()
         $('#decomposed-alleles-load-more').off('click').on('click', () => {
             const state = DECOMPOSED_ALLELES_STATE
             const nextCount = Math.min(state.visibleCount + DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
-            const newRowsHtml = state.alleles
-                .slice(state.visibleCount, nextCount)
-                .map((a, i) => renderAlleleRow(a, state.visibleCount + i + 1, state.totalCalledHaplotypes, state.motifColorMap))
-                .join('')
-            $('#decomposed-alleles-list').append(newRowsHtml)
             state.visibleCount = nextCount
+
+            // Re-tally over the now-visible alleles so the top-5 colors and legend
+            // counts reflect the expanded set. Then re-render every visible row so
+            // its composition boxes use the new color map.
+            const visible = state.alleles.slice(0, state.visibleCount)
+            const colorInfo = buildMotifColorMap(visible)
+            const rowsHtml = visible
+                .map((a, i) => renderAlleleRow(a, i + 1, state.totalCalledHaplotypes, colorInfo.colorMap))
+                .join('')
+            $('#decomposed-alleles-list').html(rowsHtml)
+            $('#decomposed-alleles-legend').html(renderLegend(colorInfo))
+            initLegendPopup()
 
             if (state.visibleCount >= state.alleles.length) {
                 $('#decomposed-alleles-load-more-container').html('')
@@ -2509,7 +2655,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     `Load more (showing ${state.visibleCount} of ${state.alleles.length})`
                 )
             }
-            // Observe the newly-added composition placeholders.
+            // Observe composition placeholders for the freshly-rendered rows.
             observeCompositionPlaceholders()
         })
     }
