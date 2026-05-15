@@ -344,7 +344,7 @@ def process_record(line):
             "start_0based": sub_start,
             "end_1based": sub_end,
             "motifs": sub_motif,
-            "total_called_haplotypes": total_called,
+            "total_allele_number": total_called,
             "total_unique_alleles": total_unique,
             "allele_data": format_allele_data(seq_counts, ref_repeat, sub_motif),
         })
@@ -360,7 +360,7 @@ def get_schema():
         ("start_0based", pa.int64()),
         ("end_1based", pa.int64()),
         ("motifs", pa.string()),
-        ("total_called_haplotypes", pa.int64()),
+        ("total_allele_number", pa.int64()),
         ("total_unique_alleles", pa.int64()),
         ("allele_data", pa.string()),
     ])

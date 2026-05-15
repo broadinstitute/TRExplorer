@@ -96,7 +96,7 @@ def main():
         for path in sorted(args.shards):
             t = pq.read_table(path)
             n = t.num_rows
-            haps_col = t.column("total_called_haplotypes")
+            haps_col = t.column("total_allele_number")
             total_haps += pa.compute.sum(haps_col).as_py() or 0
             shard_max = pa.compute.max(haps_col).as_py() or 0
             if shard_max > max_haps:
@@ -114,8 +114,8 @@ def main():
                   f"pool_bytes={pool.bytes_allocated():,d})", flush=True)
 
     print(f"Total rows: {total_rows:,d}")
-    print(f"Sum of total_called_haplotypes: {total_haps:,d}")
-    print(f"max(total_called_haplotypes) = {max_haps}")
+    print(f"Sum of total_allele_number: {total_haps:,d}")
+    print(f"max(total_allele_number) = {max_haps}")
 
     # Informational row-count comparison. The worker emits one row per sub-TRID,
     # so compound TRGT records (TRID with comma) yield more output rows than
@@ -125,9 +125,9 @@ def main():
         print(f"Final {total_rows:,d} rows; source VCF had {args.expected_rows:,d} records "
               f"(diff {diff:+,d} = sub-TRID rows added by compound records)")
 
-    # Sanity: total_called_haplotypes never exceeds 256 samples * 2 = 512.
+    # Sanity: total_allele_number never exceeds 256 samples * 2 = 512.
     if max_haps > 512:
-        print(f"ERROR: total_called_haplotypes > 512", file=sys.stderr)
+        print(f"ERROR: total_allele_number > 512", file=sys.stderr)
         sys.exit(1)
 
     print(f"Wrote {total_rows:,d} rows to {args.output}")
