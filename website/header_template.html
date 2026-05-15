@@ -2738,7 +2738,10 @@ gtag('config', 'G-6R8FPBQRFH');
     const ensureMotifBoxTooltip = () => {
         if (motifBoxTooltipBound) return
         motifBoxTooltipBound = true
-        motifBoxTooltipEl = $('<div class="ui inverted mini popup" style="position:absolute; display:none; z-index:9999; pointer-events:none;"></div>')
+        // Plain styled div — not a `.ui.popup`, because that class brings an arrow
+        // pseudo-element that renders awkwardly when we position the tooltip ourselves
+        // instead of letting Semantic UI's JS handle it.
+        motifBoxTooltipEl = $('<div style="position:absolute; display:none; z-index:9999; pointer-events:none; background:#1b1c1d; color:#fff; padding:4px 8px; border-radius:3px; font-size:0.85em; font-family:monospace; box-shadow:0 2px 6px rgba(0,0,0,0.2); white-space:nowrap;"></div>')
             .appendTo('body')
         $(document)
             .on('mouseenter', '.allele-motif-box', function() {
