@@ -128,18 +128,21 @@ gtag('config', 'G-6R8FPBQRFH');
     // each time the decomposed-alleles parquet is loaded into BigQuery.
     const HPRC256_DECOMPOSED_ALLELES_TABLE_ID = '`cmg-analysis.tandem_repeat_explorer.hprc256_decomposed_alleles_20260515_112431`'
 
-    // Ported from the trviz CACNA1C example. Motifs at a locus are assigned
-    // colors by rank (descending occurrence count across currently-displayed
-    // alleles); the top MAX_COLORED_MOTIFS get unique colors, the rest fall
-    // back to OTHER_MOTIFS_COLOR.
+    // Ported from the trviz CACNA1C example. Motifs at a locus are assigned colors
+    // by canonical class (rotation + reverse-complement). The top
+    // MAX_COLORED_CANONICAL_MOTIFS canonical classes (ranked by aggregated count
+    // across currently-displayed alleles) each claim one unique palette color, and
+    // every motif within those classes inherits that color. Motifs whose canonical
+    // class isn't in the top-N fall back to OTHER_MOTIFS_COLOR.
     const MOTIF_COLORS = [
         "#08519c", "#4292c6", "#9ecae1",
         "#f8bbd0", "#f48fb1", "#d81b60",
         "#1b9e77", "#66c2a5", "#8dd3c7",
         "#f9c74f", "#fee191", "#fcbba1",
+        "#a65628", "#984ea3", "#999999",
     ]
     const OTHER_MOTIFS_COLOR = "#333333"
-    const MAX_COLORED_MOTIFS = 10
+    const MAX_COLORED_CANONICAL_MOTIFS = 15
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -483,6 +486,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'hprc256_methylation_pop': 'hprc256mp',
         'hprc256_methylation_sex': 'hprc256ms',
         'hprc256_decomposed_alleles_mode': 'hprc256dam',
+        'hprc256_decomposed_alleles_sort_column': 'hprc256dasc',
+        'hprc256_decomposed_alleles_sort_direction': 'hprc256dasd',
     }
 
     // Reverse mapping from URL param names to internal state names
@@ -2439,25 +2444,47 @@ gtag('config', 'G-6R8FPBQRFH');
                 counts[m] = (counts[m] || 0) + 1
             })
         })
-        const ranked = Object.keys(counts).sort(
+
+        // Aggregate per-canonical-class so we can rank classes (not motifs) by total
+        // occurrence count and assign one color per top-N class.
+        const canonicalCounts = {}
+        const canonicalMembers = {}
+        Object.entries(counts).forEach(([m, c]) => {
+            const canon = canonicalMotif(m)
+            canonicalCounts[canon] = (canonicalCounts[canon] || 0) + c
+            ;(canonicalMembers[canon] = canonicalMembers[canon] || []).push(m)
+        })
+        const rankedCanonicals = Object.keys(canonicalCounts).sort(
+            (x, y) => canonicalCounts[y] - canonicalCounts[x] || (x < y ? -1 : x > y ? 1 : 0)
+        )
+        const topCanonicals = rankedCanonicals.slice(0, MAX_COLORED_CANONICAL_MOTIFS)
+        const rareCanonicals = rankedCanonicals.slice(MAX_COLORED_CANONICAL_MOTIFS)
+
+        // Each top canonical class claims the next palette color. Rare classes get gray.
+        const canonicalColor = {}
+        topCanonicals.forEach((canon, i) => {
+            canonicalColor[canon] = i < MOTIF_COLORS.length ? MOTIF_COLORS[i] : OTHER_MOTIFS_COLOR
+        })
+        const colorMap = {}
+        Object.keys(counts).forEach(m => {
+            colorMap[m] = canonicalColor[canonicalMotif(m)] || OTHER_MOTIFS_COLOR
+        })
+
+        // Legend entries: every motif belonging to a top canonical class gets its own
+        // entry. Sort by canonical-class rank first, then by motif count desc within a
+        // class — so e.g. AAG and AGA appear adjacently in the legend with the same
+        // color, with the more frequent of the two listed first.
+        const sortMotifsInClass = ms => ms.slice().sort(
             (x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0)
         )
-        const canonicalColor = new Map()
-        let nextColorIdx = 0
-        const colorMap = {}
-        ranked.forEach(m => {
-            const canon = canonicalMotif(m)
-            if (!canonicalColor.has(canon)) {
-                canonicalColor.set(
-                    canon,
-                    nextColorIdx < MOTIF_COLORS.length ? MOTIF_COLORS[nextColorIdx] : OTHER_MOTIFS_COLOR
-                )
-                nextColorIdx += 1
-            }
-            colorMap[m] = canonicalColor.get(canon)
+        const rankedTop = []
+        topCanonicals.forEach(canon => {
+            sortMotifsInClass(canonicalMembers[canon]).forEach(m => rankedTop.push(m))
         })
-        const rankedTop = ranked.slice(0, MAX_COLORED_MOTIFS)
-        const rankedRare = ranked.slice(MAX_COLORED_MOTIFS)
+        const rankedRare = []
+        rareCanonicals.forEach(canon => {
+            sortMotifsInClass(canonicalMembers[canon]).forEach(m => rankedRare.push(m))
+        })
         const rareTotal = rankedRare.reduce((acc, m) => acc + counts[m], 0)
         return { colorMap, motifCounts: counts, rankedTop, rankedRare, rareTotal }
     }
@@ -2702,10 +2729,16 @@ gtag('config', 'G-6R8FPBQRFH');
         state.alleles = alleles
         state.totalCalledHaplotypes = totalCalled
         state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, alleles.length)
-        state.sortColumn = null
-        state.sortDirection = null
-        // sequenceMode persists across page loads via the URL hash (hprc256dam).
+        // sequenceMode + sort persist across page loads via the URL hash
+        // (hprc256dam, hprc256dasc, hprc256dasd). Sort state is validated against
+        // ALLELE_TABLE_COLUMNS / 'ASC'|'DESC' to ignore stale or malformed URLs.
         state.sequenceMode = GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_mode']
+        const urlSortColumn = GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_column']
+        const urlSortDirection = GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_direction']
+        const validSort = urlSortColumn in ALLELE_TABLE_COLUMNS
+            && (urlSortDirection === 'ASC' || urlSortDirection === 'DESC')
+        state.sortColumn = validSort ? urlSortColumn : null
+        state.sortDirection = validSort ? urlSortDirection : null
 
         const visible = getVisibleAlleles()
         const colorInfo = buildMotifColorMap(visible)
@@ -2833,6 +2866,10 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         // Sorting reshuffles rows — reset paging to the first page.
         state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
+        // Persist the new sort state in the URL hash.
+        GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_column'] = state.sortColumn || ''
+        GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_direction'] = state.sortDirection || ''
+        writePersistentPageStateToUrl()
     }
 
     // Wire all click/change handlers on the section. Idempotent — uses `.off()` first

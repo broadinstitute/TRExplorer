@@ -234,6 +234,9 @@
     DEFAULT_GLOBAL_PAGE_STATE['locusId'] = ''
     DEFAULT_GLOBAL_PAGE_STATE['refRegion'] = ''
     DEFAULT_GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_mode'] = 'boxes'
+    // Empty string = default sort order (no column sort, ranked by haplotype count).
+    DEFAULT_GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_column'] = ''
+    DEFAULT_GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_sort_direction'] = ''
 
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
