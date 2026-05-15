@@ -4552,16 +4552,18 @@ gtag('config', 'G-6R8FPBQRFH');
         })
     }
 
-    // Build a motif color map from the alleles currently being displayed. For each
-    // displayed allele, every motif-unit occurrence in its composition contributes 1
+    // Build a motif color map from every allele at the locus (not just the visible
+    // page). Each motif-unit occurrence across any allele's composition contributes 1
     // to that motif's count (so e.g. "A,A,A,T,A" adds A+=4, T+=1). Motifs are then
-    // ranked by descending count (alphabetical tiebreak).
+    // ranked by descending count (alphabetical tiebreak). Computing over all alleles
+    // keeps the legend and box colors stable across pagination / sort changes.
     //
     // Color assignment is *per canonical class* (rotation + reverse complement):
-    // motifs sharing a canonical class share a color. The first MOTIF_COLORS.length
-    // canonical classes (in rank order) get unique palette colors; later classes
-    // fall back to OTHER_MOTIFS_COLOR. The legend shows the top MAX_COLORED_MOTIFS
-    // motifs by count; the rest are aggregated under a clickable "Other" entry.
+    // motifs sharing a canonical class share a color. The top
+    // MAX_COLORED_CANONICAL_MOTIFS canonical classes (in rank order) get unique
+    // palette colors; later classes fall back to OTHER_MOTIFS_COLOR. Every motif
+    // belonging to a top class gets its own legend entry; the rest are aggregated
+    // under a clickable "Other" entry.
     const buildMotifColorMap = (alleles) => {
         const counts = {}
         alleles.forEach(a => {
@@ -4865,8 +4867,10 @@ gtag('config', 'G-6R8FPBQRFH');
         state.sortColumn = validSort ? urlSortColumn : null
         state.sortDirection = validSort ? urlSortDirection : null
 
+        // Legend tally and color map are computed over all alleles (not the visible
+        // slice) so they stay stable as the user paginates or re-sorts.
+        const colorInfo = buildMotifColorMap(state.alleles)
         const visible = getVisibleAlleles()
-        const colorInfo = buildMotifColorMap(visible)
         const tableHtml = renderAlleleTable(
             visible, totalCalled, colorInfo.colorMap, state.sequenceMode,
             state.sortColumn, state.sortDirection,
@@ -4957,8 +4961,10 @@ gtag('config', 'G-6R8FPBQRFH');
     // Called after any state change (sort, load-more, sequence-mode change).
     const rerenderDecomposedAllelesTable = () => {
         const state = DECOMPOSED_ALLELES_STATE
+        // Same all-alleles tally as the initial render so legend + colors don't shift
+        // when the user paginates or re-sorts.
+        const colorInfo = buildMotifColorMap(state.alleles)
         const visible = getVisibleAlleles()
-        const colorInfo = buildMotifColorMap(visible)
         const tableHtml = renderAlleleTable(
             visible, state.totalCalledHaplotypes, colorInfo.colorMap, state.sequenceMode,
             state.sortColumn, state.sortDirection,
