@@ -179,8 +179,8 @@
                                 ATXN1
                             </a>, <a href="index.html?#showRs=1&searchQuery=ENSG00000165060">
                                 ENSG00000165060
-                            </a>, <a href="index.html?#showRs=1&searchQuery=ENST00000370475">
-                                ENST00000370475
+                            </a>, <a href="#" id="example-known-disease-trs-link">
+                                known disease-associated TRs
                             </a>
                         </span>
                     </div>
@@ -3293,6 +3293,18 @@
         e.preventDefault()
 
         $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI)
+    })
+
+    $('#example-known-disease-trs-link').click((e) => {
+        e.preventDefault()
+
+        $('#search-query').val('')
+        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+            toggleAdvancedSearch()
+        }
+        $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]')
+            .closest('.ui.checkbox').checkbox('set checked')
+        $('#search-button').click()
     })
 
     // handle browser forward & back buttons
