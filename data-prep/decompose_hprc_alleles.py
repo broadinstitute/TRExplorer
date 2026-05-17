@@ -5,9 +5,12 @@ parquet row per ``INFO/TRID`` sub-entry to ``--output``. A simple VCF record
 emits one row; a compound record (TRID with comma-separated sub-TRIDs that
 TRGT uses to cluster adjacent catalog entries into one VCF row) emits one
 row per sub-TRID, each decomposed under the motif parsed from that sub-TRID.
-Coordinates and motif come from the sub-TRID itself, not from VCF POS/END/
-MOTIFS, since TRGT sometimes extends VCF POS to anchor at an adjacent locus
-while keeping each sub-TRID faithful to its originating catalog entry.
+The per-sub-TRID coordinates (``start_0based``/``end_1based``) and ``motifs``
+come from the sub-TRID itself, not from VCF POS/END/MOTIFS, since TRGT
+sometimes extends VCF POS to anchor at an adjacent locus while keeping each
+sub-TRID faithful to its originating catalog entry. The full VCF-record
+reference span is also recorded (``vcf_start_0based``/``vcf_end_1based``)
+and is shared by every sub-TRID of the same VCF row.
 
 Decomposition uses trviz when feasible, with bypass paths for short motifs
 and skip reasons for inputs that are too long or contain non-ACGT bases.
@@ -307,12 +310,23 @@ def process_record(line):
     fields = line.split("\t")
     if len(fields) < 10:
         return []
-    chrom, _pos, _id, ref, alt_field, _qual, _filter, info, fmt = fields[:9]
+    chrom, pos, _id, ref, alt_field, _qual, _filter, info, fmt = fields[:9]
     sample_fields = fields[9:]
 
     info_dict = parse_info(info)
     trid_field = info_dict.get("TRID", "")
     if not trid_field:
+        return []
+
+    # Full VCF-record reference span shared by every sub-TRID of this row.
+    # VCF POS (1-based) is the anchor base just before the variant content; the
+    # content's 0-based half-open span is therefore [POS, INFO/END). For a
+    # compound record this is *wider* than any individual sub-TRID, because
+    # TRGT can extend POS upstream to anchor at an adjacent locus.
+    try:
+        vcf_start_0based = int(pos)
+        vcf_end_1based = int(info_dict.get("END", ""))
+    except ValueError:
         return []
 
     # Strip the TRGT anchor base; spanning deletion `*` is preserved as-is.
@@ -343,6 +357,8 @@ def process_record(line):
             "chrom_index": chrom_idx_for_vcf,
             "start_0based": sub_start,
             "end_1based": sub_end,
+            "vcf_start_0based": vcf_start_0based,
+            "vcf_end_1based": vcf_end_1based,
             "motifs": sub_motif,
             "total_allele_number": total_called,
             "total_unique_alleles": total_unique,
@@ -359,6 +375,8 @@ def get_schema():
         ("chrom_index", pa.int64()),
         ("start_0based", pa.int64()),
         ("end_1based", pa.int64()),
+        ("vcf_start_0based", pa.int64()),
+        ("vcf_end_1based", pa.int64()),
         ("motifs", pa.string()),
         ("total_allele_number", pa.int64()),
         ("total_unique_alleles", pa.int64()),
