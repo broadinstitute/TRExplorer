@@ -1209,6 +1209,26 @@ gtag('config', 'G-6R8FPBQRFH');
             await window.igvBrowser.loadSessionObject(igvConfig)
         }
     }
+
+    // Show IGV at a given locus string (e.g. "chr13:102161564-102161844"), opening
+    // the IGV panel if hidden, then scrolling the page to it. The page-local
+    // `#show-igv-divider` click handler drives the async init when IGV is hidden;
+    // when already shown we trigger search() directly on the existing browser.
+    async function showIgvAt(locus) {
+        if (!locus) return
+        GLOBAL_PAGE_STATE['igvLoc'] = locus
+        if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
+            $('#show-igv-divider').click()  // triggers async IGV init; .click() returns a jQuery object, not a Promise
+        } else {
+            writePersistentPageStateToUrl()
+            if (!window.igvBrowser) {
+                await updateIgv()
+            }
+            await window.igvBrowser.search(locus)
+        }
+        const igvRow = document.getElementById('igv-row')
+        if (igvRow) igvRow.scrollIntoView({ behavior: 'smooth' })
+    }
     /** --------- END of utils for IGV.js  ---------- */
 </script>
 <script>

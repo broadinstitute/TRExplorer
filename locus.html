@@ -1208,6 +1208,26 @@ gtag('config', 'G-6R8FPBQRFH');
             await window.igvBrowser.loadSessionObject(igvConfig)
         }
     }
+
+    // Show IGV at a given locus string (e.g. "chr13:102161564-102161844"), opening
+    // the IGV panel if hidden, then scrolling the page to it. The page-local
+    // `#show-igv-divider` click handler drives the async init when IGV is hidden;
+    // when already shown we trigger search() directly on the existing browser.
+    async function showIgvAt(locus) {
+        if (!locus) return
+        GLOBAL_PAGE_STATE['igvLoc'] = locus
+        if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
+            $('#show-igv-divider').click()  // triggers async IGV init; .click() returns a jQuery object, not a Promise
+        } else {
+            writePersistentPageStateToUrl()
+            if (!window.igvBrowser) {
+                await updateIgv()
+            }
+            await window.igvBrowser.search(locus)
+        }
+        const igvRow = document.getElementById('igv-row')
+        if (igvRow) igvRow.scrollIntoView({ behavior: 'smooth' })
+    }
     /** --------- END of utils for IGV.js  ---------- */
 </script>
 <script>
@@ -5814,27 +5834,8 @@ gtag('config', 'G-6R8FPBQRFH');
         })
         initGeneInfoLinks()
 
-        // Consolidated click handler for showing IGV and navigating to the locus
-        const showIgvAndNavigate = async () => {
-            const row = window.searchResults.rows[0]
-            GLOBAL_PAGE_STATE['igvLoc'] = row['ReferenceRegion']
-
-            // Show IGV if hidden
-            if (GLOBAL_PAGE_STATE['showIGV'] === 0) {
-                $('#show-igv-divider').click()  // triggers async IGV init; .click() returns a jQuery object, not a Promise
-            } else {
-                writePersistentPageStateToUrl()
-                if (!window.igvBrowser) {
-                    await updateIgv()
-                }
-                await window.igvBrowser.search(row['ReferenceRegion'])
-            }
-
-            // Scroll the page to the IGV browser
-            $('#igv-row')[0].scrollIntoView({ behavior: 'smooth' })
-        }
-
         // Attach handler to both the (IGV) link and the Reference Region link
+        const showIgvAndNavigate = () => showIgvAt(window.searchResults.rows[0]['ReferenceRegion'])
         $('#show-igv-button').click(showIgvAndNavigate)
         $('.row-igv-button').click(showIgvAndNavigate)
     }
