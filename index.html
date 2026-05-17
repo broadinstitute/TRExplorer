@@ -4477,18 +4477,18 @@ gtag('config', 'G-6R8FPBQRFH');
         sequence: { displayName: 'Sequence', defaultSortDirection: 'ASC', align: 'left',
                     width: null,
                     getSortKey: a => a.motifUnits.join(',') },
-        percent:  { displayName: 'Percent', defaultSortDirection: 'DESC', align: 'right',
-                    width: '90px',
-                    getSortKey: a => a.count },
-        fraction: { displayName: 'Fraction', defaultSortDirection: 'DESC', align: 'right',
-                    width: '95px',
-                    getSortKey: a => a.count },
-        repeats:  { displayName: 'Repeats', defaultSortDirection: 'DESC', align: 'right',
-                    width: '90px',
-                    getSortKey: a => a.motifUnits.length },
         size:     { displayName: 'Allele size', defaultSortDirection: 'DESC', align: 'right',
                     width: '110px',
                     getSortKey: a => a.skipReason === 'spanning_del' ? -1 : a.seq.length },
+        repeats:  { displayName: 'Repeats', defaultSortDirection: 'DESC', align: 'right',
+                    width: '90px',
+                    getSortKey: a => a.motifUnits.length },
+        fraction: { displayName: 'Fraction of Haplotypes', defaultSortDirection: 'DESC', align: 'right',
+                    width: '160px',
+                    getSortKey: a => a.count },
+        percent:  { displayName: 'Percent', defaultSortDirection: 'DESC', align: 'right',
+                    width: '90px',
+                    getSortKey: a => a.count },
     }
 
     // Stable sort: returns a new array; null sortColumn/Direction means default order.
@@ -4510,7 +4510,8 @@ gtag('config', 'G-6R8FPBQRFH');
             return
         }
         const sql = `
-            SELECT total_allele_number, total_unique_alleles, allele_data
+            SELECT chrom, vcf_start_0based, vcf_end_1based,
+                   total_allele_number, total_unique_alleles, allele_data
             FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
             WHERE chrom_index = ${chromIndex}
               AND start_0based = ${start_0based}
@@ -4751,10 +4752,10 @@ gtag('config', 'G-6R8FPBQRFH');
         const widthFor = key => ALLELE_TABLE_COLUMNS[key].width ? `width:${ALLELE_TABLE_COLUMNS[key].width};` : ''
         return `<tr>
             <td style="padding:8px; vertical-align:top;">${cellContent}</td>
-            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
-            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
-            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
             <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp} bp</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
         </tr>`
     }
 
@@ -4884,6 +4885,19 @@ gtag('config', 'G-6R8FPBQRFH');
         // Help-icon body for the summary line. Single-quoted data-html so the inner
         // <a> tags can use double-quoted attributes without escaping.
         const summaryHelpHtml = 'Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). TRGT alleles at this locus were split into motifs using <a href="https://github.com/Jong-hun-Park/trviz" target="_blank">TRViz decompose</a> (<a href="https://doi.org/10.1093/bioadv/vbad058" target="_blank">Park <i>et al.</i> 2023</a>).'
+
+        // Full VCF-record span (shared across all sub-TRIDs of a compound TRGT record).
+        // ``vcf_start_0based``/``vcf_end_1based`` come from VCF POS / INFO/END and may
+        // extend past this sub-TRID's own coordinates when TRGT clusters adjacent loci.
+        const vcfChrom = queryRow.chrom || ''
+        const vcfStart = parseInt(queryRow.vcf_start_0based, 10)
+        const vcfEnd = parseInt(queryRow.vcf_end_1based, 10)
+        let trgtRegionHtml = ''
+        if (vcfChrom && Number.isFinite(vcfStart) && Number.isFinite(vcfEnd)) {
+            const locus = `${vcfChrom}:${vcfStart}-${vcfEnd}`
+            trgtRegionHtml = `<div style="color:#666; font-size:0.95em; margin-top:2px;">TRGT Genotyped Reference Region: <a href="#" class="decomposed-alleles-igv-link" data-locus="${locus}">${locus}</a></div>`
+        }
+
         return `
             <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                 <div style="margin-bottom:10px;">
@@ -4892,6 +4906,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} across ${totalCalled} haplotype${totalCalled === 1 ? '' : 's'}
                         <i class="question circle outline icon link decomposed-alleles-help" style="margin-left:4px; color:#888;" data-html='${summaryHelpHtml}'></i>
                     </div>
+                    ${trgtRegionHtml}
                 </div>
                 <div id="decomposed-alleles-legend" style="margin-bottom:12px;">${renderLegend(colorInfo)}</div>
                 ${renderSequenceModeSelector(state.sequenceMode)}
@@ -5030,6 +5045,11 @@ gtag('config', 'G-6R8FPBQRFH');
             GLOBAL_PAGE_STATE['hprc256_decomposed_alleles_mode'] = newMode
             writePersistentPageStateToUrl()
             rerenderDecomposedAllelesTable()
+        })
+        // Opens IGV at the TRGT-genotyped reference region for this VCF record.
+        $('.decomposed-alleles-igv-link').off('click').on('click', function(e) {
+            e.preventDefault()
+            showIgvAt($(this).data('locus'))
         })
     }
 
