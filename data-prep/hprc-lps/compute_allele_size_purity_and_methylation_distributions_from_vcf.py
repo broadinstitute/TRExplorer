@@ -340,6 +340,9 @@ def main():
 
     purity_rows_written = 0
     methylation_rows_written = 0
+    # Process-wide uniqueness check on (locus_id, interval, vc) — matches the
+    # design contract enforced by the LPS convert and decompose scripts.
+    seen_output_keys = set()
     with gzip.open(purity_path, "wt") as purity_out, gzip.open(methylation_path, "wt") as methylation_out:
         purity_out.write("\t".join(purity_header) + "\n")
         methylation_out.write("\t".join(methylation_header) + "\n")
@@ -354,6 +357,13 @@ def main():
             if not has_purity and not has_methylation:
                 continue
             for locus_id in locus_ids:
+                key = (locus_id, interval, vc)
+                if key in seen_output_keys:
+                    raise ValueError(
+                        f"duplicate output tuple "
+                        f"(locus_id={locus_id!r}, interval={interval!r}, vc={vc!r})"
+                    )
+                seen_output_keys.add(key)
                 row_prefix = f"{locus_id}\t{interval}\t{vc}"
                 if has_purity:
                     purity_out.write(f"{row_prefix}\t" + "\t".join(purity_values) + "\n")

@@ -443,6 +443,9 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
     batch = {name: [] for name in schema.names}
     rows_written = 0
     vcf_lines_skipped = 0
+    # Process-wide uniqueness check on (locus_id, interval, vc) — matches the
+    # design contract enforced by the LPS convert and purity/methylation scripts.
+    seen_output_keys = set()
 
     with pq.ParquetWriter(output_path, schema) as writer:
         for line in input_stream:
@@ -453,6 +456,13 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
                 vcf_lines_skipped += 1
                 continue
             for row in rows:
+                key = (row["locus_id"], row["interval"], row["vc"])
+                if key in seen_output_keys:
+                    raise ValueError(
+                        f"duplicate output tuple "
+                        f"(locus_id={key[0]!r}, interval={key[1]!r}, vc={key[2]!r})"
+                    )
+                seen_output_keys.add(key)
                 for name in schema.names:
                     batch[name].append(row[name])
                 rows_written += 1
