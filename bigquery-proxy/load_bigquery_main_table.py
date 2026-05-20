@@ -184,7 +184,17 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     # Normalize PascalCase (HPRC256) to snake_case (tenk10k convention used by the
     # rest of this function). Columns not in the map are left as-is.
     df = df.rename(columns={k: v for k, v in _PASCALCASE_TO_SNAKE_CASE.items() if k in df.columns})
+    num_intervals_by_locus = None
     if "interval" in df.columns:
+        # Count distinct (locus_id, interval) pairs per locus_id BEFORE collapsing
+        # to one row per locus_id. This becomes the value of
+        # HPRC256_NumIntervalsThatIncludeThisLocusId on the catalog row.
+        num_intervals_by_locus = (
+            df.drop_duplicates(subset=["locus_id", "interval"])
+              .groupby("locus_id")
+              .size()
+              .to_dict()
+        )
         df["_interval_span"] = df["interval"].apply(_interval_span)
         # Narrowest span first; ties broken by interval string for determinism.
         df = df.sort_values(["locus_id", "_interval_span", "interval"]).drop_duplicates(
@@ -221,6 +231,12 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         }
         if not pd.isna(row["biallelic_histogram"]):
             lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
+        if num_intervals_by_locus is not None:
+            lookup[locus_id]["num_intervals_that_include_this_locus_id"] = int(
+                num_intervals_by_locus.get(locus_id, 1)
+            )
+            if "interval" in row and not pd.isna(row["interval"]):
+                lookup[locus_id]["narrowest_interval"] = row["interval"]
         errors = population_data_sanity_check(lookup[locus_id], dataset_name)
         for error_type, error_detail in errors:
             error_counter[error_type] += 1
@@ -897,6 +913,12 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["HPRC256_StdevRankByMotif"] = hprc256_record["stdev_rank_by_motif"]
         record["HPRC256_StdevRankTotalNumberByMotif"] = hprc256_record["stdev_rank_total_number_by_motif"]
         record["HPRC256_StdevRankPercentile"] = hprc256_record["stdev_rank_percentile"]
+        record["HPRC256_NumIntervalsThatIncludeThisLocusId"] = hprc256_record.get(
+            "num_intervals_that_include_this_locus_id", 1
+        )
+        narrowest = hprc256_record.get("narrowest_interval")
+        if narrowest:
+            record["HPRC256_NarrowestInterval"] = narrowest
 
     if record["LocusId"] in hprc256_purity_methylation_lookup:
         pm_record = hprc256_purity_methylation_lookup[record["LocusId"]]

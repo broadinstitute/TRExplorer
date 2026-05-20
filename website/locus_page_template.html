@@ -182,6 +182,8 @@
         "HPRC256_NumCalledAlleles",
         "HPRC256_StdevRankByMotif",
         "HPRC256_StdevRankTotalNumberByMotif",
+        "HPRC256_NumIntervalsThatIncludeThisLocusId",
+        "HPRC256_NarrowestInterval",
         "HPRC256_AlleleSizeAndPurityDistribution",
         "HPRC256_AlleleSizeAndMethylationDistribution",
 
@@ -508,10 +510,16 @@
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
 
-        // Generate summary stats table (above motif variability). Await the
-        // per-(LocusId, Interval) fetch up-front so the table renders correctly on
-        // first paint instead of flashing the single-HPRC256-row catalog version.
-        const hprc256IntervalRows = await fetchAllHprc256IntervalRows(row['LocusId'])
+        // Generate summary stats table (above motif variability). Skip the
+        // per-(LocusId, Interval) fetch when the catalog row says only one
+        // interval contains this LocusId — the catalog row's HPRC256_* columns
+        // already are the complete (and only) interval's stats. For loci that
+        // appear in 2+ intervals, await the fetch so the table renders correctly
+        // on first paint instead of flashing the single-row catalog version.
+        const hprc256IntervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
+        const hprc256IntervalRows = (hprc256IntervalCount != null && hprc256IntervalCount <= 1)
+            ? []
+            : await fetchAllHprc256IntervalRows(row['LocusId'])
         $('#locus-page-summary-stats').html(
             generateSummaryStatsTable(row, hprc256IntervalRows)
         )
@@ -555,8 +563,18 @@
         // catalog row's HPRC256_* columns only at the narrowest (default) interval.
         (async () => {
             const locusId = row['LocusId']
-            const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
+            const intervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
             const selectorEl = $('#locus-page-interval-selector')
+            // Skip the dropdown query entirely when the catalog row says only one
+            // interval exists — saves a BigQuery hit on the typical locus page.
+            // The catalog row's HPRC256_NarrowestInterval column carries the only
+            // interval, so the decomposed-alleles fetch can still target it.
+            if (intervalCount != null && intervalCount <= 1) {
+                selectorEl.hide()
+                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, row['HPRC256_NarrowestInterval'] || null)
+                return
+            }
+            const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
             if (!intervals.length) {
                 selectorEl.hide()
                 fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, null)

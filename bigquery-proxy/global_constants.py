@@ -722,6 +722,23 @@ BIGQUERY_COLUMNS = [
         "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
+        "type": "INTEGER",
+        "name": "HPRC256_NumIntervalsThatIncludeThisLocusId",
+        "description": "Number of distinct TRGT catalog intervals (rows in the HPRC256 stratified LPS table) that contain this LocusId. 1 = locus only genotyped as a standalone TR. >1 = also genotyped as part of one or more variation clusters.",
+        "displayName": "HPRC256 # Intervals",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
+        "type": "STRING",
+        "name": "HPRC256_NarrowestInterval",
+        "description": "The TRGT catalog interval (chrom:vcf_start_0based-vcf_end_1based) whose HPRC256 stats are embedded in the catalog row's HPRC256_* summary columns. This is the narrowest interval containing this LocusId.",
+        "displayName": "HPRC256 Narrowest Interval",
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
         "type": "STRING",
         "name": "HPRC256_AlleleSizeAndPurityDistribution",
         "description": "Joint distribution of allele size (repeat count) and allele purity from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/purity:count pairs.",
