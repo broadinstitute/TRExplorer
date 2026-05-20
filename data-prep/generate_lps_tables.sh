@@ -15,9 +15,12 @@
 #        Hail Batch dispatcher: VCF -> trviz decomposed-alleles parquet. The
 #        orchestrator passes --force so worker-script edits always reach Batch.
 #   4. convert_multisample_LPS_table_to_allele_frequency_histograms.py
-#        SINGLE invocation with --stratify-by-population --stratify-by-sex.
-#        Produces the all-strata file that load_bigquery_HPRC256_stratified_LPS_frequency_data.py
-#        requires; also symlinked into hprc-lps/ for the loader defaults.
+#        Two invocations sharing the same VCF interval map + LPS table:
+#          4a) --stratify-by-population --stratify-by-sex -> the all-strata file
+#              required by load_bigquery_HPRC256_stratified_LPS_frequency_data.py
+#          4b) no stratification -> the per_locus_and_motif file required by
+#              load_bigquery_main_table.py via --hprc256-tsv.
+#        Both outputs are symlinked into hprc-lps/ for the loader defaults.
 
 set -euo pipefail
 
@@ -67,8 +70,15 @@ N_SAMPLES=256
 PURITY_OUT="$BATCH_DIR/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
 METH_OUT="$BATCH_DIR/trgt-hprc.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
 mkdir -p "$LEGACY_DIR"
-ln -sf "../$PURITY_OUT" "$LEGACY_DIR/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
-ln -sf "../$METH_OUT"   "$LEGACY_DIR/trgt-hprc.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+# rm -f first so we never leave a stale real file from a prior run shadowing
+# the canonical symlink path. ln -sf alone replaces an existing entry, but
+# being explicit makes the "hprc-lps/ holds only current-snapshot symlinks"
+# convention obvious.
+PURITY_LINK="$LEGACY_DIR/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+METH_LINK="$LEGACY_DIR/trgt-hprc.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+rm -f "$PURITY_LINK" "$METH_LINK"
+ln -s "../$PURITY_OUT" "$PURITY_LINK"
+ln -s "../$METH_OUT"   "$METH_LINK"
 echo "[done] step 2: purity + methylation stratified TSVs (symlinked into $LEGACY_DIR for BQ loader defaults)"
 
 echo
@@ -85,14 +95,19 @@ echo "[done] step 3: decompose pipeline submitted"
 
 echo
 echo "============================================================"
-echo "Step 4/4: convert_multisample_LPS_table_to_allele_frequency_histograms.py  (single stratified run)"
+echo "Step 4/4: convert_multisample_LPS_table_to_allele_frequency_histograms.py"
 echo "============================================================"
-# Single invocation with --stratify-by-population --stratify-by-sex. This is
-# the exact file that load_bigquery_HPRC256_stratified_LPS_frequency_data.py
-# requires (named .per_locus_and_motif.by_population.by_sex.<N>_samples.tsv.gz).
-# Replaces the prior 18-way fan-out, which loaded the full ~1.5 GB VCF
-# metadata map per process (peak ~18-30 GB on a workstation) and did NOT
-# produce the file the loader expects anyway.
+# Two sequential invocations of the convert script against the same VCF
+# interval map + LPS table:
+#   4a) --stratify-by-population --stratify-by-sex: required by
+#       load_bigquery_HPRC256_stratified_LPS_frequency_data.py
+#       (.per_locus_and_motif.by_population.by_sex.<N>_samples.tsv.gz)
+#   4b) no stratification: required by load_bigquery_main_table.py via
+#       --hprc256-tsv (.per_locus_and_motif.<N>_samples.tsv.gz)
+# Two sequential invocations is still much cheaper than the prior 18-way
+# fan-out (peak ~18-30 GB on a workstation), and guarantees the stratified
+# and non-stratified files are derived from the same source snapshot.
+echo "  4a) stratified by population x sex"
 python3 "$SCRIPT" \
     --sample-metadata-tsv "$META" \
     --input-table "$LPS_TABLE" \
@@ -100,16 +115,34 @@ python3 "$SCRIPT" \
     --stratify-by-population \
     --stratify-by-sex
 
-# Symlink the produced file into $LEGACY_DIR so the LPS BQ loader's default
-# --input-tsv path resolves.
-CONVERT_OUT_BASENAME="hprc-lps.per_locus_and_motif.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
-CONVERT_OUT="$BATCH_DIR/$CONVERT_OUT_BASENAME"
-if [[ ! -e "$CONVERT_OUT" ]]; then
-    echo "WARNING: expected convert output not found at $CONVERT_OUT" >&2
-else
-    ln -sf "../$CONVERT_OUT" "$LEGACY_DIR/$CONVERT_OUT_BASENAME"
+echo "  4b) non-stratified"
+python3 "$SCRIPT" \
+    --sample-metadata-tsv "$META" \
+    --input-table "$LPS_TABLE" \
+    --vcf-interval-tsv "$INTERVAL_TSV"
+
+# Symlink both produced files into $LEGACY_DIR so the BQ loaders' default
+# --input paths resolve. rm -f first so any stale real file from a prior run
+# (legacy hprc-lps/ contents predate this script's symlink convention) does
+# not shadow the canonical path.
+STRATIFIED_BASENAME="hprc-lps.per_locus_and_motif.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+STRATIFIED_OUT="$BATCH_DIR/$STRATIFIED_BASENAME"
+UNSTRATIFIED_BASENAME="hprc-lps.per_locus_and_motif.${N_SAMPLES}_samples.tsv.gz"
+UNSTRATIFIED_OUT="$BATCH_DIR/$UNSTRATIFIED_BASENAME"
+for f in "$STRATIFIED_OUT" "$UNSTRATIFIED_OUT"; do
+    if [[ ! -e "$f" ]]; then
+        echo "WARNING: expected convert output not found at $f" >&2
+    fi
+done
+if [[ -e "$STRATIFIED_OUT" ]]; then
+    rm -f "$LEGACY_DIR/$STRATIFIED_BASENAME"
+    ln -s "../$STRATIFIED_OUT" "$LEGACY_DIR/$STRATIFIED_BASENAME"
 fi
-echo "[done] step 4: stratified LPS TSV ready (symlinked into $LEGACY_DIR for BQ loader defaults)"
+if [[ -e "$UNSTRATIFIED_OUT" ]]; then
+    rm -f "$LEGACY_DIR/$UNSTRATIFIED_BASENAME"
+    ln -s "../$UNSTRATIFIED_OUT" "$LEGACY_DIR/$UNSTRATIFIED_BASENAME"
+fi
+echo "[done] step 4: stratified + non-stratified LPS TSVs ready (symlinked into $LEGACY_DIR for BQ loader defaults)"
 
 echo
 echo "============================================================"
