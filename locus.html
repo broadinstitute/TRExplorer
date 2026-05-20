@@ -3021,15 +3021,22 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // Maps a stratified-LPS row's per-interval summary stats onto the HPRC256_*
     // catalog-row shape, so generateSummaryStatsTable can render an extra row from
-    // it without duplicating column-handling logic.
-    const buildHprc256IntervalDatasetRow = (stratifiedRow) => {
+    // it without duplicating column-handling logic. ``showIntervalInName`` controls
+    // whether the dataset's "Dataset" column carries the interval label (true when
+    // multiple HPRC256 rows are about to be rendered side-by-side; false when only
+    // one HPRC256 row exists and the label would be redundant).
+    const buildHprc256IntervalDatasetRow = (stratifiedRow, showIntervalInName) => {
         if (!stratifiedRow) return null
         const isVc = stratifiedRow['VC'] && stratifiedRow['VC'] !== ''
         const intervalLabel = stratifiedRow['Interval'] || '?'
         const kindLabel = isVc ? `Variation cluster ${intervalLabel}` : `Standalone TR ${intervalLabel}`
         return {
-            name: `HPRC 256 — ${kindLabel}`,
-            description: 'Per-interval stats from the HPRC256 stratified LPS table',
+            // Only annotate the dataset name with the interval when multiple HPRC256
+            // rows are present — otherwise it's redundant clutter.
+            name: showIntervalInName ? `HPRC 256 — ${kindLabel}` : 'HPRC 256',
+            description: showIntervalInName
+                ? 'Per-interval stats from the HPRC256 stratified LPS table'
+                : '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS',
             // Mirror the SUMMARY_STATS_COLUMNS suffixes onto a HPRC256_-style flat dict.
             HPRC256_MinAllele: stratifiedRow['Min'],
             HPRC256_Median: stratifiedRow['Median'],
@@ -3045,16 +3052,21 @@ gtag('config', 'G-6R8FPBQRFH');
     const generateSummaryStatsTable = (row, hprc256IntervalRows) => {
         // hprc256IntervalRows is optional; when provided (lazy-fetched per-(LocusId, Interval) rows
         // from the stratified LPS BQ table) the HPRC256 dataset is split into one row per interval,
-        // replacing the single catalog-driven HPRC256 row.
+        // replacing the single catalog-driven HPRC256 row. The interval label is shown inside the
+        // "Dataset" column only when there are multiple HPRC256 rows side-by-side.
         const useIntervalRows = Array.isArray(hprc256IntervalRows) && hprc256IntervalRows.length > 0
+        const showIntervalInName = useIntervalRows && hprc256IntervalRows.length > 1
         const datasets = useIntervalRows
             ? [
-                ...hprc256IntervalRows.map(stratifiedRow => ({
-                    prefix: 'HPRC256_',
-                    name: buildHprc256IntervalDatasetRow(stratifiedRow).name,
-                    description: 'Per-interval stats from the HPRC256 stratified LPS table',
-                    sourceRow: buildHprc256IntervalDatasetRow(stratifiedRow),
-                })),
+                ...hprc256IntervalRows.map(stratifiedRow => {
+                    const built = buildHprc256IntervalDatasetRow(stratifiedRow, showIntervalInName)
+                    return {
+                        prefix: 'HPRC256_',
+                        name: built.name,
+                        description: built.description,
+                        sourceRow: built,
+                    }
+                }),
                 ...SUMMARY_STATS_DATASETS.filter(d => d.prefix !== 'HPRC256_'),
             ]
             : SUMMARY_STATS_DATASETS
