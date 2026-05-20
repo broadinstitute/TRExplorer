@@ -1012,7 +1012,13 @@ HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
                      "as a standalone TR and once or more as part of a variation cluster)."},
      {"type": "STRING", "name": "VC", "mode": "NULLABLE",
       "description": "Inner span of the variation cluster (<VC:...>) that contained this LocusId, "
-                     "or empty for an isolated TR (<TR:...>) row."}]
+                     "or empty for an isolated TR (<TR:...>) row."},
+     {"type": "STRING", "name": "AlleleSizeHistogram",
+      "description": "Allele size histogram across all 256 samples (the \"All\" view for this interval). "
+                     "Format: 'sizex:count,sizex:count,...'."},
+     {"type": "STRING", "name": "BiallelicHistogram",
+      "description": "Biallelic genotype histogram across all 256 samples (the \"All\" view for this interval). "
+                     "Format: 'short/long:count,...'."}]
     + [{"type": "STRING", "name": f"AlleleSizeHistogram__{label}",
         "description": f"Allele size histogram for stratum '{label}'. Format: 'sizex:count,sizex:count,...'."}
        for label in HPRC256_STRATA_LABELS]
@@ -1034,7 +1040,9 @@ HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
      {"type": "STRING", "name": "interval", "mode": "REQUIRED",
       "description": "TRGT interval {chrom}:{vcf_start_0based}-{vcf_end_1based} that produced this row."},
      {"type": "STRING", "name": "vc", "mode": "NULLABLE",
-      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."}]
+      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."},
+     {"type": "STRING", "name": "AlleleSizeAndPurityDistribution",
+      "description": "Joint (repeat_count, allele purity) distribution across all 256 samples for this interval."}]
     + [{"type": "STRING", "name": f"AlleleSizeAndPurityDistribution__{label}",
         "description": (
             f"Joint distribution of (repeat_count, allele purity) for stratum '{label}'. "
@@ -1053,7 +1061,9 @@ HPRC256_METHYLATION_BIGQUERY_COLUMNS = (
      {"type": "STRING", "name": "interval", "mode": "REQUIRED",
       "description": "TRGT interval {chrom}:{vcf_start_0based}-{vcf_end_1based} that produced this row."},
      {"type": "STRING", "name": "vc", "mode": "NULLABLE",
-      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."}]
+      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."},
+     {"type": "STRING", "name": "AlleleSizeAndMethylationDistribution",
+      "description": "Joint (repeat_count, allele methylation) distribution across all 256 samples for this interval."}]
     + [{"type": "STRING", "name": f"AlleleSizeAndMethylationDistribution__{label}",
         "description": (
             f"Joint distribution of (repeat_count, allele methylation) for stratum '{label}'. "

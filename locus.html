@@ -2391,9 +2391,16 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // Config for the four HPRC256 stratified-chart kinds. Keys feed the dropdown HTML,
     // the change handler, and the URL state.
+    //
+    // mainColumn:        column on the main catalog row (narrowest interval, "All" stratum).
+    // unsuffixedColumn:  column on the stratified BQ table that holds the "All" stratum value
+    //                    for a given (LocusId, Interval) — used when the user picks a
+    //                    non-narrowest interval (the catalog row's mainColumn is stale).
+    // stratColPrefix:    prefix for per-stratum columns on the stratified BQ table.
     const HPRC256_STRATIFIED_CHARTS = {
         allele: {
             mainColumn:          'HPRC256_AlleleHistogram',
+            unsuffixedColumn:    'AlleleSizeHistogram',
             stratColPrefix:      'AlleleSizeHistogram__',
             getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
@@ -2402,6 +2409,7 @@ gtag('config', 'G-6R8FPBQRFH');
         },
         biallelic: {
             mainColumn:          'HPRC256_BiallelicHistogram',
+            unsuffixedColumn:    'BiallelicHistogram',
             stratColPrefix:      'BiallelicHistogram__',
             getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
@@ -2410,6 +2418,7 @@ gtag('config', 'G-6R8FPBQRFH');
         },
         purity: {
             mainColumn:          'HPRC256_AlleleSizeAndPurityDistribution',
+            unsuffixedColumn:    'AlleleSizeAndPurityDistribution',
             stratColPrefix:      'AlleleSizeAndPurityDistribution__',
             getCompleteTableId:  () => HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256PurityStratifiedRow',
@@ -2418,6 +2427,7 @@ gtag('config', 'G-6R8FPBQRFH');
         },
         methylation: {
             mainColumn:          'HPRC256_AlleleSizeAndMethylationDistribution',
+            unsuffixedColumn:    'AlleleSizeAndMethylationDistribution',
             stratColPrefix:      'AlleleSizeAndMethylationDistribution__',
             getCompleteTableId:  () => HPRC256_METHYLATION_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256MethylationStratifiedRow',
@@ -2718,18 +2728,25 @@ gtag('config', 'G-6R8FPBQRFH');
         return await response.json()
     }
 
-    const fetchHprc256StratifiedRow = async (chartKind, locusId) => {
+    const fetchHprc256StratifiedRow = async (chartKind, locusId, interval) => {
         const cfg = HPRC256_STRATIFIED_CHARTS[chartKind]
-        // Cache is locus-scoped: on the index page, dialogs can open for many
-        // different rows in one session, so a single cache slot per chart kind
-        // would return stale rows for all loci after the first.
-        const cacheKey = cfg.cacheKey + '__' + locusId
+        // Cache key is (chart kind, locus, interval) — a LocusId can be genotyped
+        // under multiple TRGT intervals, so each (locus, interval) needs its own
+        // cache slot.
+        const intervalSuffix = interval ? ('__' + interval) : ''
+        const cacheKey = cfg.cacheKey + '__' + locusId + intervalSuffix
         if (window.searchResults && cacheKey in window.searchResults) {
             return window.searchResults[cacheKey]
         }
         const escapedLocusId = locusId.replace(/'/g, "\\'")
-        const locusCol = (chartKind === 'allele' || chartKind === 'biallelic') ? 'LocusId' : 'locus_id'
-        const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${locusCol} = '${escapedLocusId}'`
+        const isLpsStratified = (chartKind === 'allele' || chartKind === 'biallelic')
+        const locusCol = isLpsStratified ? 'LocusId' : 'locus_id'
+        const intervalCol = isLpsStratified ? 'Interval' : 'interval'
+        let where = `${locusCol} = '${escapedLocusId}'`
+        if (interval) {
+            where += ` AND ${intervalCol} = '${interval.replace(/'/g, "\\'")}'`
+        }
+        const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${where} LIMIT 1`
         const result = await queryBigQuery(query, 0, 1, null, null)
         const stratifiedRow = (result && result.rows && result.rows.length > 0) ? result.rows[0] : null
         if (window.searchResults) window.searchResults[cacheKey] = stratifiedRow
@@ -2766,17 +2783,24 @@ gtag('config', 'G-6R8FPBQRFH');
         GLOBAL_PAGE_STATE[cfg.urlSexField] = sexData
         writePersistentPageStateToUrl()
 
+        // When a non-default interval is selected, ALL view comes from the
+        // stratified table's unsuffixed column (the catalog row's HPRC256_*
+        // summary columns reflect only the narrowest interval).
+        const activeInterval = GLOBAL_PAGE_STATE['hprc256_interval'] || null
+        const usingNonDefaultInterval = !!(activeInterval && mainCatalogRow.__hprc256DefaultInterval && activeInterval !== mainCatalogRow.__hprc256DefaultInterval)
+
         let histogramString
-        if (!stratum) {
+        if (!stratum && !usingNonDefaultInterval) {
             histogramString = mainCatalogRow[cfg.mainColumn]
         } else {
-            const stratifiedColName = cfg.stratColPrefix + stratum
-            const cacheKey = cfg.cacheKey + '__' + mainCatalogRow.LocusId
+            const stratifiedColName = stratum ? (cfg.stratColPrefix + stratum) : cfg.unsuffixedColumn
+            const intervalSuffix = activeInterval ? ('__' + activeInterval) : ''
+            const cacheKey = cfg.cacheKey + '__' + mainCatalogRow.LocusId + intervalSuffix
             const alreadyCached = window.searchResults && cacheKey in window.searchResults
             if (!alreadyCached) {
                 showHprc256SpinnerOverlay(containerEl)
                 try {
-                    const fetchedRow = await fetchHprc256StratifiedRow(chartKind, mainCatalogRow.LocusId)
+                    const fetchedRow = await fetchHprc256StratifiedRow(chartKind, mainCatalogRow.LocusId, activeInterval)
                     histogramString = fetchedRow ? fetchedRow[stratifiedColName] : null
                 } finally {
                     hideHprc256SpinnerOverlay(containerEl)
@@ -5844,11 +5868,12 @@ gtag('config', 'G-6R8FPBQRFH');
         }
 
         // Lazy-fetch the list of TRGT intervals that genotyped this LocusId, then
-        // wire the interval selector + the decomposed-alleles fetch. The selector
-        // affects only the decomposed-alleles section in this MVP; the other
-        // HPRC256 sections continue to show the catalog row's narrowest-interval
-        // data (the catalog row's HPRC256_* columns are loaded from the narrowest
-        // interval per load_bigquery_main_table.py).
+        // wire the interval selector. The selector drives all five HPRC256 panels:
+        // the four stratified charts (allele histogram, biallelic histogram, purity,
+        // methylation) plus the decomposed-alleles section. On change, the four
+        // chart panels re-render via handleHprc256DropdownChange, which honors the
+        // current GLOBAL_PAGE_STATE['hprc256_interval'] and falls back to the
+        // catalog row's HPRC256_* columns only at the narrowest (default) interval.
         (async () => {
             const locusId = row['LocusId']
             const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
@@ -5860,6 +5885,20 @@ gtag('config', 'G-6R8FPBQRFH');
             }
             // intervals are sorted narrowest-first by the query.
             const defaultInterval = intervals[0]['interval']
+            row.__hprc256DefaultInterval = defaultInterval
+            GLOBAL_PAGE_STATE['hprc256_interval'] = defaultInterval
+
+            const refreshAllPanels = (selectedInterval) => {
+                GLOBAL_PAGE_STATE['hprc256_interval'] = selectedInterval
+                // Re-render each of the 4 HPRC256 stratified panels with the new
+                // interval. handleHprc256DropdownChange reads GLOBAL_PAGE_STATE so
+                // we only need to fire it once per .hprc256-stratum-controls block.
+                $('.hprc256-stratum-controls').each(function () {
+                    handleHprc256DropdownChange(this, row)
+                })
+                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, selectedInterval)
+            }
+
             if (intervals.length === 1) {
                 selectorEl.hide()
             } else {
@@ -5878,9 +5917,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 `)
                 selectorEl.show()
                 $('#hprc256-interval-select').val(defaultInterval).change((e) => {
-                    fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, e.target.value)
+                    refreshAllPanels(e.target.value)
                 })
             }
+            // Initial decomposed-alleles fetch at the default interval. The four
+            // stratified panels are already rendered from the catalog row, which
+            // matches the default (narrowest) interval — no re-render needed.
             fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, defaultInterval)
         })()
 

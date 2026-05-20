@@ -543,11 +543,12 @@
         }
 
         // Lazy-fetch the list of TRGT intervals that genotyped this LocusId, then
-        // wire the interval selector + the decomposed-alleles fetch. The selector
-        // affects only the decomposed-alleles section in this MVP; the other
-        // HPRC256 sections continue to show the catalog row's narrowest-interval
-        // data (the catalog row's HPRC256_* columns are loaded from the narrowest
-        // interval per load_bigquery_main_table.py).
+        // wire the interval selector. The selector drives all five HPRC256 panels:
+        // the four stratified charts (allele histogram, biallelic histogram, purity,
+        // methylation) plus the decomposed-alleles section. On change, the four
+        // chart panels re-render via handleHprc256DropdownChange, which honors the
+        // current GLOBAL_PAGE_STATE['hprc256_interval'] and falls back to the
+        // catalog row's HPRC256_* columns only at the narrowest (default) interval.
         (async () => {
             const locusId = row['LocusId']
             const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
@@ -559,6 +560,20 @@
             }
             // intervals are sorted narrowest-first by the query.
             const defaultInterval = intervals[0]['interval']
+            row.__hprc256DefaultInterval = defaultInterval
+            GLOBAL_PAGE_STATE['hprc256_interval'] = defaultInterval
+
+            const refreshAllPanels = (selectedInterval) => {
+                GLOBAL_PAGE_STATE['hprc256_interval'] = selectedInterval
+                // Re-render each of the 4 HPRC256 stratified panels with the new
+                // interval. handleHprc256DropdownChange reads GLOBAL_PAGE_STATE so
+                // we only need to fire it once per .hprc256-stratum-controls block.
+                $('.hprc256-stratum-controls').each(function () {
+                    handleHprc256DropdownChange(this, row)
+                })
+                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, selectedInterval)
+            }
+
             if (intervals.length === 1) {
                 selectorEl.hide()
             } else {
@@ -577,9 +592,12 @@
                 `)
                 selectorEl.show()
                 $('#hprc256-interval-select').val(defaultInterval).change((e) => {
-                    fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, e.target.value)
+                    refreshAllPanels(e.target.value)
                 })
             }
+            // Initial decomposed-alleles fetch at the default interval. The four
+            // stratified panels are already rendered from the catalog row, which
+            // matches the default (narrowest) interval — no re-render needed.
             fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, defaultInterval)
         })()
 
