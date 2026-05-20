@@ -1,16 +1,24 @@
 """Decompose TRGT multisample VCF alleles into motif compositions.
 
 Reads VCF lines from stdin (header `#` lines are ignored) and writes one
-parquet row per ``INFO/TRID`` sub-entry to ``--output``. A simple VCF record
-emits one row; a compound record (TRID with comma-separated sub-TRIDs that
-TRGT uses to cluster adjacent catalog entries into one VCF row) emits one
-row per sub-TRID, each decomposed under the motif parsed from that sub-TRID.
-The per-sub-TRID coordinates (``start_0based``/``end_1based``) and ``motifs``
-come from the sub-TRID itself, not from VCF POS/END/MOTIFS, since TRGT
-sometimes extends VCF POS to anchor at an adjacent locus while keeping each
-sub-TRID faithful to its originating catalog entry. The full VCF-record
-reference span is also recorded (``vcf_start_0based``/``vcf_end_1based``)
-and is shared by every sub-TRID of the same VCF row.
+parquet row per LocusId in ``INFO/TRID`` to ``--output``. A simple VCF
+record emits one row; a compound record (TRID is a comma-separated list of
+LocusIds for a variation-cluster catalog entry) emits one row per LocusId,
+each decomposed under the motif parsed from that LocusId. The per-LocusId
+coordinates (``start_0based``/``end_1based``) and ``motifs`` come from the
+LocusId itself, not from VCF POS/END/MOTIFS, since TRGT sometimes extends
+VCF POS to anchor at an adjacent locus while keeping each LocusId faithful
+to its originating catalog entry. The full VCF-record reference span is
+also recorded (``vcf_start_0based``/``vcf_end_1based``) and is shared by
+every LocusId of the same VCF row.
+
+Each row also carries the TRGT interval that produced it:
+``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}`` (always set),
+and ``vc`` = the inner span from ``INFO/STRUC`` when the row was genotyped
+as part of a variation cluster (``<VC:...>``) or the empty string for an
+isolated TR (``<TR:...>``). These columns disambiguate the rows that share
+a ``locus_id`` because the same LocusId was genotyped under multiple TRGT
+catalog intervals (e.g. once as a standalone TR and once inside a VC).
 
 Decomposition uses trviz when feasible, with bypass paths for short motifs
 and skip reasons for inputs that are too long or contain non-ACGT bases.
@@ -235,8 +243,8 @@ def format_allele_data(seq_counts, ref_repeat, motif):
     Args:
         seq_counts: Dict mapping sequence to integer haplotype count.
         ref_repeat: REF sequence (anchor-stripped) — used to set ``is_ref``.
-        motif: The single motif string parsed from this row's TRID. Each
-            sub-TRID of a compound record gets its own motif here, so trviz
+        motif: The single motif string parsed from this row's LocusId. Each
+            LocusId in a compound record gets its own motif here, so trviz
             sees just that motif when decomposing the full compound allele.
 
     Returns:
@@ -264,6 +272,23 @@ def format_allele_data(seq_counts, ref_repeat, motif):
     return ";".join(records)
 
 
+def parse_struc_vc_span(struc):
+    """Returns the inner VC span from ``INFO/STRUC`` or ``""`` for non-VC rows.
+
+    For an isolated TR row, ``STRUC`` is ``<TR:locus-id>`` and this returns
+    ``""``. For a variation-cluster row, ``STRUC`` is ``<VC:chrom:start-end>``
+    and this returns ``chrom:start-end`` (the content between ``<VC:`` and the
+    first ``>``). The VC span follows the no-``chr`` convention used by TRIDs
+    in this catalog (e.g. ``13:102161564-102161724``).
+    """
+    if not struc.startswith("<VC:"):
+        return ""
+    end_idx = struc.find(">", 4)
+    if end_idx == -1:
+        return ""
+    return struc[4:end_idx]
+
+
 def parse_trid(trid):
     """Splits a TRID like ``"4-3074876-3074933-CAG"`` into its components.
 
@@ -289,20 +314,20 @@ def parse_trid(trid):
 def process_record(line):
     """Parses one VCF data line and returns a list of dicts for parquet emission.
 
-    Each VCF record may carry a simple TRID (one sub-TRID) or a compound TRID
-    (multiple comma-separated sub-TRIDs, when TRGT clusters adjacent catalog
-    entries). We emit one parquet row per sub-TRID. Coordinates and motif are
-    parsed from the sub-TRID itself rather than from VCF POS/END/MOTIFS, since
-    TRGT can extend VCF POS to anchor at an adjacent locus while leaving the
-    TRID faithful to the originating catalog entry.
+    Each VCF record may carry a simple TRID (a single LocusId) or a compound
+    TRID (a comma-separated list of LocusIds, when TRGT clusters adjacent
+    catalog entries). We emit one parquet row per LocusId. Coordinates and
+    motif are parsed from the LocusId itself rather than from VCF POS/END/
+    MOTIFS, since TRGT can extend VCF POS to anchor at an adjacent locus
+    while leaving the TRID faithful to the originating catalog entry.
 
     Args:
         line: One non-header VCF line (no trailing newline required).
 
     Returns:
-        A list of dicts matching the disk schema (one per sub-TRID), or an
+        A list of dicts matching the disk schema (one per LocusId), or an
         empty list if the line is empty / malformed / has no TRID / has a TRID
-        that can't be parsed as ``chrom-start-end-motif``.
+        whose LocusIds can't be parsed as ``chrom-start-end-motif``.
     """
     line = line.rstrip("\n")
     if not line:
@@ -318,10 +343,10 @@ def process_record(line):
     if not trid_field:
         return []
 
-    # Full VCF-record reference span shared by every sub-TRID of this row.
+    # Full VCF-record reference span shared by every LocusId in this row.
     # VCF POS (1-based) is the anchor base just before the variant content; the
     # content's 0-based half-open span is therefore [POS, INFO/END). For a
-    # compound record this is *wider* than any individual sub-TRID, because
+    # compound record this is *wider* than any individual LocusId, because
     # TRGT can extend POS upstream to anchor at an adjacent locus.
     try:
         vcf_start_0based = int(pos)
@@ -329,9 +354,11 @@ def process_record(line):
     except ValueError:
         return []
 
+    vc_span = parse_struc_vc_span(info_dict.get("STRUC", ""))
+
     # Strip the TRGT anchor base; spanning deletion `*` is preserved as-is.
     # The same anchor-stripped allele sequences are shared across every
-    # sub-TRID for a compound record (each sub-TRID re-decomposes the full
+    # LocusId in a compound record (each LocusId re-decomposes the full
     # compound allele under its own motif).
     ref_repeat = ref[1:]
     raw_alts = [] if alt_field == "." else alt_field.split(",")
@@ -344,25 +371,27 @@ def process_record(line):
     chrom_idx_for_vcf = chrom_to_index(chrom)
 
     rows = []
-    for sub_trid in trid_field.split(","):
-        parsed = parse_trid(sub_trid)
+    for locus_id in trid_field.split(","):
+        parsed = parse_trid(locus_id)
         if parsed is None:
             continue
-        sub_chrom, sub_start, sub_end, sub_motif = parsed
-        if not sub_motif:
+        locus_chrom, locus_start, locus_end, locus_motif = parsed
+        if not locus_motif:
             continue
         rows.append({
-            "locus_id": sub_trid,
-            "chrom": sub_chrom,
+            "locus_id": locus_id,
+            "chrom": locus_chrom,
             "chrom_index": chrom_idx_for_vcf,
-            "start_0based": sub_start,
-            "end_1based": sub_end,
+            "start_0based": locus_start,
+            "end_1based": locus_end,
             "vcf_start_0based": vcf_start_0based,
             "vcf_end_1based": vcf_end_1based,
-            "motifs": sub_motif,
+            "interval": f"{locus_chrom}:{vcf_start_0based}-{vcf_end_1based}",
+            "vc": vc_span,
+            "motifs": locus_motif,
             "total_allele_number": total_called,
             "total_unique_alleles": total_unique,
-            "allele_data": format_allele_data(seq_counts, ref_repeat, sub_motif),
+            "allele_data": format_allele_data(seq_counts, ref_repeat, locus_motif),
         })
     return rows
 
@@ -377,6 +406,8 @@ def get_schema():
         ("end_1based", pa.int64()),
         ("vcf_start_0based", pa.int64()),
         ("vcf_end_1based", pa.int64()),
+        ("interval", pa.string()),
+        ("vc", pa.string()),
         ("motifs", pa.string()),
         ("total_allele_number", pa.int64()),
         ("total_unique_alleles", pa.int64()),
@@ -395,13 +426,13 @@ def _flush_batch(writer, batch):
 
 
 def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
-    """Streams VCF text into a parquet file, one row per sub-TRID.
+    """Streams VCF text into a parquet file, one row per LocusId.
 
     Args:
         input_stream: Iterable of lines (e.g. ``sys.stdin``).
         output_path: Destination parquet path.
         max_rows: If not ``None``, stop after emitting this many output rows
-            (sub-TRIDs, not VCF lines).
+            (LocusIds, not VCF lines).
 
     Returns:
         Tuple ``(rows_written, vcf_lines_skipped)``. ``vcf_lines_skipped``
