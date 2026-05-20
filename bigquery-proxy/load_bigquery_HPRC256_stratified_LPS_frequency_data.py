@@ -97,6 +97,21 @@ def main():
         for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS
     ]
     schema_field_names = [c["name"] for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS]
+    # Per-column caster: TSV values arrive as strings, but BigQuery's
+    # insert_rows_json rejects empty strings for FLOAT64/INT64 columns. Cast
+    # explicitly here; empty strings become None (NULL in BQ).
+    _NUMERIC_CASTERS = {"FLOAT64": float, "FLOAT": float, "INT64": int, "INTEGER": int}
+    column_casters = {
+        c["name"]: _NUMERIC_CASTERS.get(c["type"]) for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS
+    }
+
+    def coerce_cell(name, raw):
+        caster = column_casters.get(name)
+        if caster is None:
+            return raw
+        if raw is None or raw == "":
+            return None
+        return caster(raw)
 
     client = bigquery.Client(project=PROJECT_ID)
     dataset_ref = client.dataset(DATASET_ID)
@@ -137,7 +152,7 @@ def main():
                 raise ValueError(
                     f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
                 )
-            row = {name: fields[col_idx[name]] for name in schema_field_names}
+            row = {name: coerce_cell(name, fields[col_idx[name]]) for name in schema_field_names}
             rows_to_insert.append(row)
             if len(rows_to_insert) >= 1000:
                 insert_with_retries(client, new_table_ref, rows_to_insert)

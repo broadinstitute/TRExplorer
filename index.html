@@ -2784,11 +2784,29 @@ gtag('config', 'G-6R8FPBQRFH');
         GLOBAL_PAGE_STATE[cfg.urlSexField] = sexData
         writePersistentPageStateToUrl()
 
-        // When a non-default interval is selected, ALL view comes from the
-        // stratified table's unsuffixed column (the catalog row's HPRC256_*
-        // summary columns reflect only the narrowest interval).
-        const activeInterval = GLOBAL_PAGE_STATE['hprc256_interval'] || null
-        const usingNonDefaultInterval = !!(activeInterval && mainCatalogRow.__hprc256DefaultInterval && activeInterval !== mainCatalogRow.__hprc256DefaultInterval)
+        // In-flight token: rapid stratum / interval changes can fire multiple
+        // concurrent fetches. Stamp the controls element with the current call's
+        // token and skip rendering when the token has been superseded.
+        const myToken = (controlsEl.__hprc256InFlightToken || 0) + 1
+        controlsEl.__hprc256InFlightToken = myToken
+
+        // The catalog row's HPRC256_* summary columns reflect the catalog's
+        // *narrowest* interval. We pick the active interval in priority order:
+        // 1) the user's explicit interval-dropdown selection;
+        // 2) the catalog row's HPRC256_NarrowestInterval (so stratified fetches
+        //    always pin to the same interval the catalog row was derived from);
+        // 3) null (legacy fallback for callers without an interval).
+        // The "All" stratum view can be sourced from the catalog row only when
+        // the active interval matches that narrowest interval; otherwise it
+        // comes from the stratified table's unsuffixed column.
+        const activeInterval = GLOBAL_PAGE_STATE['hprc256_interval']
+            || mainCatalogRow['HPRC256_NarrowestInterval']
+            || mainCatalogRow.__hprc256DefaultInterval
+            || null
+        const catalogInterval = mainCatalogRow['HPRC256_NarrowestInterval']
+            || mainCatalogRow.__hprc256DefaultInterval
+            || null
+        const usingNonDefaultInterval = !!(activeInterval && catalogInterval && activeInterval !== catalogInterval)
 
         let histogramString
         if (!stratum && !usingNonDefaultInterval) {
@@ -2811,6 +2829,11 @@ gtag('config', 'G-6R8FPBQRFH');
                 histogramString = cached ? cached[stratifiedColName] : null
             }
         }
+
+        // Stale-fetch guard: if a newer call superseded this one while the
+        // BigQuery fetch was in flight, skip the chart update so the rendered
+        // data always matches the latest dropdown state.
+        if (controlsEl.__hprc256InFlightToken !== myToken) return
 
         const safeString = histogramString || ''
         emptyNoteEl.style.display = safeString ? 'none' : 'inline'

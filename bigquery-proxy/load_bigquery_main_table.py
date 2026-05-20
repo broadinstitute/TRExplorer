@@ -197,6 +197,8 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         )
         df["_interval_span"] = df["interval"].apply(_interval_span)
         # Narrowest span first; ties broken by interval string for determinism.
+        # The same (span, interval) ordering is used by parse_all_samples_distribution_column
+        # so the LPS / purity / methylation loaders pick the *same* row per locus.
         df = df.sort_values(["locus_id", "_interval_span", "interval"]).drop_duplicates(
             subset="locus_id", keep="first"
         ).drop(columns=["_interval_span"])
@@ -349,19 +351,27 @@ if args.hprc256_tsv:
 hprc256_purity_methylation_lookup = {}
 
 
-def parse_all_samples_distribution_column(tsv_path, expected_column):
+def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_interval_by_locus=None):
     """Read the bare 'All samples' distribution column (named `expected_column`) from a
     stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
 
-    The TSV emits multiple rows per locus_id (one per TRGT interval). This function keeps the
-    NARROWEST interval per locus_id so the main catalog table's HPRC256_AlleleSize*
-    summary columns reflect the most-localized genotyping of each locus.
+    The TSV emits multiple rows per locus_id (one per TRGT interval). When
+    ``narrowest_interval_by_locus`` is provided (a ``{locus_id: interval}`` map
+    typically built from the LPS stratified TSV), this function pins each locus to
+    that interval so the main catalog row's HPRC256_NarrowestInterval,
+    HPRC256_AlleleHistogram, HPRC256_AlleleSizeAndPurityDistribution, and
+    HPRC256_AlleleSizeAndMethylationDistribution all reflect the same TRGT
+    interval. If the map is missing a locus, or the locus's narrowest interval is
+    absent from this TSV, the function falls back to picking the narrowest
+    interval present in this TSV (deterministic tie-break on interval string).
 
     Returns a {locus_id: distribution_string} dict (skipping rows where the column is empty).
     """
     print(f"Parsing {expected_column} from {tsv_path}")
     result = {}
-    best_span = {}  # locus_id -> narrowest interval span seen so far
+    best_key = {}  # locus_id -> (preference_rank, span, interval_str) for deterministic tie-break
+    pinned_count = 0
+    fallback_count = 0
     with gzip.open(os.path.expanduser(tsv_path), "rt") as f:
         header = f.readline().rstrip("\n").split("\t")
         if expected_column not in header:
@@ -380,25 +390,63 @@ def parse_all_samples_distribution_column(tsv_path, expected_column):
             if not value:
                 continue
             locus_id = fields[0]
-            span = float("inf")
+            interval_str = ""
             if interval_col_idx is not None and interval_col_idx < len(fields):
-                span = _interval_span(fields[interval_col_idx])
-            if locus_id not in result or span < best_span[locus_id]:
+                interval_str = fields[interval_col_idx]
+            # Preference rank: 0 = matches the LPS narrowest pin; 1 = pinned but
+            # we haven't matched the exact interval yet (treat like fallback);
+            # 2 = no pin provided. Lower rank wins.
+            preferred = (
+                narrowest_interval_by_locus is not None
+                and locus_id in narrowest_interval_by_locus
+                and interval_str == narrowest_interval_by_locus[locus_id]
+            )
+            if preferred:
+                preference_rank = 0
+            elif narrowest_interval_by_locus is not None and locus_id in narrowest_interval_by_locus:
+                preference_rank = 1
+            else:
+                preference_rank = 2
+            # Deterministic tie-break: (rank, span, interval_str) ascending.
+            key = (preference_rank, _interval_span(interval_str), interval_str)
+            current = best_key.get(locus_id)
+            if current is None or key < current:
                 result[locus_id] = value
-                best_span[locus_id] = span
-    print(f"Parsed {len(result):,d} records from {tsv_path}")
+                best_key[locus_id] = key
+        # Count which loci ended up pinned (rank 0) vs fallback for telemetry.
+        for locus_id, key in best_key.items():
+            if key[0] == 0:
+                pinned_count += 1
+            else:
+                fallback_count += 1
+    print(
+        f"Parsed {len(result):,d} records from {tsv_path}"
+        + (f" ({pinned_count:,d} pinned to LPS narrowest, {fallback_count:,d} fell back)"
+           if narrowest_interval_by_locus is not None else "")
+    )
     return result
 
 
+# Build a {locus_id: narrowest_interval} map from the LPS lookup so the purity
+# and methylation parsers pin to the same interval per locus. This guarantees
+# HPRC256_NarrowestInterval and the embedded AlleleSize* / purity / methylation
+# columns on a catalog row all describe the same TRGT interval.
+hprc256_narrowest_interval_by_locus = {
+    locus_id: record.get("narrowest_interval")
+    for locus_id, record in hprc256_lookup.items()
+    if record.get("narrowest_interval")
+}
 if args.hprc256_purity_stratified_tsv:
     purity_lookup = parse_all_samples_distribution_column(
         args.hprc256_purity_stratified_tsv, "AlleleSizeAndPurityDistribution",
+        narrowest_interval_by_locus=hprc256_narrowest_interval_by_locus,
     )
 else:
     purity_lookup = {}
 if args.hprc256_methylation_stratified_tsv:
     methylation_lookup = parse_all_samples_distribution_column(
         args.hprc256_methylation_stratified_tsv, "AlleleSizeAndMethylationDistribution",
+        narrowest_interval_by_locus=hprc256_narrowest_interval_by_locus,
     )
 else:
     methylation_lookup = {}

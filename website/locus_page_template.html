@@ -575,9 +575,21 @@
                 return
             }
             const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
+            // Defensive cross-check: HPRC256_NumIntervalsThatIncludeThisLocusId
+            // is computed from the LPS stratified TSV, while fetchHprc256Intervals
+            // reads the decomposed-alleles table. The two sources should agree on
+            // the per-locus interval count; if they disagree, the BigQuery tables
+            // were likely loaded from different VCFs (or one is stale). Warn but
+            // continue using whichever source gave us interval rows.
+            if (intervalCount != null && intervalCount !== intervals.length) {
+                console.warn(
+                    `HPRC256 interval count mismatch for ${locusId}: ` +
+                    `catalog says ${intervalCount}, decompose table returned ${intervals.length}`
+                )
+            }
             if (!intervals.length) {
                 selectorEl.hide()
-                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, null)
+                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, row['HPRC256_NarrowestInterval'] || null)
                 return
             }
             // intervals are sorted narrowest-first by the query.
