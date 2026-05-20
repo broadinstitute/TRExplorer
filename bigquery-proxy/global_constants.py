@@ -1059,11 +1059,10 @@ HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS = (
 
 # Schema for the HPRC256 stratified allele-size-and-purity table.
 # Source file: trgt-hprc.allele_size_purity.stratified.by_population.by_sex.<N>_samples.tsv.gz
-# Uses snake_case column names to match the upstream methylation/purity script output.
-# The unsuffixed AlleleSizeAndPurityDistribution column from the upstream TSV is intentionally
-# omitted here: that "all 256 samples" value is loaded into the main catalog table's
-# HPRC256_AlleleSizeAndPurityDistribution column by load_bigquery_main_table.py. The stratified
-# loader simply skips TSV columns that aren't in this schema.
+# The unsuffixed AlleleSizeAndPurityDistribution column ("all 256 samples") is also loaded
+# here, in addition to the per-stratum columns: the main catalog table only holds the
+# narrowest-interval value of that column, so the locus page reads this stratified row
+# whenever the user selects a non-narrowest interval.
 HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
       "description": "Locus identifier matching LocusId in the main catalog table."},
@@ -1083,8 +1082,8 @@ HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS = (
 # Schema for the HPRC256 stratified allele-size-and-methylation table.
 # Source file: trgt-hprc.methylation.stratified.by_population.by_sex.<N>_samples.tsv.gz
 # See note on HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS — the unsuffixed
-# AlleleSizeAndMethylationDistribution column is intentionally omitted; it lives on the
-# main catalog table.
+# AlleleSizeAndMethylationDistribution column is loaded here too, in addition to the
+# per-stratum columns, so the locus page can read it for non-narrowest intervals.
 HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
       "description": "Locus identifier matching LocusId in the main catalog table."},

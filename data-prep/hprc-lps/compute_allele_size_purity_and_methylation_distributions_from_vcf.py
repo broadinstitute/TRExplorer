@@ -1,15 +1,17 @@
 """Parse TRGT VCF to compute joint distributions of allele size vs. purity (AP) and
 allele size vs. methylation (AM) for each single-motif locus.
 
-Two gzipped TSVs are emitted (one per metric). One row is emitted per VCF record (=
-per TRGT catalog interval). Each row carries three identifier columns: ``locus_id``
-(the INFO/TRID), ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}``
+Two gzipped TSVs are emitted (one per metric). One row is emitted per LocusId
+that matches the VCF record's motif: compound TRIDs (a comma-separated INFO/TRID
+field) produce one output row per LocusId, all sharing the same interval/vc.
+Each row carries three identifier columns: ``locus_id`` (one entry parsed from
+INFO/TRID), ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}``
 (always set), and ``vc`` = the inner span from ``INFO/STRUC`` if the row was
 genotyped as part of a variation cluster (``<VC:...>``) or the empty string for
 an isolated TR (``<TR:...>``). These three columns together uniquely identify
-the TRGT interval; a ``locus_id`` that appears in multiple intervals (once as a
-standalone TR and once or more inside a VC) emits multiple rows that differ in
-``interval`` and ``vc``.
+the (LocusId, TRGT-interval) pair; a ``locus_id`` that appears in multiple
+intervals (once as a standalone TR and once or more inside a VC) emits multiple
+rows that differ in ``interval`` and ``vc``.
 
 The first distribution column is always the unsuffixed "All samples" value.
 Stratification options mirror those of

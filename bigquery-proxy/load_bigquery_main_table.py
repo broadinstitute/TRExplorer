@@ -1025,7 +1025,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
             if vamos_data[c] is not None and vamos_data[c] != "":
                 record[c] = int(vamos_data[c])
 
-        if int(vamos_data["IncludeInVamosCatalog"]) == 1:
+        if vamos_data.get("IncludeInVamosCatalog") and int(vamos_data["IncludeInVamosCatalog"]) == 1:
             # since Vamos doesn't support overlapping loci, double-check that this locus doesn't overlap any other
             # loci that are to be included in the Vamos catalog
             if vamos_overlap_detector_last_end_coord[chrom] > start_0based:

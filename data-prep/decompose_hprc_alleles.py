@@ -492,7 +492,8 @@ def main():
         "--max-rows",
         type=int,
         default=None,
-        help="Optional cap on number of VCF records processed (for local testing).",
+        help="Optional cap on number of output rows (LocusIds) written to parquet (for local testing). "
+             "A single VCF record with a compound TRID can produce multiple output rows.",
     )
     args = parser.parse_args()
 

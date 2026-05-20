@@ -66,12 +66,15 @@ def update_html_table_id(html_paths, const_name, new_table_id):
             content = pattern.sub(replacement, content)
         else:
             # Insert the new constant immediately after the existing TABLE_ID line.
-            content = re.sub(
+            content, n = re.subn(
                 r"(const TABLE_ID[\s]*=[\s]*'catalog[^']*')",
                 rf"\1\n    {replacement}",
                 content,
                 count=1,
             )
+            if n == 0:
+                print(f"Warning: could not find anchor 'const TABLE_ID = ...' in {path}; skipping.")
+                continue
         with open(path, "wt") as f:
             f.write(content)
         print(f"Updated {const_name} in {path}")
