@@ -208,6 +208,11 @@ def main():
     print(f"Extracting interval metadata from {args.input_vcf} -> {args.output_tsv} (workers={args.workers})")
     tmpdir = tempfile.mkdtemp(prefix="vcf_interval_metadata_")
     chrom_results = {}
+    # Atomic write: stream into a tmp path next to the destination, then
+    # os.replace at the end. Prevents a Ctrl-C / OOM / network glitch mid-
+    # concat from leaving a partial gzip whose mtime is fresher than the VCF
+    # (which would silently short-circuit future runs via output_is_fresh).
+    tmp_output = args.output_tsv + ".tmp"
     try:
         with ThreadPoolExecutor(max_workers=args.workers) as ex:
             futures = {
@@ -219,9 +224,9 @@ def main():
                 chrom_results[chrom] = (path, count)
                 print(f"  {chrom}: {count:,d} rows -> {path}")
 
-        # Concatenate per-chrom temp files in canonical order.
+        # Concatenate per-chrom temp files in canonical order into the tmp output.
         total = 0
-        with gzip.open(args.output_tsv, "wt") as out:
+        with gzip.open(tmp_output, "wt") as out:
             out.write("trid\tlocus_id\tmotif\tinterval\tvc\n")
             for chrom in CHROMS_IN_OUTPUT_ORDER:
                 if chrom not in chrom_results:
@@ -231,8 +236,18 @@ def main():
                     for line in f:
                         out.write(line)
                 total += count
+        # Promote tmp -> final atomically; do this AFTER the gzip writer
+        # closed cleanly so the final path is never a partial gzip.
+        os.replace(tmp_output, args.output_tsv)
         print(f"Wrote {total:,d} rows to {args.output_tsv}")
     finally:
+        # Clean up the tmp output if it's still around (e.g. exception fired
+        # before os.replace).
+        if os.path.isfile(tmp_output):
+            try:
+                os.remove(tmp_output)
+            except OSError:
+                pass
         for path, _ in chrom_results.values():
             if os.path.isfile(path):
                 os.remove(path)

@@ -30,6 +30,7 @@ Output filenames (suffixes match the LPS script):
 import argparse
 import collections
 import gzip
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -343,34 +344,50 @@ def main():
     # Process-wide uniqueness check on (locus_id, interval, vc) — matches the
     # design contract enforced by the LPS convert and decompose scripts.
     seen_output_keys = set()
-    with gzip.open(purity_path, "wt") as purity_out, gzip.open(methylation_path, "wt") as methylation_out:
-        purity_out.write("\t".join(purity_header) + "\n")
-        methylation_out.write("\t".join(methylation_header) + "\n")
+    # Atomic write: stream into .tmp files so a mid-run failure (duplicate
+    # key, parse error) doesn't overwrite a previous good output.
+    purity_tmp = Path(str(purity_path) + ".tmp")
+    methylation_tmp = Path(str(methylation_path) + ".tmp")
+    try:
+        with gzip.open(purity_tmp, "wt") as purity_out, gzip.open(methylation_tmp, "wt") as methylation_out:
+            purity_out.write("\t".join(purity_header) + "\n")
+            methylation_out.write("\t".join(methylation_header) + "\n")
 
-        for locus_ids, interval, vc, purity_counters, methylation_counters in parse_vcf_and_compute_distributions(
-            args.input_vcf, sample_index_to_strata, args.num_loci
-        ):
-            purity_values = [format_distribution(purity_counters.get(label, collections.Counter())) for label in strata_labels]
-            has_purity = any(purity_values)
-            methylation_values = [format_distribution(methylation_counters.get(label, collections.Counter())) for label in strata_labels]
-            has_methylation = any(methylation_values)
-            if not has_purity and not has_methylation:
-                continue
-            for locus_id in locus_ids:
-                key = (locus_id, interval, vc)
-                if key in seen_output_keys:
-                    raise ValueError(
-                        f"duplicate output tuple "
-                        f"(locus_id={locus_id!r}, interval={interval!r}, vc={vc!r})"
-                    )
-                seen_output_keys.add(key)
-                row_prefix = f"{locus_id}\t{interval}\t{vc}"
-                if has_purity:
-                    purity_out.write(f"{row_prefix}\t" + "\t".join(purity_values) + "\n")
-                    purity_rows_written += 1
-                if has_methylation:
-                    methylation_out.write(f"{row_prefix}\t" + "\t".join(methylation_values) + "\n")
-                    methylation_rows_written += 1
+            for locus_ids, interval, vc, purity_counters, methylation_counters in parse_vcf_and_compute_distributions(
+                args.input_vcf, sample_index_to_strata, args.num_loci
+            ):
+                purity_values = [format_distribution(purity_counters.get(label, collections.Counter())) for label in strata_labels]
+                has_purity = any(purity_values)
+                methylation_values = [format_distribution(methylation_counters.get(label, collections.Counter())) for label in strata_labels]
+                has_methylation = any(methylation_values)
+                if not has_purity and not has_methylation:
+                    continue
+                for locus_id in locus_ids:
+                    key = (locus_id, interval, vc)
+                    if key in seen_output_keys:
+                        raise ValueError(
+                            f"duplicate output tuple "
+                            f"(locus_id={locus_id!r}, interval={interval!r}, vc={vc!r})"
+                        )
+                    seen_output_keys.add(key)
+                    row_prefix = f"{locus_id}\t{interval}\t{vc}"
+                    if has_purity:
+                        purity_out.write(f"{row_prefix}\t" + "\t".join(purity_values) + "\n")
+                        purity_rows_written += 1
+                    if has_methylation:
+                        methylation_out.write(f"{row_prefix}\t" + "\t".join(methylation_values) + "\n")
+                        methylation_rows_written += 1
+
+        # Atomic promote only after BOTH writers closed cleanly without exception.
+        os.replace(purity_tmp, purity_path)
+        os.replace(methylation_tmp, methylation_path)
+    finally:
+        for tmp in (purity_tmp, methylation_tmp):
+            if tmp.exists():
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
 
     print(f"Wrote {purity_rows_written:,d} rows to {purity_path}")
     print(f"Wrote {methylation_rows_written:,d} rows to {methylation_path}")
