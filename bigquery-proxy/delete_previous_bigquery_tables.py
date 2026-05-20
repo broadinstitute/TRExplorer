@@ -11,6 +11,7 @@ TABLE_ID_PREFIXES = [
     "hprc256_stratified_lps",
     "hprc256_allele_purity",
     "hprc256_methylation",
+    "hprc256_decomposed_alleles",
 ]
 
 client = bigquery.Client(project=PROJECT_ID)

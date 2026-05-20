@@ -28,12 +28,14 @@ def _get_signing_credentials():
     """
     global _SIGNING_CREDENTIALS, _SIGNING_SA_EMAIL
     if _SIGNING_CREDENTIALS is None:
-        credentials, _ = google.auth.default()
-        credentials.refresh(google.auth.transport.requests.Request())
-        _SIGNING_CREDENTIALS = credentials
-        _SIGNING_SA_EMAIL = getattr(credentials, "service_account_email", None) \
+        _SIGNING_CREDENTIALS, _ = google.auth.default()
+        _SIGNING_SA_EMAIL = getattr(_SIGNING_CREDENTIALS, "service_account_email", None) \
             or os.getenv("K_SERVICE_ACCOUNT") \
             or os.getenv("FUNCTION_IDENTITY")
+    # google.auth Credentials.token does not auto-refresh; warm Cloud Function
+    # instances outlive the ~1h token TTL, so re-refresh whenever expired.
+    if _SIGNING_CREDENTIALS.expired or _SIGNING_CREDENTIALS.token is None:
+        _SIGNING_CREDENTIALS.refresh(google.auth.transport.requests.Request())
     return _SIGNING_CREDENTIALS, _SIGNING_SA_EMAIL
 
 

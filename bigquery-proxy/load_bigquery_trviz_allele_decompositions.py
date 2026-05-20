@@ -62,17 +62,27 @@ def update_html_table_id(html_paths, new_table_fqn_backticked):
         re.DOTALL,
     )
 
+    replacement = f"const {HTML_TABLE_ID_CONST_NAME} = {new_table_fqn_backticked}"
     for path in html_paths:
         if not os.path.isfile(path):
             print(f"Skipping HTML update; file not found: {path}")
             continue
         with open(path, "r") as f:
             content = f.read()
-        if not value_pattern.search(content):
-            print(f"Warning: did not find {HTML_TABLE_ID_CONST_NAME} in {path}; skipping.")
-            continue
-        replacement = f"const {HTML_TABLE_ID_CONST_NAME} = {new_table_fqn_backticked}"
-        content = value_pattern.sub(replacement, content)
+        if value_pattern.search(content):
+            content = value_pattern.sub(replacement, content)
+        else:
+            # Insert the new constant immediately after the existing TABLE_ID line,
+            # matching the convention used by the other HPRC256 loader scripts.
+            content, n = re.subn(
+                r"(const TABLE_ID[\s]*=[\s]*'catalog[^']*')",
+                rf"\1\n    {replacement}",
+                content,
+                count=1,
+            )
+            if n == 0:
+                print(f"Warning: could not find anchor 'const TABLE_ID = ...' in {path}; skipping.")
+                continue
         with open(path, "wt") as f:
             f.write(content)
         print(f"Updated {HTML_TABLE_ID_CONST_NAME} in {path}")
