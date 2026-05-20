@@ -1018,7 +1018,20 @@ HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
                      "Format: 'sizex:count,sizex:count,...'."},
      {"type": "STRING", "name": "BiallelicHistogram",
       "description": "Biallelic genotype histogram across all 256 samples (the \"All\" view for this interval). "
-                     "Format: 'short/long:count,...'."}]
+                     "Format: 'short/long:count,...'."},
+     # Per-(LocusId, Interval) summary stats that mirror the convert script's HEADER_FIELDS.
+     # These let the locus page's summary stats table show one row per interval.
+     {"type": "FLOAT64", "name": "Min", "description": "Minimum allele size (LPS) at this (LocusId, Interval)."},
+     {"type": "FLOAT64", "name": "Mode", "description": "Modal allele size."},
+     {"type": "FLOAT64", "name": "Mean", "description": "Mean allele size."},
+     {"type": "FLOAT64", "name": "Stdev", "description": "Standard deviation of allele sizes."},
+     {"type": "FLOAT64", "name": "Median", "description": "Median allele size."},
+     {"type": "FLOAT64", "name": "99thPercentile", "description": "99th-percentile allele size."},
+     {"type": "FLOAT64", "name": "Max", "description": "Maximum allele size."},
+     {"type": "FLOAT64", "name": "ShortAllele99thPercentile", "description": "99th-percentile shorter-of-paired allele sizes."},
+     {"type": "FLOAT64", "name": "ShortAlleleMax", "description": "Maximum shorter-of-paired allele size."},
+     {"type": "INT64",   "name": "UniqueAlleleLengths", "description": "Number of distinct allele sizes observed."},
+     {"type": "INT64",   "name": "NumCalledAlleles", "description": "Total called allele count at this (LocusId, Interval)."}]
     + [{"type": "STRING", "name": f"AlleleSizeHistogram__{label}",
         "description": f"Allele size histogram for stratum '{label}'. Format: 'sizex:count,sizex:count,...'."}
        for label in HPRC256_STRATA_LABELS]

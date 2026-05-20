@@ -508,9 +508,19 @@
         $("#locus-page-row2-box2").html(locusPageRow2Box2)
 
 
-        // Generate summary stats table (above motif variability)
-        const summaryStatsHtml = generateSummaryStatsTable(row)
-        $('#locus-page-summary-stats').html(summaryStatsHtml)
+        // Generate summary stats table (above motif variability). Initial render
+        // uses the catalog row (one HPRC256 row from the narrowest interval); the
+        // per-(LocusId, Interval) breakdown is lazy-fetched below and the table
+        // is re-rendered when it lands.
+        $('#locus-page-summary-stats').html(generateSummaryStatsTable(row))
+        ;(async () => {
+            const hprc256IntervalRows = await fetchAllHprc256IntervalRows(row['LocusId'])
+            if (hprc256IntervalRows.length > 0) {
+                $('#locus-page-summary-stats').html(
+                    generateSummaryStatsTable(row, hprc256IntervalRows)
+                )
+            }
+        })()
 
         // Generate motif variability section
         const motifFrequencyTableRows = computeMotifFrequenciesTableRows(row['VamosMotifFrequencies'])

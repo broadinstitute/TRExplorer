@@ -873,11 +873,50 @@ gtag('config', 'G-6R8FPBQRFH');
         { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },
     ]
 
-    const generateSummaryStatsTable = (row) => {
-        // Check if any dataset has Stdev data
-        const hasAnyData = SUMMARY_STATS_DATASETS.some(dataset =>
-            row[dataset.prefix + 'Stdev'] != null
-        )
+    // Maps a stratified-LPS row's per-interval summary stats onto the HPRC256_*
+    // catalog-row shape, so generateSummaryStatsTable can render an extra row from
+    // it without duplicating column-handling logic.
+    const buildHprc256IntervalDatasetRow = (stratifiedRow) => {
+        if (!stratifiedRow) return null
+        const isVc = stratifiedRow['VC'] && stratifiedRow['VC'] !== ''
+        const intervalLabel = stratifiedRow['Interval'] || '?'
+        const kindLabel = isVc ? `Variation cluster ${intervalLabel}` : `Standalone TR ${intervalLabel}`
+        return {
+            name: `HPRC 256 — ${kindLabel}`,
+            description: 'Per-interval stats from the HPRC256 stratified LPS table',
+            // Mirror the SUMMARY_STATS_COLUMNS suffixes onto a HPRC256_-style flat dict.
+            HPRC256_MinAllele: stratifiedRow['Min'],
+            HPRC256_Median: stratifiedRow['Median'],
+            HPRC256_99thPercentile: stratifiedRow['99thPercentile'],
+            HPRC256_MaxAllele: stratifiedRow['Max'],
+            HPRC256_UniqueAlleleLengths: stratifiedRow['UniqueAlleleLengths'],
+            HPRC256_NumCalledAlleles: stratifiedRow['NumCalledAlleles'],
+            HPRC256_ModeAllele: stratifiedRow['Mode'],
+            HPRC256_Stdev: stratifiedRow['Stdev'],
+        }
+    }
+
+    const generateSummaryStatsTable = (row, hprc256IntervalRows) => {
+        // hprc256IntervalRows is optional; when provided (lazy-fetched per-(LocusId, Interval) rows
+        // from the stratified LPS BQ table) the HPRC256 dataset is split into one row per interval,
+        // replacing the single catalog-driven HPRC256 row.
+        const useIntervalRows = Array.isArray(hprc256IntervalRows) && hprc256IntervalRows.length > 0
+        const datasets = useIntervalRows
+            ? [
+                ...hprc256IntervalRows.map(stratifiedRow => ({
+                    prefix: 'HPRC256_',
+                    name: buildHprc256IntervalDatasetRow(stratifiedRow).name,
+                    description: 'Per-interval stats from the HPRC256 stratified LPS table',
+                    sourceRow: buildHprc256IntervalDatasetRow(stratifiedRow),
+                })),
+                ...SUMMARY_STATS_DATASETS.filter(d => d.prefix !== 'HPRC256_'),
+            ]
+            : SUMMARY_STATS_DATASETS
+
+        // Check if any dataset has Stdev data. Read from sourceRow when present
+        // (per-interval mode), otherwise from the catalog row.
+        const datasetHasStdev = (dataset) => (dataset.sourceRow || row)[dataset.prefix + 'Stdev'] != null
+        const hasAnyData = datasets.some(datasetHasStdev)
 
         if (!hasAnyData) {
             return ''
@@ -897,10 +936,9 @@ gtag('config', 'G-6R8FPBQRFH');
         // Data rows
         html += `<tbody>`
         const unavailableDatasets = []
-        for (const dataset of SUMMARY_STATS_DATASETS) {
-            // Check if this dataset has Stdev data
-            const datasetHasData = row[dataset.prefix + 'Stdev'] != null
-            if (!datasetHasData) {
+        for (const dataset of datasets) {
+            const sourceRow = dataset.sourceRow || row
+            if (!datasetHasStdev(dataset)) {
                 unavailableDatasets.push(dataset.name)
                 continue
             }
@@ -909,7 +947,7 @@ gtag('config', 'G-6R8FPBQRFH');
             html += `<td style="white-space: nowrap;"><b>${dataset.name}</b><br/><span style="font-size: 0.85em; color: #666;">${dataset.description}</span></td>`
             for (const col of SUMMARY_STATS_COLUMNS) {
                 const isHidden = dataset.hideColumns?.includes(col.suffix)
-                const value = isHidden ? null : row[dataset.prefix + col.suffix]
+                const value = isHidden ? null : sourceRow[dataset.prefix + col.suffix]
                 const bgStyle = col.highlight ? 'background-color: #e8f4fc;' : ''
                 html += `<td style="text-align: center; ${bgStyle}">${col.format(value)}</td>`
             }
@@ -2398,6 +2436,40 @@ gtag('config', 'G-6R8FPBQRFH');
             .map((a, i) => ({ a, k: col.getSortKey(a), i }))
             .sort((x, y) => (x.k < y.k ? -dir : x.k > y.k ? dir : x.i - y.i))
             .map(o => o.a)
+    }
+
+    // Fetch every stratified-LPS row for a given LocusId, ordered narrowest-interval
+    // first. Used by the locus page summary stats table to render one HPRC256 row
+    // per (LocusId, Interval) pair. The full row payload (per-stratum + summary
+    // stats) makes this reusable for re-rendering charts under interval changes,
+    // but the summary stats table only needs the per-interval summary columns.
+    const fetchAllHprc256IntervalRows = async (locusId) => {
+        if (!locusId) return []
+        const escapedLocusId = locusId.replace(/'/g, "\\'")
+        const sql = `
+            SELECT * FROM ${HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID}
+            WHERE LocusId = '${escapedLocusId}'`
+        try {
+            const result = await queryBigQuery(sql, 0, 256, null, null)
+            const rows = result?.rows || []
+            const intervalSpan = (iv) => {
+                if (!iv || typeof iv !== 'string' || !iv.includes(':')) return Infinity
+                const range = iv.split(':')[1]
+                if (!range || !range.includes('-')) return Infinity
+                const [s, e] = range.split('-')
+                const span = parseInt(e) - parseInt(s)
+                return Number.isFinite(span) ? span : Infinity
+            }
+            return rows.slice().sort((a, b) => {
+                const da = intervalSpan(a['Interval'])
+                const db = intervalSpan(b['Interval'])
+                if (da !== db) return da - db
+                return (a['Interval'] || '').localeCompare(b['Interval'] || '')
+            })
+        } catch (e) {
+            console.warn('All-intervals stratified fetch failed:', e)
+            return []
+        }
     }
 
     // Query the distinct TRGT intervals that genotyped a given LocusId, ordered
