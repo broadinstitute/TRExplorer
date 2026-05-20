@@ -6,7 +6,7 @@ Input: a wide-format TSV produced by
 when run with `--stratify-by-population --stratify-by-sex`. Default path:
     ../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz
 
-The new table mirrors `HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS` from global_constants.py:
+The new table mirrors `HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS` from global_constants.py:
 LocusId + 17 strata x 2 histogram types = 35 columns. The unstratified base histograms
 and per-locus statistics already live on the main `catalog_*` table (HPRC256_AlleleHistogram
 etc.), so they are not duplicated here. The table is clustered on LocusId for fast
@@ -27,7 +27,7 @@ import time
 import tqdm
 from google.cloud import bigquery
 
-from global_constants import HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS, HPRC256_STRATA_LABELS
+from global_constants import HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS, HPRC256_STRATA_LABELS
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -94,15 +94,15 @@ def main():
     schema = [
         bigquery.SchemaField(c["name"], c["type"], mode=c.get("mode", "NULLABLE"),
                              description=c.get("description", ""))
-        for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS
+        for c in HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS
     ]
-    schema_field_names = [c["name"] for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS]
+    schema_field_names = [c["name"] for c in HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS]
     # Per-column caster: TSV values arrive as strings, but BigQuery's
     # insert_rows_json rejects empty strings for FLOAT64/INT64 columns. Cast
     # explicitly here; empty strings become None (NULL in BQ).
     _NUMERIC_CASTERS = {"FLOAT64": float, "FLOAT": float, "INT64": int, "INTEGER": int}
     column_casters = {
-        c["name"]: _NUMERIC_CASTERS.get(c["type"]) for c in HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS
+        c["name"]: _NUMERIC_CASTERS.get(c["type"]) for c in HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS
     }
 
     def coerce_cell(name, raw):

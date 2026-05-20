@@ -12,7 +12,7 @@ import sys
 
 # Add bigquery-proxy directory to path to import global_constants
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bigquery-proxy'))
-from global_constants import BIGQUERY_COLUMNS, GROUP_ORDER, get_column_descriptions, get_custom_filter_columns, get_exportable_columns
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ORDER, get_column_descriptions, get_custom_filter_columns, get_exportable_columns
 
 jinja2_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
 

@@ -29,7 +29,7 @@ GROUP_ORDER = [
     GROUP_POLYMORPHISM_TENK10K,
 ]
 
-BIGQUERY_COLUMNS = [
+MAIN_BIGQUERY_TABLE_COLUMNS = [
     # Core locus identifiers
     {
         "type": "INTEGER",
@@ -1020,7 +1020,7 @@ HPRC256_STRATA_LABELS = sorted(
 # Schema for the HPRC256 stratified LPS frequency table.
 # Source file: hprc-lps.per_locus_and_motif.by_population.by_sex.<N>_samples.tsv.gz
 # Uses PascalCase column names to match the canonical convert_multisample_LPS_table_to_allele_frequency_histograms.py output.
-HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
+HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS = (
     [{"type": "STRING", "name": "LocusId", "mode": "REQUIRED",
       "description": "Locus identifier matching LocusId in the main catalog table."},
      {"type": "STRING", "name": "Interval", "mode": "REQUIRED",
@@ -1064,7 +1064,7 @@ HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
 # omitted here: that "all 256 samples" value is loaded into the main catalog table's
 # HPRC256_AlleleSizeAndPurityDistribution column by load_bigquery_main_table.py. The stratified
 # loader simply skips TSV columns that aren't in this schema.
-HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
+HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
       "description": "Locus identifier matching LocusId in the main catalog table."},
      {"type": "STRING", "name": "interval", "mode": "REQUIRED",
@@ -1082,10 +1082,10 @@ HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
 
 # Schema for the HPRC256 stratified allele-size-and-methylation table.
 # Source file: trgt-hprc.methylation.stratified.by_population.by_sex.<N>_samples.tsv.gz
-# See note on HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS — the unsuffixed
+# See note on HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS — the unsuffixed
 # AlleleSizeAndMethylationDistribution column is intentionally omitted; it lives on the
 # main catalog table.
-HPRC256_METHYLATION_BIGQUERY_COLUMNS = (
+HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
       "description": "Locus identifier matching LocusId in the main catalog table."},
      {"type": "STRING", "name": "interval", "mode": "REQUIRED",
@@ -1108,7 +1108,7 @@ def get_column_descriptions():
     Returns:
         dict: Mapping of column name to description string.
     """
-    return {col["name"]: col.get("description", "") for col in BIGQUERY_COLUMNS}
+    return {col["name"]: col.get("description", "") for col in MAIN_BIGQUERY_TABLE_COLUMNS}
 
 
 def get_custom_filter_columns():
@@ -1120,7 +1120,7 @@ def get_custom_filter_columns():
         list: List of dicts with keys: name, displayName, group, description, type
     """
     filterable = []
-    for col in BIGQUERY_COLUMNS:
+    for col in MAIN_BIGQUERY_TABLE_COLUMNS:
         if col.get("allowCustomFilter", False):
             filterable.append({
                 "name": col.get("name", ""),
@@ -1142,7 +1142,7 @@ def get_exportable_columns():
               where column is the SQL expression to use (defaults to name).
     """
     exportable = []
-    for col in BIGQUERY_COLUMNS:
+    for col in MAIN_BIGQUERY_TABLE_COLUMNS:
         if col.get("allowExport", False):
             exportable.append({
                 "name": col.get("name", ""),

@@ -1,4 +1,4 @@
-"""Update an existing BigQuery table schema to match the current BIGQUERY_COLUMNS in global_constants.py.
+"""Update an existing BigQuery table schema to match the current MAIN_BIGQUERY_TABLE_COLUMNS in global_constants.py.
 
 Adds any columns present in global_constants.py but missing from the table.
 New columns will have NULL values for all existing rows until data is reloaded.
@@ -11,7 +11,7 @@ Usage:
 import argparse
 from google.cloud import bigquery
 
-from global_constants import BIGQUERY_COLUMNS
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -37,7 +37,7 @@ table = client.get_table(f"{dataset_ref}.{table_id}")
 existing_columns = {field.name for field in table.schema}
 desired_schema = [
     bigquery.SchemaField(col["name"], col["type"], mode=col.get("mode", "NULLABLE"))
-    for col in BIGQUERY_COLUMNS
+    for col in MAIN_BIGQUERY_TABLE_COLUMNS
 ]
 
 new_columns = [field for field in desired_schema if field.name not in existing_columns]

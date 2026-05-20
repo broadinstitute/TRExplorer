@@ -12,8 +12,8 @@ Both inputs are produced by
     data-prep/hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 when run with `--stratify-by-population --stratify-by-sex`. Each table is keyed on
 (locus_id, interval) and clustered on (locus_id, interval) (no partitioning); the schemas live in
-global_constants.py as HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS and
-HPRC256_METHYLATION_BIGQUERY_COLUMNS.
+global_constants.py as HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS and
+HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS.
 
 On completion, the new table ids are written to the HTML files in
 `../website/header_template.html`, `../index.html`, and `../locus.html` so the frontend
@@ -31,8 +31,8 @@ import tqdm
 from google.cloud import bigquery
 
 from global_constants import (
-    HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS,
-    HPRC256_METHYLATION_BIGQUERY_COLUMNS,
+    HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS,
+    HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS,
 )
 
 PROJECT_ID = "cmg-analysis"
@@ -163,11 +163,11 @@ def main():
 
     purity_table_id = load_table(
         client, dataset_ref, os.path.expanduser(args.purity_tsv),
-        PURITY_TABLE_ID, HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS, parser,
+        PURITY_TABLE_ID, HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS, parser,
     )
     methylation_table_id = load_table(
         client, dataset_ref, os.path.expanduser(args.methylation_tsv),
-        METHYLATION_TABLE_ID, HPRC256_METHYLATION_BIGQUERY_COLUMNS, parser,
+        METHYLATION_TABLE_ID, HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS, parser,
     )
 
     if not args.skip_html_update:
