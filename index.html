@@ -4523,8 +4523,30 @@ gtag('config', 'G-6R8FPBQRFH');
             .map(o => o.a)
     }
 
-    const fetchAndRenderDecomposedAlleles = async (chromIndex, start_0based, end_1based) => {
-        if (chromIndex == null || start_0based == null || end_1based == null) {
+    // Query the distinct TRGT intervals that genotyped a given LocusId, ordered
+    // narrowest-first (smallest vcf_end_1based - vcf_start_0based span). Used to
+    // populate the interval selector on the locus page so the user can switch
+    // between e.g. the standalone-TR genotyping and the variation-cluster
+    // genotyping of the same locus.
+    const fetchHprc256Intervals = async (chromIndex, locusId) => {
+        if (chromIndex == null || !locusId) return []
+        const sql = `
+            SELECT DISTINCT interval, vc, vcf_start_0based, vcf_end_1based
+            FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
+            WHERE chrom_index = ${chromIndex}
+              AND locus_id = '${locusId}'
+            ORDER BY (vcf_end_1based - vcf_start_0based) ASC, interval ASC`
+        try {
+            const result = await queryBigQuery(sql, 0, 256, null, null)
+            return result?.rows || []
+        } catch (e) {
+            console.warn('Interval list fetch failed:', e)
+            return []
+        }
+    }
+
+    const fetchAndRenderDecomposedAlleles = async (chromIndex, locusId, interval) => {
+        if (chromIndex == null || !locusId || !interval) {
             // Catalog row missing the join key — render nothing.
             $('#locus-page-allele-sequences').html('')
             return
@@ -4534,8 +4556,8 @@ gtag('config', 'G-6R8FPBQRFH');
                    total_allele_number, total_unique_alleles, allele_data
             FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
             WHERE chrom_index = ${chromIndex}
-              AND start_0based = ${start_0based}
-              AND end_1based  = ${end_1based}
+              AND locus_id = '${locusId}'
+              AND interval = '${interval}'
             LIMIT 1`
         try {
             const result = await queryBigQuery(sql, 0, 1, null, null)

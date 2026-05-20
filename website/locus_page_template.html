@@ -103,6 +103,7 @@
     <div class="ui row">
         <div class="three wide column"></div>
         <div class="ten wide column">
+            <div id="locus-page-interval-selector" style="display: none; padding: 10px 0;"></div>
             <div id="locus-page-allele-sequences"></div>
         </div>
         <div class="three wide column"></div>
@@ -541,8 +542,46 @@
             $('#locus-page-literature-review').html('')
         }
 
-        // Lazy-fetch HPRC256 allele sequences for this locus.
-        fetchAndRenderDecomposedAlleles(row['chrom_index'], row['start_0based'], row['end_1based'])
+        // Lazy-fetch the list of TRGT intervals that genotyped this LocusId, then
+        // wire the interval selector + the decomposed-alleles fetch. The selector
+        // affects only the decomposed-alleles section in this MVP; the other
+        // HPRC256 sections continue to show the catalog row's narrowest-interval
+        // data (the catalog row's HPRC256_* columns are loaded from the narrowest
+        // interval per load_bigquery_main_table.py).
+        (async () => {
+            const locusId = row['LocusId']
+            const intervals = await fetchHprc256Intervals(row['chrom_index'], locusId)
+            const selectorEl = $('#locus-page-interval-selector')
+            if (!intervals.length) {
+                selectorEl.hide()
+                fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, null)
+                return
+            }
+            // intervals are sorted narrowest-first by the query.
+            const defaultInterval = intervals[0]['interval']
+            if (intervals.length === 1) {
+                selectorEl.hide()
+            } else {
+                const options = intervals.map((iv) => {
+                    const isVc = iv['vc'] && iv['vc'] !== ''
+                    const label = isVc
+                        ? `Variation cluster ${iv['interval']}`
+                        : `Standalone TR ${iv['interval']}`
+                    return `<option value="${iv['interval']}">${label}</option>`
+                }).join('')
+                selectorEl.html(`
+                    <label for="hprc256-interval-select" style="font-weight: 600; margin-right: 8px;">
+                        HPRC256 genotyping interval:
+                    </label>
+                    <select id="hprc256-interval-select" class="ui dropdown">${options}</select>
+                `)
+                selectorEl.show()
+                $('#hprc256-interval-select').val(defaultInterval).change((e) => {
+                    fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, e.target.value)
+                })
+            }
+            fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, defaultInterval)
+        })()
 
         $('.question').popup({ on: 'click' })
         $('.show-popup').popup({
