@@ -39,14 +39,15 @@ GCS_BASE_DIR = "gs://tandem-repeat-catalog/v2.0/HPRC256_TRGT_vcfs_and_lps.2026_0
 VCF_GCS_PATH = f"{GCS_BASE_DIR}/trgt-hprc.vcf.gz"
 GBI_GCS_PATH = f"{GCS_BASE_DIR}/trgt-hprc.vcf.gz.gbi"
 
-# Shard parquets and concatenated final parquet live under decomposed_alleles/.
-SHARDS_GCS_DIR = f"{GCS_BASE_DIR}/decomposed_alleles/shards"
+# Each orchestrator invocation gets its own timestamped subdirectory for shard
+# parquets and worker script so concurrent dispatches can't clobber each
+# other's outputs. Tradeoff: this disables the cross-run shard cache (each new
+# run starts fresh); use --run-id to opt into a stable subdirectory for resume.
 FINAL_GCS_DIR = f"{GCS_BASE_DIR}/decomposed_alleles"
 
-# Worker script staging path — uploaded once by the orchestrator, then localized
-# by each shard job. Lives alongside the outputs so it ships with the artifacts.
+# Worker script lives under the timestamped subdir too, so we never re-localize
+# an out-of-date worker script from a prior run.
 WORKER_SCRIPT_NAME = "decompose_hprc_alleles.py"
-WORKER_SCRIPT_GCS_PATH = f"{FINAL_GCS_DIR}/{WORKER_SCRIPT_NAME}"
 
 
 # Tiny merge utility for the concat step. Embedded as a HEREDOC because the
@@ -175,26 +176,18 @@ def get_total_record_count_from_gcs(gbi_gcs_path):
         return int(result.stdout.strip())
 
 
-def upload_worker_script(force):
-    """Uploads the local ``decompose_hprc_alleles.py`` to GCS if needed.
+def upload_worker_script(gcs_path):
+    """Uploads the local ``decompose_hprc_alleles.py`` to ``gcs_path`` unconditionally.
 
-    Idempotent: skips the upload when the GCS object already exists and
-    ``force`` is False. Always overwrites when ``force`` is True so that
-    in-flight orchestrator changes to the worker reach the cluster.
-
-    Args:
-        force: When True, re-upload even if the GCS object already exists.
+    The worker is ~50 KB and each orchestrator invocation stages it under a
+    fresh timestamped subdirectory, so an unconditional upload is cheaper than
+    risking a stale cached copy reaching the cluster.
     """
     local_worker = os.path.join(os.path.dirname(__file__), WORKER_SCRIPT_NAME)
     if not os.path.exists(local_worker):
         raise FileNotFoundError(f"Worker script not found at {local_worker}")
-
-    if not force and hfs.exists(WORKER_SCRIPT_GCS_PATH):
-        print(f"Worker script already at {WORKER_SCRIPT_GCS_PATH} — skipping upload (use --force to overwrite)")
-        return
-
-    print(f"Uploading {local_worker} -> {WORKER_SCRIPT_GCS_PATH}")
-    hfs.copy(os.path.abspath(local_worker), WORKER_SCRIPT_GCS_PATH)
+    print(f"Uploading {local_worker} -> {gcs_path}")
+    hfs.copy(os.path.abspath(local_worker), gcs_path)
 
 
 def shard_ranges(total_records, shard_size):
@@ -238,6 +231,11 @@ def main():
                         help="Number of VCF records per shard (default: 150_000, ~15 min/shard).")
     parser.add_argument("-n", "--max-shards", type=int, default=None,
                         help="Only submit the first N shards (for dry-runs).")
+    parser.add_argument("--run-id", default=datetime.now().strftime("%Y%m%d_%H%M%S"),
+                        help="Subdirectory under decomposed_alleles/ for this run's "
+                             "shard outputs and worker script. Defaults to a fresh "
+                             "timestamp so concurrent runs can't clobber each other; "
+                             "pass an explicit id to resume an interrupted run.")
 
     # step_pipeline's parse_known_args swallows -h/--help so it can be re-parsed
     # later by bp.run(). Short-circuit here so `--help` doesn't trigger the
@@ -247,6 +245,15 @@ def main():
         return
 
     args = bp.parse_known_args()
+
+    # Per-run namespaced GCS paths: timestamped subdir under decomposed_alleles/
+    # contains both this run's shards and its worker script. Concurrent runs use
+    # different run_ids by default so they don't trample each other.
+    shards_gcs_dir = f"{FINAL_GCS_DIR}/shards.{args.run_id}"
+    worker_script_gcs_path = f"{FINAL_GCS_DIR}/{WORKER_SCRIPT_NAME}.{args.run_id}.py"
+    print(f"Run id: {args.run_id}")
+    print(f"Shards directory: {shards_gcs_dir}")
+    print(f"Worker script: {worker_script_gcs_path}")
 
     # Stream just the .gbi from GCS and run `grabix size` on it — no need for a
     # local copy of the 9.8 GB VCF on the orchestrator host.
@@ -260,14 +267,17 @@ def main():
         print(f"--max-shards={args.max_shards} -> submitting only {len(ranges):,d} shards")
 
     # Upload the standalone worker script to GCS so each shard job can localize it.
-    upload_worker_script(force=args.force)
+    # Unconditional upload — the per-run timestamp namespace means we never
+    # accidentally re-use a stale cached copy, and the cost (~50 KB) is trivial.
+    upload_worker_script(worker_script_gcs_path)
 
     # Tell step_pipeline which shard outputs already exist in GCS so step 1
     # workers can be skipped when their output parquet is already there.
     # The Step constructors below set `all_outputs_precached=True` which makes
     # them consult this cache; without the precache call the cache is empty
-    # and step_pipeline would re-run every shard from scratch.
-    bp.precache_file_paths(f"{SHARDS_GCS_DIR}/shard_*.parquet")
+    # and step_pipeline would re-run every shard from scratch. Cross-run cache
+    # reuse only works when the user passes the same --run-id as the prior run.
+    bp.precache_file_paths(f"{shards_gcs_dir}/shard_*.parquet")
 
     bp.set_name(f"Decompose HPRC alleles: {len(ranges)} shards x {args.shard_size:,d}")
 
@@ -276,7 +286,7 @@ def main():
     shard_output_paths = []
     for k, (start_row, end_row) in enumerate(ranges):
         shard_filename = f"shard_{start_row}_{end_row}.parquet"
-        shard_output_paths.append(f"{SHARDS_GCS_DIR}/{shard_filename}")
+        shard_output_paths.append(f"{shards_gcs_dir}/{shard_filename}")
 
         s1 = bp.new_step(
             f"decompose shard #{k + 1}: rows {start_row}-{end_row}",
@@ -292,7 +302,7 @@ def main():
             all_outputs_precached=True,
             localize_by=Localize.GSUTIL_COPY,
             delocalize_by=Delocalize.GSUTIL_COPY,
-            output_dir=SHARDS_GCS_DIR,
+            output_dir=shards_gcs_dir,
         )
 
         s1.command("set -euxo pipefail")
@@ -305,7 +315,7 @@ def main():
         # preserves filenames into a common /io/ working dir).
         local_vcf_path = s1.input(VCF_GCS_PATH)
         s1.input(GBI_GCS_PATH)
-        local_worker_path = s1.input(WORKER_SCRIPT_GCS_PATH)
+        local_worker_path = s1.input(worker_script_gcs_path)
 
         # grabix uses 1-based inclusive line ranges. start_row/end_row are baked
         # into the command at orchestrator-submit time, so the worker doesn't need

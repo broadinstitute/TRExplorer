@@ -356,6 +356,14 @@ def process_record(line):
 
     vc_span = parse_struc_vc_span(info_dict.get("STRUC", ""))
 
+    # Interval is the VCF chrom (no "chr" prefix) + POS-END, matching the
+    # format used by extract_vcf_interval_metadata.py and
+    # compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
+    # Using the VCF chrom (rather than the TRID's chrom) keeps the three
+    # producer scripts aligned even for catalogs whose TRIDs include "chr".
+    vcf_chrom_no_prefix = chrom[3:] if chrom.startswith("chr") else chrom
+    interval_str = f"{vcf_chrom_no_prefix}:{vcf_start_0based}-{vcf_end_1based}"
+
     # Strip the TRGT anchor base; spanning deletion `*` is preserved as-is.
     # The same anchor-stripped allele sequences are shared across every
     # LocusId in a compound record (each LocusId re-decomposes the full
@@ -386,7 +394,7 @@ def process_record(line):
             "end_1based": locus_end,
             "vcf_start_0based": vcf_start_0based,
             "vcf_end_1based": vcf_end_1based,
-            "interval": f"{locus_chrom}:{vcf_start_0based}-{vcf_end_1based}",
+            "interval": interval_str,
             "vc": vc_span,
             "motifs": locus_motif,
             "total_allele_number": total_called,

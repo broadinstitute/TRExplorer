@@ -73,12 +73,14 @@ echo "[done] step 2: purity + methylation stratified TSVs (symlinked into $LEGAC
 
 echo
 echo "============================================================"
-echo "Step 3/4: run_decompose_hprc_alleles.py  (Hail Batch dispatch, with --force)"
+echo "Step 3/4: run_decompose_hprc_alleles.py  (Hail Batch dispatch)"
 echo "============================================================"
-echo "Dispatching the decompose pipeline to Hail Batch. The orchestrator passes"
-echo "--force so any local edits to data-prep/decompose_hprc_alleles.py reach"
-echo "the Batch workers (otherwise a stale GCS-cached copy may be reused)."
-python3 "$DECOMPOSE_SCRIPT" --force
+echo "Dispatching the decompose pipeline to Hail Batch. Each invocation stages"
+echo "shard outputs + worker script under a fresh timestamped subdir of"
+echo "gs://...decomposed_alleles/, so concurrent runs can't clobber each other."
+echo "Worker script is re-uploaded unconditionally so local edits always reach"
+echo "the cluster. To resume a prior interrupted run, pass --run-id <timestamp>."
+python3 "$DECOMPOSE_SCRIPT"
 echo "[done] step 3: decompose pipeline submitted"
 
 echo
