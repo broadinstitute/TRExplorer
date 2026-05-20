@@ -5614,8 +5614,15 @@ gtag('config', 'G-6R8FPBQRFH');
         "HPRC256_NumCalledAlleles",
         "HPRC256_StdevRankByMotif",
         "HPRC256_StdevRankTotalNumberByMotif",
-        "HPRC256_NumIntervalsThatIncludeThisLocusId",
-        "HPRC256_NarrowestInterval",
+        // HPRC256_NumIntervalsThatIncludeThisLocusId and HPRC256_NarrowestInterval
+        // are NEW columns added to the catalog schema by load_bigquery_main_table.py.
+        // Until the production catalog table is reloaded, these columns don't exist
+        // on the BigQuery row, and including them in the SELECT clause raises
+        // "Unrecognized name". The frontend treats them as null/undefined when
+        // absent (the `!= null` checks fall through to the legacy dropdown path),
+        // so leave them out of the SELECT until the schema lands in production.
+        // "HPRC256_NumIntervalsThatIncludeThisLocusId",
+        // "HPRC256_NarrowestInterval",
         "HPRC256_AlleleSizeAndPurityDistribution",
         "HPRC256_AlleleSizeAndMethylationDistribution",
 
