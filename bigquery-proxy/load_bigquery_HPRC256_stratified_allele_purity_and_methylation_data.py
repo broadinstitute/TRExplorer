@@ -11,7 +11,7 @@
 Both inputs are produced by
     data-prep/hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 when run with `--stratify-by-population --stratify-by-sex`. Each table is keyed on
-locus_id and clustered on locus_id (no partitioning); the schemas live in
+(locus_id, interval) and clustered on (locus_id, interval) (no partitioning); the schemas live in
 global_constants.py as HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS and
 HPRC256_METHYLATION_BIGQUERY_COLUMNS.
 
@@ -102,7 +102,9 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
     new_table_id = f"{table_prefix}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     new_table_ref = dataset_ref.table(new_table_id)
     new_table = bigquery.Table(new_table_ref, schema=schema)
-    new_table.clustering_fields = ["locus_id"]
+    # Cluster on (locus_id, interval) so per-locus + per-interval lookups still
+    # hit a small cluster after the table grew to multiple rows per locus_id.
+    new_table.clustering_fields = ["locus_id", "interval"]
     client.create_table(new_table)
     print(f"Created BigQuery table {DATASET_ID}.{new_table_id}")
 

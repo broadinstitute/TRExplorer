@@ -1005,7 +1005,14 @@ HPRC256_STRATA_LABELS = sorted(
 # Uses PascalCase column names to match the canonical convert_multisample_LPS_table_to_allele_frequency_histograms.py output.
 HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
     [{"type": "STRING", "name": "LocusId", "mode": "REQUIRED",
-      "description": "Locus identifier matching LocusId in the main catalog table."}]
+      "description": "Locus identifier matching LocusId in the main catalog table."},
+     {"type": "STRING", "name": "Interval", "mode": "REQUIRED",
+      "description": "TRGT interval {chrom}:{vcf_start_0based}-{vcf_end_1based} that produced this row. "
+                     "A LocusId may have multiple rows when genotyped under multiple intervals (e.g. once "
+                     "as a standalone TR and once or more as part of a variation cluster)."},
+     {"type": "STRING", "name": "VC", "mode": "NULLABLE",
+      "description": "Inner span of the variation cluster (<VC:...>) that contained this LocusId, "
+                     "or empty for an isolated TR (<TR:...>) row."}]
     + [{"type": "STRING", "name": f"AlleleSizeHistogram__{label}",
         "description": f"Allele size histogram for stratum '{label}'. Format: 'sizex:count,sizex:count,...'."}
        for label in HPRC256_STRATA_LABELS]
@@ -1023,7 +1030,11 @@ HPRC256_LPS_STRATIFIED_BIGQUERY_COLUMNS = (
 # loader simply skips TSV columns that aren't in this schema.
 HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
-      "description": "Locus identifier matching LocusId in the main catalog table."}]
+      "description": "Locus identifier matching LocusId in the main catalog table."},
+     {"type": "STRING", "name": "interval", "mode": "REQUIRED",
+      "description": "TRGT interval {chrom}:{vcf_start_0based}-{vcf_end_1based} that produced this row."},
+     {"type": "STRING", "name": "vc", "mode": "NULLABLE",
+      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."}]
     + [{"type": "STRING", "name": f"AlleleSizeAndPurityDistribution__{label}",
         "description": (
             f"Joint distribution of (repeat_count, allele purity) for stratum '{label}'. "
@@ -1038,7 +1049,11 @@ HPRC256_ALLELE_PURITY_BIGQUERY_COLUMNS = (
 # main catalog table.
 HPRC256_METHYLATION_BIGQUERY_COLUMNS = (
     [{"type": "STRING", "name": "locus_id", "mode": "REQUIRED",
-      "description": "Locus identifier matching LocusId in the main catalog table."}]
+      "description": "Locus identifier matching LocusId in the main catalog table."},
+     {"type": "STRING", "name": "interval", "mode": "REQUIRED",
+      "description": "TRGT interval {chrom}:{vcf_start_0based}-{vcf_end_1based} that produced this row."},
+     {"type": "STRING", "name": "vc", "mode": "NULLABLE",
+      "description": "Inner span of the variation cluster (<VC:...>), or empty for an isolated TR."}]
     + [{"type": "STRING", "name": f"AlleleSizeAndMethylationDistribution__{label}",
         "description": (
             f"Joint distribution of (repeat_count, allele methylation) for stratum '{label}'. "

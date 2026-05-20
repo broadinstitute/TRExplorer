@@ -3,8 +3,11 @@
 table at ``cmg-analysis:tandem_repeat_explorer.hprc256_decomposed_alleles_<ts>``.
 
 The table is range-partitioned on ``chrom_index`` (1..26) and clustered on
-``start_0based`` so the per-locus website query can prune to a single partition
-and scan a small cluster. Schema is inferred from the parquet metadata.
+``(locus_id, interval)`` so the per-locus + per-interval website query can prune
+to a single partition and scan a small cluster. Schema is inferred from the
+parquet metadata, which now includes ``interval`` and ``vc`` columns: a single
+LocusId may appear in multiple rows when genotyped under multiple TRGT intervals
+(e.g. once as a standalone TR and once or more inside a variation cluster).
 
 On completion, the new fully-qualified backticked table id is written to the
 ``HPRC256_DECOMPOSED_ALLELES_TABLE_ID`` constant in ``website/header_template.html``,
@@ -134,7 +137,7 @@ def main():
             field="chrom_index",
             range_=bigquery.PartitionRange(start=1, end=26, interval=1),
         ),
-        clustering_fields=["start_0based"],
+        clustering_fields=["locus_id", "interval"],
         write_disposition=(
             bigquery.WriteDisposition.WRITE_TRUNCATE if args.force
             else bigquery.WriteDisposition.WRITE_EMPTY
@@ -145,7 +148,7 @@ def main():
         print("Dry run: would submit load job with:")
         print(f"  source_format       = PARQUET")
         print(f"  range_partitioning  = chrom_index, 1..26, interval 1")
-        print(f"  clustering_fields   = ['start_0based']")
+        print(f"  clustering_fields   = ['locus_id', 'interval']")
         print(f"  write_disposition   = {job_config.write_disposition}")
         print(f"  source_uri          = {args.input_parquet}")
         print(f"  destination         = {table_dotted}")

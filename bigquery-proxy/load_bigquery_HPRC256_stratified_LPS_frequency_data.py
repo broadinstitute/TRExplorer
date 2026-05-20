@@ -104,7 +104,9 @@ def main():
     new_table_id = f"{TABLE_ID}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     new_table_ref = dataset_ref.table(new_table_id)
     new_table = bigquery.Table(new_table_ref, schema=schema)
-    new_table.clustering_fields = ["LocusId"]
+    # Cluster on (LocusId, Interval) so per-locus + per-interval lookups still
+    # hit a small cluster after the table grew to multiple rows per LocusId.
+    new_table.clustering_fields = ["LocusId", "Interval"]
     client.create_table(new_table)
     print(f"Created BigQuery table {DATASET_ID}.{new_table_id}")
 

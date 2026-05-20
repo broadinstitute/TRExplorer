@@ -128,14 +128,68 @@ def population_data_sanity_check(row, dataset_name):
 
     return errors
 
+def _interval_span(interval_str):
+    """Returns ``end - start`` for an "{chrom}:{start}-{end}" interval, or a large
+    sentinel for malformed/missing values so they sort last when picking narrowest."""
+    if not isinstance(interval_str, str) or not interval_str or ":" not in interval_str:
+        return float("inf")
+    _, range_part = interval_str.split(":", 1)
+    if "-" not in range_part:
+        return float("inf")
+    start_s, end_s = range_part.split("-", 1)
+    try:
+        return int(end_s) - int(start_s)
+    except ValueError:
+        return float("inf")
+
+
+_PASCALCASE_TO_SNAKE_CASE = {
+    "LocusId": "locus_id",
+    "Motif": "motif",
+    "Interval": "interval",
+    "VC": "vc",
+    "AlleleSizeHistogram": "allele_size_histogram",
+    "BiallelicHistogram": "biallelic_histogram",
+    "Min": "min_allele",
+    "Mode": "mode_allele",
+    "Mean": "mean",
+    "Stdev": "stdev",
+    "Median": "median",
+    "99thPercentile": "99th_percentile",
+    "Max": "max_allele",
+    "ShortAllele99thPercentile": "short_allele_99th_percentile",
+    "ShortAlleleMax": "short_allele_max",
+    "UniqueAlleleLengths": "unique_allele_lengths",
+    "NumCalledAlleles": "num_called_alleles",
+}
+
+
 def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
-    """Parse the tenk10k TSV file line by line and create a lookup dictionary."""
+    """Parse a per-locus TSV (tenk10k or HPRC256 format) and build a {locus_id: row_dict} lookup.
+
+    The HPRC256 TSV (produced by convert_multisample_LPS_table_to_allele_frequency_histograms.py)
+    uses PascalCase column names and emits multiple rows per LocusId — one per TRGT
+    interval (Interval column). When the input has an Interval column, this function
+    keeps only the **narrowest** interval per LocusId (smallest end-start span), so the
+    main catalog table's HPRC256_* summary columns reflect the most-localized genotyping
+    of each locus. The tenk10k TSV uses snake_case column names and has one row per
+    locus, so no per-locus filtering is needed.
+    """
 
     lookup = {}
     error_counter = collections.Counter()
     error_examples = collections.defaultdict(list)
 
     df = pd.read_table(tsv_path)
+    # Normalize PascalCase (HPRC256) to snake_case (tenk10k convention used by the
+    # rest of this function). Columns not in the map are left as-is.
+    df = df.rename(columns={k: v for k, v in _PASCALCASE_TO_SNAKE_CASE.items() if k in df.columns})
+    if "interval" in df.columns:
+        df["_interval_span"] = df["interval"].apply(_interval_span)
+        # Narrowest span first; ties broken by interval string for determinism.
+        df = df.sort_values(["locus_id", "_interval_span", "interval"]).drop_duplicates(
+            subset="locus_id", keep="first"
+        ).drop(columns=["_interval_span"])
     df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
     df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
     df_grouped_by_motif = df.groupby("canonical_motif")
@@ -282,9 +336,16 @@ hprc256_purity_methylation_lookup = {}
 def parse_all_samples_distribution_column(tsv_path, expected_column):
     """Read the bare 'All samples' distribution column (named `expected_column`) from a
     stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
-    Returns a {locus_id: distribution_string} dict (skipping rows where the column is empty)."""
+
+    The TSV emits multiple rows per locus_id (one per TRGT interval). This function keeps the
+    NARROWEST interval per locus_id so the main catalog table's HPRC256_AlleleSize*
+    summary columns reflect the most-localized genotyping of each locus.
+
+    Returns a {locus_id: distribution_string} dict (skipping rows where the column is empty).
+    """
     print(f"Parsing {expected_column} from {tsv_path}")
     result = {}
+    best_span = {}  # locus_id -> narrowest interval span seen so far
     with gzip.open(os.path.expanduser(tsv_path), "rt") as f:
         header = f.readline().rstrip("\n").split("\t")
         if expected_column not in header:
@@ -293,11 +354,22 @@ def parse_all_samples_distribution_column(tsv_path, expected_column):
                 f"Header: {header[:5]}..."
             )
         col_idx = header.index(expected_column)
+        # The compute_allele_size_purity script writes columns in order:
+        # locus_id, interval, vc, AlleleSizeAndPurityDistribution, ...
+        # Fall back to col 0 if 'interval' isn't present (older format).
+        interval_col_idx = header.index("interval") if "interval" in header else None
         for line in f:
             fields = line.rstrip("\n").split("\t")
             value = fields[col_idx] if col_idx < len(fields) else ""
-            if value:
-                result[fields[0]] = value
+            if not value:
+                continue
+            locus_id = fields[0]
+            span = float("inf")
+            if interval_col_idx is not None and interval_col_idx < len(fields):
+                span = _interval_span(fields[interval_col_idx])
+            if locus_id not in result or span < best_span[locus_id]:
+                result[locus_id] = value
+                best_span[locus_id] = span
     print(f"Parsed {len(result):,d} records from {tsv_path}")
     return result
 
