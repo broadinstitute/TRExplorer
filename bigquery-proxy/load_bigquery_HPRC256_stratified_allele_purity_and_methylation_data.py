@@ -46,6 +46,15 @@ METHYLATION_TABLE_ID = "hprc256_methylation"
 PURITY_HTML_CONST = "HPRC256_ALLELE_PURITY_TABLE_ID"
 METHYLATION_HTML_CONST = "HPRC256_METHYLATION_TABLE_ID"
 
+# BigQuery's streaming insertAll endpoint rejects requests over ~10 MB with
+# HTTP 413. The stratified purity rows hold a base AlleleSizeAndPurityDistribution
+# plus 17 stratified copies, each a multi-line string keyed on allele size x
+# purity bucket; for high-variability loci a single row can be tens of KB and a
+# 1000-row batch easily exceeds 10 MB. We cap by row count AND total value
+# bytes, flushing whichever fires first, so dense rows trigger an early flush.
+BATCH_ROW_LIMIT = 1000
+BATCH_BYTE_LIMIT = 5 * 1024 * 1024  # ~5 MB — well under the 10 MB request limit
+
 
 def insert_with_retries(client, table_ref, rows_to_insert, batch_size=1000, max_retries=5):
     for i in range(0, len(rows_to_insert), batch_size):
@@ -128,6 +137,7 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
             )
 
         rows_to_insert = []
+        rows_to_insert_bytes = 0
         rows_loaded = 0
         for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
             fields = line.rstrip("\n").split("\t")
@@ -137,10 +147,16 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
                 )
             row = {name: fields[col_idx[name]] for name in schema_field_names}
             rows_to_insert.append(row)
-            if len(rows_to_insert) >= 1000:
+            # Approximate JSON payload size from field-value byte counts; field
+            # names + JSON delimiters add a bounded constant per row that we
+            # don't bother modeling.
+            rows_to_insert_bytes += sum(len(v) for v in row.values())
+            if (len(rows_to_insert) >= BATCH_ROW_LIMIT
+                    or rows_to_insert_bytes >= BATCH_BYTE_LIMIT):
                 insert_with_retries(client, new_table_ref, rows_to_insert)
                 rows_loaded += len(rows_to_insert)
                 rows_to_insert = []
+                rows_to_insert_bytes = 0
         if rows_to_insert:
             insert_with_retries(client, new_table_ref, rows_to_insert)
             rows_loaded += len(rows_to_insert)
