@@ -224,12 +224,15 @@ def main():
     # Calibrated against the patched bw2/trviz image (May 2026 runs):
     # rows 1-60000 averaged ~6ms/record of decompose work, plus ~95s fixed overhead
     # per shard (Docker pull, gcloud auth, 9.2 GB VCF localization). The sample was
-    # entirely on chr1, so genome-wide cost may differ. 75k records targets ~7-8 min
-    # mean wall time per shard, with smaller per-shard working sets to stay clear of
-    # OOM on deeply-compound records: at 150k records, batch 8408596 OOM-killed
-    # shard #11 (rows 1500001-1650000) on n1-highmem-1 (~6.5 GB).
-    parser.add_argument("--shard-size", type=int, default=75_000,
-                        help="Number of VCF records per shard (default: 75_000, ~7-8 min/shard).")
+    # entirely on chr1, so genome-wide cost may differ. 150k records targets ~15 min
+    # mean wall time per shard — well under the 30-min budget, giving room for slow
+    # chromosomes and cluster-load variance. Memory no longer scales with shard size
+    # since decompose_hprc_alleles.py now streams rows one-at-a-time and flushes the
+    # parquet write buffer on a 100 MB byte cap (in addition to a 1000-row cap), so
+    # deeply-compound records can't accumulate hundreds of MB of allele_data before
+    # a flush.
+    parser.add_argument("--shard-size", type=int, default=150_000,
+                        help="Number of VCF records per shard (default: 150_000, ~15 min/shard).")
     parser.add_argument("-n", "--max-shards", type=int, default=None,
                         help="Only submit the first N shards (for dry-runs).")
     parser.add_argument("--run-id", default=datetime.now().strftime("%Y%m%d_%H%M%S"),

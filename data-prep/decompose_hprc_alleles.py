@@ -39,10 +39,14 @@ MAX_SEQ_LEN = 50_000
 # trviz dynamic-programming memory cap: len(seq) * num_motifs * max_motif_len.
 MAX_DP_PRODUCT = 50_000_000
 
-# Parquet write buffer size (rows). Kept small because deeply-compound records
-# can emit per-row allele_data in the megabytes; with 10k rows the in-memory
-# batch would exceed multi-GB on chr1-like regions and OOM the standard worker.
+# Parquet write buffer caps. Deeply-compound records (one VCF line whose TRID
+# is a comma-separated list of 100+ sub-LocusIds, each carrying its own
+# megabyte-scale allele_data string) can blow past a row-count cap before any
+# flush triggers — at 1000 rows we still OOM-killed n1-highmem-1 (~6.5 GB) on
+# shard #11/#21 of the May-2026 HPRC VCF. Adding a byte cap on accumulated
+# allele_data strings bounds peak memory regardless of compound-record depth.
 PARQUET_CHUNK_ROWS = 1_000
+PARQUET_CHUNK_BYTES = 100 * 1024 * 1024  # 100 MB
 
 # Regex used to split GT field on `/` or `|`.
 _GT_SPLIT_RE = re.compile(r"[/|]")
@@ -312,36 +316,40 @@ def parse_trid(trid):
 
 
 def process_record(line):
-    """Parses one VCF data line and returns a list of dicts for parquet emission.
+    """Parses one VCF data line and yields dicts for parquet emission.
 
     Each VCF record may carry a simple TRID (a single LocusId) or a compound
     TRID (a comma-separated list of LocusIds, when TRGT clusters adjacent
-    catalog entries). We emit one parquet row per LocusId. Coordinates and
-    motif are parsed from the LocusId itself rather than from VCF POS/END/
-    MOTIFS, since TRGT can extend VCF POS to anchor at an adjacent locus
-    while leaving the TRID faithful to the originating catalog entry.
+    catalog entries). We yield one row per LocusId. Coordinates and motif
+    are parsed from the LocusId itself rather than from VCF POS/END/MOTIFS,
+    since TRGT can extend VCF POS to anchor at an adjacent locus while
+    leaving the TRID faithful to the originating catalog entry.
+
+    Yielded one-at-a-time rather than returned as a list so a deeply-compound
+    record (100+ sub-LocusIds, each carrying its own megabyte-scale
+    allele_data string) does not materialize hundreds of MB at once.
 
     Args:
         line: One non-header VCF line (no trailing newline required).
 
-    Returns:
-        A list of dicts matching the disk schema (one per LocusId), or an
-        empty list if the line is empty / malformed / has no TRID / has a TRID
-        whose LocusIds can't be parsed as ``chrom-start-end-motif``.
+    Yields:
+        Dicts matching the disk schema (one per LocusId). Yields nothing if
+        the line is empty / malformed / has no TRID / has a TRID whose
+        LocusIds can't be parsed as ``chrom-start-end-motif``.
     """
     line = line.rstrip("\n")
     if not line:
-        return []
+        return
     fields = line.split("\t")
     if len(fields) < 10:
-        return []
+        return
     chrom, pos, _id, ref, alt_field, _qual, _filter, info, fmt = fields[:9]
     sample_fields = fields[9:]
 
     info_dict = parse_info(info)
     trid_field = info_dict.get("TRID", "")
     if not trid_field:
-        return []
+        return
 
     # Full VCF-record reference span shared by every LocusId in this row.
     # VCF POS (1-based) is the anchor base just before the variant content; the
@@ -352,7 +360,7 @@ def process_record(line):
         vcf_start_0based = int(pos)
         vcf_end_1based = int(info_dict.get("END", ""))
     except ValueError:
-        return []
+        return
 
     vc_span = parse_struc_vc_span(info_dict.get("STRUC", ""))
 
@@ -378,7 +386,6 @@ def process_record(line):
 
     chrom_idx_for_vcf = chrom_to_index(chrom)
 
-    rows = []
     for locus_id in trid_field.split(","):
         parsed = parse_trid(locus_id)
         if parsed is None:
@@ -386,7 +393,7 @@ def process_record(line):
         locus_chrom, locus_start, locus_end, locus_motif = parsed
         if not locus_motif:
             continue
-        rows.append({
+        yield {
             "locus_id": locus_id,
             "chrom": locus_chrom,
             "chrom_index": chrom_idx_for_vcf,
@@ -400,8 +407,7 @@ def process_record(line):
             "total_allele_number": total_called,
             "total_unique_alleles": total_unique,
             "allele_data": format_allele_data(seq_counts, ref_repeat, locus_motif),
-        })
-    return rows
+        }
 
 
 def get_schema():
@@ -449,6 +455,7 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
     """
     schema = get_schema()
     batch = {name: [] for name in schema.names}
+    batch_allele_data_bytes = 0
     rows_written = 0
     vcf_lines_skipped = 0
     # Process-wide uniqueness check on (locus_id, interval, vc) — matches the
@@ -459,11 +466,8 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
         for line in input_stream:
             if line.startswith("#"):
                 continue
-            rows = process_record(line)
-            if not rows:
-                vcf_lines_skipped += 1
-                continue
-            for row in rows:
+            line_rows_emitted = 0
+            for row in process_record(line):
                 key = (row["locus_id"], row["interval"], row["vc"])
                 if key in seen_output_keys:
                     raise ValueError(
@@ -473,11 +477,17 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
                 seen_output_keys.add(key)
                 for name in schema.names:
                     batch[name].append(row[name])
+                batch_allele_data_bytes += len(row["allele_data"])
                 rows_written += 1
-                if len(batch["locus_id"]) >= PARQUET_CHUNK_ROWS:
+                line_rows_emitted += 1
+                if (len(batch["locus_id"]) >= PARQUET_CHUNK_ROWS
+                        or batch_allele_data_bytes >= PARQUET_CHUNK_BYTES):
                     _flush_batch(writer, batch)
+                    batch_allele_data_bytes = 0
                 if max_rows is not None and rows_written >= max_rows:
                     break
+            if line_rows_emitted == 0:
+                vcf_lines_skipped += 1
             if max_rows is not None and rows_written >= max_rows:
                 break
         _flush_batch(writer, batch)
