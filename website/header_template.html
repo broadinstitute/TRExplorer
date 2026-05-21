@@ -2514,12 +2514,15 @@ gtag('config', 'G-6R8FPBQRFH');
     // genotyping of the same locus.
     const fetchHprc256Intervals = async (chromIndex, locusId) => {
         if (chromIndex == null || !locusId) return []
+        // `interval` is a reserved word in BigQuery SQL (INTERVAL <n> <part>
+        // literal), so the column reference must be backtick-quoted in every
+        // SELECT / WHERE / ORDER BY context.
         const sql = `
-            SELECT DISTINCT interval, vc, vcf_start_0based, vcf_end_1based
+            SELECT DISTINCT \`interval\`, vc, vcf_start_0based, vcf_end_1based
             FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
             WHERE chrom_index = ${chromIndex}
               AND locus_id = '${locusId}'
-            ORDER BY (vcf_end_1based - vcf_start_0based) ASC, interval ASC`
+            ORDER BY (vcf_end_1based - vcf_start_0based) ASC, \`interval\` ASC`
         try {
             const result = await queryBigQuery(sql, 0, 256, null, null)
             return result?.rows || []
@@ -2535,13 +2538,14 @@ gtag('config', 'G-6R8FPBQRFH');
             $('#locus-page-allele-sequences').html('')
             return
         }
+        // `interval` is a reserved word in BigQuery — backtick-quote the column.
         const sql = `
             SELECT chrom, vcf_start_0based, vcf_end_1based,
                    total_allele_number, total_unique_alleles, allele_data
             FROM ${HPRC256_DECOMPOSED_ALLELES_TABLE_ID}
             WHERE chrom_index = ${chromIndex}
               AND locus_id = '${locusId}'
-              AND interval = '${interval}'
+              AND \`interval\` = '${interval}'
             LIMIT 1`
         try {
             const result = await queryBigQuery(sql, 0, 1, null, null)
