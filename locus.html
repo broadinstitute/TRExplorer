@@ -2261,10 +2261,10 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20260513_145732'
-    const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260510_160304'
-    const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260510_113927'
-    const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260510_105719'
+    const TABLE_ID = 'catalog_20260520_224832'
+    const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260521_002957'
+    const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260521_033520'
+    const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260521_022709'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
     const HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID  = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_LPS_STRATIFIED_TABLE_ID}\``
     const HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID   = `\`${PROJECT_ID}.${DATASET_ID}.${HPRC256_ALLELE_PURITY_TABLE_ID}\``
@@ -2272,7 +2272,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // Rewritten by bigquery-proxy/load_bigquery_trviz_allele_decompositions.py
     // each time the decomposed-alleles parquet is loaded into BigQuery.
-    const HPRC256_DECOMPOSED_ALLELES_TABLE_ID = '`cmg-analysis.tandem_repeat_explorer.hprc256_decomposed_alleles_20260515_112431`'
+    const HPRC256_DECOMPOSED_ALLELES_TABLE_ID = '`cmg-analysis.tandem_repeat_explorer.hprc256_decomposed_alleles_20260520_210656`'
 
     // Ported from the trviz CACNA1C example. Motifs at a locus are assigned colors
     // by canonical class (rotation + reverse-complement). The top
@@ -5435,7 +5435,7 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav" style="min-width: 700px">
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(5/13/2026)</span></a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(5/21/2026)</span></a>
         <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
@@ -5614,15 +5614,8 @@ gtag('config', 'G-6R8FPBQRFH');
         "HPRC256_NumCalledAlleles",
         "HPRC256_StdevRankByMotif",
         "HPRC256_StdevRankTotalNumberByMotif",
-        // HPRC256_NumIntervalsThatIncludeThisLocusId and HPRC256_NarrowestInterval
-        // are NEW columns added to the catalog schema by load_bigquery_main_table.py.
-        // Until the production catalog table is reloaded, these columns don't exist
-        // on the BigQuery row, and including them in the SELECT clause raises
-        // "Unrecognized name". The frontend treats them as null/undefined when
-        // absent (the `!= null` checks fall through to the legacy dropdown path),
-        // so leave them out of the SELECT until the schema lands in production.
-        // "HPRC256_NumIntervalsThatIncludeThisLocusId",
-        // "HPRC256_NarrowestInterval",
+        "HPRC256_NumIntervalsThatIncludeThisLocusId",
+        "HPRC256_NarrowestInterval",
         "HPRC256_AlleleSizeAndPurityDistribution",
         "HPRC256_AlleleSizeAndMethylationDistribution",
 
