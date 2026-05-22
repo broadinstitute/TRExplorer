@@ -1070,6 +1070,8 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
                 record["NonCodingAnnotations"] = ", ".join(sorted(previous_annotations))
 
     counters["total_rows"] += 1
+    if record.get("OverlapGroupId") is not None:
+        counters["rows_with_overlap_group_id"] += 1
 
     # Convert any None values to None (BigQuery will handle NULL)
     row = {k: v for k, v in record.items() if k in field_names}
@@ -1080,6 +1082,12 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
 
 if rows_to_insert:
     insert_with_retries(new_table_ref, rows_to_insert)
+
+if counters["rows_with_overlap_group_id"] == 0:
+    print("WARNING: No rows had a non-NULL OverlapGroupId. The upstream catalog was likely not run through "
+          "annotate_overlapping_loci_and_output_merged_tandem_repeat_regions.py from the tandem-repeat-catalogs repo. "
+          "Without OverlapGroupId, the 'longest' and 'purest' export options in the UI degenerate to a no-op since each "
+          "row partitions to itself by id.")
 
 missing_locus_ids_with_disease_info = known_disease_associated_locus_ids - locus_ids_with_added_disease_info
 if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_ids):
