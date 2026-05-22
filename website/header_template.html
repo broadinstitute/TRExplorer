@@ -2782,7 +2782,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const widthFor = key => ALLELE_TABLE_COLUMNS[key].width ? `width:${ALLELE_TABLE_COLUMNS[key].width};` : ''
         return `<tr>
             <td style="padding:8px; vertical-align:top;">${cellContent}</td>
-            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp} bp</td>
+            <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('size')}">${lengthBp.toLocaleString('en-US')} bp</td>
             <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; ${widthFor('repeats')}">${allele.motifUnits.length}</td>
             <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; color:#666; ${widthFor('fraction')}">${allele.count}/${totalCalled}</td>
             <td style="padding:8px; vertical-align:top; text-align:right; white-space:nowrap; font-weight:600; color:#333; ${widthFor('percent')}">${freq}%</td>
