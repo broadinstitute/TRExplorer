@@ -40,7 +40,7 @@
                         color: 'rgb(76,171,225)',
                     })
                 } else if (trackURL.endsWith('.bed.gz')) {
-                    tracks.push({
+                    const bedTrack = {
                         format: 'bed',
                         name: trackDisplayName,
                         url: trackURL,
@@ -48,7 +48,11 @@
                         indexed: true,
                         searchable: false,
                         displayMode: 'EXPANDED',
-                    })
+                    }
+                    if (['igv_tr_explorer_catalog_v2', 'igv_vc_and_isolated_v2', 'igv_vc_and_isolated_v1', 'igv_vc_v1'].includes(trackName)) {
+                        bedTrack.height = 130
+                    }
+                    tracks.push(bedTrack)
                 } else if (trackURL.endsWith('.gtf.gz')) {
                     tracks.push({
                         format: 'gtf',
