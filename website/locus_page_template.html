@@ -636,7 +636,7 @@
                 }).join('')
                 $('.hprc256-stratum-controls').each(function() {
                     if ($(this).find('.hprc256-interval-select').length) return
-                    const html = `<label style="display: inline-flex; align-items: center;"><b>HPRC256 genotyped interval:</b>&nbsp;&nbsp;<select class="hprc256-interval-select hprc256-interval-select-above">${intervalOptions}</select></label>`
+                    const html = `<label style="display: inline-flex; align-items: center;"><b>Genotyped interval:</b>&nbsp;&nbsp;<select class="hprc256-interval-select hprc256-interval-select-above">${intervalOptions}</select></label>`
                     const emptyNote = $(this).find('.hprc256-stratum-empty-note')
                     if (emptyNote.length) {
                         emptyNote.before(html)
