@@ -596,6 +596,10 @@
             const defaultInterval = intervals[0]['interval']
             row.__hprc256DefaultInterval = defaultInterval
             GLOBAL_PAGE_STATE['hprc256_interval'] = defaultInterval
+            // Decomp section tracks its own interval. Initialized to the same
+            // default; thereafter "above" -> decomp propagates, decomp -> above
+            // does not (see split change handlers below).
+            window.__HPRC256_DECOMP_INTERVAL = defaultInterval
 
             const refreshAllPanels = (selectedInterval) => {
                 GLOBAL_PAGE_STATE['hprc256_interval'] = selectedInterval
@@ -608,26 +612,66 @@
                 fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, selectedInterval)
             }
 
-            if (intervals.length === 1) {
-                selectorEl.hide()
-            } else {
-                const options = intervals.map((iv) => {
+            // The standalone interval-selector slot is no longer populated. The
+            // selector is rendered inline next to "Sequence display:" (above the
+            // allele table) and copied next to each Population/Sex row.
+            selectorEl.hide()
+
+            // Expose the intervals list so other render paths
+            // (renderSequenceModeSelector, stratum-controls DOM injection) can
+            // render the selector without having to await this fetch themselves.
+            window.__HPRC256_INTERVALS = intervals
+
+            if (intervals.length > 1) {
+                // Inject a bold-label copy of the interval selector into every
+                // Population/Sex row already rendered in the polymorphism
+                // section. These copies drive the histograms/plots above AND
+                // (via downward propagation) the decomp-section selector.
+                const intervalOptions = intervals.map((iv) => {
                     const isVc = iv['vc'] && iv['vc'] !== ''
                     const label = isVc
                         ? `Variation cluster ${iv['interval']}`
                         : `Standalone TR ${iv['interval']}`
-                    return `<option value="${iv['interval']}">${label}</option>`
+                    return `<option value="${iv['interval']}"${iv['interval'] === defaultInterval ? ' selected' : ''}>${label}</option>`
                 }).join('')
-                selectorEl.html(`
-                    <label for="hprc256-interval-select" style="font-weight: 600; margin-right: 8px;">
-                        HPRC256 genotyping interval:
-                    </label>
-                    <select id="hprc256-interval-select" class="ui dropdown">${options}</select>
-                `)
-                selectorEl.show()
-                $('#hprc256-interval-select').val(defaultInterval).change((e) => {
-                    refreshAllPanels(e.target.value)
+                $('.hprc256-stratum-controls').each(function() {
+                    if ($(this).find('.hprc256-interval-select').length) return
+                    const html = `<label style="display: inline-flex; align-items: center;"><b>HPRC256 genotyped interval:</b>&nbsp;&nbsp;<select class="hprc256-interval-select hprc256-interval-select-above">${intervalOptions}</select></label>`
+                    const emptyNote = $(this).find('.hprc256-stratum-empty-note')
+                    if (emptyNote.length) {
+                        emptyNote.before(html)
+                    } else {
+                        $(this).append(html)
+                    }
                 })
+
+                // Re-render only the decomp section at the given interval,
+                // without touching the histograms above. Used by the decomp
+                // selector's change handler.
+                window.__HPRC256_RERENDER_DECOMP = (interval) => {
+                    fetchAndRenderDecomposedAlleles(row['chrom_index'], locusId, interval)
+                }
+
+                // "Above" selectors (in Population/Sex rows): propagate to all
+                // other "above" copies AND down to the decomp selector, then
+                // refresh both the chart panels and the decomp section.
+                $(document).off('change.hprc256intervalabove', '.hprc256-interval-select-above')
+                    .on('change.hprc256intervalabove', '.hprc256-interval-select-above', function() {
+                        const newValue = this.value
+                        $('.hprc256-interval-select-above').not(this).val(newValue)
+                        window.__HPRC256_DECOMP_INTERVAL = newValue
+                        refreshAllPanels(newValue)
+                    })
+
+                // Decomp selector: change only the decomp section. Do NOT
+                // touch GLOBAL_PAGE_STATE['hprc256_interval'], the "above"
+                // selectors, or any charts.
+                $(document).off('change.hprc256intervaldecomp', '.hprc256-interval-select-decomp')
+                    .on('change.hprc256intervaldecomp', '.hprc256-interval-select-decomp', function() {
+                        const newValue = this.value
+                        window.__HPRC256_DECOMP_INTERVAL = newValue
+                        window.__HPRC256_RERENDER_DECOMP(newValue)
+                    })
             }
             // Initial decomposed-alleles fetch at the default interval. The four
             // stratified panels are already rendered from the catalog row, which
