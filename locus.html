@@ -3039,6 +3039,14 @@ gtag('config', 'G-6R8FPBQRFH');
     // Format number: show as integer (with commas) if it's a whole number, otherwise show 1 decimal place
     const formatIntOrDecimal = (v) => v == null ? '-' : (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1))
 
+    // Color used to de-emphasize exact-zero numeric values so they read as noticeably
+    // lighter than non-zero values (but stay visible, rather than rendering as a blank cell).
+    const NUMERIC_ZERO_COLOR = '#aaaaaa'
+    // Wrap `formatted` in a gray span when the underlying numeric value is exactly 0.
+    const grayIfZero = (value, formatted) => Number(value) === 0
+        ? `<span style="color: ${NUMERIC_ZERO_COLOR};">${formatted}</span>`
+        : `${formatted}`
+
     const SUMMARY_STATS_COLUMNS = [
         { suffix: 'MinAllele', header: 'Min', format: formatIntOrDecimal, highlight: true },
         { suffix: 'Median', header: 'Median', format: formatIntOrDecimal, highlight: true },
@@ -4122,7 +4130,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Constraint (O/E Length) Percentile',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'],
-            getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? `${(100*row['AoU1027_OE_LengthPercentile']).toFixed(1)}%` : '',
+            getValue: (row) => row['AoU1027_OE_LengthPercentile'] != null ? grayIfZero(row['AoU1027_OE_LengthPercentile'], `${(100*row['AoU1027_OE_LengthPercentile']).toFixed(1)}%`) : '',
             getCellStyle: (row) => {
                 const oe = row['AoU1027_OE_Length']
                 if (oe != null && oe <= 0.33) return ' background-color: #ffcccc;'
@@ -4198,7 +4206,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 if (value == 1) {
                     return '1'
                 }
-                return value.toFixed(2)
+                return grayIfZero(value, value.toFixed(2))
             },
             getSortColumns: () => ['ReferenceRepeatPurity'],
             getRequiredColumns: () => ['ReferenceRepeatPurity']
@@ -4207,7 +4215,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Nearby TRs',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TRsInRegion'],
-            getValue: (row) => (row['TRsInRegion'] ? (parseInt(row['TRsInRegion']) - 1) : ''),
+            getValue: (row) => (row['TRsInRegion'] ? grayIfZero(parseInt(row['TRsInRegion']) - 1, parseInt(row['TRsInRegion']) - 1) : ''),
             getSortColumns: () => ['TRsInRegion'],
             getRequiredColumns: () => ['TRsInRegion']
         },
@@ -4239,7 +4247,7 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Mappability',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['FlanksAndLocusMappability'],
-            getValue: (row) => row['FlanksAndLocusMappability'],
+            getValue: (row) => row['FlanksAndLocusMappability'] != null ? grayIfZero(row['FlanksAndLocusMappability'], row['FlanksAndLocusMappability']) : '',
             getSortColumns: () => ['FlanksAndLocusMappability'],
             getRequiredColumns: () => ['FlanksAndLocusMappability']
         },
@@ -4491,7 +4499,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 return ''
             },
             getValue: (row) => {
-                if (row[columnName]) {
+                if (row[columnName] != null) {
                     let tagText = ''
                     let tag = ''
                     if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
@@ -4528,13 +4536,15 @@ gtag('config', 'G-6R8FPBQRFH');
                             tag += `${tagText}</span>`
                         }
                     }
-                    return `${row[columnName].toFixed(2)}${tag}`
+                    return `${grayIfZero(row[columnName], row[columnName].toFixed(2))}${tag}`
                 } else {
                     return ''
                 }
             },
-            defaultSortDirection: 'ASC',
-            getSortColumns: () => [`${columnName}RankByMotif`],
+            // Sort by the displayed σ value itself (not the within-motif rank), DESC so the
+            // most polymorphic loci surface first and σ=0 / not-genotyped loci sink to the bottom.
+            defaultSortDirection: 'DESC',
+            getSortColumns: () => [columnName],
             getRequiredColumns: () => [columnName, `${columnName}RankByMotif`, `${columnName}RankTotalNumberByMotif`, `${columnName}RankPercentile`]
         }
     }
@@ -4543,7 +4553,7 @@ gtag('config', 'G-6R8FPBQRFH');
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
-            getValue: (row) => row[columnName],
+            getValue: (row) => row[columnName] != null ? grayIfZero(row[columnName], row[columnName]) : '',
             defaultSortDirection: 'DESC',
             getSortColumns: () => [columnName],
             getRequiredColumns: () => [columnName]
