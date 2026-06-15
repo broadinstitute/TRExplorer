@@ -25,6 +25,7 @@ EXPORT_FORMATS = [
     "longtr",
     "medaka",
     "strdust",
+    "inquistr",
 ]
 
 # Formats that go directly to export without showing the options dialog

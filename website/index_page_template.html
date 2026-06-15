@@ -931,6 +931,7 @@
                             <div class="item" data-value="longtr">LongTR</div>
                             <div class="item" data-value="medaka">Medaka Tandem</div>
                             <div class="item" data-value="strdust">STRdust</div>
+                            <div class="item" data-value="inquistr">inquiSTR</div>
                         </div>
                     </div>
                     <i class="question circle icon export-help-icon" data-html="Export all ${totalResults.toLocaleString()} search results to a file in the selected format"></i>
@@ -1091,7 +1092,7 @@
         const FORMAT_NAMES = {
             tsv: 'TSV', json: 'JSON', trgt: 'TRGT', bed: 'BED',
             expansion_hunter: 'ExpansionHunter', gangstr: 'GangSTR', hipstr: 'HipSTR',
-            longtr: 'LongTR', medaka: 'Medaka', strdust: 'STRdust'
+            longtr: 'LongTR', medaka: 'Medaka', strdust: 'STRdust', inquistr: 'inquiSTR'
         }
         $('#export-dialog-title').text(`${FORMAT_NAMES[exportType] || exportType} export options`)
 
@@ -1812,7 +1813,7 @@
         let fileFormat
         if (value === 'expansion_hunter' || value == 'json') {
             fileFormat = 'JSON'
-        } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'bed') {
+        } else if (value === 'gangstr' || value === 'hipstr' || value === 'trgt' || value === 'longtr' || value === 'medaka' || value === 'strdust' || value === 'inquistr' || value === 'bed') {
             fileFormat = 'BED'
         } else if (value === 'tsv' || value == 'vamos') {
             fileFormat = 'TSV'
@@ -1858,6 +1859,9 @@
         } else if(value === 'strdust') {
             toolName = 'STRdust'
             selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
+        } else if(value === 'inquistr') {
+            toolName = 'inquiSTR'
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, '.'`
         } else if(value === 'bed') {
             selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
         } else if(value === 'tsv' || value === 'json') {
