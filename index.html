@@ -7323,7 +7323,9 @@ gtag('config', 'G-6R8FPBQRFH');
             selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
         } else if(value === 'inquistr') {
             toolName = 'inquiSTR'
-            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, '.'`
+            // info column = chrom-start0-end-motif locus id (matches the str-truth-set-v2 inquiSTR
+            // pipeline convention), so a downstream converter can recover the motif and coordinates.
+            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, CONCAT('chr', LocusId)`
         } else if(value === 'bed') {
             selectClause = `CONCAT('chr', chrom), start_0based, end_1based, ReferenceMotif, MotifSize`
         } else if(value === 'tsv' || value === 'json') {
