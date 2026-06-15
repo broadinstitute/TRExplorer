@@ -173,11 +173,11 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
                         <label style="margin: 0; font-weight: 700 !important;">Search by region, gene, or transcript:</label>
                         <span style="margin-right: 145px; font-weight: 400 !important; color: #888; font-size: 0.9em;">
-                            Examples: &nbsp; <a href="index.html?#showRs=1&searchQuery=chr4%3A3074000-3075000">
+                            Examples: &nbsp; <a class="example-search-link" data-query="chr4:3074000-3075000" href="index.html?#showRs=1&searchQuery=chr4%3A3074000-3075000">
                                 chr4:3074000-3075000
-                            </a>, <a href="index.html?#showRs=1&searchQuery=ATXN1">
+                            </a>, <a class="example-search-link" data-query="ATXN1" href="index.html?#showRs=1&searchQuery=ATXN1">
                                 ATXN1
-                            </a>, <a href="index.html?#showRs=1&searchQuery=ENSG00000165060">
+                            </a>, <a class="example-search-link" data-query="ENSG00000165060" href="index.html?#showRs=1&searchQuery=ENSG00000165060">
                                 ENSG00000165060
                             </a>, <a href="#" id="example-known-disease-trs-link">
                                 known disease-associated TRs
@@ -2868,7 +2868,9 @@
             const sortColumns = sortColumn.includes(',')
                 ? sortColumn.split(',').map(s => s.trim())
                 : (TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom_index', 'start_0based'])
-            const sortClause = sortColumns.map(column => `${column} ${sortDirection}`).join(', ')
+            // Always sort missing (NULL) values to the bottom regardless of direction.
+            // BigQuery defaults to NULLS FIRST for ASC, which otherwise floats empty cells to the top.
+            const sortClause = sortColumns.map(column => `${column} ${sortDirection} NULLS LAST`).join(', ')
 
             // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
             const selectClauseColumns = selectedColumns.map(col => {
@@ -3299,6 +3301,18 @@
         e.preventDefault()
 
         $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI)
+    })
+
+    // Example search links preserve any non-default settings the user has
+    // already chosen (selected columns, filters, etc). Instead of navigating to
+    // a fresh URL — which would reset GLOBAL_PAGE_STATE to defaults — set the
+    // search box and run a search through the normal path, so the current
+    // GLOBAL_PAGE_STATE (and therefore the URL) keeps the user's other settings.
+    // The href is kept as a graceful fallback (e.g. open-in-new-tab / no JS).
+    $('.example-search-link').click((e) => {
+        e.preventDefault()
+        $('#search-query').val($(e.currentTarget).attr('data-query')).trigger('change')
+        $('#search-button').click()
     })
 
     $('#example-known-disease-trs-link').click((e) => {
