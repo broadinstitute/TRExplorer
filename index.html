@@ -5478,7 +5478,7 @@ gtag('config', 'G-6R8FPBQRFH');
             <!-- Overlap handling options -->
             <div id="export-overlap-options" style="margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
                 <label style="font-weight: 700; margin-bottom: 0.5em; display: block;">How to handle overlapping TR loci:
-                    <span id="overlap-beta-tag" class="export-column-help-icon" data-tooltip="" data-position="right center" style="color: #b58105; background: #fff8e1; border: 1px solid #e0c547; border-radius: 4px; padding: 1px 6px; font-size: 0.8em; font-weight: 600; cursor: help; margin-left: 6px;">beta</span>
+                    <span id="overlap-beta-tag" class="export-column-help-icon" data-html="" data-variation="wide" data-position="right center" style="color: #b58105; background: #fff8e1; border: 1px solid #e0c547; border-radius: 4px; padding: 1px 6px; font-size: 0.8em; font-weight: 600; cursor: help; margin-left: 6px;">beta</span>
                 </label>
                 <div id="export-overlap-fields" class="fields inline" style="margin: 0;">
                     <div class="field">
@@ -6578,11 +6578,12 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#export-overlap-fields').toggleClass('inline', showColumns).toggleClass('grouped', !showColumns)
 
         // Update beta tag tooltip based on export type
-        const betaTooltipLines = ['NOTE: Feedback is welcome on this first-attempt implementation of overlap filtering. There is ambiguity in how to handle transitive overlaps and the current implementation may not be optimal - eg. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, only one of them will be exported.']
+        const betaTooltipLines = ['<b>NOTE:</b> Feedback is welcome on this first-attempt implementation of overlap filtering. There is ambiguity in how to handle transitive overlaps and the current implementation may not be optimal - eg. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, only one of them will be exported.']
         if (showTrgtOptions) {
             betaTooltipLines.push('Also, overlap between isolated TRs and variation clusters (VCs) or between VCs and VCs is not currently taken into account when applying overlap filters - only overlap between TRs and TRs is considered.')
         }
-        $('#overlap-beta-tag').attr('data-tooltip', betaTooltipLines.join(' '))
+        // Use a Semantic UI popup (renders HTML, unlike the CSS data-tooltip) so the bold <b> tags display.
+        $('#overlap-beta-tag').popup({ html: betaTooltipLines.join(' '), position: 'right center', variation: 'wide' })
 
         // Reset overlap radio to 'all'
         $('input[name="overlapHandling"][value="all"]').prop('checked', true)
