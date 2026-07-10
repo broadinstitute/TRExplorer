@@ -4161,13 +4161,13 @@ gtag('config', 'G-6R8FPBQRFH');
                             <div class="content" style="text-align: center;">
                                 <div><span style="font-weight: bold">Variation Cluster Interval:</span> <br />${row['VariationCluster']}</div>
                                 <br />
-                                <div><span style="font-weight: bold">Variation Cluster Interval Size:</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${refRegionSize} bp)</span> + ${row['VariationClusterSizeDiff']} bp</div>
+                                <div><span style="font-weight: bold">Variation Cluster Interval Size:</span> <br /><span style = "white-space: nowrap">reference repeat interval size (${Number(refRegionSize).toLocaleString('en-US')} bp)</span> + ${Number(row['VariationClusterSizeDiff']).toLocaleString('en-US')} bp</div>
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
                     return `<span class="action-cell show-popup" data-html='${clusterDetails}'>
                             <i class="check circle icon"></i><span class="action-link">Yes</span>
-                        </span>: +${row['VariationClusterSizeDiff']}bp`
+                        </span>: +${Number(row['VariationClusterSizeDiff']).toLocaleString('en-US')}bp`
                 } else if ( row['VariationClusterFilterReason'] ) {
                     if (row['VariationClusterFilterReason'] == 'DEPTH') {
                         return `<span class="action-cell show-popup" data-html="<b>Depth Filter:</b> Variation cluster not computed due to low depth in this region in the PacBio HiFi population dataset used to generate variation clusters">
