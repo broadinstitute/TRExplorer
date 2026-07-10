@@ -2389,11 +2389,12 @@ gtag('config', 'G-6R8FPBQRFH');
             },
             // Sort by the within-motif rank (rank 1 = most polymorphic for that motif), ASC so the
             // most polymorphic loci surface first and σ=0 / not-genotyped loci sink to the bottom.
-            // Every motif has a rank-1 locus, so rank ties are common across motifs; break them by the
-            // σ value ("INVERSE" = opposite of the header direction, since rank and σ are inversely
-            // related) so the whole list reverses cleanly when the sort direction is toggled.
+            // Every motif has a rank-1 locus, so rank ties are common across motifs; break them first by
+            // the number of same-motif loci, then by the σ value. "INVERSE" = opposite of the header
+            // direction, so the default ASC view resolves to DESC (largest motif groups first, then
+            // highest σ) and the whole list reverses cleanly when the sort direction is toggled.
             defaultSortDirection: 'ASC',
-            getSortColumns: () => [`${columnName}RankByMotif`, `${columnName} INVERSE`],
+            getSortColumns: () => [`${columnName}RankByMotif`, `${columnName}RankTotalNumberByMotif INVERSE`, `${columnName} INVERSE`],
             getRequiredColumns: () => [columnName, `${columnName}RankByMotif`, `${columnName}RankTotalNumberByMotif`, `${columnName}RankPercentile`]
         }
     }
