@@ -517,9 +517,12 @@
         // appear in 2+ intervals, await the fetch so the table renders correctly
         // on first paint instead of flashing the single-row catalog version.
         const hprc256IntervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
-        const hprc256IntervalRows = (hprc256IntervalCount != null && hprc256IntervalCount <= 1)
-            ? []
-            : await fetchAllHprc256IntervalRows(row['LocusId'])
+        let hprc256IntervalRows = []
+        if (!(hprc256IntervalCount != null && hprc256IntervalCount <= 1)) {
+            // Multi-interval locus: show a loader while the per-interval stats fetch runs.
+            $('#locus-page-summary-stats').html('<div class="loading-indicator" style="padding:12px 15px;"><div class="ui small active inline loader"></div><span>Loading summary statistics&hellip;</span></div>')
+            hprc256IntervalRows = await fetchAllHprc256IntervalRows(row['LocusId'])
+        }
         $('#locus-page-summary-stats').html(
             generateSummaryStatsTable(row, hprc256IntervalRows)
         )
@@ -563,6 +566,10 @@
         // catalog row's HPRC256_* columns only at the narrowest (default) interval.
         (async () => {
             const locusId = row['LocusId']
+            // Show the allele-sequences loader immediately so the section reads
+            // "Loading…" continuously through the interval-list fetch and the
+            // subsequent decomposed-alleles fetch (both hit BigQuery).
+            $('#locus-page-allele-sequences').html(alleleSequencesLoadingHtml())
             const intervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
             const selectorEl = $('#locus-page-interval-selector')
             // Skip the dropdown query entirely when the catalog row says only one

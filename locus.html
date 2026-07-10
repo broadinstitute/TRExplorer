@@ -4700,6 +4700,14 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    // Loading placeholder for the HPRC256 Allele Sequences section, shown while the
+    // (sometimes slow) interval-list / decomposed-alleles BigQuery fetches run.
+    const alleleSequencesLoadingHtml = () => `
+        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+            <h3 style="margin:0 0 12px 0;">HPRC256 Allele Sequences</h3>
+            <div class="loading-indicator"><div class="ui small active inline loader"></div><span>Loading allele sequences&hellip;</span></div>
+        </div>`
+
     const fetchAndRenderDecomposedAlleles = async (chromIndex, locusId, interval) => {
         if (chromIndex == null || !locusId || !interval) {
             // Catalog row missing the join key — render nothing.
@@ -4716,6 +4724,8 @@ gtag('config', 'G-6R8FPBQRFH');
               AND \`interval\` = '${interval}'
             LIMIT 1`
         try {
+            // Show a loading indicator while the (sometimes slow) BigQuery fetch runs.
+            $('#locus-page-allele-sequences').html(alleleSequencesLoadingHtml())
             const result = await queryBigQuery(sql, 0, 1, null, null)
             const queryRow = result?.rows?.[0]
             if (!queryRow) {
@@ -5047,10 +5057,15 @@ gtag('config', 'G-6R8FPBQRFH');
             // CSS-columns + max-height/overflow combo flows long rare lists into a
             // multi-column grid that stays inside the viewport (Semantic UI otherwise
             // errors with "Popup does not fit within the boundaries of the viewport").
+            // Size the CSS columns to the longest rare motif so long repeat units
+            // can't overflow a too-narrow fixed-width column and overlap the next one.
+            // `ch` tracks the monospace glyph width; +8 leaves room for the trailing
+            // " (count)". Short-motif loci still flow into many compact columns.
+            const rareColCh = rankedRare.reduce((mx, m) => Math.max(mx, m.length), 0) + 8
             const rareHtml = rankedRare
-                .map(m => `<div style="font-family:monospace; break-inside:avoid;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
+                .map(m => `<div style="font-family:monospace; break-inside:avoid; white-space:nowrap;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
                 .join('')
-            const popupHtml = `<div style="min-width:240px; max-width:520px;"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="column-width:100px; column-gap:18px; max-height:50vh; overflow-y:auto; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div>`
+            const popupHtml = `<div style="min-width:240px; max-width:min(90vw, 640px);"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="column-width:${rareColCh}ch; column-gap:18px; max-height:50vh; overflow:auto; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div>`
             items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
                 style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
@@ -5993,9 +6008,12 @@ gtag('config', 'G-6R8FPBQRFH');
         // appear in 2+ intervals, await the fetch so the table renders correctly
         // on first paint instead of flashing the single-row catalog version.
         const hprc256IntervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
-        const hprc256IntervalRows = (hprc256IntervalCount != null && hprc256IntervalCount <= 1)
-            ? []
-            : await fetchAllHprc256IntervalRows(row['LocusId'])
+        let hprc256IntervalRows = []
+        if (!(hprc256IntervalCount != null && hprc256IntervalCount <= 1)) {
+            // Multi-interval locus: show a loader while the per-interval stats fetch runs.
+            $('#locus-page-summary-stats').html('<div class="loading-indicator" style="padding:12px 15px;"><div class="ui small active inline loader"></div><span>Loading summary statistics&hellip;</span></div>')
+            hprc256IntervalRows = await fetchAllHprc256IntervalRows(row['LocusId'])
+        }
         $('#locus-page-summary-stats').html(
             generateSummaryStatsTable(row, hprc256IntervalRows)
         )
@@ -6039,6 +6057,10 @@ gtag('config', 'G-6R8FPBQRFH');
         // catalog row's HPRC256_* columns only at the narrowest (default) interval.
         (async () => {
             const locusId = row['LocusId']
+            // Show the allele-sequences loader immediately so the section reads
+            // "Loading…" continuously through the interval-list fetch and the
+            // subsequent decomposed-alleles fetch (both hit BigQuery).
+            $('#locus-page-allele-sequences').html(alleleSequencesLoadingHtml())
             const intervalCount = row['HPRC256_NumIntervalsThatIncludeThisLocusId']
             const selectorEl = $('#locus-page-interval-selector')
             // Skip the dropdown query entirely when the catalog row says only one
