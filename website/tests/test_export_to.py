@@ -12,6 +12,8 @@ import urllib.request
 
 import pytest
 
+from test_basic_search import real_errors
+
 # All export format values from the dropdown
 EXPORT_FORMATS = [
     "bed",
@@ -122,7 +124,9 @@ def fetch_export_content(url):
     url = url.replace("storage.cloud.google.com/", "storage.googleapis.com/")
     with urllib.request.urlopen(url) as resp:
         data = resp.read()
-    if url.endswith(".gz"):
+    # Detect gzip by its magic bytes (0x1f 0x8b) rather than the URL suffix: signed GCS URLs
+    # append query params (e.g. ...bed.gz?X-Goog-Algorithm=...), so a `.gz` suffix check misses.
+    if data[:2] == b"\x1f\x8b":
         data = gzip.decompress(data)
     return data.decode("utf-8")
 
@@ -159,6 +163,6 @@ def test_export_format(index_page, console_errors, fmt):
                 f"Expected {total_results} rows for '{fmt}' export, got {row_count}"
             )
 
-    assert console_errors == [], (
-        f"JavaScript errors during export '{fmt}': {console_errors}"
+    assert real_errors(console_errors) == [], (
+        f"JavaScript errors during export '{fmt}': {real_errors(console_errors)}"
     )

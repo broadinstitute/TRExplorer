@@ -59,17 +59,22 @@ def browser_context_args(browser_context_args):
 
 
 @pytest.fixture
-def index_page(page, base_url):
-    """Navigate to the index page and wait for it to be ready."""
-    page.goto(f"{base_url}/index.html")
-    page.wait_for_load_state("networkidle")
-    return page
-
-
-@pytest.fixture
 def console_errors(page):
     """Collect JS errors emitted during the test."""
     errors = []
     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
     page.on("pageerror", lambda exc: errors.append(str(exc)))
     return errors
+
+
+@pytest.fixture
+def index_page(page, console_errors, base_url):
+    """Navigate to the index page and wait for it to be ready.
+
+    Depends on console_errors so its console/pageerror listeners are attached before this
+    navigation happens -- otherwise JS errors thrown during initial page load would be missed
+    by tests that assert on console_errors.
+    """
+    page.goto(f"{base_url}/index.html")
+    page.wait_for_load_state("networkidle")
+    return page

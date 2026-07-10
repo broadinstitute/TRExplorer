@@ -4,6 +4,28 @@
 {% include "header_template.html" %}
 
 <body>
+<!-- modal dialog for uploading a panel of loci / regions -->
+<div class="ui modal" id="tr-file-upload-modal">
+    <i class="close icon"></i>
+    <div class="header">Upload loci or regions</div>
+    <div class="content">
+        <p>Search for multiple loci or regions at once. Files can be gzip-compressed (ie. have a .gz extension).</p>
+        <ul style="margin-top: 0;">
+            <li><b>TXT / TSV</b> &mdash; the first column should contain TR LocusIds (eg. chr4-3074877-3074933-CAG), hg38 genomic regions (eg. chr4:3074000-3075000), gene symbols, or Ensembl/RefSeq gene or transcript ids &mdash; one per row. A header row is optional.</li>
+            <li><b>BED</b> &mdash; the first 3 columns should contain the hg38 coordinates: chrom, start, end (0-based, half-open).</li>
+        </ul>
+        <div id="tr-file-dropzone" style="border: 2px dashed #b0b8c4; border-radius: 8px; padding: 40px 20px; text-align: center; color: #667; cursor: pointer; transition: background-color 0.15s, border-color 0.15s;">
+            <i class="file alternate outline icon" style="font-size: 2.5em; color: #9aa4b2;"></i>
+            <div style="margin-top: 10px; font-size: 1.05em;">Drag &amp; drop one or more files here, or <span style="color: #2185d0; text-decoration: underline;">browse</span></div>
+            <div style="margin-top: 6px; font-size: 0.85em; color: #99a;">TXT / TSV / BED &nbsp;(can be .gz compressed)</div>
+        </div>
+        <div id="tr-file-upload-error" class="ui negative message" style="display:none; margin-top: 12px;"></div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">Cancel</div>
+    </div>
+</div>
+
 <!-- modal dialog for selecting results table columns -->
 <div class="ui modal" id="results-table-column-settings-dialog">
     <i class="close icon"></i>
@@ -184,11 +206,17 @@
                             </a>
                         </span>
                     </div>
+                    <!-- Chip shown when a panel file has been uploaded (ChatGPT-style attachment) -->
+                    <div id="tr-file-chip-container" style="display:none; margin-bottom: 8px;"></div>
                     <div class="ui action input">
-                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these">
+                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these" style="padding-right: 42px;">
+                        <!-- Upload button overlaid inside the input's right edge (negative margin), just left of the filter -->
+                        <button id="tr-file-upload-button" class="ui icon button" type="button" data-html="Upload loci or regions (TSV/TXT/BED) to search a whole panel at once" data-position="top center" style="margin-left: -42px; width: 38px; padding: 0; background: transparent; box-shadow: none; color: #999; z-index: 3;"><i class="plus icon"></i></button>
                         <button id="filter-button" class="ui basic icon button" type="button" data-html="Show or hide additional TR filters" data-position="top center"><i class="filter icon rotated" style="transition: transform 0.3s;"></i></button>
                         <button id="search-button" class="ui primary button" type="submit">Search</button>
                     </div>
+                    <!-- Hidden native file input driven by the (+) button and the upload modal -->
+                    <input type="file" id="tr-file-input" multiple accept=".txt,.tsv,.csv,.bed,.gz,.txt.gz,.tsv.gz,.csv.gz,.bed.gz,text/plain,text/tab-separated-values,text/csv,application/gzip" style="display:none">
                 </div>
             </form>
 
@@ -2490,7 +2518,277 @@
         return searchQueryValues
     }
 
+    // Build the SQL clause matching a single raw search token: a genomic region (chr:start-end),
+    // a TR LocusId (chr-start-end-motif), or a gene/transcript identifier (matched across the
+    // Gencode/RefSeq/MANE name+id columns and LocusId). Shared by the typed search box and by
+    // uploaded TXT/TSV panels so both classify tokens identically.
+    const buildSearchTokenClause = (queryValue) => {
+        queryValue = queryValue.trim()
+        // Escape for a GoogleSQL single-quoted literal to prevent SQL injection. BigQuery uses
+        // backslash escapes, so the backslash MUST be escaped first (before the quote) — otherwise a
+        // token like `x\') OR TRUE--` would escape past a doubled quote and break out of the literal.
+        const sanitizedQueryValue = queryValue.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+        // Check if it's a genomic region (chr:start-end)
+        const regionMatch = queryValue.match(REFERENCE_REGION_REGEXP)
+        if (regionMatch) {
+            let [_, chrom, start, end] = regionMatch
+            // CHROM_TO_CHROM_INDEX keys are uppercase; the regex (with /i) accepts
+            // any case, so normalize before lookup or `chrx`/`chrm` returns undefined.
+            chrom = chrom.toUpperCase()
+            start = parseInt(start.replace(/,/g, ''))
+            end = parseInt(end.replace(/,/g, ''))
+            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
+            // A contig outside chr1-22/X/Y/MT (e.g. chr23, a typo) has no index; match nothing rather
+            // than emitting `chrom_index = undefined`, which would be invalid SQL and fail the whole query.
+            if (chromIndex === undefined) return 'FALSE'
+            return `(chrom_index = ${chromIndex} AND start_0based < ${end} AND end_1based >= ${start})`
+        }
+        const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
+        if (locusIdMatch) {
+            let [_, chrom, start_0based, __, ___] = locusIdMatch
+            chrom = chrom.toUpperCase()
+            start_0based = parseInt(start_0based.replace(/,/g, ''))
+            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
+            if (chromIndex === undefined) return 'FALSE'  // unknown contig -> match nothing, not invalid SQL
+            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${sanitizedQueryValue}')`
+        }
+        // Try other fields
+        return `
+            (UPPER(GencodeGeneName) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(GencodeGeneId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(GencodeTranscriptId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(RefseqGeneName) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(RefseqGeneId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(RefseqTranscriptId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(ManeGeneName) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(ManeGeneId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(ManeTranscriptId) = UPPER('${sanitizedQueryValue}')
+            OR UPPER(LocusId) = UPPER('${sanitizedQueryValue}'))
+        `
+    }
+
+    // ===== Upload a TXT/TSV/BED panel of loci/regions and search them all at once =====
+    //
+    // The currently uploaded file, kept in memory only (not the URL hash) so arbitrarily large
+    // panels are supported; a page reload clears it. Shape:
+    //   { name, searchTokens: [rawToken, ...], bedRegions: [{chromIndex, start0, end1, label}, ...] }
+    // A TXT/TSV first column may hold LocusIds, regions, gene symbols, or Ensembl/RefSeq gene/
+    // transcript ids (each classified by buildSearchTokenClause); a BED file yields 0-based regions.
+    let UPLOADED_FILE = null
+    // Incremented on every upload/clear so a slow file read (e.g. a large .gz) that resolves after a
+    // newer upload or a clear is discarded instead of clobbering the current state.
+    let uploadSeq = 0
+    // Incremented on every performSearch so a slow query (e.g. an upload-filtered search) that resolves
+    // after a newer search/clear can't overwrite the newer results.
+    let searchSeq = 0
+
+    // Normalize a BED chromosome name for CHROM_TO_CHROM_INDEX lookup: strip any "chr" prefix and
+    // uppercase (map keys are bare "1".."22"/"X"/"Y"/"MT"/"M" plus "chr"-prefixed variants).
+    const normalizeBedChrom = (c) => String(c == null ? '' : c).trim().replace(/^chr/i, '').toUpperCase()
+
+    // Read a file's text, transparently decompressing gzip (.gz) via DecompressionStream.
+    const readUploadedFileText = async (file) => {
+        if (/\.gz$/i.test(file.name)) {
+            if (typeof DecompressionStream === 'undefined') {
+                throw new Error('This browser cannot decompress .gz files. Please upload an uncompressed file.')
+            }
+            return await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text()
+        }
+        return await file.text()
+    }
+
+    // Parse a BED file's text into deduplicated 0-based half-open regions. Uses the first 3 columns
+    // as chrom, start (0-based), end (1-based half-open). Comment/track/browser and malformed lines,
+    // and rows whose chrom is not in CHROM_TO_CHROM_INDEX, are skipped.
+    const parseBedText = (text) => {
+        const regions = []
+        const seen = new Set()
+        for (const line of String(text || '').split(/\r\n|\r|\n/)) {
+            const trimmed = line.trim()
+            if (!trimmed || /^(#|track\b|browser\b)/i.test(trimmed)) continue
+            const cols = trimmed.split(/\s+/)
+            if (cols.length < 3 || !/^\d+$/.test(cols[1]) || !/^\d+$/.test(cols[2])) continue
+            const chromIndex = CHROM_TO_CHROM_INDEX[normalizeBedChrom(cols[0])]
+            if (chromIndex === undefined) continue
+            const start0 = parseInt(cols[1], 10)
+            const end1 = parseInt(cols[2], 10)
+            if (end1 <= start0) continue  // skip empty/reversed intervals (BED is 0-based half-open)
+            const key = `${chromIndex}:${start0}-${end1}`
+            if (seen.has(key)) continue
+            seen.add(key)
+            regions.push({ chromIndex, start0, end1 })
+        }
+        return regions
+    }
+
+    // Parse the first column of an uploaded TXT/TSV/CSV file into deduplicated raw search tokens
+    // (original casing preserved). Splits rows on newlines and takes the first tab- or comma-
+    // delimited field. A leading header row (gene/region/locus/... ) is skipped. Blank fields are
+    // dropped; every other token is classified downstream by buildSearchTokenClause.
+    const parseUploadedListFile = (text) => {
+        const tokens = []
+        const seen = new Set()
+        const headerRegExp = /^(gene|genes|gene[_ ]?symbol|gene[_ ]?name|gene[_ ]?id|symbol|ensembl([_ ]?gene[_ ]?id)?|transcript([_ ]?id)?|region|regions|locus|locus[_ ]?id|coordinates?)$/i
+        const lines = String(text || '').split(/\r\n|\r|\n/)
+        for (let i = 0; i < lines.length; i++) {
+            // Take the first TAB field first so a region using comma thousands-separators
+            // (chr17:43,044,295-43,125,483) is not chopped apart, then fall back to the first
+            // comma-delimited field so a multi-column CSV row still parses its first value.
+            let field = lines[i].split('\t')[0].trim()
+            if (!field) continue
+            if (!REFERENCE_REGION_REGEXP.test(field)) {
+                // Not a comma-bearing region; take the first comma field (handles CSV).
+                field = field.split(',')[0].trim()
+            }
+            if (!field) continue
+            if (i === 0 && headerRegExp.test(field)) continue  // skip header row
+            const key = field.toUpperCase()
+            if (!seen.has(key)) { seen.add(key); tokens.push(field) }
+        }
+        return tokens
+    }
+
+    // .bed / .bed.gz are parsed as 3-column genomic regions; everything else (TXT/TSV/CSV) has its
+    // first column parsed into raw search tokens.
+    const isBedFileName = (name) => /\.bed(\.gz)?$/i.test(String(name || ''))
+
+    // Read and parse one file into { searchTokens, bedRegions } (throws on a read/decompress error).
+    const parseOneUploadedFile = async (file) => {
+        const text = await readUploadedFileText(file)
+        return isBedFileName(file.name)
+            ? { searchTokens: [], bedRegions: parseBedText(text) }
+            : { searchTokens: parseUploadedListFile(text), bedRegions: [] }
+    }
+
+    // Short "N loci" / "N regions" / "N items" label describing the uploaded file's contents.
+    const uploadedItemsLabel = () => {
+        const t = UPLOADED_FILE ? UPLOADED_FILE.searchTokens.length : 0
+        const r = UPLOADED_FILE ? UPLOADED_FILE.bedRegions.length : 0
+        if (t && r) return `${(t + r).toLocaleString()} items`
+        if (r) return `${r.toLocaleString()} region${r === 1 ? '' : 's'}`
+        return `${t.toLocaleString()} loc${t === 1 ? 'us' : 'i'}`
+    }
+
+    // Render (or hide) the uploaded-file chip above the search box.
+    const renderUploadedFileChip = () => {
+        const $container = $('#tr-file-chip-container')
+        if (!UPLOADED_FILE) {
+            $container.hide().empty()
+            return
+        }
+        $container.html(`
+            <div class="ui label" style="display: inline-flex; align-items: center; padding: 8px 10px; font-size: 0.95em;">
+                <i class="file alternate outline icon"></i>
+                <span style="margin: 0 6px;">${escapeHtmlText(UPLOADED_FILE.name)}</span>
+                <span style="color: #667; font-weight: normal;">${uploadedItemsLabel()}</span>
+                <i class="delete icon" id="tr-file-chip-remove" title="Remove uploaded file" style="cursor: pointer; margin-left: 8px;"></i>
+            </div>
+        `).show()
+    }
+
+    const clearUploadedFile = () => {
+        uploadSeq++  // cancel any in-flight upload so it can't repopulate state after this clear
+        UPLOADED_FILE = null
+        renderUploadedFileChip()
+        GLOBAL_PAGE_STATE['currentPage'] = 1  // return to the first page for the new (unfiltered) search
+        performSearch(false)
+    }
+
+    // Handle one or more chosen/dropped files: parse each independently (so mixed TXT/TSV/BED work),
+    // then search the UNION of their parsed items — tokens deduped case-insensitively, regions deduped
+    // by chromIndex:start0-end1. Files that fail to read are skipped and reported; readable ones still
+    // apply. Shows the chip, closes the modal, and runs the search on full success.
+    const handleUploadedFiles = async (fileList) => {
+        const $err = $('#tr-file-upload-error')
+        $err.hide().empty()
+        const files = fileList ? Array.from(fileList) : []
+        if (!files.length) return
+        const mySeq = ++uploadSeq  // guards against a stale slow read overwriting a newer upload/clear
+
+        const allTokens = []
+        const allRegions = []
+        const okNames = []
+        const failed = []
+        for (const file of files) {
+            try {
+                const parsed = await parseOneUploadedFile(file)
+                allTokens.push(...parsed.searchTokens)
+                allRegions.push(...parsed.bedRegions)
+                okNames.push(file.name || 'uploaded file')
+            } catch (e) {
+                console.error('Error reading uploaded file:', file.name, e)
+                failed.push(file.name || 'a file')
+            }
+        }
+
+        // Union / dedup across all files.
+        const seenToken = new Set()
+        const searchTokens = allTokens.filter((t) => {
+            const key = t.toUpperCase()
+            if (seenToken.has(key)) return false
+            seenToken.add(key)
+            return true
+        })
+        const seenRegion = new Set()
+        const bedRegions = allRegions.filter((r) => {
+            const key = `${r.chromIndex}:${r.start0}-${r.end1}`
+            if (seenRegion.has(key)) return false
+            seenRegion.add(key)
+            return true
+        })
+
+        // A newer upload or a clear happened while we were reading these files -> discard this stale
+        // result so it can't clobber the current chip/filter/results.
+        if (mySeq !== uploadSeq) return
+
+        if (!searchTokens.length && !bedRegions.length) {
+            $err.html(failed.length
+                ? `<b>Could not read the file${failed.length > 1 ? 's' : ''}.</b> ${escapeHtmlText(failed.join(', '))}`
+                : '<b>Nothing to search.</b> The first column should contain TR LocusIds, hg38 regions, or gene/transcript identifiers (or upload a BED file).').show()
+            return
+        }
+
+        UPLOADED_FILE = {
+            name: okNames.length === 1 ? okNames[0] : `${okNames.length} files`,
+            searchTokens,
+            bedRegions,
+        }
+        renderUploadedFileChip()
+
+        if (failed.length) {
+            // Keep the readable files' union, but leave the modal open so the skipped-files notice is seen.
+            $err.html(`<b>Skipped ${failed.length} file${failed.length > 1 ? 's' : ''} that could not be read:</b> ${escapeHtmlText(failed.join(', '))}`).show()
+        } else {
+            $('#tr-file-upload-modal').modal('hide')
+        }
+        // The uploaded panel IS the query, so clear any leftover text in the search box: TR Explorer's
+        // box does exact region/LocusId/gene matching (not free-text), so ANDing a stale typed value
+        // with the panel would almost always yield zero results. Advanced filters still apply.
+        $('#search-query').val('')
+        GLOBAL_PAGE_STATE['currentPage'] = 1  // a fresh panel search starts on the first page
+        performSearch(false)
+    }
+
+    // Build the WHERE clause restricting results to the uploaded file's tokens and/or BED regions
+    // (a token match OR a region overlap). BED coords are 0-based half-open, matching start_0based /
+    // end_1based, so a locus overlaps iff start_0based < end1 AND end_1based > start0.
+    const buildUploadedFileClause = () => {
+        if (!UPLOADED_FILE) return ''
+        const parts = []
+        for (const token of UPLOADED_FILE.searchTokens) {
+            const c = buildSearchTokenClause(token)
+            if (c) parts.push(c)
+        }
+        for (const r of UPLOADED_FILE.bedRegions) {
+            parts.push(`(chrom_index = ${r.chromIndex} AND start_0based < ${r.end1} AND end_1based > ${r.start0})`)
+        }
+        return parts.length ? `(${parts.join(' OR ')})` : ''
+    }
+
     const performSearch = async (showTableWhileLoading = false) => {
+        // Guard against out-of-order responses: rapid actions (upload, chip-remove, sort, paginate)
+        // can leave two queries in flight, and a slower older one must not overwrite the newer results.
+        const mySeq = ++searchSeq
         // Remove any error messages and no results message
         $('#error-message').hide()
         $('.no-results').hide()
@@ -2510,59 +2808,23 @@
             $('body').css('cursor', 'wait')
 
             let conditions = []
+
+            // Uploaded panel file (TXT/TSV/BED): restrict to its loci/regions. ANDed with any typed
+            // query and advanced filters. A present-but-empty file matches zero rows rather than
+            // falling through to an unrestricted whole-table query.
+            if (UPLOADED_FILE) {
+                conditions.push(buildUploadedFileClause() || 'FALSE')
+            }
+
             let searchQuery = $('#search-query').val()
             if (searchQuery) {
 
                 // Split input by commas to handle multiple values
                 const queryValues = splitSearchQuery(searchQuery)
 
-                // Process each query value and create query conditions
-                const queryClauses = queryValues.map(queryValue => {
-                    queryValue = queryValue.trim()
-                    // Escape single quotes to prevent SQL injection
-                    const sanitizedQueryValue = queryValue.replace(/'/g, "''")
-                    // Check if it's a genomic region (chr:start-end)
-                    const regionMatch = queryValue.match(REFERENCE_REGION_REGEXP)
-                    if (regionMatch) {
-                        let [_, chrom, start, end] = regionMatch
-                        // CHROM_TO_CHROM_INDEX keys are uppercase; the regex (with /i) accepts
-                        // any case, so normalize before lookup or `chrx`/`chrm` returns undefined.
-                        chrom = chrom.toUpperCase()
-                        start = parseInt(start.replace(/,/g, ''))
-                        end = parseInt(end.replace(/,/g, ''))
-                        const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
-                        return `
-                            (chrom_index = ${chromIndex} AND start_0based < ${end} AND end_1based >= ${start})
-                        `
-                    } else {
-                        const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
-                        if (locusIdMatch) {
-                            let [_, chrom, start_0based, __, ___] = locusIdMatch
-                            chrom = chrom.toUpperCase()
-                            start_0based = parseInt(start_0based.replace(/,/g, ''))
-                            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
-                            //end = parseInt(end.replace(/,/g, ''))
+                // Process each query value into a clause (shared with uploaded-file panels)
+                const queryClauses = queryValues.map(buildSearchTokenClause)
 
-                            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${sanitizedQueryValue}')`
-
-                        } else {
-                            // Try other fields
-                            return `
-                                (UPPER(GencodeGeneName) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(GencodeGeneId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(GencodeTranscriptId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(RefseqGeneName) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(RefseqGeneId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(RefseqTranscriptId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(ManeGeneName) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(ManeGeneId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(ManeTranscriptId) = UPPER('${sanitizedQueryValue}')
-                                OR UPPER(LocusId) = UPPER('${sanitizedQueryValue}'))
-                            `
-                        }
-                    }
-                })
-                
                 // Combine all clauses with OR for multiple input values
                 if (queryClauses.length > 0) {
                     conditions.push(`(${queryClauses.join(' OR ')})`)
@@ -2871,7 +3133,13 @@
                 : (TABLE_COLUMNS[sortColumn]?.getSortColumns() || ['chrom_index', 'start_0based'])
             // Always sort missing (NULL) values to the bottom regardless of direction.
             // BigQuery defaults to NULLS FIRST for ASC, which otherwise floats empty cells to the top.
-            const sortClause = sortColumns.map(column => `${column} ${sortDirection} NULLS LAST`).join(', ')
+            // A tie-break column suffixed with " INVERSE" flips with the header but in the opposite
+            // direction (e.g. within-motif rank ASC pairs with σ DESC, and both reverse when toggled);
+            // any other column follows the user-selected direction.
+            const invertedDirection = sortDirection === 'ASC' ? 'DESC' : 'ASC'
+            const sortClause = sortColumns.map(column => /\s+INVERSE$/i.test(column)
+                ? `${column.replace(/\s+INVERSE$/i, '')} ${invertedDirection} NULLS LAST`
+                : `${column} ${sortDirection} NULLS LAST`).join(', ')
 
             // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
             const selectClauseColumns = selectedColumns.map(col => {
@@ -2889,7 +3157,11 @@
             window.lastSearchConditions = conditions
             window.lastSearchSortClause = sortClause
 
-            window.searchResults = await queryBigQuery(query, startIndex, pageSize, null, null)
+            const results = await queryBigQuery(query, startIndex, pageSize, null, null)
+            // A newer search started while this query was in flight -> discard this stale result so it
+            // can't overwrite the newer search's rows (e.g. rapid upload then chip-remove).
+            if (mySeq !== searchSeq) return
+            window.searchResults = results
 
             // Reset navigation index for new search results
             window.igvNavIndex = 0
@@ -3236,6 +3508,32 @@
             handleSearch(e)
         }
     })
+
+    // --- panel-file upload UI wiring ---
+    $('#tr-file-upload-button').click(() => {
+        $('#tr-file-upload-error').hide().empty()
+        $('#tr-file-upload-modal').modal('show')
+    })
+    $('#tr-file-dropzone').click(() => $('#tr-file-input').click())
+    $('#tr-file-input').on('change', function() {
+        handleUploadedFiles(this.files)
+        this.value = ''  // allow re-selecting the same file name(s) later
+    })
+    const $trDropzone = $('#tr-file-dropzone')
+    $trDropzone.on('dragover dragenter', (e) => {
+        e.preventDefault(); e.stopPropagation()
+        $trDropzone.css({ backgroundColor: '#eef6ff', borderColor: '#2185d0' })
+    })
+    $trDropzone.on('dragleave dragend drop', (e) => {
+        e.preventDefault(); e.stopPropagation()
+        $trDropzone.css({ backgroundColor: '', borderColor: '#b0b8c4' })
+    })
+    $trDropzone.on('drop', (e) => {
+        const dt = e.originalEvent.dataTransfer
+        handleUploadedFiles(dt && dt.files)
+    })
+    // remove chip (delegated: the chip is re-rendered on each change)
+    $('#tr-file-chip-container').on('click', '#tr-file-chip-remove', clearUploadedFile)
 
     // Initialize source catalog dropdown
     $('#source-catalog-dropdown').dropdown({
