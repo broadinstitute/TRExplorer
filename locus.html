@@ -5065,11 +5065,23 @@ gtag('config', 'G-6R8FPBQRFH');
             const rareHtml = rankedRare
                 .map(m => `<div style="font-family:monospace; break-inside:avoid; white-space:nowrap;">${escapeHtmlText(m)} <span style="color:#888;">(${motifCounts[m]})</span></div>`)
                 .join('')
+            // TSV of EVERY motif at this locus (both the top legend entries and the
+            // rare ones in this popup), sorted by count desc then motif asc. Encoded
+            // into a data: URI so the link downloads without any event wiring.
+            // encodeURIComponent never emits a single quote, so this stays safe inside
+            // the single-quoted data-html attribute below.
+            const allMotifsTsv = 'motif\tHPRC256_count\n' + Object.keys(motifCounts)
+                .sort((a, b) => motifCounts[b] - motifCounts[a] || (a < b ? -1 : a > b ? 1 : 0))
+                .map(m => `${m}\t${motifCounts[m]}`)
+                .join('\n')
+            const downloadHref = `data:text/tab-separated-values;charset=utf-8,${encodeURIComponent(allMotifsTsv)}`
             // Height cap + vertical scroll live on the OUTER wrapper; the column
             // layout on the INNER div has no height cap. Putting both on one element
             // makes multicol fill a column to the cap then flow sideways into the next
-            // column (horizontal scroll) instead of scrolling down.
-            const popupHtml = `<div style="min-width:240px; max-width:min(90vw, 640px);"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="max-height:50vh; overflow-y:auto; overflow-x:hidden;"><div style="column-width:${rareColCh}ch; column-gap:18px; font-size:0.9em; line-height:1.5;">${rareHtml}</div></div></div>`
+            // column (horizontal scroll) instead of scrolling down. The Download link
+            // sits after the columns (full-width, past a blank-line gap) so it appears
+            // at the very bottom of the scroll.
+            const popupHtml = `<div style="min-width:240px; max-width:min(90vw, 640px);"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="max-height:50vh; overflow-y:auto; overflow-x:hidden;"><div style="column-width:${rareColCh}ch; column-gap:18px; font-size:0.9em; line-height:1.5;">${rareHtml}</div><div style="margin-top:1.4em; font-size:0.9em;"><a href="${downloadHref}" download="HPRC256_motif_counts.tsv" style="color:#4183c4; text-decoration:underline;">Download</a></div></div></div>`
             items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
                 style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
