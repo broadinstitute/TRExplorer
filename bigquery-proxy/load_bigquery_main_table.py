@@ -159,6 +159,8 @@ _PASCALCASE_TO_SNAKE_CASE = {
     "Max": "max_allele",
     "ShortAllele99thPercentile": "short_allele_99th_percentile",
     "ShortAlleleMax": "short_allele_max",
+    "HemiAllele99thPercentile": "hemi_allele_99th_percentile",
+    "HemiAlleleMax": "hemi_allele_max",
     "UniqueAlleleLengths": "unique_allele_lengths",
     "NumCalledAlleles": "num_called_alleles",
 }
@@ -212,6 +214,18 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
     df["stdev_rank_by_motif"] = df_grouped_by_motif["stdev"].rank(method="min", ascending=False)
     df["stdev_rank_total_number_by_motif"] = df_grouped_by_motif["locus_id"].transform("count")
 
+    # Not every TSV this function parses has these columns (e.g. older snapshots), and even
+    # when present short_allele_* can be blank per-row for TenK10K loci with no biallelic
+    # histogram, and hemi_allele_* is only populated for chrX/chrY loci — both need the
+    # per-row NaN check below.
+    has_short_allele_cols = "short_allele_99th_percentile" in df.columns
+    has_hemi_allele_cols = "hemi_allele_99th_percentile" in df.columns
+    if dataset_name == "HPRC256":
+        if not has_short_allele_cols:
+            print(f"WARNING: {tsv_path} has no ShortAllele99thPercentile/ShortAlleleMax columns — HPRC256_ShortAllele* will be blank until this TSV is regenerated.")
+        if not has_hemi_allele_cols:
+            print(f"WARNING: {tsv_path} has no HemiAllele99thPercentile/HemiAlleleMax columns — HPRC256_HemiAllele* will be blank until this TSV is regenerated.")
+
     total_records = len(df)
     for _, row in tqdm.tqdm(df.iterrows(), unit=" loci", unit_scale=True, total=total_records):
         locus_id = row["locus_id"]
@@ -233,6 +247,12 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         }
         if not pd.isna(row["biallelic_histogram"]):
             lookup[locus_id]["biallelic_histogram"] = row["biallelic_histogram"]
+        if has_short_allele_cols and not pd.isna(row["short_allele_99th_percentile"]):
+            lookup[locus_id]["short_allele_99th_percentile"] = float(row["short_allele_99th_percentile"])
+            lookup[locus_id]["short_allele_max"] = int(row["short_allele_max"])
+        if has_hemi_allele_cols and not pd.isna(row["hemi_allele_99th_percentile"]):
+            lookup[locus_id]["hemi_allele_99th_percentile"] = float(row["hemi_allele_99th_percentile"])
+            lookup[locus_id]["hemi_allele_max"] = int(row["hemi_allele_max"])
         if num_intervals_by_locus is not None:
             lookup[locus_id]["num_intervals_that_include_this_locus_id"] = int(
                 num_intervals_by_locus.get(locus_id, 1)
@@ -939,6 +959,9 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["TenK10K_Median"] = tenk10k_record["median"]
         record["TenK10K_99thPercentile"] = tenk10k_record["99th_percentile"]
         record["TenK10K_MaxAllele"] = tenk10k_record["max_allele"]
+        if "short_allele_99th_percentile" in tenk10k_record:
+            record["TenK10K_ShortAllele99thPercentile"] = tenk10k_record["short_allele_99th_percentile"]
+            record["TenK10K_ShortAlleleMax"] = tenk10k_record["short_allele_max"]
         record["TenK10K_UniqueAlleleLengths"] = tenk10k_record["unique_allele_lengths"]
         record["TenK10K_NumCalledAlleles"] = tenk10k_record["num_called_alleles"]
         record["TenK10K_StdevRankByMotif"] = tenk10k_record["stdev_rank_by_motif"]
@@ -956,6 +979,12 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         record["HPRC256_Median"] = hprc256_record["median"]
         record["HPRC256_99thPercentile"] = hprc256_record["99th_percentile"]
         record["HPRC256_MaxAllele"] = hprc256_record["max_allele"]
+        if "short_allele_99th_percentile" in hprc256_record:
+            record["HPRC256_ShortAllele99thPercentile"] = hprc256_record["short_allele_99th_percentile"]
+            record["HPRC256_ShortAlleleMax"] = hprc256_record["short_allele_max"]
+        if "hemi_allele_99th_percentile" in hprc256_record:
+            record["HPRC256_HemiAllele99thPercentile"] = hprc256_record["hemi_allele_99th_percentile"]
+            record["HPRC256_HemiAlleleMax"] = hprc256_record["hemi_allele_max"]
         record["HPRC256_UniqueAlleleLengths"] = hprc256_record["unique_allele_lengths"]
         record["HPRC256_NumCalledAlleles"] = hprc256_record["num_called_alleles"]
         record["HPRC256_StdevRankByMotif"] = hprc256_record["stdev_rank_by_motif"]

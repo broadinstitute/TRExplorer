@@ -70,6 +70,8 @@ OUTPUT_HEADER_FIELDS = [
     "median",
     "99th_percentile",
     "max_allele",
+    "short_allele_99th_percentile",
+    "short_allele_max",
     "unique_allele_lengths",
     "num_called_alleles",
     "tenk_10k_vs_catalog_overlap_size",
@@ -122,15 +124,19 @@ def write_to_output(output_row_data, output_tsv, counters):
 
         output_row["allele_size_histogram"] = ""
         output_row["biallelic_histogram"] = ""
+        output_row["short_allele_99th_percentile"] = ""
+        output_row["short_allele_max"] = ""
         if found_in_catalog is None:
             counters["tenk10k rows not found in catalog"] += 1
         else:
-            counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1        
+            counters[f"tenk10k rows were {found_in_catalog} catalog entry"] += 1
             if found_in_catalog in (SAME_AS_IN_CATALOG_LABEL, ALMOST_SAME_AS_IN_CATALOG_LABEL):
                 output_row["allele_size_histogram"] = ",".join([f"{key}x:{value}" for key, value in zip(allele_sizes, allele_counts)])
                 try:
                     # convert {"diploid_allele_array_counts":[{"key":"20/150","value":2}, ...]} to  biallelic_histogram : 6/6:4,6/12:1,12/15:1,15/15:2,
                     biallelic_histogram = []
+                    short_alleles = []
+                    short_allele_counts = []
                     for diploid_allele_array_count in output_row["diploid_allele_array_counts"]:
                         key = diploid_allele_array_count["key"]
                         if key is None:
@@ -142,7 +148,16 @@ def write_to_output(output_row_data, output_tsv, counters):
                         value = int(diploid_allele_array_count["value"])
 
                         biallelic_histogram.append(f"{allele_1}/{allele_2}:{value}")
+                        short_alleles.append(min(allele_1, allele_2))
+                        short_allele_counts.append(value)
                     output_row["biallelic_histogram"] = ",".join(biallelic_histogram)
+
+                    if short_alleles:
+                        # Short allele = the shorter of each sample's paired-allele call, weighted by
+                        # sample count, mirroring HPRC256's ShortAllele99thPercentile/ShortAlleleMax.
+                        np_short_alleles = np.repeat(np.array(short_alleles), np.array(short_allele_counts))
+                        output_row["short_allele_99th_percentile"] = np.percentile(np_short_alleles, 99)
+                        output_row["short_allele_max"] = int(np.max(np_short_alleles))
                 except Exception as e:
                     print(f"WARNING: Unable to parse diploid_allele_array_counts: {output_row['diploid_allele_array_counts']}  {e}")
 
