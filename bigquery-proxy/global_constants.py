@@ -342,7 +342,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneRegion",
-        "description": f"The most significant gene region that overlaps the TR locus in Gencode v48, {GENE_REGION_PRIORITY}.",
+        "description": f"The most significant gene region that overlaps the TR locus in Gencode v49, {GENE_REGION_PRIORITY}.",
         "displayName": "Gencode Gene Region",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -351,7 +351,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneName",
-        "description": "Gencode v48 gene name",
+        "description": "Gencode v49 gene name",
         "displayName": "Gencode Gene Name",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -360,7 +360,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneId",
-        "description": "Gencode v48 gene ID (ENSG)",
+        "description": "Gencode v49 gene ID (ENSG)",
         "displayName": "Gencode Gene ID",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -369,7 +369,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeTranscriptId",
-        "description": "Gencode v48 transcript ID (ENST)",
+        "description": "Gencode v49 transcript ID (ENST)",
         "displayName": "Gencode Transcript ID",
         "allowCustomFilter": True,
         "allowExport": True,
