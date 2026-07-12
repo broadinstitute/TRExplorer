@@ -63,6 +63,8 @@ parser.add_argument("--manigbas-2024-lookup-json",
                     default="../data-prep/literature_review/Manigbas_2024/Manigbas_2024_lookup.json.gz",
                     help="JSON lookup with PheWAS data from Manigbas et al. 2024")
 parser.add_argument("--reason", default="", help="Reason for this data update (will be stored in data_last_updated_date.json)")
+parser.add_argument("--skip-html-update", action="store_true",
+                    help="Don't rewrite the TABLE_ID constant in the website HTML files.")
 args = parser.parse_args()
 
 # Set up logging to a timestamped file
@@ -1117,18 +1119,24 @@ if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_
            "Missing locus ids:", ", ".join(missing_locus_ids_with_disease_info))
     print(f"Added known disease-associated locus ids: ", ", ".join(locus_ids_with_added_disease_info))
 
-for html_path in "../website/header_template.html", "../index.html", "../locus.html":
-    print(f"Update TABLE_ID to '{new_table_id}' in {html_path}")
-    with open(html_path, "r") as f:
-        html_content = f.read()
+if args.n is not None:
+    print(f"Skipping TABLE_ID update since -n {args.n} was passed (this table only has a partial "
+          f"subset of records, not a full reload) — {new_table_id} was left un-pointed-to.")
+elif args.skip_html_update:
+    print(f"Skipping TABLE_ID update since --skip-html-update was passed — {new_table_id} was left un-pointed-to.")
+else:
+    for html_path in "../website/header_template.html", "../index.html", "../locus.html":
+        print(f"Update TABLE_ID to '{new_table_id}' in {html_path}")
+        with open(html_path, "r") as f:
+            html_content = f.read()
 
-    html_content = re.sub(
-        r"const TABLE_ID[\s]*=[\s]*'catalog[^']*'",
-        f"const TABLE_ID = '{new_table_id}'",
-        html_content)
+        html_content = re.sub(
+            r"const TABLE_ID[\s]*=[\s]*'catalog[^']*'",
+            f"const TABLE_ID = '{new_table_id}'",
+            html_content)
 
-    with open(html_path, "wt") as f:
-        f.write(html_content)
+        with open(html_path, "wt") as f:
+            f.write(html_content)
 
 print("Done!")
 
@@ -1150,13 +1158,16 @@ for key, count in sorted(counters.items(), key=lambda x: x[1], reverse=True):
     else:
         print(f"{count:10,d} ( {count/total_rows*100:.1f}%)  {key}")
 
-# Update the data_last_updated_date.json file
-data_last_updated_path = "../website/data_last_updated_date.json"
-data_last_updated = {
-    "data_last_updated_date": datetime.datetime.now().strftime("%-m/%-d/%Y"),
-    "data_last_updated_details": args.reason,
-}
-with open(data_last_updated_path, "w") as f:
-    json.dump(data_last_updated, f, indent=4)
-    f.write("\n")
-print(f"\nUpdated {data_last_updated_path}")
+if args.n is not None or args.skip_html_update:
+    print("\nSkipping data_last_updated_date.json update (partial/test run).")
+else:
+    # Update the data_last_updated_date.json file
+    data_last_updated_path = "../website/data_last_updated_date.json"
+    data_last_updated = {
+        "data_last_updated_date": datetime.datetime.now().strftime("%-m/%-d/%Y"),
+        "data_last_updated_details": args.reason,
+    }
+    with open(data_last_updated_path, "w") as f:
+        json.dump(data_last_updated, f, indent=4)
+        f.write("\n")
+    print(f"\nUpdated {data_last_updated_path}")
