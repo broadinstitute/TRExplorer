@@ -86,6 +86,53 @@ def test_upload_locus_id(index_page, console_errors, tmp_path):
     assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
 
 
+def test_upload_locus_id_with_chr_prefix(index_page, console_errors, tmp_path):
+    """A "chr"-prefixed LocusId (as commonly pasted/exported, e.g. chr4-...-CAG) must still match,
+    even though the LocusId is stored in the catalog without the "chr" prefix."""
+    page = index_page
+    page.fill("#search-query", "chr4:3074000-3075000")
+    page.click("#search-button")
+    wait_for_results(page)
+    locus_id = page.get_attribute(".row-locus-page-link", "data-locus-id")
+    assert locus_id and "-" in locus_id
+    assert not locus_id.lower().startswith("chr")  # catalog LocusIds have no "chr" prefix
+
+    page.fill("#search-query", "")
+    f = tmp_path / "one_locus_chr_prefixed.txt"
+    f.write_text(f"chr{locus_id}\n")
+
+    upload_files(page, [f])
+    wait_for_results(page)
+    assert "1 locus" in page.inner_text("#tr-file-chip-container")
+    locus_ids = [
+        el.get_attribute("data-locus-id")
+        for el in page.query_selector_all(".row-locus-page-link")
+    ]
+    assert locus_id in locus_ids
+    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+
+
+def test_drop_file_on_main_search_box(index_page, console_errors, tmp_path):
+    """Dropping a file directly on the main search box (not just in the upload modal) behaves the
+    same as dropping it into the modal's dropzone."""
+    page = index_page
+    data_transfer = page.evaluate_handle(
+        """() => {
+            const dt = new DataTransfer()
+            const file = new File(['chr4:3074000-3075000\\n'], 'dropped_on_search_box.txt', { type: 'text/plain' })
+            dt.items.add(file)
+            return dt
+        }"""
+    )
+    page.dispatch_event("#tr-main-search-dropzone", "drop", {"dataTransfer": data_transfer})
+    wait_for_results(page)
+    chip = page.inner_text("#tr-file-chip-container")
+    assert "dropped_on_search_box.txt" in chip
+    assert "1 locus" in chip
+    assert len(page.query_selector_all("#results-table tbody tr")) > 0
+    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+
+
 def test_upload_unknown_contig_does_not_break_panel(index_page, console_errors, tmp_path):
     """A token on an out-of-catalog contig (e.g. chr23) must match nothing rather than emitting
     invalid SQL that errors the whole panel; valid loci in the same file still return results."""

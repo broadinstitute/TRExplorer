@@ -5715,7 +5715,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     </div>
                     <!-- Chip shown when a panel file has been uploaded (ChatGPT-style attachment) -->
                     <div id="tr-file-chip-container" style="display:none; margin-bottom: 8px;"></div>
-                    <div class="ui action input">
+                    <div class="ui action input" id="tr-main-search-dropzone" style="transition: background-color 0.15s, border-radius 0.15s;">
                         <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these" style="padding-right: 42px;">
                         <!-- Upload button overlaid inside the input's right edge (negative margin), just left of the filter -->
                         <button id="tr-file-upload-button" class="ui icon button" type="button" data-html="Upload a list of locus IDs, regions, gene names, and/or gene IDs (TSV/TXT/BED) to search for many at once" data-position="top left" style="margin-left: -42px; width: 38px; padding: 0; background: transparent; box-shadow: none; color: #999; z-index: 3;"><i class="plus icon"></i></button>
@@ -8052,12 +8052,16 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
         if (locusIdMatch) {
-            let [_, chrom, start_0based, __, ___] = locusIdMatch
-            chrom = chrom.toUpperCase()
-            start_0based = parseInt(start_0based.replace(/,/g, ''))
-            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
+            let [_, chrom, start_0based, end_1based, motif] = locusIdMatch
+            start_0based = start_0based.replace(/,/g, '')
+            end_1based = end_1based.replace(/,/g, '')
+            const chromIndex = CHROM_TO_CHROM_INDEX[chrom.toUpperCase()]
             if (chromIndex === undefined) return 'FALSE'  // unknown contig -> match nothing, not invalid SQL
-            return `(chrom_index = ${chromIndex} AND start_0based = ${start_0based} AND LocusId = '${sanitizedQueryValue}')`
+            // LocusId is stored without a "chr" prefix, so rebuild it from the parsed parts (also
+            // strips comma thousands-separators and surrounding whitespace the regex tolerated)
+            // rather than matching on the raw, possibly "chr"-prefixed, sanitizedQueryValue.
+            const normalizedLocusId = `${chrom}-${start_0based}-${end_1based}-${motif}`.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+            return `(chrom_index = ${chromIndex} AND start_0based = ${parseInt(start_0based)} AND LocusId = '${normalizedLocusId}')`
         }
         // Try other fields
         return `
@@ -9041,6 +9045,30 @@ gtag('config', 'G-6R8FPBQRFH');
     })
     // remove chip (delegated: the chip is re-rendered on each change)
     $('#tr-file-chip-container').on('click', '#tr-file-chip-remove', clearUploadedFile)
+
+    // Dropping a file directly on the main search box does the same thing as dropping it in the
+    // upload modal's dropzone (same parsing via handleUploadedFiles). Only react when the drag
+    // carries files (not e.g. a text selection being dragged into the input).
+    const $mainSearchDropzone = $('#tr-main-search-dropzone')
+    const isFileDrag = (e) => {
+        const types = e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.types
+        return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1
+    }
+    $mainSearchDropzone.on('dragover dragenter', (e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault(); e.stopPropagation()
+        $mainSearchDropzone.css({ backgroundColor: '#eef6ff', borderRadius: '4px' })
+    })
+    $mainSearchDropzone.on('dragleave dragend drop', (e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault(); e.stopPropagation()
+        $mainSearchDropzone.css({ backgroundColor: '', borderRadius: '' })
+    })
+    $mainSearchDropzone.on('drop', (e) => {
+        if (!isFileDrag(e)) return
+        const dt = e.originalEvent.dataTransfer
+        handleUploadedFiles(dt && dt.files)
+    })
 
     // Initialize source catalog dropdown
     $('#source-catalog-dropdown').dropdown({
