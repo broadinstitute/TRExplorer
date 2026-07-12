@@ -1,4 +1,4 @@
 {
-    "data_last_updated_date": "7/10/2026",
-    "data_last_updated_details": "Refresh HPRC256 data (LPS, purity, methylation, decomposed alleles) from 2026-05-19 TRGT VCF"
+    "data_last_updated_date": "7/12/2026",
+    "data_last_updated_details": "validate load-job rewrite v3 post-fix"
 }

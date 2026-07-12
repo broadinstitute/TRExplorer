@@ -17,12 +17,14 @@ On completion, the new table id is written to the HTML files in `../website/head
 """
 
 import argparse
+import atexit
 import datetime
 import gzip
+import json
 import os
 import re
 import sys
-import time
+import tempfile
 
 import tqdm
 from google.cloud import bigquery
@@ -35,22 +37,6 @@ TABLE_ID = "hprc256_stratified_lps"
 HTML_TABLE_ID_CONST_NAME = "HPRC256_LPS_STRATIFIED_TABLE_ID"
 
 DEFAULT_INPUT = "../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz"
-
-
-def insert_with_retries(client, table_ref, rows_to_insert, batch_size=1000, max_retries=5):
-    for i in range(0, len(rows_to_insert), batch_size):
-        batch = rows_to_insert[i:i + batch_size]
-        for retries in range(max_retries):
-            try:
-                errors = client.insert_rows_json(table_ref, batch)
-                if errors:
-                    raise RuntimeError(f"BigQuery insert errors: {errors}")
-                break
-            except Exception as e:
-                print(f"Error inserting batch (attempt {retries + 1}/{max_retries}): {e}")
-                if retries + 1 == max_retries:
-                    raise
-                time.sleep(5)
 
 
 def update_html_table_id(html_paths, const_name, new_table_id):
@@ -147,23 +133,30 @@ def main():
                 f"run with --stratify-by-population --stratify-by-sex). First missing: {missing[:5]}"
             )
 
-        rows_to_insert = []
+        ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
+        atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
         rows_loaded = 0
-        for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
-            fields = line.rstrip("\n").split("\t")
-            if len(fields) != len(header):
-                raise ValueError(
-                    f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
-                )
-            row = {name: coerce_cell(name, fields[col_idx[name]]) for name in schema_field_names}
-            rows_to_insert.append(row)
-            if len(rows_to_insert) >= 1000:
-                insert_with_retries(client, new_table_ref, rows_to_insert)
-                rows_loaded += len(rows_to_insert)
-                rows_to_insert = []
-        if rows_to_insert:
-            insert_with_retries(client, new_table_ref, rows_to_insert)
-            rows_loaded += len(rows_to_insert)
+        with open(ndjson_path, "wt") as ndjson_file:
+            for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) != len(header):
+                    raise ValueError(
+                        f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
+                    )
+                row = {name: coerce_cell(name, fields[col_idx[name]]) for name in schema_field_names}
+                ndjson_file.write(json.dumps(row) + "\n")
+                rows_loaded += 1
+
+    print(f"Loading {DATASET_ID}.{new_table_id} from {ndjson_path}")
+    load_job_config = bigquery.LoadJobConfig(
+        schema=schema,
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+    )
+    with open(ndjson_path, "rb") as ndjson_file_obj:
+        load_job = client.load_table_from_file(ndjson_file_obj, new_table_ref, job_config=load_job_config)
+    load_job.result()
+    os.remove(ndjson_path)
 
     print(f"Loaded {rows_loaded:,d} rows into {DATASET_ID}.{new_table_id}")
 

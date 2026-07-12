@@ -21,11 +21,13 @@ can target them from the dropdown UI.
 """
 
 import argparse
+import atexit
 import datetime
 import gzip
+import json
 import os
 import re
-import time
+import tempfile
 
 import tqdm
 from google.cloud import bigquery
@@ -45,31 +47,6 @@ PURITY_TABLE_ID = "hprc256_allele_purity"
 METHYLATION_TABLE_ID = "hprc256_methylation"
 PURITY_HTML_CONST = "HPRC256_ALLELE_PURITY_TABLE_ID"
 METHYLATION_HTML_CONST = "HPRC256_METHYLATION_TABLE_ID"
-
-# BigQuery's streaming insertAll endpoint rejects requests over ~10 MB with
-# HTTP 413. The stratified purity rows hold a base AlleleSizeAndPurityDistribution
-# plus 17 stratified copies, each a multi-line string keyed on allele size x
-# purity bucket; for high-variability loci a single row can be tens of KB and a
-# 1000-row batch easily exceeds 10 MB. We cap by row count AND total value
-# bytes, flushing whichever fires first, so dense rows trigger an early flush.
-BATCH_ROW_LIMIT = 1000
-BATCH_BYTE_LIMIT = 5 * 1024 * 1024  # ~5 MB — well under the 10 MB request limit
-
-
-def insert_with_retries(client, table_ref, rows_to_insert, batch_size=1000, max_retries=5):
-    for i in range(0, len(rows_to_insert), batch_size):
-        batch = rows_to_insert[i:i + batch_size]
-        for retries in range(max_retries):
-            try:
-                errors = client.insert_rows_json(table_ref, batch)
-                if errors:
-                    raise RuntimeError(f"BigQuery insert errors: {errors}")
-                break
-            except Exception as e:
-                print(f"Error inserting batch (attempt {retries + 1}/{max_retries}): {e}")
-                if retries + 1 == max_retries:
-                    raise
-                time.sleep(5)
 
 
 def update_html_table_id(html_paths, const_name, new_table_id):
@@ -99,7 +76,7 @@ def update_html_table_id(html_paths, const_name, new_table_id):
 
 
 def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, parser):
-    """Create a new table from `schema_columns` and stream rows from `input_tsv` into it.
+    """Create a new table from `schema_columns` and bulk-load rows from `input_tsv` into it.
     Returns the new table id."""
     if not os.path.isfile(input_tsv):
         parser.error(f"Input file not found: {input_tsv}")
@@ -121,7 +98,10 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
     print(f"Created BigQuery table {DATASET_ID}.{new_table_id}")
 
     print(f"Reading {input_tsv}")
-    with gzip.open(input_tsv, "rt") as f:
+    ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
+    atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
+    rows_loaded = 0
+    with gzip.open(input_tsv, "rt") as f, open(ndjson_path, "wt") as ndjson_file:
         header = f.readline().rstrip("\n").split("\t")
         col_idx = {name: i for i, name in enumerate(header)}
 
@@ -136,9 +116,6 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
                 f"--stratify-by-population --stratify-by-sex). First missing: {missing[:5]}"
             )
 
-        rows_to_insert = []
-        rows_to_insert_bytes = 0
-        rows_loaded = 0
         for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
             fields = line.rstrip("\n").split("\t")
             if len(fields) != len(header):
@@ -146,20 +123,19 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
                     f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
                 )
             row = {name: fields[col_idx[name]] for name in schema_field_names}
-            rows_to_insert.append(row)
-            # Approximate JSON payload size from field-value byte counts; field
-            # names + JSON delimiters add a bounded constant per row that we
-            # don't bother modeling.
-            rows_to_insert_bytes += sum(len(v) for v in row.values())
-            if (len(rows_to_insert) >= BATCH_ROW_LIMIT
-                    or rows_to_insert_bytes >= BATCH_BYTE_LIMIT):
-                insert_with_retries(client, new_table_ref, rows_to_insert)
-                rows_loaded += len(rows_to_insert)
-                rows_to_insert = []
-                rows_to_insert_bytes = 0
-        if rows_to_insert:
-            insert_with_retries(client, new_table_ref, rows_to_insert)
-            rows_loaded += len(rows_to_insert)
+            ndjson_file.write(json.dumps(row) + "\n")
+            rows_loaded += 1
+
+    print(f"Loading {DATASET_ID}.{new_table_id} from {ndjson_path}")
+    load_job_config = bigquery.LoadJobConfig(
+        schema=schema,
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+    )
+    with open(ndjson_path, "rb") as ndjson_file_obj:
+        load_job = client.load_table_from_file(ndjson_file_obj, new_table_ref, job_config=load_job_config)
+    load_job.result()
+    os.remove(ndjson_path)
 
     print(f"Loaded {rows_loaded:,d} rows into {DATASET_ID}.{new_table_id}")
     return new_table_id

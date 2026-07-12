@@ -1,6 +1,7 @@
 """This script takes the annotated catalog JSON and loads it into a BigQuery table."""
 
 import argparse
+import atexit
 import collections
 import datetime
 import gzip
@@ -14,7 +15,7 @@ import requests
 from google.cloud import bigquery
 import pandas as pd
 import pyfaidx
-import time
+import tempfile
 import tqdm
 import scipy.stats
 import sys
@@ -726,24 +727,6 @@ def does_table_exist(table_ref):
     except Exception:
         return False
 
-def insert_with_retries(table_ref, rows_to_insert, batch_size=1000, max_retries=5):
-    for i in range(0, len(rows_to_insert), batch_size):
-        batch = rows_to_insert[i:i+batch_size]
-        retries = 0
-        while retries < max_retries:
-            try:
-                errors = client.insert_rows_json(table_ref, batch)
-                if errors:
-                    print(f"Encountered errors while inserting rows: {errors}")
-                    raise Exception(f"Encountered errors while inserting rows: {errors}")
-                break
-            except Exception as e:
-                print(f"Error inserting batch: {e}. Retrying...")
-                retries += 1
-                time.sleep(5)
-        if retries == max_retries:
-            raise Exception(f"Failed to insert batch after {max_retries} retries")
-
 # Create dataset if it doesn't exist
 dataset_ref = client.dataset(DATASET_ID)
 try:
@@ -794,8 +777,10 @@ chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
 
 fasta_obj = pyfaidx.Fasta(args.reference_fasta, one_based_attributes=False, as_raw=True, sequence_always_upper=True)
 
-rows_to_insert = []
-batch_size = 1000
+ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
+atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
+ndjson_file = open(ndjson_path, "wt")
+print(f"Writing rows to {ndjson_path} for bulk load")
 locus_ids_with_added_disease_info = set()
 
 previous_chrom = None
@@ -1104,13 +1089,21 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
 
     # Convert any None values to None (BigQuery will handle NULL)
     row = {k: v for k, v in record.items() if k in field_names}
-    rows_to_insert.append(row)
-    if len(rows_to_insert) >= batch_size:
-        insert_with_retries(new_table_ref, rows_to_insert)
-        rows_to_insert = []
+    ndjson_file.write(json.dumps(row) + "\n")
 
-if rows_to_insert:
-    insert_with_retries(new_table_ref, rows_to_insert)
+ndjson_file.close()
+
+print(f"Loading {new_table_id} from {ndjson_path}")
+load_job_config = bigquery.LoadJobConfig(
+    schema=schema,
+    source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+)
+with open(ndjson_path, "rb") as ndjson_file_obj:
+    load_job = client.load_table_from_file(ndjson_file_obj, new_table_ref, job_config=load_job_config)
+load_job.result()
+os.remove(ndjson_path)
+print(f"Loaded {load_job.output_rows:,d} rows into {new_table_id}")
 
 if counters["rows_with_overlap_group_id"] == 0:
     print("WARNING: No rows had a non-NULL OverlapGroupId. The upstream catalog was likely not run through "
