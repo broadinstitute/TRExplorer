@@ -208,15 +208,15 @@
                     </div>
                     <!-- Chip shown when a panel file has been uploaded (ChatGPT-style attachment) -->
                     <div id="tr-file-chip-container" style="display:none; margin-bottom: 8px;"></div>
-                    <div class="ui action input" id="tr-main-search-dropzone" style="transition: background-color 0.15s, border-radius 0.15s;">
-                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these" style="padding-right: 42px;">
+                    <div class="ui action input" id="tr-main-search-dropzone">
+                        <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these" style="padding-right: 42px; transition: box-shadow 0.15s;">
                         <!-- Upload button overlaid inside the input's right edge (negative margin), just left of the filter -->
                         <button id="tr-file-upload-button" class="ui icon button" type="button" data-html="Upload a list of locus IDs, regions, gene names, and/or gene IDs (TSV/TXT/BED) to search for many at once" data-position="top left" style="margin-left: -42px; width: 38px; padding: 0; background: transparent; box-shadow: none; color: #999; z-index: 3;"><i class="plus icon"></i></button>
                         <button id="filter-button" class="ui basic icon button" type="button" data-html="Show or hide additional TR filters" data-position="top center"><i class="filter icon rotated" style="transition: transform 0.3s;"></i></button>
                         <button id="search-button" class="ui primary button" type="submit">Search</button>
                     </div>
                     <!-- Hidden native file input driven by the (+) button and the upload modal -->
-                    <input type="file" id="tr-file-input" multiple accept=".txt,.tsv,.csv,.bed,.gz,.txt.gz,.tsv.gz,.csv.gz,.bed.gz,text/plain,text/tab-separated-values,text/csv,application/gzip" style="display:none">
+                    <input type="file" id="tr-file-input" multiple accept=".txt,.tsv,.bed,.txt.gz,.tsv.gz,.bed.gz,text/plain,text/tab-separated-values,application/gzip" style="display:none">
                 </div>
             </form>
 
@@ -2652,9 +2652,13 @@
         return tokens
     }
 
-    // .bed / .bed.gz are parsed as 3-column genomic regions; everything else (TXT/TSV/CSV) has its
-    // first column parsed into raw search tokens.
+    // .bed / .bed.gz are parsed as 3-column genomic regions; the rest (TXT/TSV) have their first
+    // column parsed into raw search tokens.
     const isBedFileName = (name) => /\.bed(\.gz)?$/i.test(String(name || ''))
+
+    // Only these extensions are accepted (case-insensitive, optional .gz). Drag-drop bypasses the file
+    // picker's accept="" filter, so this is the real gate — anything else (.csv, .pdf, .xlsx, ...) is rejected.
+    const isAcceptedFileName = (name) => /\.(txt|tsv|bed)(\.gz)?$/i.test(String(name || ''))
 
     // Read and parse one file into { searchTokens, bedRegions } (throws on a read/decompress error).
     const parseOneUploadedFile = async (file) => {
@@ -2713,7 +2717,12 @@
         const allRegions = []
         const okNames = []
         const failed = []
+        const rejected = []  // wrong file type (not .txt/.tsv/.bed, optionally .gz)
         for (const file of files) {
+            if (!isAcceptedFileName(file.name)) {
+                rejected.push(file.name || 'a file')
+                continue
+            }
             try {
                 const parsed = await parseOneUploadedFile(file)
                 allTokens.push(...parsed.searchTokens)
@@ -2746,9 +2755,12 @@
         if (mySeq !== uploadSeq) return
 
         if (!searchTokens.length && !bedRegions.length) {
-            $err.html(failed.length
-                ? `<b>Could not read the file${failed.length > 1 ? 's' : ''}.</b> ${escapeHtmlText(failed.join(', '))}`
-                : '<b>Nothing to search.</b> The first column should contain TR LocusIds, hg38 regions, or gene/transcript identifiers (or upload a BED file).').show()
+            const parts = []
+            if (rejected.length) parts.push(`<b>Unsupported file type${rejected.length > 1 ? 's' : ''}:</b> ${escapeHtmlText(rejected.join(', '))}. Accepted: .txt, .tsv, .bed (optionally compressed with .gz).`)
+            if (failed.length) parts.push(`<b>Could not read the file${failed.length > 1 ? 's' : ''}:</b> ${escapeHtmlText(failed.join(', '))}`)
+            if (!parts.length) parts.push('<b>Nothing to search.</b> The first column should contain TR LocusIds, hg38 regions, or gene/transcript identifiers (or upload a BED file).')
+            $err.html(parts.join('<br>')).show()
+            $('#tr-file-upload-modal').modal('show')  // make the message visible even for a main-search-box drop
             return
         }
 
@@ -2759,9 +2771,15 @@
         }
         renderUploadedFileChip()
 
-        if (failed.length) {
-            // Keep the readable files' union, but leave the modal open so the skipped-files notice is seen.
-            $err.html(`<b>Skipped ${failed.length} file${failed.length > 1 ? 's' : ''} that could not be read:</b> ${escapeHtmlText(failed.join(', '))}`).show()
+        if (failed.length || rejected.length) {
+            // Keep the readable files' union, but surface a notice for the skipped ones. Show the modal so
+            // the notice is visible even when the drop landed on the main search box (modal was closed).
+            const parts = []
+            if (rejected.length) parts.push(`unsupported type: ${escapeHtmlText(rejected.join(', '))}`)
+            if (failed.length) parts.push(`could not read: ${escapeHtmlText(failed.join(', '))}`)
+            const nSkipped = rejected.length + failed.length
+            $err.html(`<b>Skipped ${nSkipped} file${nSkipped > 1 ? 's' : ''}:</b> ${parts.join('; ')}`).show()
+            $('#tr-file-upload-modal').modal('show')
         } else {
             $('#tr-file-upload-modal').modal('hide')
         }
@@ -3547,15 +3565,51 @@
         const types = e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.types
         return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1
     }
-    $mainSearchDropzone.on('dragover dragenter', (e) => {
+    // Highlight only the text box (not the +/filter/Search buttons) with an outset box-shadow ring:
+    // green when the drag looks acceptable, red when it carries a clearly-unsupported file type.
+    // dragenter/dragleave fire when moving between the wrapper's child elements, so track a counter to
+    // avoid flicker and only clear when the drag truly leaves.
+    const $mainSearchInput = $('#search-query')
+    let mainSearchDragDepth = 0
+    const setMainSearchHighlight = (on, bad) => {
+        $mainSearchInput.css('boxShadow', on ? (bad ? '0 0 0 2px #db2828' : '0 0 0 2px #21ba45') : '')
+    }
+    // The browser hides filenames during a drag, so the extension can't be read until drop. The only
+    // pre-drop signal is each item's MIME type, which is empty for many .bed/.tsv files -> treat empty
+    // or a known-good type as acceptable (green) and only go red on a MIME we can positively reject
+    // (e.g. text/csv, application/pdf, image/*). The authoritative extension check still runs on drop.
+    const ACCEPTED_DRAG_MIME = new Set(['', 'text/plain', 'text/tab-separated-values', 'application/gzip', 'application/x-gzip'])
+    const dragHasUnsupportedType = (e) => {
+        const items = e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.items
+        if (!items) return false
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].kind !== 'file') continue
+            if (!ACCEPTED_DRAG_MIME.has((items[i].type || '').toLowerCase())) return true
+        }
+        return false
+    }
+    $mainSearchDropzone.on('dragenter', (e) => {
         if (!isFileDrag(e)) return
         e.preventDefault(); e.stopPropagation()
-        $mainSearchDropzone.css({ backgroundColor: '#eef6ff', borderRadius: '4px' })
+        mainSearchDragDepth++
+        setMainSearchHighlight(true, dragHasUnsupportedType(e))
     })
-    $mainSearchDropzone.on('dragleave dragend drop', (e) => {
+    $mainSearchDropzone.on('dragover', (e) => {
         if (!isFileDrag(e)) return
         e.preventDefault(); e.stopPropagation()
-        $mainSearchDropzone.css({ backgroundColor: '', borderRadius: '' })
+        setMainSearchHighlight(true, dragHasUnsupportedType(e))
+    })
+    $mainSearchDropzone.on('dragleave', (e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault(); e.stopPropagation()
+        mainSearchDragDepth = Math.max(0, mainSearchDragDepth - 1)
+        if (mainSearchDragDepth === 0) setMainSearchHighlight(false)
+    })
+    $mainSearchDropzone.on('dragend drop', (e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault(); e.stopPropagation()
+        mainSearchDragDepth = 0
+        setMainSearchHighlight(false)
     })
     $mainSearchDropzone.on('drop', (e) => {
         if (!isFileDrag(e)) return
