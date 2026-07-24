@@ -13,6 +13,10 @@ from google.cloud import bigquery, storage
 BIGQUERY_PROJECT = "cmg-analysis"
 BIGQUERY_DATASET = "tandem_repeat_explorer"
 
+# Cap bytes scanned per query to 50 GB (the catalog table is ~5 GB, so a full-table read
+# fits within this cap; bounds cost-drain attacks even if the SQL gate is bypassed).
+MAX_BYTES_BILLED = 50 * 1024 ** 3
+
 # Cache the SA email + signing-capable credentials across invocations of the
 # warm Cloud Function instance.
 _SIGNING_CREDENTIALS = None
@@ -77,14 +81,16 @@ def return_query_results(client, result_table, start_index=0, page_size=100):
         return response, 500
 
 
-def export_to_file(client, result_table, export_to_file_format, tool_name=None, overlap_handling=None, trgt_catalog_type=None):
+def export_to_file(client, sql, result_table, export_to_file_format, tool_name=None, overlap_handling=None, trgt_catalog_type=None):
     """Export query results to GCS in the specified format.
-    
+
     Args:
         client: The BigQuery client
-        result_table: The BigQuery table to export results from
+        sql: The SELECT query to export. Its trailing ORDER BY determines the order of the rows in
+            the exported file(s)
+        result_table: The BigQuery table holding the results of running sql, used for its row count
         export_to_file_format: The format to export to. Must be one of: 'TSV', 'BED', 'JSON'
-        
+
     Returns:
         A tuple of (response_body, response_headers)
     """
@@ -97,36 +103,42 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None, 
     
     filename_prefix = uuid.uuid4().hex.upper()
     bucket_name = "tandem-repeat-explorer-export"
-    uri = f'gs://{bucket_name}/{filename_prefix}_*.{export_to_file_format.lower()}.gz'
+    # Export into a per-request subdirectory. EXPORT DATA refuses to write into a non-empty
+    # destination directory unless overwrite=true, and setting overwrite=true on the bucket root
+    # would clobber other users' concurrent exports, so give every export its own empty directory.
+    uri = f'gs://{bucket_name}/{filename_prefix}/{filename_prefix}_*.{export_to_file_format.lower()}.gz'
     if export_to_file_format == "JSON":
-        destination_format = bigquery.DestinationFormat.NEWLINE_DELIMITED_JSON
-        print_header = None
-        field_delimiter = None
+        format_options = "format='JSON'"
     else:
-        destination_format = bigquery.DestinationFormat.CSV
         if tool_name is not None and "vamos" in tool_name.lower():
             print_header = False
         else:
             print_header = export_to_file_format == "TSV"
 
-        field_delimiter = '\t'
+        format_options = f"format='CSV', field_delimiter='\\t', header={'true' if print_header else 'false'}"
 
     try:
-        # Run the export job
-        job_config = bigquery.ExtractJobConfig(
-            compression=bigquery.Compression.GZIP,
-            print_header=print_header,
-            field_delimiter=field_delimiter,
-            destination_format=destination_format,
+        # Export via an EXPORT DATA statement rather than extract_table(..) because table extraction
+        # does not preserve row order, and several export formats (for example ATaRVa) require a
+        # coordinate-sorted file. Per
+        # https://cloud.google.com/bigquery/docs/exporting-data the order of exported data is only
+        # guaranteed when the export runs as an EXPORT DATA statement whose query has an ORDER BY,
+        # in which case "the ordered sequence is preserved globally across all generated files".
+        # The caller's SQL already ends with the ORDER BY that defines the desired output order.
+        # This re-runs the caller's query (query_db already ran it to get the row count), which
+        # costs one extra scan of the catalog table per export in exchange for ordered output.
+        job = client.query(
+            f"EXPORT DATA OPTIONS(uri='{uri}', {format_options}, compression='GZIP') AS {sql}",
+            job_config=bigquery.QueryJobConfig(maximum_bytes_billed=MAX_BYTES_BILLED),
         )
-
-        job = client.extract_table(result_table, destination_uris=uri, job_config=job_config)
         job.result()  # Wait for job to complete
 
-        # Get the list of one or more result files
+        # Get the list of one or more result files. EXPORT DATA replaces the '*' in the uri with a
+        # zero-padded, monotonically increasing shard number, so listing the blobs by name (which
+        # list_blobs returns in lexicographic order) yields them in the query's ORDER BY order.
         storage_client = storage.Client()
         bucket = storage_client.bucket(bucket_name)
-        blobs = list(bucket.list_blobs(prefix=filename_prefix))
+        blobs = list(bucket.list_blobs(prefix=f"{filename_prefix}/"))
         if len(blobs) == 0:
             # return an error
             response_dict = {"error": f"Export to file did not complete successfully."}
@@ -145,7 +157,7 @@ def export_to_file(client, result_table, export_to_file_format, tool_name=None, 
                 # Stream-convert NDJSON -> JSON array directly between GCS blobs.
                 # Each source line is already a valid JSON object, so we pass it through
                 # without a parse/re-dump round-trip. Output stays gzipped.
-                new_filename = f"{filename_prefix}_converted.json.gz"
+                new_filename = f"{filename_prefix}/{filename_prefix}_converted.json.gz"
                 new_blob = bucket.blob(new_filename)
 
                 with output_blob.open('rb') as src_raw, \
@@ -257,10 +269,7 @@ def query_db(request):
 
     try:
         client = bigquery.Client()
-        # Cap bytes scanned per query to 50 GB (the catalog table is ~5 GB, so a full-table read
-        # fits within this cap; bounds cost-drain attacks even if the SQL gate is bypassed).
-        max_bytes_billed = 50 * 1024 ** 3
-        job_config = bigquery.QueryJobConfig(use_query_cache=True, maximum_bytes_billed=max_bytes_billed)
+        job_config = bigquery.QueryJobConfig(use_query_cache=True, maximum_bytes_billed=MAX_BYTES_BILLED)
         job = client.query(sql, job_config=job_config)
         job.result()  # wait for the query to complete
         result_table = client.get_table(job.destination)  # get the temporary destination table object
@@ -275,7 +284,7 @@ def query_db(request):
         overlap_handling = data.get("overlap_handling")  # optional overlap handling mode to add to the filename
         trgt_catalog_type = data.get("trgt_catalog_type")  # optional TRGT catalog type to add to the filename
         response_json, response_status_code = export_to_file(
-            client, result_table, export_to_file_format, tool_name=tool_name, overlap_handling=overlap_handling, trgt_catalog_type=trgt_catalog_type)
+            client, sql, result_table, export_to_file_format, tool_name=tool_name, overlap_handling=overlap_handling, trgt_catalog_type=trgt_catalog_type)
         
         return response_json, response_status_code, response_headers
 

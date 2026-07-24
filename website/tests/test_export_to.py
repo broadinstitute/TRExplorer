@@ -28,6 +28,7 @@ EXPORT_FORMATS = [
     "medaka",
     "strdust",
     "inquistr",
+    "atarva",
 ]
 
 # Formats that go directly to export without showing the options dialog
