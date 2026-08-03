@@ -1,25 +1,36 @@
 """Compare ExpansionHunter's per-allele pOk under the gap-purity rule's original vs. extended locus
-definitions, using the corrected combined-catalog run (HG01884/HG01891/HG01960/HG02257/HG02280,
-optimized-streaming, Hail Batch 8440319 -- built from the corrected combined_eh_catalog.json, which
-covers ALL 347,704 Andrea v2-exact-match loci as __original entries, plus __extended entries for the
-16,264 that the gap-purity rule extends, plus the non-GCN/NGC known disease loci).
+definitions, using the corrected combined-catalog run (samples listed in
+../expansion_hunter_genotype_quality/selected_1kGP_samples.tsv, optimized-streaming -- built from
+the corrected combined_eh_catalog.json, which covers ALL 347,704 Andrea v2-exact-match loci as
+__original entries, plus __extended entries for the 16,264 that the gap-purity rule extends, plus
+the non-GCN/NGC known disease loci).
 
 LocusId convention (post code-review fix): "{stable source LocusId}__{original|extended}" -- the
 base id is now trivially recoverable via a single rsplit, unlike the earlier catalog where a locus's
 own extended-region coordinates were embedded in the id and collided across different loci.
 
-Produces build_pOk_delta_report.html with two sections:
-  1. Delta pOk (extended - original) for the 16,264 genuinely-extended loci, violin plots by motif
-     size, and by quintile bin of Andrea's flank_motif_similarity_left/right -- plus EP400 highlighted
-     as an individual dot on the motif-size plot (EP400 isn't in Andrea's catalog, so it has no
-     flank_motif_similarity data and can't go on the other two plots).
-  2. Absolute pOk, extended vs. not-extended loci (2 violins per bin), same x-axis binnings.
+Produces build_pOk_delta_report.html with three sections:
+  1. How many of Andrea's v2-exact-match loci were extended, by motif size and by quintile bin of
+     max(flank_motif_similarity_left, flank_motif_similarity_right).
+  2. Absolute pOk, 3 groups per bin (original pre-extension / extended post-extension / not
+     extended), same x-axis binnings.
+  3. Delta pOk (extended - original) for the 16,264 genuinely-extended loci, violin plots by motif
+     size, and by quintile bin of max(flank_motif_similarity_left, flank_motif_similarity_right) --
+     plus EP400 shown as its own violin on the motif-size plot (EP400 isn't in Andrea's catalog, so
+     it has no flank_motif_similarity data and can't go on the other plot in that section).
 
 Usage:
     python3 build_pOk_delta_report.py
-    python3 build_pOk_delta_report.py --long-allele-only   # drop the shorter allele of each
-                                                             # heterozygous genotype; hemizygous
-                                                             # (single-allele) loci are unaffected
+    python3 build_pOk_delta_report.py --exclude-near-reference   # exclude alleles within +/-2
+                                                                   # repeats of the reference allele
+                                                                   # size (per locus definition). For
+                                                                   # a locus with no extended
+                                                                   # definition this filters per
+                                                                   # allele; for a genuinely-extended
+                                                                   # locus it's all-or-nothing across
+                                                                   # BOTH definitions' alleles, so the
+                                                                   # original/extended arms stay
+                                                                   # matched populations
 """
 
 import argparse
@@ -48,36 +59,122 @@ ORANGE_LIGHT, ORANGE_DARK = "#eb6834", "#d95926"
 # gene names (e.g. "EP400", "RFC1") and don't fit this shape -- used to keep the two populations apart.
 ANDREA_ID_PATTERN = r"^(chr)?[0-9XYM]+-\d+-\d+-[ACGTN]+$"
 
+NEAR_REFERENCE_REPEAT_TOLERANCE = 2
 
-def load_sample_pok(sample_id, long_allele_only=False):
-    """Return list of (base_locus_id, definition, allele_number, pOk) for one sample's JSON.
 
-    long_allele_only: keep only the allele with the larger AlleleSize (repeat count) per genotype
-    -- i.e. drop the shorter allele of a heterozygous call. Hemizygous (single-allele) genotypes
-    have no shorter allele to drop, so they pass through unchanged either way.
+def load_sample_pok(sample_id, exclude_near_reference=False):
+    """Return list of (base_locus_id, definition, allele_number, pOk, allele_size, ref_repeat_count,
+    is_near_reference) for one sample's JSON. allele_size and ref_repeat_count (both in repeat
+    units, from AlleleSize and ReferenceRegion/RepeatUnit) are always populated; is_near_reference
+    is None unless exclude_near_reference is set.
+
+    exclude_near_reference: alleles within NEAR_REFERENCE_REPEAT_TOLERANCE repeats of the reference
+    allele size (recomputed per definition, since the reference region grows with the definition)
+    are near-reference -- but how that's turned into an exclusion depends on whether the locus has
+    an extended definition:
+      - No extended definition (just "original"): no pairing is possible for this locus either way,
+        so near-reference alleles are dropped directly here, per allele.
+      - Has an extended definition: alleles are NOT dropped here. Every allele is returned, tagged
+        with is_near_reference, and it's on the caller to drop a PAIRED (same allele_number, both
+        "original" and "extended" present) row only when BOTH sides are near-reference. Dropping
+        near-reference alleles independently per definition at this stage -- before pairing -- can
+        let an allele that's near-reference under one definition but unpaired (no counterpart under
+        the other definition, e.g. a no-call) admit the whole locus/sample past the filter, only for
+        that same allele to then be dropped by the caller's pairing step anyway, silently leaving
+        only near-reference pairs in the plotted output.
     """
     path = JSON_DIR / f"{sample_id}.combined_catalog.json.gz"
     with gzip.open(path) as f:
         d = json.load(f)
-    rows = []
+
+    by_base_id = {}
     for locus_id, result in d["LocusResults"].items():
         base_id, _, definition = locus_id.rpartition("__")
         variant = next(iter(result["Variants"].values()))
         if "AlleleQualityMetrics" not in variant:
             continue
         alleles = variant["AlleleQualityMetrics"]["Alleles"]
-        if long_allele_only:
-            alleles = [max(alleles, key=lambda a: a["AlleleSize"])]
-        for allele in alleles:
-            rows.append((base_id, definition, allele["AlleleNumber"], allele["pOk"]))
+        _, region = variant["ReferenceRegion"].split(":")
+        region_start, region_end = (int(x) for x in region.split("-"))
+        ref_repeat_count = (region_end - region_start) / len(variant["RepeatUnit"])
+        by_base_id.setdefault(base_id, {})[definition] = (alleles, ref_repeat_count)
+
+    rows = []
+    for base_id, by_definition in by_base_id.items():
+        multi_definition = len(by_definition) > 1
+        for definition, (alleles, ref_repeat_count) in by_definition.items():
+            for allele in alleles:
+                is_near_reference = abs(allele["AlleleSize"] - ref_repeat_count) <= NEAR_REFERENCE_REPEAT_TOLERANCE
+                if exclude_near_reference and not multi_definition and is_near_reference:
+                    continue  # single-definition locus: no pairing possible, filter directly
+                rows.append((
+                    base_id, definition, allele["AlleleNumber"], allele["pOk"],
+                    allele["AlleleSize"], ref_repeat_count,
+                    is_near_reference if exclude_near_reference else None,
+                ))
     return rows
 
 
-def quantile_bin(series, n_bins=5):
+def pivot_paired(df, index_cols):
+    """Pivot df on 'definition' to wide columns 'original'/'extended' for pOk, keeping only rows
+    with a pOk under both definitions. When df's 'is_near_reference' column is populated
+    (--exclude-near-reference mode), also drop pairs where BOTH sides are near-reference -- this
+    applies the near-reference exclusion AFTER pairing, so a locus/sample can't be admitted by an
+    allele that never itself survives pairing (see load_sample_pok's docstring)."""
+    pok_wide = df.pivot_table(index=index_cols, columns="definition", values="pOk", aggfunc="first")
+    wide = pok_wide.dropna(subset=["original", "extended"])
+    if df["is_near_reference"].notna().any():
+        near_wide = df.pivot_table(index=index_cols, columns="definition", values="is_near_reference", aggfunc="first")
+        both_near_reference = near_wide.reindex(wide.index)[["original", "extended"]].all(axis=1)
+        wide = wide[~both_near_reference]
+    return wide.reset_index()
+
+
+# Same width-2 (widening to width-5 beyond +/-20, open tails beyond +/-31) binning as
+# str-truth-set-v2's tool_comparison_viewer.html plots of allele size minus reference repeat count
+# (plot_tool_accuracy_by_allele_size.bin_num_repeats_wrapper(bin_size=2), non-exome case), reimplemented
+# here rather than imported since it lives in a separate sibling repo.
+DIFF_FROM_REF_BIN_ORDER = [
+    "-31 or more", "-26 to -30", "-21 to -25",
+    "-19 to -20", "-17 to -18", "-15 to -16", "-13 to -14", "-11 to -12", "-9 to -10", "-7 to -8", "-5 to -6", "-3 to -4", "-1 to -2",
+    "0",
+    "+1 to +2", "+3 to +4", "+5 to +6", "+7 to +8", "+9 to +10", "+11 to +12", "+13 to +14", "+15 to +16", "+17 to +18", "+19 to +20",
+    "+21 to +25", "+26 to +30", "+31 or more",
+]
+
+
+def bin_diff_from_ref(diff):
+    """Bin (AlleleSize - ref_repeat_count) into a DIFF_FROM_REF_BIN_ORDER label, or None if NaN."""
+    if pd.isna(diff):
+        return None
+    if diff == 0:
+        return "0"
+    sign = "-" if diff < 0 else "+"
+    diff = abs(diff)
+    if 21 <= diff <= 25:
+        return f"{sign}21 to {sign}25"
+    if 26 <= diff <= 30:
+        return f"{sign}26 to {sign}30"
+    if diff >= 31:
+        return f"{sign}31 or more"
+    start = int((diff - 1) / 2) * 2
+    return f"{sign}{int(start + 1)} to {sign}{int(start + 2)}"
+
+
+def quantile_bin(df, value_col, n_bins=5):
+    """Bin df[value_col] into n_bins quantiles, with edges computed from one value per
+    base_locus_id rather than from df[value_col] directly -- df[value_col] is a per-row Series
+    where a locus's value repeats once per surviving (sample, allele[, definition]) row, so
+    quantiling it directly would give equal-ROW-count bins (skewed toward loci with more surviving
+    rows), not the equal-LOCUS-count bins the "(quintile)" plot labels imply.
+    """
+    locus_values = df.drop_duplicates("base_locus_id")[value_col].dropna()
     try:
-        return pd.qcut(series, n_bins, duplicates="drop")
+        bins = pd.qcut(locus_values, n_bins, duplicates="drop", retbins=True)[1]
+        return pd.cut(df[value_col], bins=bins, include_lowest=True)
     except ValueError:
-        return pd.qcut(series.rank(method="first"), n_bins)
+        bins = pd.qcut(locus_values.rank(method="first"), n_bins, retbins=True)[1]
+        return pd.cut(df[value_col].rank(method="first"), bins=bins, include_lowest=True)
 
 
 def make_violin_figure(groups_by_label, filename, xlabel, legend_labels=None, colors=(BLUE_LIGHT,), big=False):
@@ -99,6 +196,10 @@ def make_violin_figure(groups_by_label, filename, xlabel, legend_labels=None, co
     max_label_chars = max(max(len(line) for line in t.split("\n")) for t in xticklabels)
     label_width_in = max_label_chars * tick_fontsize * 0.6 / 72
     fig_width = max(6, len(groups_by_label) * max(1.4 * n_series, label_width_in + 1.2))
+    # a plot with many bins (e.g. the 27-bin diff-from-ref plot) gets very wide at a fixed height,
+    # which -- once scaled to the report's fixed-width .fig container -- makes it look squashed next
+    # to narrower plots. Scale height up with width so all plots keep a similar on-screen aspect ratio.
+    fig_height = max(fig_height, fig_width * 0.28)
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     fig.patch.set_alpha(0)
@@ -143,24 +244,60 @@ def make_violin_figure(groups_by_label, filename, xlabel, legend_labels=None, co
     return out_path
 
 
+def make_stacked_bar(labels, extended_counts, not_extended_counts, xlabel, filename):
+    """Stacked bar chart: locus count per bin, split into extended (orange) / not extended (aqua)."""
+    fig, ax = plt.subplots(figsize=(max(6, 1.3 * len(labels)), 4.5))
+    fig.patch.set_alpha(0)
+    ax.set_facecolor("none")
+    x = range(1, len(labels) + 1)
+    ax.bar(x, extended_counts, color=ORANGE_LIGHT, label="extended", zorder=3)
+    ax.bar(x, not_extended_counts, bottom=extended_counts, color="#1baf7a", label="not extended", zorder=3)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xlabel(xlabel, fontsize=11, color="#52514e", labelpad=16)
+    ax.set_ylabel("Locus count", fontsize=11, color="#52514e")
+    ax.tick_params(axis="x", colors="#52514e", pad=10)
+    ax.tick_params(axis="y", colors="#52514e")
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color("#e1e0d9")
+    ax.grid(axis="y", color="#e1e0d9", linewidth=0.6, zorder=0)
+    ax.legend(fontsize=9, frameon=False, loc="upper right")
+    fig.tight_layout()
+
+    out_path = DATA_DIR / filename
+    fig.savefig(out_path, format="svg", transparent=True)
+    plt.close(fig)
+    return out_path
+
+
+def make_stacked_bar_by_group(df, group_col, group_values, label_fn, xlabel, filename):
+    labels = [label_fn(v) for v in group_values]
+    extended_counts = [int(((df[group_col] == v) & df["is_extended"]).sum()) for v in group_values]
+    not_extended_counts = [int(((df[group_col] == v) & ~df["is_extended"]).sum()) for v in group_values]
+    return make_stacked_bar(labels, extended_counts, not_extended_counts, xlabel, filename)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--long-allele-only", action="store_true",
-                         help="drop the shorter allele of each heterozygous genotype; hemizygous loci are unaffected")
+    parser.add_argument("--exclude-near-reference", action="store_true",
+                         help=f"drop alleles within +/-{NEAR_REFERENCE_REPEAT_TOLERANCE} repeats of the reference allele size")
     args = parser.parse_args()
 
-    suffix = "_long_allele_only" if args.long_allele_only else ""
+    suffix = "_exclude_near_reference" if args.exclude_near_reference else ""
     output_tsv = DATA_DIR / f"pOk_by_locus_sample_allele{suffix}.tsv"
     output_html = Path(__file__).parent / f"build_pOk_delta_report{suffix}.html"
 
     print(f"Loading pOk from {len(SAMPLES)} sample JSONs...")
     all_rows = []
     for sample_id in SAMPLES:
-        rows = load_sample_pok(sample_id, long_allele_only=args.long_allele_only)
+        rows = load_sample_pok(sample_id, exclude_near_reference=args.exclude_near_reference)
         print(f"  {sample_id}: {len(rows):,} allele records")
         all_rows.extend((sample_id, *r) for r in rows)
 
-    long_df = pd.DataFrame(all_rows, columns=["sample_id", "base_locus_id", "definition", "allele_number", "pOk"])
+    long_df = pd.DataFrame(all_rows, columns=["sample_id", "base_locus_id", "definition", "allele_number", "pOk",
+                                               "allele_size", "ref_repeat_count", "is_near_reference"])
     long_df.to_csv(output_tsv, sep="\t", index=False)
     print(f"Wrote {len(long_df):,} rows to {output_tsv}")
 
@@ -172,39 +309,72 @@ def main():
     flank = pd.read_csv(
         ANDREA_CATALOG_PATH, sep="\t", usecols=["LocusId", "flank_motif_similarity_left", "flank_motif_similarity_right"]
     )
-    andrea_long = andrea_long.merge(flank, left_on="base_locus_id", right_on="LocusId", how="left")
+    andrea_long = andrea_long.merge(flank, left_on="base_locus_id", right_on="LocusId", how="left", validate="many_to_one")
 
     scan = pd.read_csv(ANDREA_SCAN_TSV, sep="\t")
     extended_ids = set(scan.loc[(scan["left_ext"] > 0) | (scan["right_ext"] > 0), "LocusId"])
     print(f"{len(extended_ids):,} genuinely-extended Andrea loci")
 
-    # --- Section 1: delta pOk for genuinely-extended loci ---
-    ext_wide = andrea_long[andrea_long["base_locus_id"].isin(extended_ids)].pivot_table(
-        index=["base_locus_id", "sample_id", "allele_number", "motif_size", "flank_motif_similarity_left", "flank_motif_similarity_right"],
-        columns="definition", values="pOk", aggfunc="first",
-    ).reset_index()
-    ext_wide = ext_wide.dropna(subset=["original", "extended"])
+    # --- Section 1: how many of Andrea's 347,704 v2-exact-match loci were extended, by motif size
+    # and by quintile of max(flank_motif_similarity_left, flank_motif_similarity_right) -- one row
+    # per locus (not per sample). ---
+    locus_extension = scan.merge(flank, on="LocusId", how="left", validate="one_to_one")
+    locus_extension["motif_size"] = locus_extension["motif"].str.len()
+    locus_extension["is_extended"] = locus_extension["LocusId"].isin(extended_ids)
+    # one row per locus already, so no repeated-row weighting concern here -- qcut directly.
+    locus_extension["fms_max"] = locus_extension[["flank_motif_similarity_left", "flank_motif_similarity_right"]].max(axis=1)
+    locus_extension["fms_max_bin"] = pd.qcut(locus_extension["fms_max"], 5, duplicates="drop")
+
+    fig_n_extended_motif = make_stacked_bar_by_group(
+        locus_extension, "motif_size", sorted(locus_extension["motif_size"].dropna().unique()),
+        lambda v: f"{int(v)}bp", "Motif size", "n_extended_by_motif_size.svg",
+    )
+    fig_n_extended_fms_max = make_stacked_bar_by_group(
+        locus_extension, "fms_max_bin", sorted(locus_extension["fms_max_bin"].dropna().unique(), key=lambda c: c.left),
+        lambda c: f"{c.left:.3f}–{c.right:.3f}", "max(flank_motif_similarity_left, flank_motif_similarity_right) (quintile)",
+        "n_extended_by_flank_motif_similarity_max.svg",
+    )
+
+    # --- Section 3: delta pOk for genuinely-extended loci ---
+    ext_wide = pivot_paired(
+        andrea_long[andrea_long["base_locus_id"].isin(extended_ids)],
+        index_cols=["base_locus_id", "sample_id", "allele_number", "motif_size", "flank_motif_similarity_left", "flank_motif_similarity_right"],
+    )
     ext_wide["delta_pOk"] = ext_wide["extended"] - ext_wide["original"]
     print(f"\n{len(ext_wide):,} (locus, sample, allele) triples with delta pOk, across {ext_wide['base_locus_id'].nunique():,} loci")
+
+    # x-axis for the diff-from-ref plot below: the ORIGINAL (pre-extension) definition's own
+    # AlleleSize minus its own reference repeat count -- i.e. how repeat-expanded the allele already
+    # is relative to the reference genome, same quantity/binning as str-truth-set-v2's
+    # tool_comparison_viewer.html plots (which use the true/original reference, not an extended one).
+    original_allele_size = andrea_long[andrea_long["definition"] == "original"][
+        ["base_locus_id", "sample_id", "allele_number", "allele_size", "ref_repeat_count"]
+    ]
+    ext_wide = ext_wide.merge(original_allele_size, on=["base_locus_id", "sample_id", "allele_number"],
+                               how="left", validate="one_to_one")
+    ext_wide["diff_from_ref"] = ext_wide["allele_size"] - ext_wide["ref_repeat_count"]
+    ext_wide["diff_from_ref_bin"] = ext_wide["diff_from_ref"].map(bin_diff_from_ref)
 
     ep400 = load_ep400(long_df)
 
     fig_motif_size = make_delta_violin_by_motif_size(ext_wide, ep400, f"delta_pOk_by_motif_size{suffix}.svg")
-    ext_wide["fms_left_bin"] = quantile_bin(ext_wide["flank_motif_similarity_left"])
-    ext_wide["fms_right_bin"] = quantile_bin(ext_wide["flank_motif_similarity_right"])
-    fig_left = make_violin_figure(
+    ext_wide["fms_max"] = ext_wide[["flank_motif_similarity_left", "flank_motif_similarity_right"]].max(axis=1)
+    ext_wide["fms_max_bin"] = quantile_bin(ext_wide, "fms_max")
+    fig_fms_max = make_violin_figure(
         [(f"{c.left:.3f}–{c.right:.3f}",
-          [ext_wide.loc[ext_wide["fms_left_bin"] == c, "delta_pOk"].dropna().values],
-          [ext_wide.loc[ext_wide["fms_left_bin"] == c, "base_locus_id"].nunique()])
-         for c in sorted(ext_wide["fms_left_bin"].dropna().unique(), key=lambda c: c.left)],
-        f"delta_pOk_by_flank_motif_similarity_left{suffix}.svg", "flank_motif_similarity_left (quintile)",
+          [ext_wide.loc[ext_wide["fms_max_bin"] == c, "delta_pOk"].dropna().values],
+          [ext_wide.loc[ext_wide["fms_max_bin"] == c, "base_locus_id"].nunique()])
+         for c in sorted(ext_wide["fms_max_bin"].dropna().unique(), key=lambda c: c.left)],
+        f"delta_pOk_by_flank_motif_similarity_max{suffix}.svg", "max(flank_motif_similarity_left, flank_motif_similarity_right) (quintile)",
     )
-    fig_right = make_violin_figure(
-        [(f"{c.left:.3f}–{c.right:.3f}",
-          [ext_wide.loc[ext_wide["fms_right_bin"] == c, "delta_pOk"].dropna().values],
-          [ext_wide.loc[ext_wide["fms_right_bin"] == c, "base_locus_id"].nunique()])
-         for c in sorted(ext_wide["fms_right_bin"].dropna().unique(), key=lambda c: c.left)],
-        f"delta_pOk_by_flank_motif_similarity_right{suffix}.svg", "flank_motif_similarity_right (quintile)",
+    present_diff_bins = [b for b in DIFF_FROM_REF_BIN_ORDER if b in set(ext_wide["diff_from_ref_bin"].dropna())]
+    fig_diff_from_ref = make_violin_figure(
+        [(b,
+          [ext_wide.loc[ext_wide["diff_from_ref_bin"] == b, "delta_pOk"].dropna().values],
+          [ext_wide.loc[ext_wide["diff_from_ref_bin"] == b, "base_locus_id"].nunique()])
+         for b in present_diff_bins],
+        f"delta_pOk_by_diff_from_ref{suffix}.svg", "Original allele size minus reference repeat count",
+        big=True,
     )
 
     # --- Section 2: absolute pOk, 3 groups -- original (pre-extension pOk of loci the rule DOES
@@ -212,33 +382,40 @@ def main():
     # the rule never touches has). "original" and "not_extended" are both definition=="original" rows
     # but describe different populations, so they're kept as distinct groups, not merged.
     andrea_long["is_extended"] = andrea_long["base_locus_id"].isin(extended_ids)
-    abs_df = andrea_long[andrea_long["is_extended"] | (andrea_long["definition"] == "original")].copy()
+    # for a genuinely-extended locus, only keep (locus, sample, allele) triples with a pOk under BOTH
+    # definitions -- a sample where only one definition produced a call would otherwise contribute to
+    # just one of "original"/"extended", making them unmatched populations rather than the same loci
+    # compared before/after extension. Loci the rule never touches have only "original" and need no
+    # such pairing.
+    key_cols = ["base_locus_id", "sample_id", "allele_number"]
+    paired_index = pd.MultiIndex.from_frame(
+        pivot_paired(andrea_long[andrea_long["is_extended"]], index_cols=key_cols)[key_cols]
+    )
+    is_paired = andrea_long.set_index(key_cols).index.isin(paired_index)
+    abs_df = andrea_long[~andrea_long["is_extended"] | is_paired].copy()
     abs_df["group"] = np.where(abs_df["is_extended"], abs_df["definition"], "not_extended")
     group_counts = abs_df["group"].value_counts()
     print(f"rows for the 3-group absolute-pOk comparison: {dict(group_counts)}")
 
     fig_abs_motif = make_abs_violin(abs_df, "motif_size", sorted(abs_df["motif_size"].dropna().unique()),
                                      lambda v: f"{int(v)}bp", "Motif size", f"abs_pOk_by_motif_size{suffix}.svg")
-    abs_df["fms_left_bin"] = quantile_bin(abs_df["flank_motif_similarity_left"])
-    abs_df["fms_right_bin"] = quantile_bin(abs_df["flank_motif_similarity_right"])
-    fig_abs_left = make_abs_violin(
-        abs_df, "fms_left_bin", sorted(abs_df["fms_left_bin"].dropna().unique(), key=lambda c: c.left),
-        lambda c: f"{c.left:.3f}–{c.right:.3f}", "flank_motif_similarity_left (quintile)", f"abs_pOk_by_flank_motif_similarity_left{suffix}.svg",
-    )
-    fig_abs_right = make_abs_violin(
-        abs_df, "fms_right_bin", sorted(abs_df["fms_right_bin"].dropna().unique(), key=lambda c: c.left),
-        lambda c: f"{c.left:.3f}–{c.right:.3f}", "flank_motif_similarity_right (quintile)", f"abs_pOk_by_flank_motif_similarity_right{suffix}.svg",
+    abs_df["fms_max"] = abs_df[["flank_motif_similarity_left", "flank_motif_similarity_right"]].max(axis=1)
+    abs_df["fms_max_bin"] = quantile_bin(abs_df, "fms_max")
+    fig_abs_fms_max = make_abs_violin(
+        abs_df, "fms_max_bin", sorted(abs_df["fms_max_bin"].dropna().unique(), key=lambda c: c.left),
+        lambda c: f"{c.left:.3f}–{c.right:.3f}", "max(flank_motif_similarity_left, flank_motif_similarity_right) (quintile)",
+        f"abs_pOk_by_flank_motif_similarity_max{suffix}.svg",
     )
 
-    write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_left, fig_right, fig_abs_motif, fig_abs_left, fig_abs_right,
-                       output_html, args.long_allele_only)
+    write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_fms_max, fig_diff_from_ref, fig_abs_motif, fig_abs_fms_max,
+                       fig_n_extended_motif, fig_n_extended_fms_max,
+                       len(scan), output_html, args.exclude_near_reference)
     print(f"\nWrote {output_html}")
 
 
 def load_ep400(long_df):
     ep400 = long_df[long_df["base_locus_id"] == "EP400"]
-    wide = ep400.pivot_table(index=["sample_id", "allele_number"], columns="definition", values="pOk", aggfunc="first").reset_index()
-    wide = wide.dropna(subset=["original", "extended"])
+    wide = pivot_paired(ep400, index_cols=["sample_id", "allele_number"])
     wide["delta_pOk"] = wide["extended"] - wide["original"]
     return wide
 
@@ -308,14 +485,17 @@ def make_abs_violin(df, group_col, group_values, label_fn, xlabel, filename):
     return make_violin_figure(groups_by_label, filename, xlabel, legend_labels=ABS_GROUP_LABELS, colors=ABS_GROUP_COLORS, big=True)
 
 
-def write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_left, fig_right, fig_abs_motif, fig_abs_left, fig_abs_right,
-                       output_html, long_allele_only):
+def write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_fms_max, fig_diff_from_ref, fig_abs_motif, fig_abs_fms_max,
+                       fig_n_extended_motif, fig_n_extended_fms_max,
+                       n_scanned_loci, output_html, exclude_near_reference):
     def svg_inline(path):
         return path.read_text()
 
-    title_suffix = ", long allele only" if long_allele_only else ""
-    subtitle_suffix = (" &middot; <strong>long allele only</strong> -- the shorter allele of each "
-                        "heterozygous genotype is dropped; hemizygous loci are unaffected") if long_allele_only else ""
+    title_suffix = ", near-reference alleles excluded" if exclude_near_reference else ""
+    subtitle_suffix = (f" &middot; <strong>near-reference alleles excluded</strong> -- alleles within "
+                        f"&plusmn;{NEAR_REFERENCE_REPEAT_TOLERANCE} repeats of the reference allele size "
+                        f"(recomputed per locus definition) are dropped; both short and long alleles of a "
+                        f"genotype are otherwise kept") if exclude_near_reference else ""
 
     overall_mean = ext_wide["delta_pOk"].mean()
     overall_median = ext_wide["delta_pOk"].median()
@@ -339,9 +519,26 @@ def write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_left, fig_rig
                 f"<td class='mono'>{ep400['delta_pOk'].median():+.4f}</td></tr>\n"
             )
 
+    fms_max_table_rows = ""
+    for c, sub in sorted(ext_wide.groupby("fms_max_bin", observed=True), key=lambda item: item[0].left):
+        fms_max_table_rows += (
+            f"<tr><td>{c.left:.3f}–{c.right:.3f}</td><td class='mono'>{sub['base_locus_id'].nunique():,}</td>"
+            f"<td class='mono'>{sub['delta_pOk'].mean():+.4f}</td>"
+            f"<td class='mono'>{sub['delta_pOk'].median():+.4f}</td></tr>\n"
+        )
+
+    diff_from_ref_table_rows = ""
+    for b in [b for b in DIFF_FROM_REF_BIN_ORDER if b in set(ext_wide["diff_from_ref_bin"].dropna())]:
+        sub = ext_wide[ext_wide["diff_from_ref_bin"] == b]
+        diff_from_ref_table_rows += (
+            f"<tr><td>{b}</td><td class='mono'>{sub['base_locus_id'].nunique():,}</td>"
+            f"<td class='mono'>{sub['delta_pOk'].mean():+.4f}</td>"
+            f"<td class='mono'>{sub['delta_pOk'].median():+.4f}</td></tr>\n"
+        )
+
     abs_group_stats = abs_df.groupby("group").agg(n_loci=("base_locus_id", "nunique"), mean=("pOk", "mean")).reindex(ABS_GROUPS)
 
-    html = f"""<title>pOk: Original vs. Gap-Purity-Extended Definitions ({len(SAMPLES)}-sample, corrected{title_suffix})</title>
+    html = f"""<title>pOk: Original vs. Extended Definitions ({len(SAMPLES)}-sample, corrected{title_suffix})</title>
 <style>
   :root {{
     --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
@@ -394,32 +591,25 @@ def write_html_report(ext_wide, ep400, abs_df, fig_motif_size, fig_left, fig_rig
 </style>
 
 <div class="wrap">
-<h1>pOk: Original vs. Gap-Purity-Extended Definitions</h1>
-<p class="subtitle">{len(SAMPLES)} 1kGP samples (3 per Population/Gender group){subtitle_suffix}</p>
+<h1>pOk: Original vs. Extended Definitions</h1>
 
-<h2 id="delta">1. Plots comparing ExpansionHunter genotype quality for extended loci vs. their original definitions (&Delta;pOk)</h2>
 <div class="callout">
-Evaluating <strong>{ext_wide['base_locus_id'].nunique():,}</strong> extended locus definitions but genotyping
+Evaluating <strong>{ext_wide['base_locus_id'].nunique():,}</strong> extended locus definitions, genotyping
 them (and the original definitions) in {len(SAMPLES)} genome samples from 1kGP.
 Mean &Delta;pOk = <strong>{overall_mean:+.4f}</strong>, median = <strong>{overall_median:+.4f}</strong>.
 By per-locus mean &Delta;pOk (averaged across its samples/alleles) -- Better (&gt;+0.05): {n_better:,} loci ({100*n_better/n_loci:.1f}%).
 Worse (&lt;&minus;0.05): {n_worse:,} loci ({100*n_worse/n_loci:.1f}%). Flat: {n_flat:,} loci ({100*n_flat/n_loci:.1f}%).
 </div>
+<p class="subtitle">{len(SAMPLES)} 1kGP samples (up to 3 per Population/Gender group){subtitle_suffix}</p>
+
+<h2 id="counts">1. How many loci were extended</h2>
+<p class="meta">Locus counts (not sample-dependent) across all {n_scanned_loci:,} Andrea v2-exact-match loci, split into extended vs. not extended by the gap-purity rule.</p>
 
 <h3>By motif size</h3>
-<div class="fig" onclick="openModal(this)">{svg_inline(fig_motif_size)}</div>
-<table>
-<tr><th>Motif size</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
-{motif_size_table_rows}
-</table>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_n_extended_motif)}</div>
 
-<h3>By flank_motif_similarity_left (original locus definition, quintiles)</h3>
-<p class="meta">How closely the ORIGINAL locus's left flank already matches a perfect repeat of its own motif, before extension.</p>
-<div class="fig" onclick="openModal(this)">{svg_inline(fig_left)}</div>
-
-<h3>By flank_motif_similarity_right (original locus definition, quintiles)</h3>
-<p class="meta">Same metric, right flank.</p>
-<div class="fig" onclick="openModal(this)">{svg_inline(fig_right)}</div>
+<h3>By max(flank_motif_similarity_left, flank_motif_similarity_right) (quintiles)</h3>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_n_extended_fms_max)}</div>
 
 <h2 id="absolute">2. Absolute pOk: original vs. extended vs. not-extended</h2>
 <div class="callout">
@@ -435,11 +625,33 @@ pOk of loci whose boundaries were not extended.
 <h3>By motif size</h3>
 <div class="fig" onclick="openModal(this)">{svg_inline(fig_abs_motif)}</div>
 
-<h3>By flank_motif_similarity_left (quintiles)</h3>
-<div class="fig" onclick="openModal(this)">{svg_inline(fig_abs_left)}</div>
+<h3>By max(flank_motif_similarity_left, flank_motif_similarity_right) (quintiles)</h3>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_abs_fms_max)}</div>
 
-<h3>By flank_motif_similarity_right (quintiles)</h3>
-<div class="fig" onclick="openModal(this)">{svg_inline(fig_abs_right)}</div>
+<h2 id="delta">3. Plots comparing ExpansionHunter genotype quality for extended loci vs. their original definitions (&Delta;pOk)</h2>
+
+<h3>By motif size</h3>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_motif_size)}</div>
+<table>
+<tr><th>Motif size</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+{motif_size_table_rows}
+</table>
+
+<h3>By max(flank_motif_similarity_left, flank_motif_similarity_right) (original locus definition, quintiles)</h3>
+<p class="meta">How closely the ORIGINAL locus's flanks already match a perfect repeat of its own motif, before extension (max of left/right).</p>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_fms_max)}</div>
+<table>
+<tr><th>max(flank_motif_similarity_left, flank_motif_similarity_right)</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+{fms_max_table_rows}
+</table>
+
+<h3>By original allele size minus reference repeat count</h3>
+<p class="meta">Computed from the ORIGINAL (pre-extension) locus definition's own AlleleSize and reference repeat count.</p>
+<div class="fig" onclick="openModal(this)">{svg_inline(fig_diff_from_ref)}</div>
+<table>
+<tr><th>Original allele size &minus; reference repeat count</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+{diff_from_ref_table_rows}
+</table>
 
 </div>
 

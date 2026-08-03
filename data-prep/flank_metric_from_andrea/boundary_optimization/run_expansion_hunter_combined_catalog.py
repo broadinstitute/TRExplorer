@@ -1,4 +1,4 @@
-"""Genotype the combined catalog (363,347 entries: all Andrea v2-exact-match loci -- extended and
+"""Genotype the combined catalog (364,030 entries: all Andrea v2-exact-match loci -- extended and
 not-extended -- plus all non-GCN known disease loci, built by build_combined_eh_catalog.py) with
 ExpansionHunter-bw2 on the 1kGP samples in selected_1kGP_samples.tsv.
 
@@ -13,6 +13,7 @@ Usage:
     python3 run_expansion_hunter_combined_catalog.py --output-dir ... -s HG01884 -s HG01891   # subset of samples
 """
 
+import hashlib
 import os
 
 import hailtop.fs as hfs
@@ -49,9 +50,19 @@ if args.sample_id:
 assert set(df["Gender"].unique()) <= {"male", "female"}, f"unexpected Gender values: {df['Gender'].unique()}"
 assert len(df) > 0, "no samples selected"
 
-bp.set_name(f"Combined catalog: EHv5-bw2 ({ANALYSIS_MODE}, single-step) on {len(df)} sample(s)")
+with hfs.open(args.catalog_path, "rb") as f:
+    catalog_hash = hashlib.sha256(f.read()).hexdigest()[:12]
+print(f"Catalog: {args.catalog_path} (sha256:{catalog_hash})")
+
+bp.set_name(f"Combined catalog: EHv5-bw2 ({ANALYSIS_MODE}, single-step) on {len(df)} sample(s) [catalog {catalog_hash}]")
 
 if not args.force:
+    # precache_file_paths skips re-running any sample whose output already exists in --output-dir --
+    # keyed only on sample_id, with no record of which catalog version produced that cached output.
+    # If the catalog changed since a cached output was produced, that stale output is silently reused.
+    print(f"NOTE: --force not passed -- samples with existing output in {args.output_dir} will be "
+          f"skipped even if they were genotyped against a different catalog than the current one "
+          f"(sha256:{catalog_hash}). Pass --force to regenotype everyone against the current catalog.")
     bp.precache_file_paths(os.path.join(args.output_dir, "**/*.*"))
 
 for _, row in df.iterrows():
