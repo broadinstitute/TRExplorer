@@ -1,5 +1,7 @@
-"""Select up to 10 1kGP samples per (Population, Gender) combination, prioritizing samples that have an
-OpenHGL (HPRC) de novo assembly (https://github.com/lh3/OpenHGL) when a group has more than 10 available.
+"""Select up to 3 1kGP samples per (Population, Gender) combination, prioritizing samples that have an
+OpenHGL (HPRC) de novo assembly (https://github.com/lh3/OpenHGL) -- this sort applies to every group,
+but only visibly matters (changes which samples are kept) for groups with more available samples than
+SAMPLES_PER_GROUP.
 
 Inputs:
   ~/code/str-truth-set-v2/20130606_sample_info_1kGP.tsv                      -- 1kGP phase-3 sample metadata
@@ -18,7 +20,7 @@ CRAM_LIST_PATH = os.path.expanduser("~/code/str-truth-set-v2/run_tools/broad_sho
 OPENHGL_META_URL = "https://raw.githubusercontent.com/lh3/OpenHGL/master/human579.meta.tsv"
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, "selected_1kGP_samples.tsv")
 
-SAMPLES_PER_GROUP = 10
+SAMPLES_PER_GROUP = 3
 
 openhgl = pd.read_table(OPENHGL_META_URL, header=None,
     names=["assembly", "sex_chrom", "sample_name", "sex", "sgdp_region", "kg_pop", "country"])

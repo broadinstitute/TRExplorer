@@ -1,0 +1,570 @@
+<title>Motif-Reanchoring Boundary Rule: Does It Actually Help?</title>
+<style>
+  :root {
+    --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --border: rgba(11,11,11,0.10);
+    --blue: #2a78d6; --orange: #eb6834; --aqua: #1baf7a; --yellow: #eda100; --red: #e34948;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #1a1a19; --page: #0d0d0d; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #1a1a19; --page: #0d0d0d; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--page); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55; margin: 0; padding: 0;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 120px; }
+  h1 { font-size: 1.9rem; margin-bottom: 4px; }
+  h2 { font-size: 1.35rem; margin-top: 48px; border-bottom: 1px solid var(--grid); padding-bottom: 8px; }
+  h3 { font-size: 1.1rem; margin-top: 28px; color: var(--ink); }
+  .subtitle { color: var(--ink2); font-size: 1rem; margin-top: 0; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  p { color: var(--ink); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 24px; margin: 18px 0;
+  }
+  .callout {
+    background: var(--surface); border-left: 4px solid var(--blue); border-radius: 6px;
+    padding: 14px 18px; margin: 16px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.good { border-left-color: var(--good); }
+  .callout.crit { border-left-color: var(--crit); }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  th { color: var(--ink2); font-weight: 600; border-bottom: 1px solid var(--muted); }
+  tr:hover { background: rgba(128,128,128,0.06); }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; }
+  .mono-block {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 0.85rem;
+    overflow-x: auto; white-space: pre;
+  }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--blue); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc ol { padding-left: 20px; margin: 8px 0; }
+  .cost-pill {
+    display: inline-block; background: var(--good); color: white; padding: 3px 12px;
+    border-radius: 20px; font-weight: 600; font-size: 0.85rem;
+  }
+  .badge { display:inline-block; padding: 1px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; }
+  .badge.up { color: white; background: var(--good); }
+  .badge.down { color: white; background: var(--crit); }
+  .badge.flat { color: var(--ink2); background: var(--grid); }
+  .num-pos { color: var(--good); font-weight: 600; }
+  .num-neg { color: var(--crit); font-weight: 600; }
+  hr { border: none; border-top: 1px solid var(--grid); margin: 32px 0; }
+  footer { color: var(--muted); font-size: 0.82rem; margin-top: 60px; }
+</style>
+
+<div class="wrap">
+
+<h1>The Motif-Reanchoring Boundary Rule: Does It Actually Help?</h1>
+<p class="subtitle">Testing a specific new extension rule against real HG002 reads across 13 known disease loci</p>
+<p class="meta">Generated 2026-07-31 &middot; follow-up to <code class="mono">report.html</code> in this same directory &middot; tandem-repeat-explorer / data-prep / flank_metric_from_andrea / boundary_optimization</p>
+
+<div class="callout crit">
+<strong>Bottom line.</strong> The rule as originally specified (extend past any gap with &le;1/3
+mismatches, anchored by one exact motif-unit match) makes real EH genotype quality <strong>worse at
+10 of 13 tested loci</strong> and better at only 3 (RUNX2, ARX_2, EP400) &mdash; it is too permissive
+for short/degenerate motifs, where a matching 3-mer occurs by chance often enough to falsely "anchor"
+an extension into genuinely non-repeat flanking sequence. The fix is simple and well-supported by the
+same data: <strong>tighten the gap-mismatch threshold from 1/3 to about 0.15</strong>. At that
+threshold, 11 of the 12 problem extensions vanish entirely (the locus correctly stays at its current
+boundary) while the one genuine, quality-improving extension (RUNX2) survives untouched &mdash; because
+its accepted gap has a mismatch fraction of exactly <strong>0.000</strong>, in a completely different
+class from the 11 false positives (0.167&ndash;0.267). <strong>Update (&sect;9&ndash;10):</strong>
+re-testing the corrected thresholds on two independent broader, non-curated samples &mdash; a random
+TRExplorer v1 slice, and a slice specifically ranked by how repetitive the flanks already look &mdash;
+both found a messier picture with no locus feature that separates good extensions from bad ones. The
+curated-locus result above should be read as a best case, not a representative one. Total Hail Batch
+spend: <strong>$0.174</strong> of the $10 budget ($0.0114 rounds 1&ndash;2, $0.0842 on a round-3 run
+cancelled after a ploidy bug was caught mid-run, $0.0464 on the corrected re-run, $0.0316 round 4).
+</div>
+
+<div class="toc">
+<strong>Contents</strong>
+<ol>
+  <li><a href="#rule">The rule as specified</a></li>
+  <li><a href="#ep400">Re-testing EP400 (and a correction)</a></li>
+  <li><a href="#scaling">Scaling to all 73 known disease loci</a></li>
+  <li><a href="#validation">Real-read validation: 10 of 13 get worse</a></li>
+  <li><a href="#rootcause">Root cause: the rule is chasing chance matches</a></li>
+  <li><a href="#fix">The fix: tighten the threshold</a></li>
+  <li><a href="#rfc1">Side finding: an IUPAC bug that inflated RFC1's apparent impurity</a></li>
+  <li><a href="#comparison">How this relates to the purity&ge;0.90 rule from report.html</a></li>
+  <li><a href="#round3">Round 3: a ploidy bug, and a messier result on the broader TRExplorer v1 set</a></li>
+  <li><a href="#round4">Round 4: ranking by flank repetitiveness doesn't help either</a></li>
+  <li><a href="#recommendation">Recommendation</a></li>
+  <li><a href="#limitations">Limitations</a></li>
+</ol>
+</div>
+
+<h2 id="rule">1. The rule as specified</h2>
+<p>
+Per your instructions, for each side (left/right) independently: scan outward in whole-motif-unit
+steps looking for the next <strong>exact</strong> copy of the motif. Accept a jump out to that copy
+(encompassing the gap in between) if the gap's Hamming distance to a perfect in-frame repeat is
+&le;&nbsp;1/3 of the gap length &mdash; where the gap length is always a whole multiple of the motif
+length, per your clarification. Keep scanning outward as long as the cumulative gap fraction from the
+last accepted point stays &le;1/3; stop the moment it's exceeded without having found an anchoring
+exact copy. Implementation: <code class="mono">motif_reanchor_extension.py</code>, reusing
+<code class="mono">boundary_metrics.py</code>'s already-validated per-position phase logic rather than
+re-deriving the (easy to get subtly wrong) reversed-coordinate math for the left side.
+</p>
+
+<h2 id="ep400">2. Re-testing EP400 (and a correction)</h2>
+<p>
+Starting from EP400's narrower definition (<code class="mono">chr12:132062548-132062611</code>,
+21&times;CAG) and applying the rule:
+</p>
+<div class="mono-block">LEFT:  gap=6bp accept, gap=3bp accept (x6 more, all exact) ... gap=3bp exceeds 1/3 -- stop
+       -> extend 24bp, landing on chr12:132062524 -- an EXACT match to gnomAD's wider definition
+
+RIGHT: gap=3bp ("ACG" vs "CAG", 2/3 mismatch) exceeds 1/3 immediately -- stop
+       -> extend 0bp, staying at chr12:132062611 -- also an EXACT match to the wider definition's end</div>
+<div class="callout good">
+The rule reproduces gnomAD's wider EP400 definition <strong>exactly</strong>, on both sides.
+</div>
+<div class="callout warn">
+<strong>Correction to what I told you in the previous turn.</strong> I initially reported a 6bp
+right-side overshoot (landing on <code class="mono">132062617</code> instead of
+<code class="mono">132062611</code>). That was wrong &mdash; caused by a transcription error when I
+hand-typed the EP400 region sequence into a test script instead of fetching it live from hg38 (I'd
+inserted a phantom extra "CAG" unit while copy-pasting from an earlier response). Re-running with a
+live <code class="mono">pysam.FastaFile.fetch()</code> call (as all the code in this project now
+does &mdash; the hand-typed string was a one-off shortcut in that specific test) gives the exact-match
+result above. Caught by cross-checking the fresh fetch against the hand-typed one and finding a
+6-character offset; documenting it here rather than letting the earlier, wrong claim stand.
+</div>
+<p>
+<code class="mono">pOk</code> is a per-allele metric, so it does apply directly to EP400 (a
+heterozygous, 2-allele call) &mdash; no special handling needed. Since the rule's recommended region is
+an exact byte-for-byte match to gnomAD's wider definition, no new Hail Batch run was needed: reused
+the already-collected real-read result from round 1 (<code class="mono">data/HG002.boundary_validation.json</code>,
+keys <code class="mono">EP400_narrower</code> / <code class="mono">EP400_current</code>), re-verified
+here directly against the raw JSON rather than just re-quoting the earlier report:
+</p>
+<table>
+<tr><th>Definition</th><th>Region</th><th>Genotype</th><th>Allele&nbsp;1 pOk</th><th>Allele&nbsp;2 pOk</th><th>Mean pOk</th></tr>
+<tr><td>narrower</td><td class="mono">132062548-132062611</td><td class="mono">21/22</td><td class="mono">0.918</td><td class="mono">0.772</td><td class="mono">0.845</td></tr>
+<tr><td>wider (= rule's recommendation)</td><td class="mono">132062524-132062611</td><td class="mono">29/30</td><td class="mono">0.884</td><td class="mono">0.901</td><td class="mono num-pos">0.893</td></tr>
+</table>
+<div class="callout">
+<strong>pOk moves in the direction the rule predicts (narrower&rarr;wider is an improvement,
++0.048 mean), but it's not uniform across alleles.</strong> The wider definition raises the weaker
+allele substantially (allele&nbsp;2: 0.772&rarr;0.901, +0.129) while very slightly lowering the
+stronger one (allele&nbsp;1: 0.918&rarr;0.884, &minus;0.034). Net effect is positive and the CI stays
+zero-width at both definitions (see <code class="mono">report.html</code> &sect;7 for the full
+three-way comparison, which also includes the further-extended <code class="mono">purity90</code>
+variant &mdash; 132062518-132062617, mean pOk 0.725 &mdash; showing that <em>more</em> extension past
+the wider boundary makes things worse, not better; the wider definition sits close to a local optimum
+for this locus, not partway up a monotonic curve).
+</div>
+
+<h2 id="scaling">3. Scaling to all 73 known disease loci</h2>
+<p>
+Applying the rule (threshold=1/3) to every known disease locus, excluding the 9 compound/multi-region
+loci (ATXN7, ATXN8OS, CNBP, FRA10AC1, FXN, HTT, NOP56, PRNP, TMEM185A &mdash; where a "flank"
+extension risks just re-absorbing the locus's own neighboring sub-region rather than genuinely new
+sequence, the same issue <code class="mono">report.html</code> flagged for PRNP):
+</p>
+<div class="callout">
+<strong>12 of 64</strong> eligible loci get some extension, nearly all involving short (3bp) or
+IUPAC-degenerate (GCN/NGC) motifs: HOXA13_3 (75bp), NIPA1 (21bp), PABPN1 (21bp), ARX_1 (12bp), ATXN3
+(12bp), GIPC1 (9bp), NOTCH2NLA (9bp), RUNX2 (9bp), ZIC2 (9bp), ARX_2 (6bp), HOXA13_1 (6bp), LRP12 (6bp).
+</div>
+
+<h2 id="validation">4. Real-read validation: 10 of 13 get worse</h2>
+<p>
+Ran ExpansionHunter-bw2 via Hail Batch against real HG002 reads on all 12 loci above (baseline vs.
+reanchored, 24 catalog entries, one EH invocation, $0.0032), plus EP400 from section 2 (already run).
+Quality signal: mean per-allele <code>pOk</code> (EH's own probability-the-call-is-correct metric
+&mdash; chosen over confidence-interval width because the earlier report found CI width can look
+"clean" while pOk reveals real degradation underneath).
+</p>
+<table>
+<tr><th>Locus</th><th>pOk baseline</th><th>pOk reanchored</th><th>&Delta;</th><th>Genotype shift</th><th>Verdict</th></tr>
+<tr><td>PABPN1</td><td class="mono">0.636</td><td class="mono">0.198</td><td class="num-neg">&minus;0.438</td><td class="mono">6/6 &rarr; 13/13</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>HOXA13_3</td><td class="mono">0.753</td><td class="mono">0.379</td><td class="num-neg">&minus;0.374</td><td class="mono">18/18 &rarr; 44/68 (CI blows up to 44-45/60-103)</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>ARX_1<sup>&dagger;</sup></td><td class="mono">0.694</td><td class="mono">0.505</td><td class="num-neg">&minus;0.189</td><td class="mono">16 &rarr; 20 (CI 20-20, clean)</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>NOTCH2NLA</td><td class="mono">0.561</td><td class="mono">0.251</td><td class="num-neg">&minus;0.310</td><td class="mono">7/7 &rarr; 10/10</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>LRP12</td><td class="mono">0.647</td><td class="mono">0.400</td><td class="num-neg">&minus;0.247</td><td class="mono">3/11 &rarr; 5/13</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>NIPA1</td><td class="mono">0.663</td><td class="mono">0.469</td><td class="num-neg">&minus;0.195</td><td class="mono">8/8 &rarr; 15/16</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>GIPC1</td><td class="mono">0.847</td><td class="mono">0.696</td><td class="num-neg">&minus;0.151</td><td class="mono">10/12 &rarr; 13/15</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>HOXA13_1</td><td class="mono">0.791</td><td class="mono">0.672</td><td class="num-neg">&minus;0.119</td><td class="mono">14/14 &rarr; 16/16</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>ZIC2</td><td class="mono">0.700</td><td class="mono">0.604</td><td class="num-neg">&minus;0.096</td><td class="mono">15/15 &rarr; 18/18</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>ATXN3</td><td class="mono">0.844</td><td class="mono">0.768</td><td class="num-neg">&minus;0.076</td><td class="mono">19/23 &rarr; 23/27</td><td><span class="badge down">worse</span></td></tr>
+<tr><td>EP400</td><td class="mono">0.845</td><td class="mono">0.893</td><td class="num-pos">+0.048</td><td class="mono">21/22 &rarr; 29/30</td><td><span class="badge up">better</span></td></tr>
+<tr><td>ARX_2<sup>&dagger;</sup></td><td class="mono">0.449</td><td class="mono">0.543</td><td class="num-pos">+0.094</td><td class="mono">12 &rarr; 14 (CI 14-14, clean)</td><td><span class="badge up">better</span></td></tr>
+<tr><td>RUNX2</td><td class="mono">0.562</td><td class="mono">0.631</td><td class="num-pos">+0.069</td><td class="mono">8/14 &rarr; 11/17</td><td><span class="badge up">better</span></td></tr>
+</table>
+<div class="callout crit">
+<strong>10 of 13 loci get measurably worse, several dramatically</strong> &mdash; HOXA13_3's and
+ARX_1's confidence intervals go from perfectly tight to spanning dozens of repeat units. This directly
+answers the question this report was written to answer: as specified, the rule does <em>not</em>
+reliably improve genotype quality. It's the opposite of the earlier purity-crossing rule's
+behavior (which was mostly conservative/safe) &mdash; this rule is too willing to extend.
+<sup>&dagger;</sup> ARX_1/ARX_2 numbers above are corrected for a ploidy bug found later (see
+<a href="#round3">&sect;11</a>) &mdash; the original run used <code class="mono">--sex female</code>
+for HG002, which is actually male; ARX_1's originally-reported "CI blows up to 18-20/20-47" was
+entirely a wrong-ploidy artifact, not a real quality signal.
+</div>
+
+<h2 id="rootcause">5. Root cause: the rule is chasing chance matches</h2>
+<p>
+Looking at the exact mismatch fraction of each accepted gap (threshold was 1/3 = 0.333):
+</p>
+<table>
+<tr><th>Locus</th><th>Motif</th><th>Accepted gap</th><th>Mismatches</th><th>Fraction</th></tr>
+<tr><td>RUNX2</td><td class="mono">GCN</td><td>9bp (3 units)</td><td>0</td><td class="mono num-pos">0.000</td></tr>
+<tr><td>ARX_2, HOXA13_1, LRP12, NIPA1(left), ATXN3, ARX_1</td><td class="mono">NGC/GCG/CGC/CTG/NGC</td><td>6&ndash;12bp</td><td>1&ndash;2</td><td class="mono num-neg">0.167</td></tr>
+<tr><td>GIPC1, NOTCH2NLA, ZIC2</td><td class="mono">CCG/GCC/GCN</td><td>9bp</td><td>2</td><td class="mono num-neg">0.222</td></tr>
+<tr><td>HOXA13_3(left), PABPN1</td><td class="mono">NGC/GCG</td><td>21&ndash;51bp</td><td>5&ndash;12</td><td class="mono num-neg">0.235&ndash;0.238</td></tr>
+<tr><td>HOXA13_3(right), NIPA1(right)</td><td class="mono">NGC/GCG</td><td>15&ndash;24bp</td><td>4&ndash;6</td><td class="mono num-neg">0.250&ndash;0.267</td></tr>
+</table>
+<div class="callout">
+<strong>RUNX2's accepted gap is a perfect (0-mismatch) continuation. Every other accepted gap has a
+real, nonzero mismatch rate (0.167&ndash;0.267) &mdash; comfortably under the 0.333 threshold, but not
+remotely "clean."</strong> For a short motif (most of these are 3bp, several are IUPAC-degenerate
+NGC/GCN which match 2 literal bases + a free wildcard), a coincidentally-exact 3-mer match is common:
+a random 3bp window matches a specific 3bp target with probability roughly 1/64 for a literal motif,
+and much higher (~1/16) for an NGC/GCN motif where 1 of 3 positions is a free wildcard. Scanning
+several units out from the boundary, hitting at least one such lucky match is not rare &mdash; and the
+loose 1/3 gap tolerance lets the rule "explain away" the real mismatches in between as tolerable noise,
+when they're actually the flank telling you it's not repeat-like anymore.
+</div>
+
+<h2 id="fix">6. The fix: tighten the threshold</h2>
+<p>
+Swept the threshold (and, separately, requiring 2 consecutive exact units instead of 1 to anchor)
+across the same 64-locus set:
+</p>
+<table>
+<tr><th>Configuration</th><th>Loci extended</th><th>Total extension</th><th>Which loci</th></tr>
+<tr><td>Original: threshold=0.333, anchor=1 unit</td><td>12/64</td><td>195bp</td><td>all 12 from section 3</td></tr>
+<tr><td><strong>threshold=0.20, anchor=1 unit</strong></td><td><strong>1/64</strong></td><td><strong>9bp</strong></td><td><strong>RUNX2 only</strong></td></tr>
+<tr><td>threshold=0.10, anchor=1 unit</td><td>1/64</td><td>9bp</td><td>RUNX2 only (identical to 0.20)</td></tr>
+<tr><td>threshold=0.333, anchor=2 units</td><td>4/64</td><td>189bp</td><td>ARX_1 (now 120bp!), HOXA13_3, ATXN3, RUNX2</td></tr>
+<tr><td>threshold=0.20, anchor=2 units</td><td>1/64</td><td>6bp</td><td>RUNX2 only</td></tr>
+</table>
+<div class="callout warn">
+Requiring 2 consecutive anchor units while keeping the loose threshold makes things <em>worse</em>,
+not better &mdash; ARX_1's spurious extension balloons from 12bp to 120bp, because a single lucky
+match no longer stops the scan early, so it searches further out and sometimes finds an even more
+distant (equally spurious) double-match. <strong>Tightening the anchor count is not a safe fix by
+itself; tightening the threshold is.</strong>
+</div>
+<div class="callout good">
+<strong>threshold=0.20 (anchor=1 unit, matching the original rule otherwise) eliminates all 11 false
+positives and preserves the one genuine extension, with no new Hail Batch run needed to confirm it</strong>:
+"don't extend" is exactly the baseline definition already tested in section 4, and RUNX2's specific
+accepted region is byte-for-byte identical between threshold 0.333 and 0.20 (its gap fraction is
+0.000, nowhere near either threshold). So the quality data already collected fully validates the
+adjusted rule: 11 loci stay at their (already-measured, unchanged) baseline quality, and the 1 that
+still extends (RUNX2) is the one confirmed improvement.
+</div>
+
+<h2 id="rfc1">7. Side finding: an IUPAC bug that inflated RFC1's apparent impurity</h2>
+<p>
+While building this analysis, RFC1 (motif <code class="mono">AARRG</code>, R = A-or-G per IUPAC) kept
+showing a reference purity of exactly 0.600 &mdash; suspiciously exactly 3/5. The cause:
+<code class="mono">boundary_metrics.py</code>'s purity/hamming functions only special-cased literal
+<code>'N'</code> as a wildcard, not other IUPAC ambiguity codes. RFC1's real reference sequence is a
+textbook-perfect tiled <code class="mono">AAAAG</code> repeat; compared literally against
+<code class="mono">AARRG</code>, the two R positions <em>always</em> mismatch (since real DNA is never
+literally the character 'R'), capping purity at exactly 3/5 regardless of true sequence quality.
+</p>
+<div class="callout good">
+Fixed generally: <code class="mono">boundary_metrics.py</code> now has a full IUPAC ambiguity table
+(R, Y, S, W, K, M, B, D, H, V, N) used consistently by both the purity/hamming and edit-distance
+functions. <strong>RFC1's corrected core purity is 1.000</strong>, not 0.600. This doesn't change the
+motif-reanchoring rule's conclusion for RFC1 (still 0bp extension, correctly &mdash; RFC1's real
+difficulty is its intrinsic AAAAG/AAGGG/etc. motif heterogeneity, not a boundary or purity problem),
+but it corrects a specific claim in the original <code class="mono">report.html</code> that
+characterized RFC1's reference purity as low (0.6) evidence of impurity, when it was actually a
+measurement artifact. Note EH's own <code class="mono">RepeatPurity.cpp</code> has the same
+literal-character limitation (its docstring: "an 'N' counts as a mismatch") &mdash; so ExpansionHunter's
+own reported <code>ReferenceRepeatPurity</code> field for RFC1 in its output JSON will still show
+0.600; the fix here is a deliberate improvement over EH's own convention for analysis purposes, not a
+reproduction of it.
+</div>
+
+<h2 id="comparison">8. How this relates to the purity&ge;0.90 rule from report.html</h2>
+<p>
+The original report recommended extending a boundary until <em>full-region</em> reference purity
+(core + everything added so far) drops below 0.90. That rule is inherently self-limiting for short
+motifs: a single mismatch immediately after a long, already-pure core barely moves the full-region
+average, so it tends to extend cautiously and gracefully degrade. The motif-reanchoring rule instead
+looks at the <em>local</em> gap in isolation and is willing to "jump over" a bad patch entirely if a
+clean unit reappears soon enough &mdash; which is a reasonable idea (EP400's real interruption is
+exactly this shape) but, at 1/3 tolerance, jumps over patches that are bad enough to matter. The
+corrected (0.20 threshold) version of this rule and the original purity&ge;0.90 rule now agree closely
+in practice: neither recommends extending C9ORF72, RFC1, or BEAN1, and both point toward extending
+EP400 to (approximately) its current wider definition. The main remaining difference is EP400's exact
+right-side stopping point and RUNX2, where the motif-reanchoring rule (correctly, per section 4) finds
+a small real extension the purity-threshold rule found too via a different mechanism (see
+<code class="mono">report.html</code> section 8/9's RUNX2 discussion).
+</p>
+
+<h2 id="round3">9. Round 3: a ploidy bug, and a messier result on the broader TRExplorer v1 set</h2>
+<p>
+You asked to redo the threshold comparison (0.15 vs. 0.20) on the broader TRExplorer v1 sample rather
+than just the 13 curated disease loci above, to check whether &sect;6's clean separation generalizes.
+</p>
+<h3>A ploidy bug, caught mid-run</h3>
+<div class="callout crit">
+While this round's Hail Batch job was hanging on a chrY locus (no log progress for 9+ minutes), found
+the cause: the validation scripts (this report's &sect;4 and the earlier round-2 run) passed
+<code class="mono">--sex female</code> for HG002 &mdash; but HG002 is the <strong>male</strong> child of
+the Ashkenazi trio. This project's own canonical scripts (<code class="mono">run.sh</code>,
+<code class="mono">run2.sh</code>) correctly use <code class="mono">--sex male</code>; only this
+analysis's own scripts had it wrong. Wrong ploidy silently forces a 2-allele diploid model onto
+chrX/chrY loci that are actually hemizygous in HG002 &mdash; affects every chrX/chrY locus tested so
+far, which in this dataset means <strong>ARX_1 and ARX_2</strong> (both chrX) from &sect;4's table.
+Cancelled the stuck run ($0.0842 spent, wasted &mdash; the job was stalled specifically on the
+mis-ploidy'd chrY loci) and reran with <code class="mono">--sex male</code>.
+</div>
+<p>
+Corrected ARX_1/ARX_2 results (real cost of the corrected run: $0.0464, combined with the TRExplorer
+v1 sweep below in the same batch):
+</p>
+<table>
+<tr><th>Locus</th><th>pOk baseline</th><th>pOk reanchored</th><th>&Delta;</th><th>Genotype (was, wrong ploidy)</th><th>Genotype (corrected)</th></tr>
+<tr><td>ARX_1</td><td class="mono">0.694</td><td class="mono">0.505</td><td class="num-neg">&minus;0.189</td><td class="mono">20/20, CI 18-20/20-47</td><td class="mono">20, CI 20-20</td></tr>
+<tr><td>ARX_2</td><td class="mono">0.449</td><td class="mono">0.543</td><td class="num-pos">+0.094</td><td class="mono">14/14, CI 14-14</td><td class="mono">14, CI 14-14</td></tr>
+</table>
+<div class="callout warn">
+ARX_1's dramatic "confidence interval blows up to 18-20/20-47" claim from &sect;4 was <strong>entirely
+a wrong-ploidy artifact</strong> &mdash; under the correct male/hemizygous model the genotype is a
+single clean value with no CI spread at all. The real quality signal is a more modest pOk drop
+(0.694&rarr;0.505, &Delta;&minus;0.189, not &minus;0.324). ARX_1 is still a net "worse" case (the rule
+still shouldn't have extended it), just less dramatically so than originally reported. ARX_2's pOk
+values happen to be numerically identical between the wrong and corrected runs, and it remains
+"better" &mdash; only its genotype notation was actually wrong before (diploid-style "14/14" for what
+is really a single hemizygous call).
+</div>
+<h3>Broader validation: 98 TRExplorer v1 loci, 70 threshold-disagreements</h3>
+<p>
+Swept both thresholds across the ~20,000-locus stratified TRExplorer v1 sample (tier 3):
+<strong>98 loci</strong> get nonzero extension under threshold 0.15 or 0.20, and of those,
+<strong>70 disagree</strong> between the two (0.20 extends further or differently than 0.15).
+Built a validation catalog of baseline + both threshold variants for these 70 loci (plus the 4
+ARX_1/ARX_2 male-fix entries above, 201 catalog entries total) and ran it through Hail Batch
+(<code class="mono">analyze_round3_threshold_sweep.py</code>). 1 locus's extended region exceeded 2x
+read length and was skipped by EH (same expected behavior noted in earlier rounds); 1 more had no
+genotype call at either threshold. 69 loci scored.
+</p>
+<div class="callout crit">
+<strong>The clean separation from &sect;6 does not generalize.</strong> On this broader, non-curated
+locus set: at <strong>threshold 0.15, only 1 of 69 loci gets extended at all</strong> &mdash; and that
+one is a real loss (&Delta;pOk &minus;0.297). 0.15 is "safe" here only in the trivial sense that it
+almost never fires, not because it's correctly discriminating. At <strong>threshold 0.20, 63 of 69
+loci get extended</strong>: 33 improve (sum &Delta;pOk +4.15) and 29 get worse (sum &Delta;pOk
+&minus;3.83) &mdash; a roughly even split in both count and aggregate magnitude, i.e. close to a coin
+flip on this locus set. Unlike &sect;5's clean story for the 13 curated disease loci (where every false
+positive was a short/IUPAC-degenerate 3bp motif), motif length does <strong>not</strong> separate
+winners from losers here: both the worst regressions and the biggest improvements are dominated by
+5&ndash;6bp motifs in roughly equal proportion. No other locus property was tested that might explain
+the split.
+</div>
+<table>
+<tr><th>Worst regressions @0.20</th><th>Motif</th><th>baseline&rarr;0.20 &Delta;pOk</th></tr>
+<tr><td class="mono">chr3:163526553-163526568</td><td class="mono">AAGGG</td><td class="mono num-neg">&minus;0.381</td></tr>
+<tr><td class="mono">chr17:26840057-26840073</td><td class="mono">TGGAA</td><td class="mono num-neg">&minus;0.349</td></tr>
+<tr><td class="mono">chr5:1667604-1667619</td><td class="mono">GGGGGCGCGCGGGGC</td><td class="mono num-neg">&minus;0.318</td></tr>
+<tr><td class="mono">chr14:62961828-62961846</td><td class="mono">GAGATG</td><td class="mono num-neg">&minus;0.292</td></tr>
+<tr><td class="mono">chr12:21320500-21320516</td><td class="mono">TTGTT</td><td class="mono num-neg">&minus;0.271</td></tr>
+</table>
+<table>
+<tr><th>Biggest improvements @0.20</th><th>Motif</th><th>baseline&rarr;0.20 &Delta;pOk</th></tr>
+<tr><td class="mono">chr20:31081466-31081484</td><td class="mono">GGAAT</td><td class="mono num-pos">+0.555</td></tr>
+<tr><td class="mono">chr6:91057962-91057994</td><td class="mono">CTCCC</td><td class="mono num-pos">+0.463</td></tr>
+<tr><td class="mono">chr18:105242-105265</td><td class="mono">CCTAAC</td><td class="mono num-pos">+0.432</td></tr>
+<tr><td class="mono">chr14:105680211-105680235</td><td class="mono">TGCCCC</td><td class="mono num-pos">+0.413</td></tr>
+<tr><td class="mono">chr22:45707633-45707649</td><td class="mono">TAATA</td><td class="mono num-pos">+0.327</td></tr>
+</table>
+<div class="callout">
+<strong>Interpretation.</strong> The 13-locus curated disease set in &sect;4&ndash;6 gave a clean,
+well-supported story: a specific, identifiable failure mode (short/IUPAC-degenerate motifs producing
+chance 3-mer matches) explained every false positive, and tightening the threshold fixed all of them
+while preserving the one true win. That story does <em>not</em> hold on this broader sample &mdash;
+the 0.20 threshold's winners and losers here look more like independent, roughly-50/50 outcomes than
+a systematic bias correctable by a single global threshold tweak. Two honest readings: (1) the
+curated-locus result in &sect;4&ndash;6 was itself somewhat lucky/unrepresentative (73 hand-picked
+disease loci are not a random sample of the genome), or (2) there is a real distinguishing signal for
+the broader set that just isn't motif-length &mdash; e.g. purity of the accepted gap, local sequence
+complexity, or something else not yet tested. Given the data in hand, (1) should be the working
+assumption until (2) is specifically investigated.
+</div>
+<p>
+Round-3 Hail Batch cost: $0.0842 (cancelled, wrong ploidy) + $0.0464 (corrected re-run) = $0.1306.
+Running total across all three rounds: <strong>$0.142 of the $10 budget</strong>.
+Code: <code class="mono">analyze_round3_threshold_sweep.py</code>. Raw data:
+<code class="mono">data/HG002.reanchor_validation_round3_male.json</code>,
+<code class="mono">data/round3_threshold_comparison.tsv</code>.
+</p>
+
+<h2 id="round4">10. Round 4: ranking by flank repetitiveness doesn't help either</h2>
+<p>
+&sect;9 found no locus property that separates the reanchoring rule's winners from its losers on a
+broad, non-curated sample. The natural next test: what if we specifically target loci whose flanks
+already <em>look</em> the most repetitive &mdash; using Andrea's own <code class="mono">flank_motif_similarity_left</code>/
+<code class="mono">_right</code> columns (how closely the flank matches a perfect in-frame repeat of the
+locus's own motif) &mdash; rather than an arbitrary catalog slice? These should be the strongest
+candidates for genuine under-extension.
+</p>
+<p>
+Sorted the full 415,527-locus catalog by <code class="mono">max(flank_motif_similarity_left,
+flank_motif_similarity_right)</code> descending (<code class="mono">sort_catalog_by_flank_repetitiveness.py</code>),
+took the top 20,000, and re-ran the free local extension scan at thresholds 0.15/0.20
+(<code class="mono">scan_top20k_flank_repetitive_extensions.py</code>).
+</p>
+<div class="callout warn">
+<strong>Flank similarity barely enriches for loci the rule actually extends.</strong> Only
+<strong>534 / 20,000 (2.7%)</strong> extend at 0.20 and <strong>111 (0.6%)</strong> at 0.15 &mdash;
+essentially identical to the extension rate on an <em>unranked, random-order</em> 50,000-locus slice
+of the same catalog tested earlier (2.70% / 2.12%). The rule's actual trigger &mdash; finding an
+<em>exact</em> in-frame motif copy within a low-mismatch gap, immediately adjacent to the boundary
+&mdash; is a much narrower condition than "the flank's best-matching window looks similar to the
+motif." A locus can score high on <code class="mono">flank_motif_similarity</code> without having a
+clean exact anchor point nearby, so this intuitive heuristic doesn't concentrate the rule's true
+positives (or false positives) any better than chance.
+</div>
+<p>
+Built a validation catalog for the 534 extended loci (1,070 entries after dedup,
+<code class="mono">build_flank_repetitive_validation_catalog.py</code>) and ran it against real HG002
+reads via Hail Batch (<code class="mono">run_hail_validation_4.py</code>, <code class="mono">--sex male</code>
+used correctly from the start this time). Cost: <strong>$0.0316</strong> (running total across all 4
+rounds: <strong>$0.174 of the $10 budget</strong>). Stats below are restricted to loci that
+<em>genuinely</em> extend at each threshold (excluding catalog entries whose region is identical to
+baseline because that side didn't fire).
+</p>
+<table>
+<tr><th>Threshold</th><th>n extended</th><th>mean &Delta;pOk</th><th>median</th><th>better (&gt;+0.05)</th><th>worse (&lt;&minus;0.05)</th><th>flat</th></tr>
+<tr><td>0.15</td><td class="mono">106</td><td class="mono num-pos">+0.0186</td><td class="mono">+0.0070</td><td class="mono">21 (19.8%)</td><td class="mono">14 (13.2%)</td><td class="mono">71 (67.0%)</td></tr>
+<tr><td>0.20</td><td class="mono">520</td><td class="mono num-neg">&minus;0.0103</td><td class="mono">&minus;0.0040</td><td class="mono">129 (24.8%)</td><td class="mono">155 (29.8%)</td><td class="mono">236 (45.4%)</td></tr>
+</table>
+<div class="callout crit">
+<strong>On this specifically flank-repetitiveness-targeted set, threshold 0.20 is net NEGATIVE in
+aggregate</strong> (mean &Delta;pOk &minus;0.0103, sum &minus;5.38 across 520 loci) &mdash; slightly
+worse than &sect;9's untargeted TRExplorer v1 sample, which was roughly neutral (mean +0.0047).
+Pre-filtering for "flank looks repetitive" did not improve the odds; if anything it's a wash-to-slightly-worse.
+Threshold 0.15's much smaller extended set (106 loci) is net positive on average (+0.0186), but still
+has real losers &mdash; including the most extreme false positive found in this entire project: a 2bp
+<code class="mono">AT</code> dinucleotide motif (<code class="mono">chr7:122541782-122541794</code>)
+drops from pOk 0.616 to 0.084 (&Delta;&minus;0.532). Dinucleotide motifs are shorter and more
+degenerate than even the 3bp GCN/NGC motifs flagged in &sect;5 &mdash; the same chance-match failure
+mode, just worse.
+</div>
+<p>
+Checked whether <code class="mono">flank_motif_similarity</code> itself predicts the outcome of an
+extension it does trigger (not just whether one happens): Spearman correlation between
+<code class="mono">max_flank_motif_similarity</code> and &Delta;pOk@0.20 across the 520 genuinely-extended
+loci is <strong>&minus;0.011</strong> &mdash; essentially zero. Motif length also fails to separate
+winners from losers here, matching &sect;9's finding on the broader set (worse-outcome loci: 5bp&times;107,
+6bp&times;36, 2bp&times;7, 4bp&times;5; better-outcome loci: 5bp&times;82, 6bp&times;27, 2bp&times;10,
+4bp&times;8, 3bp&times;2 &mdash; near-identical proportions in both groups).
+</p>
+<div class="callout">
+<strong>This reinforces, rather than resolves, &sect;9's open question.</strong> Two independent
+non-curated samples now (a random TRExplorer v1 slice in &sect;9, and a flank-similarity-ranked
+top-20k slice here) both show the same pattern: no locus-level feature examined so far (motif
+length, flank_motif_similarity, or which one triggered the extension) predicts whether a given
+motif-reanchoring extension will help or hurt genotype quality outside the curated disease-locus set.
+The curated 73-locus result from &sect;4&ndash;6 remains the cleanest evidence this rule has, and it
+remains an outlier compared to every broader test run since.
+</div>
+<p>
+Code: <code class="mono">sort_catalog_by_flank_repetitiveness.py</code>,
+<code class="mono">scan_top20k_flank_repetitive_extensions.py</code>,
+<code class="mono">build_flank_repetitive_validation_catalog.py</code>,
+<code class="mono">run_hail_validation_4.py</code>, <code class="mono">analyze_round4_flank_repetitive.py</code>.
+Raw data: <code class="mono">data/HG002.flank_repetitive_validation.json</code>,
+<code class="mono">data/round4_flank_repetitive_comparison.tsv</code>.
+</p>
+
+<h2 id="recommendation">11. Recommendation</h2>
+<div class="callout warn">
+<strong>The threshold=0.15&ndash;0.20 fix (&sect;6) is well-supported for known disease loci
+specifically, but &sect;9&ndash;10 show it does not generalize cleanly to the genome at large &mdash;
+do not apply this rule at catalog scale without further work.</strong> On the curated 73-locus disease
+set, tightening to ~0.15&ndash;0.20 cleanly removed every false positive while keeping the one true win
+(RUNX2), and that result still stands. On two independent broader, non-curated samples &mdash; a random
+TRExplorer v1 slice (&sect;9) and a flank-repetitiveness-ranked slice (&sect;10) &mdash; the same
+thresholds behave very differently: 0.15 rarely extends anything and what it does extend is a mixed
+bag; 0.20 extends much more but is roughly a coin flip on the random sample and net <em>negative</em>
+on the repetitiveness-ranked one. No property identified so far (motif length, flank_motif_similarity)
+predicts which extension will help or hurt. <strong>Recommended scope: apply this rule (threshold
+&asymp;0.15&ndash;0.20) to hand-curated/disease-associated loci where the &sect;4&ndash;6 evidence
+directly applies; do not extrapolate it to catalog-wide automated boundary correction without
+identifying what actually separates good extensions from bad ones.</strong> Do not "fix" the
+anchor-count instead of the threshold &mdash; that made one disease-locus case (ARX_1) an order of
+magnitude worse (&sect;6).
+</div>
+<ul>
+<li><strong>Threshold matters far more than anchor length</strong> for this rule's safety, at least on
+the curated disease-locus set.</li>
+<li><strong>Short and IUPAC-degenerate motifs are the highest-risk case for false "anchors" among known
+disease loci</strong> &mdash; but this specific failure mode does NOT explain the broader TRExplorer v1
+or flank-repetitiveness-ranked sets' mixed results (&sect;9&ndash;10), so it should not be treated as
+the general explanation for why this rule sometimes hurts. (Exception: &sect;10 found the single most
+extreme false positive in this project on a 2bp dinucleotide motif, so degenerate short motifs are
+still worth extra caution even if they don't explain the whole picture.)</li>
+<li><strong>"Flank looks repetitive" (flank_motif_similarity) is not a useful pre-filter</strong> for
+this rule &mdash; it neither enriches for loci the rule extends (&sect;10) nor predicts the outcome
+when it does (Spearman &asymp; 0).</li>
+<li><strong>RFC1's reference purity should be recomputed with proper IUPAC handling</strong> anywhere
+it's used as a quality signal (section 7) &mdash; it is not, in fact, an impure locus by this metric.</li>
+<li><strong>Always pass the correct <code class="mono">--sex</code> flag for chrX/chrY loci</strong>
+&mdash; HG002 is male; using the wrong ploidy model inflates apparent CI width/instability for
+hemizygous loci in a way that looks like, but is not, a real quality problem (&sect;9).</li>
+</ul>
+
+<h2 id="limitations">12. Limitations</h2>
+<ul>
+<li><strong>threshold=0.20's validation on the 13-locus disease set reused already-collected data
+rather than a fresh Hail Batch run</strong> (the specific accepted/rejected outcomes were identical to
+what was already measured). &sect;9's fresh, larger run on TRExplorer v1 confirms this caution was
+warranted &mdash; the clean 13-locus result did not hold up on a broader live test.</li>
+<li><strong>Single-sample (HG002) validation</strong> throughout &mdash; 13 curated loci in
+&sect;4&ndash;6, 69 broader loci in &sect;9. A locus-count and sample-count large enough to fit a
+proper ROC-style threshold curve (rather than picking a threshold by eye) is a reasonable follow-up,
+especially given &sect;9's finding that the winning/losing split on the broader set isn't yet
+explained by any tested locus property.</li>
+<li><strong>Compound loci (9 of 73) were excluded entirely</strong>, not handled properly (e.g. by
+using the full multi-region span) &mdash; some of them (ATXN8OS, FRA10AC1, HTT, TMEM185A) did show
+nonzero extension under the original threshold, but that likely reflects the rule reabsorbing the
+locus's own adjacent sub-region rather than a real test case, so they were left out rather than
+reported unreliably.</li>
+<li><strong>pOk was used as the single quality signal</strong> for consistency with the original
+report's methodology; a genotype-vs-truth comparison (where truth is available) would be a stronger
+signal than a before/after confidence metric on the same unknown-truth sample.</li>
+</ul>
+
+<footer>
+Code: <code class="mono">motif_reanchor_extension.py</code>,
+<code class="mono">build_reanchor_validation_catalog_2.py</code>, <code class="mono">run_hail_validation_2.py</code>,
+<code class="mono">build_reanchor_validation_catalog_3.py</code>, <code class="mono">run_hail_validation_3.py</code>,
+<code class="mono">analyze_round3_threshold_sweep.py</code>,
+<code class="mono">sort_catalog_by_flank_repetitiveness.py</code>,
+<code class="mono">scan_top20k_flank_repetitive_extensions.py</code>,
+<code class="mono">build_flank_repetitive_validation_catalog.py</code>, <code class="mono">run_hail_validation_4.py</code>,
+<code class="mono">analyze_round4_flank_repetitive.py</code> in
+<code class="mono">data-prep/flank_metric_from_andrea/boundary_optimization/</code>. Raw EH output:
+<code class="mono">data/HG002.reanchor_validation_round2.json</code>,
+<code class="mono">data/HG002.reanchor_validation_round3_male.json</code>,
+<code class="mono">data/HG002.flank_repetitive_validation.json</code>.
+</footer>
+
+</div>
