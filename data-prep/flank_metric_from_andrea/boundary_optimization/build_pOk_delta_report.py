@@ -700,10 +700,6 @@ Worse (&lt;&minus;0.05): {n_worse:,} loci ({100*n_worse/n_loci:.1f}%). Flat: {n_
 </div>
 <p class="subtitle">{len(SAMPLES)} 1kGP samples (up to 3 per Population/Gender group){subtitle_suffix}</p>
 
-<div class="callout">
-<strong>Allele pairing:</strong> original/extended alleles are paired by AlleleNumber when both definitions report the same genotype cardinality. When cardinality differs between definitions (e.g. homozygous under one, heterozygous under the other -- <strong>11.8%</strong> of paired locus/sample combinations in this dataset), the single allele is instead paired with the LARGER of the other definition's alleles (extending the reference window generally only grows measured allele size, so the larger allele is the more plausible continuation of the same physical copy); the smaller allele is left unpaired.
-</div>
-
 <h2 id="counts">1. How many loci were extended</h2>
 <p class="meta">Locus counts (not sample-dependent) across all {n_scanned_loci:,} Andrea v2-exact-match loci, split into extended vs. not extended by the gap-purity rule.</p>
 
