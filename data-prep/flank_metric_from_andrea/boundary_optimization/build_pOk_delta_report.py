@@ -116,18 +116,99 @@ def load_sample_pok(sample_id, exclude_near_reference=False):
 
 
 def pivot_paired(df, index_cols):
-    """Pivot df on 'definition' to wide columns 'original'/'extended' for pOk, keeping only rows
-    with a pOk under both definitions. When df's 'is_near_reference' column is populated
-    (--exclude-near-reference mode), also drop pairs where BOTH sides are near-reference -- this
-    applies the near-reference exclusion AFTER pairing, so a locus/sample can't be admitted by an
-    allele that never itself survives pairing (see load_sample_pok's docstring)."""
-    pok_wide = df.pivot_table(index=index_cols, columns="definition", values="pOk", aggfunc="first")
-    wide = pok_wide.dropna(subset=["original", "extended"])
+    """Pair 'original' and 'extended' pOk for each (base_locus_id, sample_id) in df, keeping only
+    pairs where both sides have a call. Returns one row per pair with columns: base_locus_id,
+    sample_id, original_allele_number, extended_allele_number, original (pOk), extended (pOk), plus
+    any of index_cols beyond base_locus_id/sample_id/allele_number (locus-level attributes such as
+    motif_size, passed through from a per-locus lookup).
+
+    Pairing is by AlleleNumber when both definitions report the SAME NUMBER of alleles for a
+    locus/sample. AlleleNumber is assigned independently within each definition's own
+    ExpansionHunter run, so it has no stable cross-definition meaning when genotype cardinality
+    differs (e.g. homozygous under one definition, heterozygous under the other -- ~11.8% of paired
+    locus/sample combinations in this dataset). In that case, the single allele is instead paired
+    with the LARGER of the other definition's alleles (extending the reference window generally only
+    grows measured allele size, so the larger allele is the more plausible continuation of the same
+    physical copy); the smaller allele is left unpaired and dropped.
+
+    When df's 'is_near_reference' column is populated (--exclude-near-reference mode), also drop
+    pairs where BOTH sides are near-reference -- this applies the near-reference exclusion AFTER
+    pairing, so a locus/sample can't be admitted by an allele that never itself survives pairing
+    (see load_sample_pok's docstring).
+    """
+    group_cols = ["base_locus_id", "sample_id"]
+    extra_cols = [c for c in index_cols if c not in group_cols + ["allele_number"]]
+    locus_attrs = df.drop_duplicates("base_locus_id")[["base_locus_id"] + extra_cols] if extra_cols else None
+
+    orig = df[df["definition"] == "original"]
+    ext = df[df["definition"] == "extended"]
+    counts = pd.DataFrame({
+        "original": orig.groupby(group_cols).size(),
+        "extended": ext.groupby(group_cols).size(),
+    }).dropna()
+    matched_keys = counts.index[counts["original"] == counts["extended"]]
+    hom_to_het_keys = counts.index[(counts["original"] == 1) & (counts["extended"] > 1)]
+    het_to_hom_keys = counts.index[(counts["original"] > 1) & (counts["extended"] == 1)]
+
+    def restrict(d, keys):
+        idx = d.set_index(group_cols)
+        return idx[idx.index.isin(keys)]
+
+    parts = []
+
+    matched = restrict(df, matched_keys).reset_index()
+    if len(matched):
+        m = matched.pivot_table(index=group_cols + ["allele_number"], columns="definition", values="pOk", aggfunc="first")
+        m = m.dropna(subset=["original", "extended"]).reset_index()
+        near_orig = matched.loc[matched["definition"] == "original", group_cols + ["allele_number", "is_near_reference"]]
+        near_ext = matched.loc[matched["definition"] == "extended", group_cols + ["allele_number", "is_near_reference"]]
+        m = m.merge(near_orig.rename(columns={"is_near_reference": "near_original"}), on=group_cols + ["allele_number"], how="left")
+        m = m.merge(near_ext.rename(columns={"is_near_reference": "near_extended"}), on=group_cols + ["allele_number"], how="left")
+        parts.append(pd.DataFrame({
+            "base_locus_id": m["base_locus_id"], "sample_id": m["sample_id"],
+            "original_allele_number": m["allele_number"], "extended_allele_number": m["allele_number"],
+            "original": m["original"], "extended": m["extended"],
+            "near_original": m["near_original"], "near_extended": m["near_extended"],
+        }))
+
+    def mismatched_part(single_side, multi_side, single_name, multi_name, keys):
+        single = restrict(single_side, keys).reset_index()
+        multi = restrict(multi_side, keys).reset_index()
+        if not len(single) or not len(multi):
+            return None
+        larger = multi.loc[multi.groupby(group_cols)["allele_size"].idxmax()]
+        merged = single.merge(larger, on=group_cols, suffixes=(f"_{single_name}", f"_{multi_name}"))
+        if not len(merged):
+            return None
+        return pd.DataFrame({
+            "base_locus_id": merged["base_locus_id"], "sample_id": merged["sample_id"],
+            f"{single_name}_allele_number": merged[f"allele_number_{single_name}"],
+            f"{multi_name}_allele_number": merged[f"allele_number_{multi_name}"],
+            single_name: merged[f"pOk_{single_name}"], multi_name: merged[f"pOk_{multi_name}"],
+            f"near_{single_name}": merged[f"is_near_reference_{single_name}"],
+            f"near_{multi_name}": merged[f"is_near_reference_{multi_name}"],
+        })
+
+    hh = mismatched_part(orig, ext, "original", "extended", hom_to_het_keys)
+    if hh is not None:
+        parts.append(hh)
+    he = mismatched_part(ext, orig, "extended", "original", het_to_hom_keys)
+    if he is not None:
+        parts.append(he)
+
+    wide = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(
+        columns=["base_locus_id", "sample_id", "original_allele_number", "extended_allele_number",
+                 "original", "extended", "near_original", "near_extended"])
+
     if df["is_near_reference"].notna().any():
-        near_wide = df.pivot_table(index=index_cols, columns="definition", values="is_near_reference", aggfunc="first")
-        both_near_reference = near_wide.reindex(wide.index)[["original", "extended"]].all(axis=1)
+        both_near_reference = wide["near_original"].fillna(False) & wide["near_extended"].fillna(False)
         wide = wide[~both_near_reference]
-    return wide.reset_index()
+    wide = wide.drop(columns=["near_original", "near_extended"])
+
+    if locus_attrs is not None:
+        wide = wide.merge(locus_attrs, on="base_locus_id", how="left")
+
+    return wide
 
 
 # Same width-2 (widening to width-5 beyond +/-20, open tails beyond +/-31) binning as
@@ -151,9 +232,13 @@ def bin_diff_from_ref(diff):
         return "0"
     sign = "-" if diff < 0 else "+"
     diff = abs(diff)
-    if 21 <= diff <= 25:
+    # diff is often fractional (ref_repeat_count = region_length / motif_length isn't always an
+    # integer) -- these bounds must have no gaps between them, or a fractional diff landing in a gap
+    # (e.g. 25 < diff < 26) falls through to the generic formula below and produces a label like
+    # "+25 to +26" that isn't in DIFF_FROM_REF_BIN_ORDER, silently dropping the row downstream.
+    if 21 <= diff < 26:
         return f"{sign}21 to {sign}25"
-    if 26 <= diff <= 30:
+    if 26 <= diff < 31:
         return f"{sign}26 to {sign}30"
     if diff >= 31:
         return f"{sign}31 or more"
@@ -177,16 +262,22 @@ def quantile_bin(df, value_col, n_bins=5):
         return pd.cut(df[value_col].rank(method="first"), bins=bins, include_lowest=True)
 
 
-def make_violin_figure(groups_by_label, filename, xlabel, legend_labels=None, colors=(BLUE_LIGHT,), big=False):
+def make_violin_figure(groups_by_label, filename, xlabel, legend_labels=None, colors=(BLUE_LIGHT,), big=False,
+                        tick_fontsize=None, label_fontsize=None):
     """groups_by_label: list of (x_label, [group_values...], [n_loci...]) -- 1 or more parallel groups
     (arrays) per bin, plus the number of distinct loci backing each series (for the "(n=...)" label --
     a series' value array has one entry per (locus, sample, allele), so len() would overcount loci).
     big: 1.5x taller figure and 2x label fonts (used for the Section 2 absolute-pOk plots).
+    tick_fontsize/label_fontsize: override the big/non-big default font sizes -- fig_width (and, via
+    the fig_height rule below, fig_height too) auto-grows with tick_fontsize, so bigger fonts don't
+    cause label collisions.
     """
     n_series = len(groups_by_label[0][1])
     fig_height = 6.75 if big else 4.5
-    tick_fontsize = 18 if big else 9
-    label_fontsize = 22 if big else 11
+    if tick_fontsize is None:
+        tick_fontsize = 18 if big else 9
+    if label_fontsize is None:
+        label_fontsize = 22 if big else 11
     xticklabels = []
     for lab, group_vals, n_loci in groups_by_label:
         ns = "/".join(f"{n:,}" for n in n_loci)
@@ -349,8 +440,8 @@ def main():
     # tool_comparison_viewer.html plots (which use the true/original reference, not an extended one).
     original_allele_size = andrea_long[andrea_long["definition"] == "original"][
         ["base_locus_id", "sample_id", "allele_number", "allele_size", "ref_repeat_count"]
-    ]
-    ext_wide = ext_wide.merge(original_allele_size, on=["base_locus_id", "sample_id", "allele_number"],
+    ].rename(columns={"allele_number": "original_allele_number"})
+    ext_wide = ext_wide.merge(original_allele_size, on=["base_locus_id", "sample_id", "original_allele_number"],
                                how="left", validate="one_to_one")
     ext_wide["diff_from_ref"] = ext_wide["allele_size"] - ext_wide["ref_repeat_count"]
     ext_wide["diff_from_ref_bin"] = ext_wide["diff_from_ref"].map(bin_diff_from_ref)
@@ -374,7 +465,7 @@ def main():
           [ext_wide.loc[ext_wide["diff_from_ref_bin"] == b, "base_locus_id"].nunique()])
          for b in present_diff_bins],
         f"delta_pOk_by_diff_from_ref{suffix}.svg", "Original allele size minus reference repeat count",
-        big=True,
+        big=True, tick_fontsize=24, label_fontsize=30,
     )
 
     # --- Section 2: absolute pOk, 3 groups -- original (pre-extension pOk of loci the rule DOES
@@ -387,10 +478,17 @@ def main():
     # just one of "original"/"extended", making them unmatched populations rather than the same loci
     # compared before/after extension. Loci the rule never touches have only "original" and need no
     # such pairing.
-    key_cols = ["base_locus_id", "sample_id", "allele_number"]
-    paired_index = pd.MultiIndex.from_frame(
-        pivot_paired(andrea_long[andrea_long["is_extended"]], index_cols=key_cols)[key_cols]
-    )
+    # pivot_paired can pair a locus/sample's single allele (one definition) with the LARGER of the
+    # other definition's two alleles (see its docstring) -- the two sides can therefore have
+    # DIFFERENT allele_number values for "the same" pair, so is_paired must be checked per-definition
+    # rather than assuming both definitions' rows for an allele_number are paired together.
+    key_cols = ["base_locus_id", "sample_id", "definition", "allele_number"]
+    pp = pivot_paired(andrea_long[andrea_long["is_extended"]], index_cols=["base_locus_id", "sample_id", "allele_number"])
+    orig_keys = pp[["base_locus_id", "sample_id", "original_allele_number"]].rename(columns={"original_allele_number": "allele_number"})
+    orig_keys["definition"] = "original"
+    ext_keys = pp[["base_locus_id", "sample_id", "extended_allele_number"]].rename(columns={"extended_allele_number": "allele_number"})
+    ext_keys["definition"] = "extended"
+    paired_index = pd.MultiIndex.from_frame(pd.concat([orig_keys, ext_keys], ignore_index=True)[key_cols])
     is_paired = andrea_long.set_index(key_cols).index.isin(paired_index)
     abs_df = andrea_long[~andrea_long["is_extended"] | is_paired].copy()
     abs_df["group"] = np.where(abs_df["is_extended"], abs_df["definition"], "not_extended")
@@ -602,6 +700,10 @@ Worse (&lt;&minus;0.05): {n_worse:,} loci ({100*n_worse/n_loci:.1f}%). Flat: {n_
 </div>
 <p class="subtitle">{len(SAMPLES)} 1kGP samples (up to 3 per Population/Gender group){subtitle_suffix}</p>
 
+<div class="callout">
+<strong>Allele pairing:</strong> original/extended alleles are paired by AlleleNumber when both definitions report the same genotype cardinality. When cardinality differs between definitions (e.g. homozygous under one, heterozygous under the other -- <strong>11.8%</strong> of paired locus/sample combinations in this dataset), the single allele is instead paired with the LARGER of the other definition's alleles (extending the reference window generally only grows measured allele size, so the larger allele is the more plausible continuation of the same physical copy); the smaller allele is left unpaired.
+</div>
+
 <h2 id="counts">1. How many loci were extended</h2>
 <p class="meta">Locus counts (not sample-dependent) across all {n_scanned_loci:,} Andrea v2-exact-match loci, split into extended vs. not extended by the gap-purity rule.</p>
 
@@ -617,7 +719,7 @@ Three groups: <strong>original</strong> = pOk of locus definitions pre-extension
 <strong>extended</strong> = pOk of the same loci post-extension; <strong>not extended</strong> =
 pOk of loci whose boundaries were not extended.
 <table>
-<tr><th>Group</th><th>n</th><th>mean pOk</th></tr>
+<tr><th>Group</th><th>distinct loci</th><th>mean pOk</th></tr>
 {"".join(f"<tr><td>{label}</td><td class='mono'>{int(abs_group_stats.loc[g,'n_loci']):,}</td><td class='mono'>{abs_group_stats.loc[g,'mean']:.4f}</td></tr>" for g, label in zip(ABS_GROUPS, ABS_GROUP_LABELS))}
 </table>
 </div>
@@ -633,7 +735,7 @@ pOk of loci whose boundaries were not extended.
 <h3>By motif size</h3>
 <div class="fig" onclick="openModal(this)">{svg_inline(fig_motif_size)}</div>
 <table>
-<tr><th>Motif size</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+<tr><th>Motif size</th><th>distinct loci</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
 {motif_size_table_rows}
 </table>
 
@@ -641,7 +743,7 @@ pOk of loci whose boundaries were not extended.
 <p class="meta">How closely the ORIGINAL locus's flanks already match a perfect repeat of its own motif, before extension (max of left/right).</p>
 <div class="fig" onclick="openModal(this)">{svg_inline(fig_fms_max)}</div>
 <table>
-<tr><th>max(flank_motif_similarity_left, flank_motif_similarity_right)</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+<tr><th>max(flank_motif_similarity_left, flank_motif_similarity_right)</th><th>distinct loci</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
 {fms_max_table_rows}
 </table>
 
@@ -649,7 +751,7 @@ pOk of loci whose boundaries were not extended.
 <p class="meta">Computed from the ORIGINAL (pre-extension) locus definition's own AlleleSize and reference repeat count.</p>
 <div class="fig" onclick="openModal(this)">{svg_inline(fig_diff_from_ref)}</div>
 <table>
-<tr><th>Original allele size &minus; reference repeat count</th><th>n</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
+<tr><th>Original allele size &minus; reference repeat count</th><th>distinct loci</th><th>mean &Delta;pOk</th><th>median &Delta;pOk</th></tr>
 {diff_from_ref_table_rows}
 </table>
 
