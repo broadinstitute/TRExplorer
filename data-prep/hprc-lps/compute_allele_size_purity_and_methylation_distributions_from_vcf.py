@@ -54,20 +54,32 @@ def bin_value(v):
     return round(round(v / 0.02) * 0.02, 2)
 
 
-def parse_struc_vc_span(struc):
-    """Returns the inner VC span from ``INFO/STRUC`` or ``""`` for non-VC rows.
+def parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based):
+    """Returns the VC span for a variation cluster record, or ``""`` for an isolated TR row.
 
-    For an isolated TR row, ``STRUC`` is ``<TR:locus-id>`` and this returns
-    ``""``. For a variation-cluster row, ``STRUC`` is ``<VC:chrom:start-end>``
-    and this returns ``chrom:start-end``. The VC span follows the no-``chr``
-    convention used by TRIDs in this catalog (e.g. ``13:102161564-102161724``).
+    Two catalog conventions are in circulation. In the older one the TRID holds the ids of the
+    repeats the cluster contains and ``STRUC`` holds the span, ``<VC:chrom:start-end>``. In the
+    newer one, which fixes the duplicate-TRID problem in
+    https://github.com/PacificBiosciences/trgt-lps/issues/5, the cluster gets its own TRID
+    ``VC:chrom:start-end`` and ``STRUC`` holds the repeat ids instead. Either way the span equals
+    the record's own coordinates, so derive it from those rather than from whichever field happens
+    to carry it. The span follows the no-``chr`` convention used by TRIDs in this catalog
+    (e.g. ``13:102161564-102161724``).
     """
-    if not struc.startswith("<VC:"):
+    if not struc.startswith("<VC:") and not trid.startswith("VC:"):
         return ""
-    end_idx = struc.find(">", 4)
-    if end_idx == -1:
-        return ""
-    return struc[4:end_idx]
+    return f"{_strip_chr(chrom)}:{vcf_start_0based}-{vcf_end_1based}"
+
+
+def parse_constituent_locus_ids(trid, struc):
+    """Returns the ids of the repeats a record covers, under either catalog convention.
+
+    A cluster written in the newer convention names itself in TRID and lists its repeats in
+    ``STRUC``; every other row lists them in TRID.
+    """
+    if trid.startswith("VC:") and struc.startswith("<VC:"):
+        return struc[4:-1].split(",") if struc.endswith(">") else struc[4:].split(",")
+    return trid.split(",")
 
 
 def _strip_chr(chrom):
@@ -166,7 +178,7 @@ def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_l
                 continue
 
             interval = f"{_strip_chr(chrom)}:{vcf_start_0based}-{vcf_end_1based}"
-            vc = parse_struc_vc_span(struc)
+            vc = parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based)
 
             motif_length = len(motifs)
 
@@ -240,7 +252,8 @@ def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_l
             # For an isolated TR this is the TRID itself; for a single-motif
             # compound TRID this is every listed LocusId ending in -{motif}.
             suffix = f"-{motifs}"
-            matching_locus_ids = [lid for lid in trid.split(",") if lid.endswith(suffix)]
+            matching_locus_ids = [lid for lid in parse_constituent_locus_ids(trid, struc)
+                                  if lid.endswith(suffix)]
             if not matching_locus_ids:
                 continue
             yield matching_locus_ids, interval, vc, purity_counters, methylation_counters

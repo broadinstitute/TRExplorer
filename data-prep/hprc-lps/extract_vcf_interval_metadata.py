@@ -40,14 +40,31 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 CHROMS_IN_OUTPUT_ORDER = [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY", "chrM"]
 
 
-def parse_struc_vc_span(struc):
-    """Returns the inner VC span from ``INFO/STRUC`` or ``""`` for non-VC rows."""
-    if not struc.startswith("<VC:"):
+def parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based):
+    """Returns the VC span for a variation cluster record, or ``""`` for an isolated TR row.
+
+    Two catalog conventions are in circulation. In the older one the TRID holds the ids of the
+    repeats the cluster contains and ``STRUC`` holds the span, ``<VC:chrom:start-end>``. In the
+    newer one, which fixes the duplicate-TRID problem in
+    https://github.com/PacificBiosciences/trgt-lps/issues/5, the cluster gets its own TRID
+    ``VC:chrom:start-end`` and ``STRUC`` holds the repeat ids instead. Either way the span equals
+    the record's own coordinates, so derive it from those rather than from whichever field
+    happens to carry it.
+    """
+    if not struc.startswith("<VC:") and not trid.startswith("VC:"):
         return ""
-    end_idx = struc.find(">", 4)
-    if end_idx == -1:
-        return ""
-    return struc[4:end_idx]
+    return f"{_strip_chr(chrom)}:{vcf_start_0based}-{vcf_end_1based}"
+
+
+def parse_constituent_locus_ids(trid, struc):
+    """Returns the ids of the repeats a record covers, under either catalog convention.
+
+    A cluster written in the newer convention names itself in TRID and lists its repeats in
+    ``STRUC``; every other row lists them in TRID.
+    """
+    if trid.startswith("VC:") and struc.startswith("<VC:"):
+        return struc[4:-1].split(",") if struc.endswith(">") else struc[4:].split(",")
+    return trid.split(",")
 
 
 def _strip_chr(chrom):
@@ -121,9 +138,9 @@ def parse_vcf_line(line):
             return ()
 
     interval = f"{_strip_chr(chrom)}:{vcf_start_0based}-{vcf_end_1based}"
-    vc = parse_struc_vc_span(struc)
+    vc = parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based)
 
-    locus_ids = trid.split(",")
+    locus_ids = parse_constituent_locus_ids(trid, struc)
 
     rows = []
     for motif in dict.fromkeys(motifs.split(",")):
