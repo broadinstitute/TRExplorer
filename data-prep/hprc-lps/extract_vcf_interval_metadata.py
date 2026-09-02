@@ -4,14 +4,17 @@ For each VCF record × motif, emits one row per matching LocusId:
 
     trid  locus_id  motif  interval  vc
 
-where ``trid`` is the full ``INFO/TRID`` (a single LocusId or a comma-
-separated list of LocusIds for a variation-cluster catalog row), ``locus_id``
-is one of the LocusIds in ``trid`` whose motif suffix matches the row's
-``motif`` (so a compound TRID listing three LocusIds that end in ``-AGAA``
+where ``trid`` is the full ``INFO/TRID`` (a single LocusId, a comma-separated
+list of LocusIds, or ``VC:chrom:start-end`` for a cluster under the newer
+convention), ``locus_id`` is one of the LocusIds the record covers whose motif
+suffix matches the row's ``motif`` -- read from ``INFO/TRID``, or from
+``INFO/STRUC`` when the TRID names the cluster itself (so a compound TRID listing three LocusIds that end in ``-AGAA``
 with motif ``AGAA`` emits three rows, one per LocusId, all sharing the same
 ``interval``/``vc``), ``interval`` is ``{chrom_no_chr}:{POS}-{END}``, and
-``vc`` is the inner ``<VC:...>`` span (e.g. ``13:102161564-102161724``) or
-``""`` for an isolated TR row (``<TR:...>``).
+``vc`` is the variation cluster's own span in that same form (e.g.
+``13:102161564-102161724``) or ``""`` for an isolated TR row. A cluster is
+recognized under either catalog convention: ``STRUC`` starting with ``<VC:``,
+or ``TRID`` starting with ``VC:``.
 
 Rows from the same VCF record share the same ``(trid, motif, interval, vc)``
 and appear consecutively in the output, so downstream consumers can group
@@ -24,14 +27,16 @@ re-parsing the 16 GB VCF.
 Parallelism: one worker per chromosome (using ``tabix`` to fetch records).
 Output is written in chrom order (1..22, X, Y, M).
 
-Caching: if the output exists and its mtime is newer than the input VCF's
-mtime, the script skips extraction. Pass ``--force`` to override.
+Caching: if the output exists and its mtime is newer than both the input VCF's
+mtime and this script's own mtime, the script skips extraction. Pass ``--force``
+to override.
 """
 
 import argparse
 import collections
 import gzip
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -76,7 +81,7 @@ def all_samples_no_call(fmt_fields, sample_fields):
 
     Matches the records that trgt-lps drops from its LPS output: an all-no-call
     VCF record contributes no LPS row, so the extract step must also skip it
-    to keep ``--vcf-interval-tsv`` row counts aligned with the LPS table.
+    to keep ``--vcf-trid-metadata-tsv`` row counts aligned with the LPS table.
     """
     if not fmt_fields or fmt_fields[0] != "GT":
         # No GT field in this record; can't decide — keep the record.
@@ -91,8 +96,10 @@ def all_samples_no_call(fmt_fields, sample_fields):
 def parse_vcf_line(line):
     """Parses a non-header VCF line and yields ``(trid, locus_id, motif, interval, vc)`` rows.
 
-    For each unique motif in ``INFO/MOTIFS``, emits one row per LocusId in
-    ``INFO/TRID`` whose suffix matches ``-{motif}``. Standalone TRs emit one
+    For each unique motif in ``INFO/MOTIFS``, emits one row per LocusId the record
+    covers whose suffix matches ``-{motif}``. Those LocusIds come from ``INFO/TRID``,
+    or from ``INFO/STRUC`` when the TRID names the cluster itself; see
+    ``parse_constituent_locus_ids``. Standalone TRs emit one
     row (the TRID is a single LocusId); compound TRGT rows can emit multiple
     rows per motif when several of the listed LocusIds share that motif.
 
@@ -196,10 +203,18 @@ def extract_chrom_to_tempfile(vcf_path, chrom, tmpdir):
 
 
 def output_is_fresh(output_path, vcf_path):
-    """Returns True if output_path exists and is newer than vcf_path."""
+    """Returns True if output_path exists and is newer than both vcf_path and this script.
+
+    The VCF is a fixed published artifact, so its mtime alone would never invalidate the
+    cache; an edit to the parsing below (which convention a cluster is recognized by, which
+    LocusIds a record expands to, which records are skipped) would leave a TSV produced by
+    the previous version of this code looking current, and the pipeline would join against
+    it. Include this file's own mtime so changing the parser re-extracts.
+    """
     if not os.path.isfile(output_path):
         return False
-    return os.path.getmtime(output_path) >= os.path.getmtime(vcf_path)
+    newest_input = max(os.path.getmtime(vcf_path), os.path.getmtime(__file__))
+    return os.path.getmtime(output_path) >= newest_input
 
 
 def main():
@@ -230,8 +245,11 @@ def main():
     # concat from leaving a partial gzip whose mtime is fresher than the VCF
     # (which would silently short-circuit future runs via output_is_fresh).
     tmp_output = args.output_tsv + ".tmp"
+    # Not a `with` block: its __exit__ shuts down without cancel_futures, so one worker's
+    # failure would still cost the full wall time of every chromosome queued behind it.
+    ex = ThreadPoolExecutor(max_workers=args.workers)
     try:
-        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        try:
             futures = {
                 ex.submit(extract_chrom_to_tempfile, args.input_vcf, chrom, tmpdir): chrom
                 for chrom in CHROMS_IN_OUTPUT_ORDER
@@ -240,6 +258,9 @@ def main():
                 chrom, path, count = fut.result()
                 chrom_results[chrom] = (path, count)
                 print(f"  {chrom}: {count:,d} rows -> {path}")
+        finally:
+            # Drops the chromosomes still queued; the ones already running finish.
+            ex.shutdown(wait=True, cancel_futures=True)
 
         # Concatenate per-chrom temp files in canonical order into the tmp output.
         total = 0
@@ -265,14 +286,10 @@ def main():
                 os.remove(tmp_output)
             except OSError:
                 pass
-        for path, _ in chrom_results.values():
-            if os.path.isfile(path):
-                os.remove(path)
-        if os.path.isdir(tmpdir):
-            try:
-                os.rmdir(tmpdir)
-            except OSError:
-                pass
+        # rmtree rather than removing the paths in chrom_results: on the error path that
+        # dict stopped being filled at the raise, so workers still running at that moment
+        # wrote temp files it never recorded.
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 if __name__ == "__main__":

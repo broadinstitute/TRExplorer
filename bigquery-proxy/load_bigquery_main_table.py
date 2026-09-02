@@ -779,9 +779,14 @@ chrom_indices.update({"X": 23, "Y": 24, "M": 25, "MT": 25})
 
 fasta_obj = pyfaidx.Fasta(args.reference_fasta, one_based_attributes=False, as_raw=True, sequence_always_upper=True)
 
-ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
+# Gzipped, because the upload is the slow part: this file is ~15 GB as plain NDJSON but ~1.5 GB
+# compressed, and BigQuery decompresses gzipped NDJSON on its side. At the ~3 MB/s uplink here that
+# turns a ~90 minute upload into ~10 minutes, and keeps the temp file small enough to fit on a
+# nearly-full disk (this load previously thrashed the machine into swap and had to be killed).
+# Level 6 rather than gzip's default 9: the extra compression is not worth the write time here.
+ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl.gz")
 atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
-ndjson_file = open(ndjson_path, "wt")
+ndjson_file = gzip.open(ndjson_path, "wt", compresslevel=6)
 print(f"Writing rows to {ndjson_path} for bulk load")
 locus_ids_with_added_disease_info = set()
 

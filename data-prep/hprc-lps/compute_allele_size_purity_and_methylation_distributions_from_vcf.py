@@ -4,11 +4,14 @@ allele size vs. methylation (AM) for each single-motif locus.
 Two gzipped TSVs are emitted (one per metric). One row is emitted per LocusId
 that matches the VCF record's motif: compound TRIDs (a comma-separated INFO/TRID
 field) produce one output row per LocusId, all sharing the same interval/vc.
-Each row carries three identifier columns: ``locus_id`` (one entry parsed from
-INFO/TRID), ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}``
-(always set), and ``vc`` = the inner span from ``INFO/STRUC`` if the row was
-genotyped as part of a variation cluster (``<VC:...>``) or the empty string for
-an isolated TR (``<TR:...>``). These three columns together uniquely identify
+Each row carries three identifier columns: ``locus_id`` (one of the LocusIds the
+record covers, read from INFO/TRID, or from INFO/STRUC when the TRID names a
+variation cluster itself), ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}``
+(always set), and ``vc`` = the variation cluster's own span
+``{chrom}:{vcf_start_0based}-{vcf_end_1based}`` when the row was genotyped as
+part of a cluster, or the empty string for an isolated TR. A cluster is
+recognized under either catalog convention: ``INFO/STRUC`` starting with
+``<VC:``, or ``INFO/TRID`` starting with ``VC:``. These three columns together uniquely identify
 the (LocusId, TRGT-interval) pair; a ``locus_id`` that appears in multiple
 intervals (once as a standalone TR and once or more inside a VC) emits multiple
 rows that differ in ``interval`` and ``vc``.
@@ -119,7 +122,7 @@ def build_sample_id_to_strata(df_metadata, sample_ids_to_include, stratify_by_po
 def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_loci=None):
     """Parse VCF and yield (locus_ids, interval, vc, purity_counters, methylation_counters) per locus.
 
-    ``locus_ids`` is the list of LocusIds (each ``chrom-start-end-motif``)
+    ``locus_ids`` is the list of LocusIds (each ``chrom-start-end-motif``) the record covers
     from ``INFO/TRID`` whose motif suffix matches the record's single
     ``INFO/MOTIFS`` value — exactly one LocusId for a standalone TR row, but
     multiple LocusIds for a compound TRID that lists several loci with the
@@ -130,8 +133,8 @@ def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_l
     purity_counters and methylation_counters are dicts mapping stratum label -> Counter
     of (repeat_count, binned_value) -> count. ``interval`` is
     ``{chrom}:{vcf_start_0based}-{vcf_end_1based}`` (no ``chr`` prefix); ``vc`` is
-    the inner ``<VC:...>`` span (e.g. ``13:102161564-102161724``) or ``""`` for an
-    isolated TR row.
+    the cluster's own span in that same form (e.g. ``13:102161564-102161724``), or
+    ``""`` for an isolated TR row.
     """
     opener = gzip.open if str(input_vcf).endswith(".gz") else open
     with opener(input_vcf, "rt") as f:

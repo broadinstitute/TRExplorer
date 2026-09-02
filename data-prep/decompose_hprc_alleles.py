@@ -4,7 +4,10 @@ Reads VCF lines from stdin (header `#` lines are ignored) and writes one
 parquet row per LocusId in ``INFO/TRID`` to ``--output``. A simple VCF
 record emits one row; a compound record (TRID is a comma-separated list of
 LocusIds for a variation-cluster catalog entry) emits one row per LocusId,
-each decomposed under the motif parsed from that LocusId. The per-LocusId
+each decomposed under the motif parsed from that LocusId. Under the newer
+catalog convention a cluster names itself in ``INFO/TRID`` (``VC:chrom:start-end``)
+and lists its constituent LocusIds in ``INFO/STRUC`` instead; those are read from
+STRUC. Records where every sample is a no-call emit no rows at all. The per-LocusId
 coordinates (``start_0based``/``end_1based``) and ``motifs`` come from the
 LocusId itself, not from VCF POS/END/MOTIFS, since TRGT sometimes extends
 VCF POS to anchor at an adjacent locus while keeping each LocusId faithful
@@ -14,9 +17,11 @@ every LocusId of the same VCF row.
 
 Each row also carries the TRGT interval that produced it:
 ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}`` (always set),
-and ``vc`` = the inner span from ``INFO/STRUC`` when the row was genotyped
-as part of a variation cluster (``<VC:...>``) or the empty string for an
-isolated TR (``<TR:...>``). These columns disambiguate the rows that share
+and ``vc`` = the variation cluster's own span in that same form when the row
+was genotyped as part of a cluster, or the empty string for an isolated TR.
+A cluster is recognized under either catalog convention: ``INFO/STRUC``
+starting with ``<VC:``, or ``INFO/TRID`` starting with ``VC:``.
+These columns disambiguate the rows that share
 a ``locus_id`` because the same LocusId was genotyped under multiple TRGT
 catalog intervals (e.g. once as a standalone TR and once inside a VC).
 
@@ -276,21 +281,51 @@ def format_allele_data(seq_counts, ref_repeat, motif):
     return ";".join(records)
 
 
-def parse_struc_vc_span(struc):
-    """Returns the inner VC span from ``INFO/STRUC`` or ``""`` for non-VC rows.
+def all_samples_no_call(fmt_fields, sample_fields):
+    """Returns True when every sample's GT is missing (``.`` / ``./.`` / ``.|.``).
 
-    For an isolated TR row, ``STRUC`` is ``<TR:locus-id>`` and this returns
-    ``""``. For a variation-cluster row, ``STRUC`` is ``<VC:chrom:start-end>``
-    and this returns ``chrom:start-end`` (the content between ``<VC:`` and the
-    first ``>``). The VC span follows the no-``chr`` convention used by TRIDs
-    in this catalog (e.g. ``13:102161564-102161724``).
+    Matches the records trgt-lps drops from its LPS output, and the same check
+    hprc-lps/extract_vcf_interval_metadata.py applies. Keeping the three producers of the
+    (locus_id, interval, vc) triple agreed on which records exist is what lets their
+    outputs be joined on it.
     """
-    if not struc.startswith("<VC:"):
+    if not fmt_fields or fmt_fields[0] != "GT":
+        # No GT field in this record; can't decide -- keep the record.
+        return False
+    for s in sample_fields:
+        gt = s.split(":", 1)[0]
+        if gt and gt not in (".", "./.", ".|."):
+            return False
+    return True
+
+
+def parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based):
+    """Returns the VC span for a variation cluster record, or ``""`` for an isolated TR row.
+
+    Two catalog conventions are in circulation. In the older one the TRID holds the ids of the
+    repeats the cluster contains and ``STRUC`` holds the span, ``<VC:chrom:start-end>``. In the
+    newer one, which fixes the duplicate-TRID problem in
+    https://github.com/PacificBiosciences/trgt-lps/issues/5, the cluster gets its own TRID
+    ``VC:chrom:start-end`` and ``STRUC`` holds the repeat ids instead. Either way the span equals
+    the record's own coordinates, so derive it from those rather than from whichever field
+    happens to carry it. The span follows the no-``chr`` convention used by TRIDs in this
+    catalog (e.g. ``13:102161564-102161724``).
+    """
+    if not struc.startswith("<VC:") and not trid.startswith("VC:"):
         return ""
-    end_idx = struc.find(">", 4)
-    if end_idx == -1:
-        return ""
-    return struc[4:end_idx]
+    chrom_no_prefix = chrom[3:] if chrom.startswith("chr") else chrom
+    return f"{chrom_no_prefix}:{vcf_start_0based}-{vcf_end_1based}"
+
+
+def parse_constituent_locus_ids(trid, struc):
+    """Returns the ids of the repeats a record covers, under either catalog convention.
+
+    A cluster written in the newer convention names itself in TRID and lists its repeats in
+    ``STRUC``; every other row lists them in TRID.
+    """
+    if trid.startswith("VC:") and struc.startswith("<VC:"):
+        return struc[4:-1].split(",") if struc.endswith(">") else struc[4:].split(",")
+    return trid.split(",")
 
 
 def parse_trid(trid):
@@ -362,7 +397,8 @@ def process_record(line):
     except ValueError:
         return
 
-    vc_span = parse_struc_vc_span(info_dict.get("STRUC", ""))
+    struc_field = info_dict.get("STRUC", "")
+    vc_span = parse_struc_vc_span(struc_field, trid_field, chrom, vcf_start_0based, vcf_end_1based)
 
     # Interval is the VCF chrom (no "chr" prefix) + POS-END, matching the
     # format used by extract_vcf_interval_metadata.py and
@@ -380,13 +416,17 @@ def process_record(line):
     raw_alts = [] if alt_field == "." else alt_field.split(",")
     alts = [a[1:] if a != "*" else a for a in raw_alts]
 
-    gt_idx = fmt.split(":").index("GT")
+    fmt_fields = fmt.split(":")
+    if all_samples_no_call(fmt_fields, sample_fields):
+        return
+
+    gt_idx = fmt_fields.index("GT")
     seq_counts, total_called = build_seq_counts(ref_repeat, alts, sample_fields, gt_idx)
     total_unique = len(seq_counts)
 
     chrom_idx_for_vcf = chrom_to_index(chrom)
 
-    for locus_id in trid_field.split(","):
+    for locus_id in parse_constituent_locus_ids(trid_field, struc_field):
         parsed = parse_trid(locus_id)
         if parsed is None:
             continue
@@ -508,7 +548,9 @@ def main():
     args = parser.parse_args()
 
     rows_written, vcf_lines_skipped = stream_vcf_to_parquet(sys.stdin, args.output, max_rows=args.max_rows)
-    print(f"Wrote {rows_written} rows to {args.output} (skipped {vcf_lines_skipped} unparseable VCF lines)")
+    # "no rows", not "unparseable": a well-formed all-no-call record is deliberately
+    # skipped to stay consistent with the other producers, and lands in this count too.
+    print(f"Wrote {rows_written} rows to {args.output} ({vcf_lines_skipped} VCF lines produced no rows)")
 
 
 if __name__ == "__main__":

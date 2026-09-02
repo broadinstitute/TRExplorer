@@ -15,10 +15,10 @@ BATCH_DIR=hprc-lps_2026-05-19
 VCF=$BATCH_DIR/trgt-hprc.unique_trids.vcf.gz
 OUT=$BATCH_DIR/hprc-lps.unique_trids.txt.gz
 WORK=$BATCH_DIR/lps_per_chrom
-# Deliberately well below the machine's core count. At 12 this saturated ~11.5 of 14 cores and
-# the run was stopped twice from outside the script; a lighter footprint also narrows the
-# window for the rayon race in trgt-lps 0.11.0 that this script exists to retry around.
-THREADS=4
+# 12 of the machine's 14 cores. Dropping to 4 was tried and did not stop the run being killed from
+# outside the script, so the lighter footprint bought nothing while making each chromosome roughly
+# three times slower. The retry loop below covers the rayon race that more threads make likelier.
+THREADS=12
 MAX_ATTEMPTS=4
 
 CHROMS=$(for i in $(seq 1 22); do echo chr$i; done; echo chrX; echo chrY; echo chrM)
@@ -58,6 +58,15 @@ if [[ "$(cat "$FINGERPRINT_FILE" 2>/dev/null)" != "$fingerprint" ]]; then
         echo "=== $(date '+%H:%M:%S')  cached chromosome tables do not match $VCF; discarding them"
         echo "    so the output cannot mix results computed from two different VCFs"
         rm -f "$WORK"/*.txt
+    fi
+    # $OUT was concatenated from the tables just discarded, so it describes the previous
+    # input. Move it aside now rather than at the end: a chromosome that exhausts its
+    # retries, or an interrupted run, exits long before the concatenation below, and would
+    # otherwise leave a table from the old VCF sitting at the canonical path next to the
+    # new one, looking current.
+    if [[ -e "$OUT" ]]; then
+        echo "=== $(date '+%H:%M:%S')  $OUT was built from the previous input; moving it to $OUT.stale"
+        mv "$OUT" "$OUT.stale"
     fi
 fi
 printf '%s\n' "$fingerprint" > "$FINGERPRINT_FILE"

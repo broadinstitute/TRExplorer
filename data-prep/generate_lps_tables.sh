@@ -12,8 +12,10 @@
 #        we symlink the outputs into the legacy hprc-lps/ directory so the
 #        purity/methylation BQ loader's defaults still work without --flag overrides.
 #   3. run_decompose_hprc_alleles.py
-#        Hail Batch dispatcher: VCF -> trviz decomposed-alleles parquet. The
-#        orchestrator passes --force so worker-script edits always reach Batch.
+#        Hail Batch dispatcher: VCF -> trviz decomposed-alleles parquet. The worker
+#        script is re-uploaded on every dispatch, so local edits always reach Batch.
+#        This is the one step that does NOT read $VCF: it pins its own GCS path (see
+#        the note at the $VCF assignment below).
 #   4. convert_multisample_LPS_table_to_allele_frequency_histograms.py
 #        Two invocations sharing the same VCF interval map + LPS table:
 #          4a) --stratify-by-population --stratify-by-sex -> the all-strata file
@@ -35,9 +37,29 @@ DECOMPOSE_SCRIPT=run_decompose_hprc_alleles.py
 BATCH_DIR=hprc-lps_2026-05-19
 LEGACY_DIR=hprc-lps
 META=$BATCH_DIR/1kGP_metadata.tsv
-LPS_TABLE=$BATCH_DIR/hprc-lps.txt.gz
-VCF=$BATCH_DIR/trgt-hprc.vcf.gz
-INTERVAL_TSV=$BATCH_DIR/trgt-hprc.interval_metadata.tsv.gz
+# The unique-TRID pair produced by hprc-lps/regenerate_unique_trid_vcf_and_lps.sh, NOT the
+# original trgt-hprc.vcf.gz / hprc-lps.txt.gz. In the originals a variation cluster carries
+# the TRID of a repeat it contains, so the two collide on the (trid, motif) key that step 4
+# joins on and their allele sizes get written under each other's interval. See
+# https://github.com/PacificBiosciences/trgt-lps/issues/5. Step 4 now refuses to run on an
+# ambiguous key rather than pairing by stream order, so pointing these back at the originals
+# fails loudly instead of silently corrupting the tables.
+LPS_TABLE=$BATCH_DIR/hprc-lps.unique_trids.txt.gz
+VCF=$BATCH_DIR/trgt-hprc.unique_trids.vcf.gz
+INTERVAL_TSV=$BATCH_DIR/trgt-hprc.unique_trids.interval_metadata.tsv.gz
+
+# Each producer names its outputs after its own input, so derive the stems here rather than
+# hardcoding them; that way repointing the two paths above moves steps 1, 2 and 4 together.
+#
+# Step 3 is the exception: run_decompose_hprc_alleles.py reads its input from a GCS path it
+# hardcodes (VCF_GCS_PATH, still the original trgt-hprc.vcf.gz) and takes no VCF argument, so
+# it does not follow $VCF. That is safe rather than merely tolerated: rewrite_vc_trids_in_vcf.py
+# moves the old TRID verbatim into STRUC, and decompose_hprc_alleles.py reads clusters under
+# either convention, so it emits identical (locus_id, interval, vc) triples from either VCF and
+# its output still joins against the other producers'. Repointing it needs the rewritten VCF and
+# a matching .gbi in the bucket first.
+LPS_STEM=$(basename "$LPS_TABLE" | sed -E 's/\.(txt|tsv)(\.gz)?$//')
+VCF_STEM=$(basename "$VCF" | sed -E 's/\.vcf(\.gz)?$//')
 
 for required in "$META" "$LPS_TABLE" "$VCF" "$VCF.tbi" \
                 "$SCRIPT" "$EXTRACT_SCRIPT" "$PURITY_METH_SCRIPT" "$DECOMPOSE_SCRIPT"; do
@@ -67,8 +89,8 @@ python3 "$PURITY_METH_SCRIPT" \
 # BQ purity/methylation loader's defaults look in $LEGACY_DIR. Symlink the
 # produced files into $LEGACY_DIR so the loader works without --flag overrides.
 N_SAMPLES=256
-PURITY_OUT="$BATCH_DIR/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
-METH_OUT="$BATCH_DIR/trgt-hprc.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+PURITY_OUT="$BATCH_DIR/${VCF_STEM}.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+METH_OUT="$BATCH_DIR/${VCF_STEM}.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
 mkdir -p "$LEGACY_DIR"
 # rm -f first so we never leave a stale real file from a prior run shadowing
 # the canonical symlink path. ln -sf alone replaces an existing entry, but
@@ -76,9 +98,21 @@ mkdir -p "$LEGACY_DIR"
 # convention obvious.
 PURITY_LINK="$LEGACY_DIR/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
 METH_LINK="$LEGACY_DIR/trgt-hprc.methylation.stratified.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
-rm -f "$PURITY_LINK" "$METH_LINK"
-ln -s "../$PURITY_OUT" "$PURITY_LINK"
-ln -s "../$METH_OUT"   "$METH_LINK"
+# The paths above are predicted from N_SAMPLES, but the producer names its outputs after the
+# sample count it computes at runtime (VCF header intersected with the metadata). Check before
+# relinking, as step 4 does, so a divergence leaves the existing link alone and says so instead
+# of replacing it with a dangling one.
+link_if_present() {
+    local produced="$1" link="$2"
+    if [[ -e "$produced" ]]; then
+        rm -f "$link"
+        ln -s "../$produced" "$link"
+    else
+        echo "WARNING: expected output not found at $produced; leaving $link as-is" >&2
+    fi
+}
+link_if_present "$PURITY_OUT" "$PURITY_LINK"
+link_if_present "$METH_OUT"   "$METH_LINK"
 echo "[done] step 2: purity + methylation stratified TSVs (symlinked into $LEGACY_DIR for BQ loader defaults)"
 
 echo
@@ -91,7 +125,7 @@ echo "gs://...decomposed_alleles/, so concurrent runs can't clobber each other."
 echo "Worker script is re-uploaded unconditionally so local edits always reach"
 echo "the cluster. To resume a prior interrupted run, pass --run-id <timestamp>."
 python3 "$DECOMPOSE_SCRIPT"
-echo "[done] step 3: decompose pipeline submitted"
+echo "[done] step 3: decompose pipeline finished"
 
 echo
 echo "============================================================"
@@ -111,7 +145,7 @@ echo "  4a) stratified by population x sex"
 python3 "$SCRIPT" \
     --sample-metadata-tsv "$META" \
     --input-table "$LPS_TABLE" \
-    --vcf-interval-tsv "$INTERVAL_TSV" \
+    --vcf-trid-metadata-tsv "$INTERVAL_TSV" \
     --stratify-by-population \
     --stratify-by-sex
 
@@ -119,16 +153,18 @@ echo "  4b) non-stratified"
 python3 "$SCRIPT" \
     --sample-metadata-tsv "$META" \
     --input-table "$LPS_TABLE" \
-    --vcf-interval-tsv "$INTERVAL_TSV"
+    --vcf-trid-metadata-tsv "$INTERVAL_TSV"
 
 # Symlink both produced files into $LEGACY_DIR so the BQ loaders' default
 # --input paths resolve. rm -f first so any stale real file from a prior run
 # (legacy hprc-lps/ contents predate this script's symlink convention) does
 # not shadow the canonical path.
+# The produced files carry the input table's stem; the symlink names are the stable ones the
+# BQ loaders default to, so they stay put no matter which snapshot they currently point at.
+STRATIFIED_OUT="$BATCH_DIR/${LPS_STEM}.per_locus_and_motif.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
+UNSTRATIFIED_OUT="$BATCH_DIR/${LPS_STEM}.per_locus_and_motif.${N_SAMPLES}_samples.tsv.gz"
 STRATIFIED_BASENAME="hprc-lps.per_locus_and_motif.by_population.by_sex.${N_SAMPLES}_samples.tsv.gz"
-STRATIFIED_OUT="$BATCH_DIR/$STRATIFIED_BASENAME"
 UNSTRATIFIED_BASENAME="hprc-lps.per_locus_and_motif.${N_SAMPLES}_samples.tsv.gz"
-UNSTRATIFIED_OUT="$BATCH_DIR/$UNSTRATIFIED_BASENAME"
 for f in "$STRATIFIED_OUT" "$UNSTRATIFIED_OUT"; do
     if [[ ! -e "$f" ]]; then
         echo "WARNING: expected convert output not found at $f" >&2
@@ -148,7 +184,8 @@ echo
 echo "============================================================"
 echo "Local steps complete: extract + purity/methylation + convert finished."
 echo
-echo "IMPORTANT: step 3 (decompose) was dispatched to Hail Batch and is still"
-echo "running asynchronously. Do NOT run load_bigquery_trviz_allele_decompositions.py"
-echo "until the Batch pipeline reports completion (monitor in the Batch web UI)."
+echo "Step 3 (decompose) ran to completion too: run_decompose_hprc_alleles.py calls"
+echo "bp.run(), which blocks until the Hail Batch finishes, so reaching this line means"
+echo "the decomposed-alleles parquet is written and load_bigquery_trviz_allele_decompositions.py"
+echo "can be run. (A failed batch aborts this script at step 3 under set -e instead.)"
 echo "============================================================"

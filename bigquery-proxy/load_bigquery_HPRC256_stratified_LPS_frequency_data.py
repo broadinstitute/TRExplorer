@@ -133,10 +133,15 @@ def main():
                 f"run with --stratify-by-population --stratify-by-sex). First missing: {missing[:5]}"
             )
 
-        ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
+        # Gzipped, because the upload is the slow part: this file is ~15 GB as plain NDJSON but
+        # ~1.5 GB compressed, and BigQuery decompresses gzipped NDJSON on its side. At the ~3 MB/s
+        # uplink here that turns a ~90 minute upload into ~10 minutes, and keeps the temp file
+        # small enough to fit on a nearly-full disk. Level 6 rather than gzip's default 9: the
+        # extra compression is not worth the write time when the file is this large.
+        ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl.gz")
         atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
         rows_loaded = 0
-        with open(ndjson_path, "wt") as ndjson_file:
+        with gzip.open(ndjson_path, "wt", compresslevel=6) as ndjson_file:
             for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
                 fields = line.rstrip("\n").split("\t")
                 if len(fields) != len(header):
