@@ -285,7 +285,7 @@ def all_samples_no_call(fmt_fields, sample_fields):
     """Returns True when every sample's GT is missing (``.`` / ``./.`` / ``.|.``).
 
     Matches the records trgt-lps drops from its LPS output, and the same check
-    hprc-lps/extract_vcf_interval_metadata.py applies. Keeping the three producers of the
+    str_analysis/extract_trid_metadata_from_TRGT_vcf.py applies. Keeping the three producers of the
     (locus_id, interval, vc) triple agreed on which records exist is what lets their
     outputs be joined on it.
     """
@@ -401,7 +401,7 @@ def process_record(line):
     vc_span = parse_struc_vc_span(struc_field, trid_field, chrom, vcf_start_0based, vcf_end_1based)
 
     # Interval is the VCF chrom (no "chr" prefix) + POS-END, matching the
-    # format used by extract_vcf_interval_metadata.py and
+    # format used by extract_trid_metadata_from_TRGT_vcf.py and
     # compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
     # Using the VCF chrom (rather than the TRID's chrom) keeps the three
     # producer scripts aligned even for catalogs whose TRIDs include "chr".

@@ -4,7 +4,7 @@
 # pre-computed trgt-lps wide-format TSV.
 #
 # Pipeline:
-#   1. extract_vcf_interval_metadata.py
+#   1. extract_trid_metadata_from_TRGT_vcf.py
 #        VCF -> small (trid, locus_id, motif, interval, vc) TSV used by step 4.
 #   2. compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 #        VCF -> stratified allele-size-vs-purity + allele-size-vs-methylation
@@ -31,7 +31,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 SCRIPT=hprc-lps/convert_multisample_LPS_table_to_allele_frequency_histograms.py
-EXTRACT_SCRIPT=hprc-lps/extract_vcf_interval_metadata.py
+EXTRACT_SCRIPT=hprc-lps/extract_trid_metadata_from_TRGT_vcf.py
 PURITY_METH_SCRIPT=hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 DECOMPOSE_SCRIPT=run_decompose_hprc_alleles.py
 BATCH_DIR=hprc-lps_2026-05-19
@@ -70,7 +70,7 @@ for required in "$META" "$LPS_TABLE" "$VCF" "$VCF.tbi" \
 done
 
 echo "============================================================"
-echo "Step 1/4: extract_vcf_interval_metadata.py"
+echo "Step 1/4: extract_trid_metadata_from_TRGT_vcf.py"
 echo "============================================================"
 python3 "$EXTRACT_SCRIPT" --input-vcf "$VCF" --output-tsv "$INTERVAL_TSV"
 echo "[done] step 1: $INTERVAL_TSV"

@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 SCRIPT=hprc-lps/convert_multisample_LPS_table_to_allele_frequency_histograms.py
-EXTRACT_SCRIPT=hprc-lps/extract_vcf_interval_metadata.py
+EXTRACT_SCRIPT=hprc-lps/extract_trid_metadata_from_TRGT_vcf.py
 META=hprc-lps_2026-05-19/1kGP_metadata.tsv
 # The unique-TRID pair, matching generate_lps_tables.sh. The originals give a variation
 # cluster the TRID of a repeat it contains, which the convert script now rejects rather
