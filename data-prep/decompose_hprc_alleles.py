@@ -19,8 +19,9 @@ Each row also carries the TRGT interval that produced it:
 ``interval`` = ``{chrom}:{vcf_start_0based}-{vcf_end_1based}`` (always set),
 and ``vc`` = the variation cluster's own span in that same form when the row
 was genotyped as part of a cluster, or the empty string for an isolated TR.
-A cluster is recognized under either catalog convention: ``INFO/STRUC``
-starting with ``<VC:``, or ``INFO/TRID`` starting with ``VC:``.
+A cluster is recognized under any of the catalog conventions in circulation:
+``INFO/STRUC`` starting with ``<VC``, which covers both the bare counter
+``<VC1>`` and ``<VC:chrom:start-end>``, or ``INFO/TRID`` starting with ``VC:``.
 These columns disambiguate the rows that share
 a ``locus_id`` because the same LocusId was genotyped under multiple TRGT
 catalog intervals (e.g. once as a standalone TR and once inside a VC).
@@ -302,23 +303,27 @@ def all_samples_no_call(fmt_fields, sample_fields):
 def parse_struc_vc_span(struc, trid, chrom, vcf_start_0based, vcf_end_1based):
     """Returns the VC span for a variation cluster record, or ``""`` for an isolated TR row.
 
-    Two catalog conventions are in circulation. In the older one the TRID holds the ids of the
-    repeats the cluster contains and ``STRUC`` holds the span, ``<VC:chrom:start-end>``. In the
-    newer one, which fixes the duplicate-TRID problem in
-    https://github.com/PacificBiosciences/trgt-lps/issues/5, the cluster gets its own TRID
-    ``VC:chrom:start-end`` and ``STRUC`` holds the repeat ids instead. Either way the span equals
-    the record's own coordinates, so derive it from those rather than from whichever field
+    Three catalog conventions are in circulation. The v1.0.1 variation_clusters_and_isolated_TRs
+    catalog, the one the gnomAD-LR pipeline ran TRGT against, puts the comma-joined repeat ids in
+    the TRID and writes ``STRUC`` as a bare counter, ``<VC1>``, ``<VC2>``, which carries no span at
+    all. A later convention keeps the ids in the TRID but writes the span into ``STRUC``,
+    ``<VC:chrom:start-end>``. The newest one, which fixes the duplicate-TRID problem in
+    https://github.com/PacificBiosciences/trgt-lps/issues/5, gives the cluster its own TRID
+    ``VC:chrom:start-end`` and moves the repeat ids into ``STRUC``.
+
+    All three put the span on the record itself, so derive it from POS and END rather than from
+    whichever field
     happens to carry it. The span follows the no-``chr`` convention used by TRIDs in this
     catalog (e.g. ``13:102161564-102161724``).
     """
-    if not struc.startswith("<VC:") and not trid.startswith("VC:"):
+    if not struc.startswith("<VC") and not trid.startswith("VC:"):
         return ""
     chrom_no_prefix = chrom[3:] if chrom.startswith("chr") else chrom
     return f"{chrom_no_prefix}:{vcf_start_0based}-{vcf_end_1based}"
 
 
 def parse_constituent_locus_ids(trid, struc):
-    """Returns the ids of the repeats a record covers, under either catalog convention.
+    """Returns the ids of the repeats a record covers, under any of the catalog conventions.
 
     A cluster written in the newer convention names itself in TRID and lists its repeats in
     ``STRUC``; every other row lists them in TRID.
