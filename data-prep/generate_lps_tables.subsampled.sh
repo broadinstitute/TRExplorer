@@ -8,8 +8,6 @@ set -euo pipefail
 # matching generate_lps_tables.sh.
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-SCRIPT=hprc-lps/convert_multisample_LPS_table_to_allele_frequency_histograms.py
-EXTRACT_SCRIPT=hprc-lps/extract_vcf_interval_metadata.py
 META=hprc-lps_2026-05-19/1kGP_metadata.tsv
 # The unique-TRID pair, matching generate_lps_tables.sh. The originals give a variation
 # cluster the TRID of a repeat it contains, which the convert script now rejects rather
@@ -19,7 +17,8 @@ LPS_TABLE=hprc-lps_2026-05-19/hprc-lps.unique_trids.txt.gz
 VCF=hprc-lps_2026-05-19/trgt-hprc.unique_trids.vcf.gz
 INTERVAL_TSV=hprc-lps_2026-05-19/trgt-hprc.unique_trids.interval_metadata.tsv.gz
 
-python3 "$EXTRACT_SCRIPT" --input-vcf "$VCF" --output-tsv "$INTERVAL_TSV"
+python3 -m str_analysis.extract_trid_metadata_from_TRGT_vcf \
+    --input-vcf "$VCF" --output-tsv "$INTERVAL_TSV"
 
 # Each convert loads the whole interval map (~2.5 GB for the HPRC256 input) before it
 # starts streaming, regardless of --num-samples, so the fan-out is bounded by RAM rather
@@ -41,7 +40,7 @@ reap_one() {
 
 for n in 10 20 30 40 50 60 70 80 90; do
     while (( ${#pids[@]} - reaped >= MAX_JOBS )); do reap_one; done
-    python3 "$SCRIPT" --sample-metadata-tsv "$META" --input-table "$LPS_TABLE" \
+    python3 -m str_analysis.convert_multisample_LPS_table_to_allele_frequency_histograms --sample-metadata-tsv "$META" --input-table "$LPS_TABLE" \
         --vcf-trid-metadata-tsv "$INTERVAL_TSV" --population "$population" --num-samples "$n" &
     pids[${#pids[@]}]=$!
 done

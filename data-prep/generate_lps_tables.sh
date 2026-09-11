@@ -4,7 +4,7 @@
 # pre-computed trgt-lps wide-format TSV.
 #
 # Pipeline:
-#   1. extract_vcf_interval_metadata.py
+#   1. str_analysis.extract_trid_metadata_from_TRGT_vcf
 #        VCF -> small (trid, locus_id, motif, interval, vc) TSV used by step 4.
 #   2. compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 #        VCF -> stratified allele-size-vs-purity + allele-size-vs-methylation
@@ -30,8 +30,6 @@ set -euo pipefail
 # anywhere (e.g. `bash data-prep/generate_lps_tables.sh` from the repo root).
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-SCRIPT=hprc-lps/convert_multisample_LPS_table_to_allele_frequency_histograms.py
-EXTRACT_SCRIPT=hprc-lps/extract_vcf_interval_metadata.py
 PURITY_METH_SCRIPT=hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
 DECOMPOSE_SCRIPT=run_decompose_hprc_alleles.py
 BATCH_DIR=hprc-lps_2026-05-19
@@ -62,7 +60,7 @@ LPS_STEM=$(basename "$LPS_TABLE" | sed -E 's/\.(txt|tsv)(\.gz)?$//')
 VCF_STEM=$(basename "$VCF" | sed -E 's/\.vcf(\.gz)?$//')
 
 for required in "$META" "$LPS_TABLE" "$VCF" "$VCF.tbi" \
-                "$SCRIPT" "$EXTRACT_SCRIPT" "$PURITY_METH_SCRIPT" "$DECOMPOSE_SCRIPT"; do
+                "$PURITY_METH_SCRIPT" "$DECOMPOSE_SCRIPT"; do
     if [[ ! -e "$required" ]]; then
         echo "ERROR: required input file not found: $required" >&2
         exit 1
@@ -70,9 +68,10 @@ for required in "$META" "$LPS_TABLE" "$VCF" "$VCF.tbi" \
 done
 
 echo "============================================================"
-echo "Step 1/4: extract_vcf_interval_metadata.py"
+echo "Step 1/4: str_analysis.extract_trid_metadata_from_TRGT_vcf"
 echo "============================================================"
-python3 "$EXTRACT_SCRIPT" --input-vcf "$VCF" --output-tsv "$INTERVAL_TSV"
+python3 -m str_analysis.extract_trid_metadata_from_TRGT_vcf \
+    --input-vcf "$VCF" --output-tsv "$INTERVAL_TSV"
 echo "[done] step 1: $INTERVAL_TSV"
 
 echo
@@ -142,7 +141,7 @@ echo "============================================================"
 # fan-out (peak ~18-30 GB on a workstation), and guarantees the stratified
 # and non-stratified files are derived from the same source snapshot.
 echo "  4a) stratified by population x sex"
-python3 "$SCRIPT" \
+python3 -m str_analysis.convert_multisample_LPS_table_to_allele_frequency_histograms \
     --sample-metadata-tsv "$META" \
     --input-table "$LPS_TABLE" \
     --vcf-trid-metadata-tsv "$INTERVAL_TSV" \
@@ -150,7 +149,7 @@ python3 "$SCRIPT" \
     --stratify-by-sex
 
 echo "  4b) non-stratified"
-python3 "$SCRIPT" \
+python3 -m str_analysis.convert_multisample_LPS_table_to_allele_frequency_histograms \
     --sample-metadata-tsv "$META" \
     --input-table "$LPS_TABLE" \
     --vcf-trid-metadata-tsv "$INTERVAL_TSV"
