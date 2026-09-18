@@ -191,3 +191,24 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Large data files and pipeline outputs (see data-prep/)
+*.vcf
+*.vcf.gz
+*.json.gz
+*.npz
+*.gbi
+*.csi
+data/
+
+# Local tooling output
+.code_review/
+.code_review_local/
+.playwright-mcp/
+.prompts/
+.stfolder/
+
+# Local Claude Code files (session history now lives in .memory/)
+CLAUDE.md
+CLAUDE_HISTORY.md
+CLAUDE_HISTORY_*.md
