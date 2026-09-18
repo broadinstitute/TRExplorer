@@ -13,9 +13,11 @@ from google.cloud import bigquery, storage
 BIGQUERY_PROJECT = "cmg-analysis"
 BIGQUERY_DATASET = "tandem_repeat_explorer"
 
-# Cap bytes scanned per query to 50 GB (the catalog table is ~5 GB, so a full-table read
-# fits within this cap; bounds cost-drain attacks even if the SQL gate is bypassed).
-MAX_BYTES_BILLED = 50 * 1024 ** 3
+# Cap bytes scanned per query to 10 GB (the catalog table is ~5 GB, so a full-table read
+# fits within this cap; bounds cost-drain attacks even if the SQL gate is bypassed). The
+# largest single query the site issued over the preceding 30 days scanned 5.93 GB, so this
+# leaves ~1.7x headroom over observed real usage.
+MAX_BYTES_BILLED = 10 * 1024 ** 3
 
 # Cache the SA email + signing-capable credentials across invocations of the
 # warm Cloud Function instance.
