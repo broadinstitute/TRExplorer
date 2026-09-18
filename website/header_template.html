@@ -1976,9 +1976,12 @@ gtag('config', 'G-6R8FPBQRFH');
                     Annear2021:                      "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Annear et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[16]</i></span>",
                     Hause2016:                       "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Hause et al. 2016 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[17]</i></span>",
                     VamosV3:                         "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Vamos v3 catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[18]</i></span>",
+                    ExtendedLocusBoundaries:         "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2.1<br /><br /><b>Original source:</b> TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions'>v2.1 &nbsp; <i>[19]</i></span>",
                 }
                 const [version, sourceCatalog] = row['Source'].split(':')
-                return sourceCatalogNameMap[sourceCatalog]
+                // Fall back to the raw value so a source that isn't in the map above shows
+                // something rather than rendering as undefined.
+                return sourceCatalogNameMap[sourceCatalog] || row['Source']
             },
             getSortColumns: () => ['Source'],
             getRequiredColumns: () => ['Source'],

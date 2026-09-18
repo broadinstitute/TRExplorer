@@ -2868,6 +2868,13 @@
                 }
             }
 
+            // The catalog dropdown lives in the advanced filter panel, so while that panel is
+            // hidden the search scopes itself to the default catalog (v2) instead of querying
+            // the whole table, which also holds the v2.1 draft loci.
+            if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+                conditions.push("Source NOT LIKE 'TRExplorerV2.1%'")
+            }
+
             if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
 
                 // Add source catalog condition
