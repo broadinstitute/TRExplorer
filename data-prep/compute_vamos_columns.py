@@ -5,12 +5,11 @@ import argparse
 import collections
 import gzip
 import os
-import requests
 import tqdm
 
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
-from str_analysis.utils.misc_utils import get_json_iterator, parse_interval
-from str_analysis.utils.eh_catalog_utils import group_overlapping_loci
+from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator, group_overlapping_loci
+from str_analysis.utils.misc_utils import parse_interval
 
 
 def get_reference_region_size(record):
@@ -46,14 +45,9 @@ def main():
 
     # Read catalog data
     print(f"Reading catalog from {args.catalog_path}")
-    is_gzipped = args.catalog_path.endswith('gz')
-    if args.catalog_path.startswith("http"):
-        response = requests.get(args.catalog_path)
-        catalog = get_json_iterator(response.content, is_gzipped)
-    elif os.path.isfile(os.path.expanduser(args.catalog_path)):
-        catalog = get_json_iterator(os.path.expanduser(args.catalog_path), is_gzipped)
-    else:
+    if not args.catalog_path.startswith("http") and not os.path.isfile(os.path.expanduser(args.catalog_path)):
         parser.error(f"Invalid catalog path: {args.catalog_path}")
+    catalog = get_variant_catalog_iterator(args.catalog_path)
 
     counters = collections.Counter()
 
