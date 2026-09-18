@@ -236,6 +236,12 @@
                             <i class="dropdown icon"></i>
                             <div class="default text">Select catalog</div>
                             <div class="menu">
+                                <div class="item" data-value="tr_explorer_catalog_v2_1">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span style="white-space: nowrap;">TRExplorer catalog v2.1 draft</span>
+                                        <span style="color: #888; margin-left: 20px; white-space: nowrap;">5,657,793 loci</span>
+                                    </div>
+                                </div>
                                 <div class="item" data-value="tr_explorer_catalog_v2">
                                     <div style="display: flex; justify-content: space-between; width: 100%;">
                                         <span style="white-space: nowrap;">TRExplorer catalog v2</span>
@@ -2868,8 +2874,11 @@
                 const sourceCatalog = $('#source-catalog-dropdown').dropdown('get value')
                 if (sourceCatalog) {
                     switch (sourceCatalog) {
-                        case 'tr_explorer_catalog_v2':
+                        case 'tr_explorer_catalog_v2_1':
                             break   // No additional conditions needed
+                        case 'tr_explorer_catalog_v2':
+                            conditions.push("Source NOT LIKE 'TRExplorerV2.1%'")
+                            break
                         case 'tr_explorer_catalog':
                             conditions.push("Source LIKE 'TRExplorerV1%'")
                             break

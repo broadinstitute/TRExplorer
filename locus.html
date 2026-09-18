@@ -1014,7 +1014,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         searchable: false,
                         displayMode: 'EXPANDED',
                     }
-                    if (['igv_tr_explorer_catalog_v2', 'igv_vc_and_isolated_v2', 'igv_vc_and_isolated_v1', 'igv_vc_v1'].includes(trackName)) {
+                    if (['igv_tr_explorer_catalog_v2', 'igv_tr_explorer_catalog_v2_1', 'igv_vc_and_isolated_v2', 'igv_vc_and_isolated_v1', 'igv_vc_v1'].includes(trackName)) {
                         bedTrack.height = 130
                     }
                     tracks.push(bedTrack)
@@ -2200,6 +2200,7 @@ gtag('config', 'G-6R8FPBQRFH');
         illumina_174k_catalog: 174300,
         tr_explorer_catalog: 4863041,
         tr_explorer_catalog_v2: 5599658,
+        tr_explorer_catalog_v2_1: 5657793,
     }
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
@@ -2226,6 +2227,7 @@ gtag('config', 'G-6R8FPBQRFH');
     const TR_EXPLORER_CATALOG  = [
         ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]"],
         ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Version 2.0 of the TR catalog described in [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ["igv_tr_explorer_catalog_v2_1", "TRExplorer catalog v2.1 draft", `${TR_CATALOG_BASE_URL}/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2_1'], "Draft of version 2.1 of the TR catalog. It adds 58,135 loci whose boundaries were extended beyond their v2.0 definitions, and leaves all 5,599,658 v2.0 loci unchanged."],
     ]
 
     const TR_VARIATION_CLUSTERS = [
@@ -5519,7 +5521,7 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav" style="min-width: 700px">
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(7/10/2026)</span></a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(9/2/2026)</span></a>
         <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
