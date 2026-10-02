@@ -32,7 +32,7 @@ land in {OUTPUT_DIR}/{sample_label}/json/. For the genotype-quality model sample
     python3 run_expansion_hunter_on_selected_samples.py --no-wait \\
         --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.EH.json.gz \\
-        --output-dir gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter_v2.1
+        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter_v2.1
 
 Memory is highmem (13GB at cpu=2) because peak RSS on the whole catalog was ~10.7GB in the
 2026-08-01 benchmark.
@@ -79,8 +79,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SAMPLE_TABLE_PATH = os.path.join(SCRIPT_DIR, "selected_1kGP_samples.tsv")
 CATALOG_PATH = ("gs://tandem-repeat-catalog/v2.0/"
                 "TR_catalog.TRExplorer-v2.with_extended_definitions.5657854_loci.ExpansionHunter.json.gz")
-OUTPUT_DIR = "gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter"
-CHECKPOINT_DIR = "gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter_checkpoints"
+OUTPUT_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter"
+CHECKPOINT_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter_checkpoints"
 
 ANALYSIS_MODE = "optimized-streaming"
 CPU = 2

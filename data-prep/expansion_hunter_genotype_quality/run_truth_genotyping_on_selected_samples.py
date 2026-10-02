@@ -34,7 +34,7 @@ Usage:
     python3 run_truth_genotyping_on_selected_samples.py --no-wait \\
         --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-bed-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz \\
-        --output-dir gs://str-truth-set-v2/tool_genotype_quality/truth_genotypes_v2.1
+        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1
 """
 import os
 
@@ -52,7 +52,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SAMPLE_TABLE_PATH = os.path.join(SCRIPT_DIR, "selected_1kGP_samples.tsv")
 CATALOG_BED_PATH = ("gs://tandem-repeat-catalog/v2.0/"
                     "TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.with_extended_definitions.bed.gz")
-OUTPUT_DIR = "gs://str-truth-set-v2/tool_genotype_quality/truth_genotypes"
+OUTPUT_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes"
 
 CPU = 2
 MEMORY = "highmem"

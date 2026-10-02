@@ -40,10 +40,10 @@ COMPARISON_SCRIPT_PATH = os.path.join(SCRIPT_DIR, "compare_eh_to_truth.py")
 SAMPLE_TABLE_PATH = os.path.join(SCRIPT_DIR, "selected_1kGP_samples.tsv")
 CATALOG_BED_PATH = ("gs://tandem-repeat-catalog/v2.0/"
                     "TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.with_extended_definitions.bed.gz")
-EH_OUTPUT_DIR = "gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter"
-TRUTH_DIR = "gs://str-truth-set-v2/tool_genotype_quality/truth_genotypes"
-SCRIPTS_DIR = "gs://str-truth-set-v2/tool_genotype_quality/scripts"
-OUTPUT_DIR = "gs://str-truth-set-v2/tool_genotype_quality/comparisons"
+EH_OUTPUT_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter"
+TRUTH_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes"
+SCRIPTS_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/scripts"
+OUTPUT_DIR = "gs://tandem-repeat-explorer/tool_genotype_quality/comparisons"
 
 CPU = 2
 MEMORY = "highmem"
