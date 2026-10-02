@@ -47,7 +47,8 @@ argument only names the combined TSV/BED that step 2 would have written. Its pre
 ".json" but not ".json.gz", so each sample directory holds one "<catalog file name>.json.gz".
 
 Since that name records nothing about what produced the file, the run writes {OUTPUT_DIR}/eh_run.json
-holding the ExpansionHunter image, analysis mode, catalog path and content hash, and reference, and
+holding the ExpansionHunter image, analysis mode, motif composition and --max-depth settings, catalog path and
+content hash, and reference, and
 refuses to add results to an output directory whose record disagrees with the current run.
 
 create_expansion_hunter_steps' second step, which flattens the genotyping JSON into TSV/BED, is
@@ -87,6 +88,11 @@ CPU = 2
 THREADS = 4
 MEMORY = "highmem"
 CHECKPOINT_INTERVAL_SECONDS = 600
+# Motif composition counts are written for every locus that has a record. Turning them on raises EH's default
+# --max-depth from 150 to 500, which changes the calls at high-coverage loci; MAX_DEPTH keeps it at 150 so the calls
+# match a run without motif composition, which is what the genotype quality model scores in normal use.
+OUTPUT_MOTIF_COMPOSITION = "all-loci"
+MAX_DEPTH = 150
 
 bp = pipeline("run_expansion_hunter_on_selected_samples", backend=Backend.HAIL_BATCH_SERVICE, config_file_path="~/.step_pipeline")
 parser = bp.get_config_arg_parser()
@@ -139,6 +145,8 @@ assert catalog_crc32c, f"gsutil stat {args.catalog_path} reported no crc32c:\n{c
 run_record = {
     "docker_image": DOCKER_IMAGE,
     "analysis_mode": ANALYSIS_MODE,
+    "output_motif_composition": OUTPUT_MOTIF_COMPOSITION,
+    "max_depth": MAX_DEPTH,
     "catalog_path": args.catalog_path,
     "catalog_crc32c": catalog_crc32c.group(1),
     "reference_fasta": REFERENCE_FASTA_PATH,
@@ -173,7 +181,9 @@ for _, row in df.iterrows():
         streaming_threads=THREADS,
         streaming_memory=MEMORY,
         resume_checkpoint_dir=None if args.no_resume else args.checkpoint_dir,
-        checkpoint_interval_seconds=args.checkpoint_interval_seconds)
+        checkpoint_interval_seconds=args.checkpoint_interval_seconds,
+        output_motif_composition=OUTPUT_MOTIF_COMPOSITION,
+        max_depth=MAX_DEPTH)
     combine_step.skip()
 
 result = bp.run()
