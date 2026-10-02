@@ -1,0 +1,12 @@
+# Inputs downloaded or copied from SpliceAI-lookup, and everything the scripts generate.
+# The repo-level .gitignore already covers *.tsv, *.tsv.gz and *.bed.gz.
+*.gtf.gz
+*.json.gz
+*.log
+*.png
+spliceai_lookup_files_gencode_v50/
+full_run_inputs/
+full_run_outputs/
+tr_benchmark_alleles*.json
+l4_benchmark_*.json
+population_based_design_report.html
