@@ -9,64 +9,43 @@ the same run, against the same reads, so comparing them measures the boundary an
 LocusId is the definition's own "{chrom}-{start_0based}-{end_1based}-{motif}", so an extended
 definition and the locus it grew from are linked by overlap rather than by a shared id.
 
-Config is cpu=2/threads=4/highmem, with the catalog split into NUM_SHARDS jobs per sample.
-
-These jobs run on preemptible VMs, and a preempted job restarts from scratch, so what matters is not
-the cheapest configuration but the shortest job. Measured by the 2026-08-01 cost benchmark on 3
-replicate WGS samples against the 5,594,988-locus catalog, unsharded:
+Config is cpu=2/threads=4/highmem, one job per sample. Measured by the 2026-08-01 cost benchmark on 3
+replicate WGS samples against the 5,594,988-locus catalog:
 
     cpu=1/threads=2   OOM before genotyping starts (highmem at 1 core is only 6.5GB)
     cpu=2/threads=4   5.77, 5.79, 5.87 hours   $0.482, $0.484, $0.490
     cpu=4/threads=8   1.96, 4.04, 4.44 hours   $0.365, $0.637, $0.716
 
-Neither is short enough. A 10-sample pilot at cpu=4 was preempted at least 13 times in 3 hours and
-finished nothing, so this run shards instead: ExpansionHunter's --start-with/--n-loci flags give each
-job a contiguous slice of the catalog, and create_expansion_hunter_steps builds one job per slice.
+These jobs run on preemptible VMs, and Hail Batch reruns a preempted job from the start on a new VM. A
+10-sample pilot at cpu=4 without checkpointing was preempted at least 13 times in 3 hours and finished
+nothing. So each job runs ExpansionHunter with --resume and copies its resume files to a per-job folder
+under --checkpoint-dir every --checkpoint-interval-seconds; an attempt that follows a preemption restores
+them and continues from the last finished locus (see resume_checkpoint_dir in
+create_expansion_hunter_steps). A preemption then costs the CRAM copy, the decompression scan and at most
+one checkpoint interval of genotyping.
 
-Every shard re-localizes the CRAM and re-runs htslib's decompression scan, so sharding costs real
-money: that fixed cost is paid NUM_SHARDS times instead of once. Estimated from the two catalog sizes
-measured so far, the scan is ~12-20 minutes and genotyping the whole catalog is ~5.5 hours at this
-config, so 24 shards puts each job near 25-35 minutes for roughly 2x the compute of one unsharded job.
-The point of that trade is that a preemption now costs half an hour rather than most of a day.
-
-Since 2026-10-01 the default is one job per sample again (NUM_SHARDS = 1), made safe on preemptible VMs by
-ExpansionHunter's --resume instead of by sharding: each job copies EH's resume files to a per-job folder under
---checkpoint-dir every --checkpoint-interval-seconds, and an attempt that follows a preemption restores them and
-continues from the last finished locus (see resume_checkpoint_dir in create_expansion_hunter_steps). A preemption
-then costs the CRAM copy, the decompression scan and at most one checkpoint interval of genotyping, and the scan is
-paid once per attempt rather than NUM_SHARDS times. --num-shards still works, with or without --no-resume.
-
---sample-table-path also accepts genotype_quality_model_runs.tsv, the table of the 135 runs for the
+--sample-table-path also accepts genotype_quality_model_runs_to_launch.tsv, the table of the 135 runs for the
 genotype-quality model (one row per run, keyed by run_label, so HG002 at 10x/20x/31x are separate runs), copied
-from eh_on_modal/ on 2026-10-01. Results for such a table land in {OUTPUT_DIR}/{run_label}/json/. For the
-genotype-quality model runs on the TRExplorer v2.1 catalog:
+from eh_on_modal/genotype_quality_model_runs.tsv on 2026-10-01 and given a truth VCF column. Results for
+such a table land in {OUTPUT_DIR}/{run_label}/json/. For the genotype-quality model runs on the TRExplorer
+v2.1 catalog:
 
     python3 run_expansion_hunter_on_selected_samples.py --no-wait \\
-        --sample-table-path genotype_quality_model_runs.tsv \\
+        --sample-table-path genotype_quality_model_runs_to_launch.tsv \\
         --catalog-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.EH.json.gz \\
         --output-dir gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter_v2.1
 
-Memory is left at highmem out of caution rather than measurement: peak RSS was ~10.7GB unsharded, and
-a shard holds a fraction of the catalog, so there is room to try standard on a pilot sample later.
+Memory is highmem (13GB at cpu=2) because peak RSS on the whole catalog was ~10.7GB in the
+2026-08-01 benchmark.
 
 Sample sex is read from the sample table's Gender column ("male"/"female") and passed through to
 --sex, per-sample -- required for correct hemizygous calling on chrX/chrY loci. select_1kGP_samples.py
 takes it from the assembly rather than from the 1kGP metadata sheet, which has it wrong for HG02300.
 
-Results land at {OUTPUT_DIR}/{sample_id}/json/, one file per shard. The file name comes from the
-CATALOG, not the sample: create_expansion_hunter_steps names step 1's outputs after the catalog file
-plus the shard, and its output_prefix argument only names the combined TSV/BED that step 2 would have
-written. Its prefix strips a trailing ".json" but not ".json.gz", so with --num-shards 24 each sample
-directory holds "TR_catalog...ExpansionHunter.json.gz.shard000_of_024.json.gz" through "shard023_of_024",
-and with the default single job it holds one "<catalog file name>.json.gz".
-
-run_merge_eh_shards_on_selected_samples.py then merges a sample's shards into {sample}/{sample}.json.gz,
-which is what the comparison step reads. It finds the shards by the filename above, so it has to be
-told the same shard count this run used.
-
-Sharding changes how the work is divided, not what is genotyped: the shards are disjoint slices that
-together cover the catalog, and the merged file is the same set of records an unsharded run would have
-written. That is why eh_run.json does not record the shard count.
+Results land at {OUTPUT_DIR}/{sample_id}/json/. The file name comes from the CATALOG, not the sample:
+create_expansion_hunter_steps names step 1's output after the catalog file, and its output_prefix
+argument only names the combined TSV/BED that step 2 would have written. Its prefix strips a trailing
+".json" but not ".json.gz", so each sample directory holds one "<catalog file name>.json.gz".
 
 Since that name records nothing about what produced the file, the run writes {OUTPUT_DIR}/eh_run.json
 holding the ExpansionHunter image, analysis mode, catalog path and content hash, and reference, and
@@ -108,7 +87,6 @@ ANALYSIS_MODE = "optimized-streaming"
 CPU = 2
 THREADS = 4
 MEMORY = "highmem"
-NUM_SHARDS = 1
 CHECKPOINT_INTERVAL_SECONDS = 600
 
 bp = pipeline("run_expansion_hunter_on_selected_samples", backend=Backend.HAIL_BATCH_SERVICE, config_file_path="~/.step_pipeline")
@@ -117,9 +95,6 @@ parser.add_argument("--sample-table-path", default=SAMPLE_TABLE_PATH)
 parser.add_argument("--catalog-path", default=CATALOG_PATH)
 parser.add_argument("--output-dir", default=OUTPUT_DIR)
 parser.add_argument("-s", "--sample-id", action="append", help="Process only this sample. Can be specified more than once.")
-parser.add_argument("--num-shards", type=int, default=NUM_SHARDS,
-                    help="Split the catalog into this many jobs per sample, so a preempted job loses "
-                         "one slice rather than the whole sample.")
 parser.add_argument("--checkpoint-dir", default=CHECKPOINT_DIR,
                     help="Where each job keeps its ExpansionHunter --resume files, so an attempt that follows a "
                          "preemption continues instead of starting over.")
@@ -131,7 +106,7 @@ args = bp.parse_known_args()
 
 df = pd.read_table(args.sample_table_path)
 if "run_label" in df.columns:
-    # genotype_quality_model_runs.tsv: one row per run rather than per sample.
+    # genotype_quality_model_runs_to_launch.tsv: one row per run rather than per sample.
     df = df.rename(columns={"sex": "Gender", "reads_path": "cram_path", "reads_index_path": "crai_path"})
 else:
     df["run_label"] = df["sample_id"]
@@ -193,7 +168,7 @@ for _, row in df.iterrows():
         min_locus_coverage=None,
         use_illumina_expansion_hunter=False,
         catalog_prefilter_step=None,
-        num_shards=args.num_shards,
+        num_shards=1,
         streaming_cpu=CPU,
         streaming_threads=THREADS,
         streaming_memory=MEMORY,
