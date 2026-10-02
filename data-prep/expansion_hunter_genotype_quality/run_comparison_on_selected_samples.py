@@ -16,15 +16,28 @@ since nothing in the output path reflects them. Pass --force-comparison-step, or
 directory, whenever either side has changed.
 
 Inputs per sample, all produced by earlier steps:
-    {EH_OUTPUT_DIR}/{sample}/json/*.json.gz                  run_expansion_hunter_on_selected_samples.py,
+    {EH_OUTPUT_DIR}/{sample_label}/json/*.json.gz            run_expansion_hunter_on_selected_samples.py,
                                                              which writes exactly one JSON per sample
-    {TRUTH_DIR}/{sample}/{sample}.tandem_repeat_genotypes.tsv.gz
+    {TRUTH_DIR}/{sample_id}/{sample_id}.tandem_repeat_genotypes.tsv.gz
                                                              run_truth_genotyping_on_selected_samples.py
-    the sample's high_confidence_bed_path                     DipCall, run previously
+    the sample's high_confidence_bed_path                     DipCall, run previously; must come from the
+                                                             same DipCall run as the truth VCF
+
+sample_label is the sample table's sample_label column when it has one (short_read_samples_with_truth_data.tsv,
+where HG002 at 10x/20x/31x are three samples sharing one truth genome), and the sample_id otherwise. Results land
+at {OUTPUT_DIR}/{sample_label}/.
 
 Usage:
     python3 run_comparison_on_selected_samples.py --no-wait
     python3 run_comparison_on_selected_samples.py -s HG01993   # subset of samples
+
+    # The genotype-quality model samples on the TRExplorer v2.1 catalog:
+    python3 run_comparison_on_selected_samples.py --no-wait \\
+        --sample-table-path short_read_samples_with_truth_data.tsv \\
+        --catalog-bed-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz \\
+        --eh-output-dir gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter_v2.1 \\
+        --truth-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1 \\
+        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/comparisons_v2.1
 """
 import hashlib
 import os
@@ -94,10 +107,13 @@ parser.add_argument("-s", "--sample-id", action="append",
 args = bp.parse_known_args()
 
 df = pd.read_table(args.sample_table_path)
+if "sample_label" not in df.columns:
+    df["sample_label"] = df["sample_id"]
+assert df.sample_label.is_unique, f"{args.sample_table_path} has duplicate sample labels"
 if args.sample_id:
-    missing = set(args.sample_id) - set(df.sample_id)
-    assert not missing, f"sample id(s) not in {args.sample_table_path}: {sorted(missing)}"
-    df = df[df.sample_id.isin(args.sample_id)]
+    missing = set(args.sample_id) - set(df.sample_label)
+    assert not missing, f"sample label(s) not in {args.sample_table_path}: {sorted(missing)}"
+    df = df[df.sample_label.isin(args.sample_id)]
 
 if len(df) == 0:
     parser.error(f"{args.sample_table_path} lists no samples, so there is nothing to compare.")
@@ -109,15 +125,15 @@ comparison_script_cloud_path = upload_comparison_script(args.dry_run)
 # to be run in stages.
 missing_inputs = []
 for _, row in df.iterrows():
-    eh_json_path = find_eh_json_path(args.eh_output_dir, row.sample_id)
+    eh_json_path = find_eh_json_path(args.eh_output_dir, row.sample_label)
     truth_tsv_path = os.path.join(args.truth_dir, row.sample_id,
                                   f"{row.sample_id}.tandem_repeat_genotypes.tsv.gz")
     if eh_json_path is None or not hfs.exists(truth_tsv_path):
-        missing_inputs.append(row.sample_id)
+        missing_inputs.append(row.sample_label)
         continue
 
     s1 = bp.new_step(
-        f"Compare ExpansionHunter to truth for {row.sample_id}",
+        f"Compare ExpansionHunter to truth for {row.sample_label}",
         arg_suffix="comparison-step",
         step_number=1,
         image=DOCKER_IMAGE,
@@ -125,7 +141,7 @@ for _, row in df.iterrows():
         memory=MEMORY,
         storage=STORAGE,
         localize_by=Localize.GSUTIL_COPY,
-        output_dir=os.path.join(args.output_dir, row.sample_id),
+        output_dir=os.path.join(args.output_dir, row.sample_label),
     )
 
     local_script = s1.input(comparison_script_cloud_path)
@@ -140,10 +156,10 @@ for _, row in df.iterrows():
         --eh-json {local_eh_json} \\
         --truth-tsv {local_truth_tsv} \\
         --high-confidence-bed {local_high_confidence_bed} \\
-        --output-npz {row.sample_id}.comparison.npz""")
+        --output-npz {row.sample_label}.comparison.npz""")
     s1.command("ls -lhrt")
 
-    s1.output(f"{row.sample_id}.comparison.npz")
+    s1.output(f"{row.sample_label}.comparison.npz")
 
 if missing_inputs:
     print(f"skipping {len(missing_inputs)} samples that do not have both an ExpansionHunter and a "
