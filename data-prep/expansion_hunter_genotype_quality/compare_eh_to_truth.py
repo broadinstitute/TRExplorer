@@ -99,17 +99,28 @@ def open_maybe_gzipped(path, mode="rt"):
     return gzip.open(path, mode) if str(path).endswith(".gz") else open(path, mode)
 
 
+def locus_id_without_chr(locus_id):
+    """Return the LocusId with any leading "chr" removed: "chr1-100-130-CAG" -> "1-100-130-CAG".
+
+    The three sides do not agree on the prefix: the catalog BED and filter_vcf_to_tandem_repeats write
+    "chr1-...", while the TRExplorer v2.1 ExpansionHunter catalog uses "1-...". Every LocusId is passed
+    through this before matching, so either spelling joins.
+    """
+    return locus_id[3:] if locus_id.startswith("chr") else locus_id
+
+
 def catalog_row_numbers(catalog_bed_path):
-    """Return {LocusId: row number} for the catalog, in file order.
+    """Return {LocusId without "chr": row number} for the catalog, in file order.
 
     The LocusId is rebuilt the same way convert_bed_to_expansion_hunter_catalog builds it, which is
-    also what filter_vcf_to_tandem_repeats writes, so all three sides agree without a coordinate join.
+    also what filter_vcf_to_tandem_repeats writes, so all three sides agree without a coordinate join
+    once the "chr" prefix is dropped (see locus_id_without_chr).
     """
     row_number_by_locus_id = {}
     with open_maybe_gzipped(catalog_bed_path) as f:
         for row_number, line in enumerate(f):
             chrom, start, end, motif = line.split("\t")[:4]
-            row_number_by_locus_id[f"{chrom}-{start}-{end}-{motif}"] = row_number
+            row_number_by_locus_id[locus_id_without_chr(f"{chrom}-{start}-{end}-{motif}")] = row_number
     return row_number_by_locus_id
 
 
@@ -223,7 +234,8 @@ def compare_alleles(eh_counts, truth_short, truth_long):
 
 
 def load_truth(truth_tsv_path, regions_by_chrom):
-    """Return {LocusId: (short allele, long allele, reference copies)} inside the high-confidence regions.
+    """Return {LocusId without "chr": (short allele, long allele, reference copies)} inside the
+    high-confidence regions.
 
     Rows whose repeat-count columns are empty are dropped: those are loci where the assembly's
     overlapping variants could not be resolved into a genotype, which is missing truth rather than a
@@ -243,7 +255,7 @@ def load_truth(truth_tsv_path, regions_by_chrom):
                                      int(fields[column["Start0Based"]]), int(fields[column["End"]])):
                 continue
             reference_copies = fields[column["NumRepeatsInReference"]]
-            truth_by_locus_id[fields[column["LocusId"]]] = (
+            truth_by_locus_id[locus_id_without_chr(fields[column["LocusId"]])] = (
                 int(float(short_allele)), int(float(long_allele)),
                 float(reference_copies) if reference_copies else float("nan"))
     return truth_by_locus_id
@@ -281,6 +293,7 @@ def compare_sample(catalog_bed_path, eh_json_path, truth_tsv_path, high_confiden
     }
     n_unknown_locus_ids = 0
     for locus_id, record in parse_eh_json(eh_json_path):
+        locus_id = locus_id_without_chr(locus_id)
         row_number = row_number_by_locus_id.get(locus_id)
         if row_number is None:
             n_unknown_locus_ids += 1

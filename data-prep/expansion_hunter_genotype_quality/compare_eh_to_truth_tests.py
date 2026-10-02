@@ -128,9 +128,18 @@ class CompareEhToTruthTests(unittest.TestCase):
 
     def test_catalog_row_numbers_follow_file_order(self):
         row_numbers = compare_eh_to_truth.catalog_row_numbers(self.catalog_bed)
-        self.assertEqual(row_numbers[locus_id(CATALOG_ROWS[0])], 0)
-        self.assertEqual(row_numbers[locus_id(CATALOG_ROWS[4])], 4)
+        self.assertEqual(row_numbers[compare_eh_to_truth.locus_id_without_chr(locus_id(CATALOG_ROWS[0]))], 0)
+        self.assertEqual(row_numbers[compare_eh_to_truth.locus_id_without_chr(locus_id(CATALOG_ROWS[4]))], 4)
         self.assertEqual(len(row_numbers), len(CATALOG_ROWS))
+
+    def test_eh_locus_ids_without_chr_match_a_catalog_and_truth_with_chr(self):
+        # The TRExplorer v2.1 ExpansionHunter catalog writes "1-1000-1030-CAG" where the catalog BED
+        # and the truth table write "chr1-1000-1030-CAG".
+        lid = locus_id(CATALOG_ROWS[0])
+        arrays = self.compare({lid[len("chr"):]: ("10/10", [0.9])}, {lid: (10, 10)})
+        self.assertEqual(arrays["has_call"][0], 1)
+        self.assertEqual(arrays["has_truth"][0], 1)
+        self.assertEqual(arrays["is_exact"][0], 1)
 
     def test_exact_match(self):
         arrays = self.compare({locus_id(CATALOG_ROWS[0]): ("10/10", [0.9, 0.9])},
