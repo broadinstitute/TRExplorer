@@ -2,7 +2,8 @@
 
 Reads the full run's input chunks (full_run_inputs/<gene_set>/, which list every simulated allele of
 every locus and the target sizes it stands for) and its downloaded outputs (the run folder from
-`modal volume get spliceai-tr-full-run /outputs/<gene_set>/<run_id> <dir>`; only the chunks in the
+`modal volume get spliceai-tr-full-run /outputs/<gene_set>/<run_id> <existing dir>`, which writes
+<existing dir>/<run_id>/); only the chunks in the
 input chunks' manifest.json with a summary for the same input SHA-256 are used, and every one of them must
 have one), and writes a TSV with:
 
@@ -36,7 +37,7 @@ Loci the run did not score (not polymorphic in HPRC256, or outside every GENCODE
 are not in the output, so their columns stay empty (NULL) in BigQuery.
 
 Usage:
-    python3 summarize_full_run_spliceai_scores_per_locus.py --gene-set basic --outputs-dir full_run_outputs/basic
+    python3 summarize_full_run_spliceai_scores_per_locus.py --gene-set basic --outputs-dir full_run_outputs/basic/<run_id>
 """
 import argparse
 import collections

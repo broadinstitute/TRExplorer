@@ -41,7 +41,10 @@ Usage (from this directory):
     modal run spliceai_full_run_pipeline.py::main --gene-set basic --max-chunks 2 --launch      # small test
     modal run --detach spliceai_full_run_pipeline.py::main --gene-set basic --launch            # full run
     modal run spliceai_full_run_pipeline.py::report --gene-set basic         # progress, totals, cost, folder
-    modal volume get spliceai-tr-full-run /outputs/basic/<run_id> ./full_run_outputs/basic      # download
+    mkdir -p full_run_outputs/basic && modal volume get spliceai-tr-full-run /outputs/basic/<run_id> full_run_outputs/basic
+
+The download writes full_run_outputs/basic/<run_id>/. The local folder must exist first: given a path
+that does not exist, modal writes every file to that one path, keeping only the last.
 
 The ::main or ::report is required because the module has two entry points. --detach keeps the run
 going after this terminal disconnects (e.g. the laptop sleeps); all chunks are submitted before
@@ -391,7 +394,8 @@ def report(gene_set: str):
     done = [summaries[c["chunk"]] for c in manifest["chunks"] if c["chunk"] not in pending_chunks]
     n_alleles = sum(s["n_alleles"] for s in done)
     print(f"{gene_set}: outputs in {VOLUME_NAME}:{output_dir(gene_set, run_id)} "
-          f"(download: modal volume get {VOLUME_NAME} {output_dir(gene_set, run_id)} ./full_run_outputs/{gene_set})")
+          f"(download: mkdir -p full_run_outputs/{gene_set} && "
+          f"modal volume get {VOLUME_NAME} {output_dir(gene_set, run_id)} full_run_outputs/{gene_set})")
     # After an edit to either .py file the fingerprint, and so the folder, changes; point to the folders that
     # hold these inputs' scores so an in-progress or finished run is not mistaken for an empty one.
     for other_run_id, n_done in find_other_runs_with_these_inputs(

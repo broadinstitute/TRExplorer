@@ -134,9 +134,12 @@ modal run spliceai_full_run_pipeline.py::main --gene-set basic --max-chunks 2 --
 modal run --detach spliceai_full_run_pipeline.py::main --gene-set basic --launch              # full run
 modal run spliceai_full_run_pipeline.py::report --gene-set basic                              # progress, cost, run folder
 
-# 7. Download the run folder that main and report print, then summarize it per locus
-modal volume get spliceai-tr-full-run /outputs/basic/<run_id> ./full_run_outputs/basic
-python3 summarize_full_run_spliceai_scores_per_locus.py --gene-set basic --outputs-dir full_run_outputs/basic
+# 7. Download the run folder that main and report print, then summarize it per locus.
+#    The local folder must exist first: modal then creates full_run_outputs/basic/<run_id>/ in it.
+#    (Given a path that does not exist, modal writes every file to that one path, keeping only the last.)
+mkdir -p full_run_outputs/basic
+modal volume get spliceai-tr-full-run /outputs/basic/<run_id> full_run_outputs/basic
+python3 summarize_full_run_spliceai_scores_per_locus.py --gene-set basic --outputs-dir full_run_outputs/basic/<run_id>
 ```
 
 `--detach` keeps the run going if this terminal disconnects. All chunks are submitted up front, so Modal
