@@ -22,7 +22,7 @@ Inputs:
   ~/code/str-truth-set-v2/20130606_sample_info_1kGP.tsv                            -- 1kGP phase-3 sample metadata
   ~/code/str-truth-set-v2/run_tools/broad_short_read_cram_paths_for_all_1kGP.txt   -- the 698-sample short-read CRAM list
   gs://str-truth-set-v2/dipcall_pipeline/**/{sample}.dip.bed.gz                    -- high-confidence regions
-  gs://str-truth-set-v2/filter_vcf_v2__2025_12_29/{sample}/                        -- truth variant calls
+  gs://str-truth-set-v2/filter_vcf_v2/{sample}/                                    -- truth variant calls
 
 Output:
   selected_1kGP_samples.tsv (in this script's own directory)
@@ -43,7 +43,7 @@ SAMPLE_INFO_PATH = Path("~/code/str-truth-set-v2/20130606_sample_info_1kGP.tsv")
 CRAM_LIST_PATH = Path("~/code/str-truth-set-v2/run_tools/broad_short_read_cram_paths_for_all_1kGP.txt").expanduser()
 DIPCALL_DIR = "gs://str-truth-set-v2/dipcall_pipeline"
 DIPCALL_SUBDIRS = ("", "HPRC_release2/", "human579_assemblies/")
-TRUTH_VCF_DIR = "gs://str-truth-set-v2/filter_vcf_v2__2025_12_29"
+TRUTH_VCF_DIR = "gs://str-truth-set-v2/filter_vcf_v2"
 CACHE_DIR = SCRIPT_DIR / "data"
 BED_CACHE_DIR = CACHE_DIR / "high_confidence_beds"
 OUTPUT_PATH = SCRIPT_DIR / "selected_1kGP_samples.tsv"
@@ -89,10 +89,14 @@ def high_confidence_bed_paths(refresh):
 
 
 def truth_vcf_paths(refresh):
-    """Return {sample_id: gs:// path of its filter_vcf_to_tandem_repeats high-confidence VCF}."""
+    """Return {sample_id: gs:// path of its filter_vcf_to_tandem_repeats high-confidence VCF}.
+
+    The cache file is named after TRUTH_VCF_DIR, so pointing TRUTH_VCF_DIR at another directory lists that
+    directory instead of silently reusing paths cached from the old one.
+    """
     return {path.split("/")[-2]: path for path in gsutil_ls(
         [f"{TRUTH_VCF_DIR}/*/*.high_confidence_regions.vcf.gz"],
-        CACHE_DIR / "truth_vcf_paths.txt", refresh)}
+        CACHE_DIR / f"truth_vcf_paths.{TRUTH_VCF_DIR.rstrip('/').split('/')[-1]}.txt", refresh)}
 
 
 def download_beds(bed_path_by_sample):
