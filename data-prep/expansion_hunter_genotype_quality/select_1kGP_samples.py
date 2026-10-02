@@ -73,30 +73,33 @@ def gsutil_ls(patterns, cache_path, refresh):
     return paths
 
 
-def high_confidence_bed_paths(refresh):
-    """Return {sample_id: gs:// path of its DipCall high-confidence BED}.
+def truth_vcf_and_bed_paths(refresh):
+    """Return {sample_id: (truth VCF path, DipCall high-confidence BED path)}, both from the same DipCall batch.
 
-    A sample assembled in more than one batch (HPRC release 1 samples were also assembled for
-    release 2) has a BED under each batch's directory. The first listed wins, which makes the choice
-    deterministic and keeps it stable as later batches are added.
-    """
-    paths = gsutil_ls([f"{DIPCALL_DIR}/{subdir}*/*.dip.bed.gz" for subdir in DIPCALL_SUBDIRS],
-                      CACHE_DIR / "dipcall_bed_paths.txt", refresh)
-    bed_path_by_sample = {}
-    for path in paths:
-        bed_path_by_sample.setdefault(path.split("/")[-2], path)
-    return bed_path_by_sample
+    TRUTH_VCF_DIR mirrors DIPCALL_DIR's batch subdirectories (top level, HPRC_release2/, human579_assemblies/), and a
+    sample assembled in more than one batch (HPRC release 1 samples were also assembled for release 2) can have truth
+    in each. The first batch in DIPCALL_SUBDIRS order with a truth VCF wins, which makes the choice deterministic and
+    keeps it stable as later batches are added, and the BED is taken from that same batch so the two always describe
+    the same assembly. A sample whose winning batch has no BED is left out.
 
-
-def truth_vcf_paths(refresh):
-    """Return {sample_id: gs:// path of its filter_vcf_to_tandem_repeats high-confidence VCF}.
-
-    The cache file is named after TRUTH_VCF_DIR, so pointing TRUTH_VCF_DIR at another directory lists that
+    The cache file names carry the listed directory, so pointing TRUTH_VCF_DIR at another directory lists that
     directory instead of silently reusing paths cached from the old one.
     """
-    return {path.split("/")[-2]: path for path in gsutil_ls(
-        [f"{TRUTH_VCF_DIR}/*/*.high_confidence_regions.vcf.gz"],
-        CACHE_DIR / f"truth_vcf_paths.{TRUTH_VCF_DIR.rstrip('/').split('/')[-1]}.txt", refresh)}
+    vcf_paths = gsutil_ls([f"{TRUTH_VCF_DIR}/{subdir}*/*.high_confidence_regions.vcf.gz" for subdir in DIPCALL_SUBDIRS],
+                          CACHE_DIR / f"truth_vcf_paths.{TRUTH_VCF_DIR.rstrip('/').split('/')[-1]}_by_batch.txt",
+                          refresh)
+    bed_paths = set(gsutil_ls([f"{DIPCALL_DIR}/{subdir}*/*.dip.bed.gz" for subdir in DIPCALL_SUBDIRS],
+                              CACHE_DIR / "dipcall_bed_paths.txt", refresh))
+    paths_by_sample = {}
+    for vcf_path in vcf_paths:  # listed in DIPCALL_SUBDIRS order, so the first batch is seen first
+        sample_id = vcf_path.split("/")[-2]
+        if sample_id in paths_by_sample:
+            continue
+        subdir = vcf_path[len(TRUTH_VCF_DIR) + 1:].rsplit(f"{sample_id}/", 1)[0]
+        bed_path = f"{DIPCALL_DIR}/{subdir}{sample_id}/{sample_id}.dip.bed.gz"
+        if bed_path in bed_paths:
+            paths_by_sample[sample_id] = (vcf_path, bed_path)
+    return paths_by_sample
 
 
 def download_beds(bed_path_by_sample):
@@ -136,9 +139,10 @@ def main():
     df = df.rename(columns={"Gender": "Gender_1kGP_metadata"})
     print(f"{len(df):,} 1kGP samples have a short-read CRAM and 1kGP metadata")
 
-    bed_path_by_sample = high_confidence_bed_paths(args.refresh)
-    vcf_path_by_sample = truth_vcf_paths(args.refresh)
-    df = df[df["sample_id"].isin(bed_path_by_sample) & df["sample_id"].isin(vcf_path_by_sample)]
+    paths_by_sample = truth_vcf_and_bed_paths(args.refresh)
+    vcf_path_by_sample = {sample_id: vcf_path for sample_id, (vcf_path, _) in paths_by_sample.items()}
+    bed_path_by_sample = {sample_id: bed_path for sample_id, (_, bed_path) in paths_by_sample.items()}
+    df = df[df["sample_id"].isin(paths_by_sample)]
     print(f"{len(df):,} of them also have DipCall and filter_vcf_to_tandem_repeats output")
 
     df = df.assign(
