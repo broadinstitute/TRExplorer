@@ -167,6 +167,32 @@ class CompareEhToTruthTests(unittest.TestCase):
         self.assertEqual(arrays["is_within1"][1], 0)
         self.assertAlmostEqual(float(arrays["abs_error"][1]), 2.0, places=5)
 
+    def test_alleles_within_10_percent_of_truth_are_counted(self):
+        # Truth 20/30: the 22 is off by 2 = 10% of 20 (within), the 34 is off by 4 > 10% of 30 (not).
+        lid = locus_id(CATALOG_ROWS[0])
+        arrays = self.compare({lid: ("22/34", [0.5])}, {lid: (20, 30)})
+        self.assertEqual(arrays["n_alleles_compared"][0], 2)
+        self.assertEqual(arrays["n_alleles_within_10_percent"][0], 1)
+
+    def test_haploid_call_counts_one_allele_toward_10_percent(self):
+        lid = locus_id(CATALOG_ROWS[3])
+        arrays = self.compare({lid: ("7", [0.6])}, {lid: (7, 7)})
+        self.assertEqual(arrays["n_alleles_compared"][3], 1)
+        self.assertEqual(arrays["n_alleles_within_10_percent"][3], 1)
+
+    def test_small_truth_alleles_need_an_exact_match_to_be_within_10_percent(self):
+        # Truth 0/9: 10% of either is under one repeat, so the exact 0 counts and the off-by-one 10 does not.
+        lid = locus_id(CATALOG_ROWS[0])
+        arrays = self.compare({lid: ("0/10", [0.5])}, {lid: (0, 9)})
+        self.assertEqual(arrays["n_alleles_compared"][0], 2)
+        self.assertEqual(arrays["n_alleles_within_10_percent"][0], 1)
+
+    def test_locus_without_truth_has_no_alleles_compared(self):
+        outside = locus_id(CATALOG_ROWS[2])
+        arrays = self.compare({outside: ("10/10", [0.9])}, {outside: (10, 10)})
+        self.assertEqual(arrays["n_alleles_compared"][2], 0)
+        self.assertEqual(arrays["n_alleles_within_10_percent"][2], 0)
+
     def test_locus_outside_high_confidence_regions_has_no_truth(self):
         outside = locus_id(CATALOG_ROWS[2])
         arrays = self.compare({outside: ("10/10", [0.9])}, {outside: (10, 10)})

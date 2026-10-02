@@ -26,6 +26,12 @@ What a locus contributes:
                    rather than through the full genotyping module, which is ~80x slower per locus
   is_exact         every allele matches truth exactly            (only where has_truth)
   is_within1       every allele is within 1 repeat of truth      (only where has_truth)
+  n_alleles_compared           alleles scored: 2, or 1 for a haploid call (only where has_truth)
+  n_alleles_within_10_percent  of those, alleles within 10% of the truth allele size, i.e.
+                               |ExpansionHunter - truth| <= 0.1 x truth (only where has_truth). A locus
+                               has every allele within 10% when the two counts are equal. Below 10
+                               truth copies this only allows an exact match. Measuring in bp instead
+                               gives the same result, since the motif size cancels.
   abs_error        mean |ExpansionHunter - truth| over alleles   (only where has_truth)
   eh_diff_from_ref     how far the CALL sits from a homozygous-reference genotype, in repeats:
                        max over alleles of |allele - reference copies|. Separates "it called an
@@ -69,6 +75,9 @@ import numpy as np
 
 # A genotype counts as near-concordant when every allele is within this many repeat copies of truth.
 NEAR_CONCORDANCE_TOLERANCE = 1
+# An allele counts as within 10% when its error is at most this percentage of the truth allele size.
+# Kept as an integer percentage so the check stays exact integer arithmetic on repeat counts.
+WITHIN_PERCENT_TOLERANCE = 10
 
 LOCUS_ID_PATTERN = re.compile(r'"LocusId":\s*"([^"]+)"')
 QUICK_GENOTYPE_PATTERN = re.compile(r'"QuickGenotype":\s*(true|false)')
@@ -223,14 +232,22 @@ def is_fully_callable(regions_by_chrom, chrom, start, end):
 
 
 def compare_alleles(eh_counts, truth_short, truth_long):
-    """Return (is_exact, is_within1, mean_absolute_error), or None if the ploidies disagree."""
+    """Return (is_exact, is_within1, mean_absolute_error, n_alleles_within_10_percent), or None if the
+    ploidies disagree.
+
+    An allele is within 10% when |ExpansionHunter - truth| <= 10% of the truth allele size. Repeat counts
+    are whole numbers, so a truth allele under 10 copies (including 0) counts only an exact match.
+    """
     truth_counts = (truth_short, truth_long)
     if len(eh_counts) == 1:
         if truth_short != truth_long:
             return None
         truth_counts = (truth_short,)
     errors = [abs(eh - truth) for eh, truth in zip(eh_counts, truth_counts)]
-    return max(errors) == 0, max(errors) <= NEAR_CONCORDANCE_TOLERANCE, float(np.mean(errors))
+    n_within_10_percent = sum(100 * error <= WITHIN_PERCENT_TOLERANCE * truth
+                              for error, truth in zip(errors, truth_counts))
+    return (max(errors) == 0, max(errors) <= NEAR_CONCORDANCE_TOLERANCE, float(np.mean(errors)),
+            n_within_10_percent)
 
 
 def load_truth(truth_tsv_path, regions_by_chrom):
@@ -282,6 +299,8 @@ def compare_sample(catalog_bed_path, eh_json_path, truth_tsv_path, high_confiden
         "has_truth": np.zeros(n_loci, dtype=np.uint8),
         "is_exact": np.zeros(n_loci, dtype=np.uint8),
         "is_within1": np.zeros(n_loci, dtype=np.uint8),
+        "n_alleles_compared": np.zeros(n_loci, dtype=np.uint8),
+        "n_alleles_within_10_percent": np.zeros(n_loci, dtype=np.uint8),
         "abs_error": np.zeros(n_loci, dtype=np.float32),
         "eh_diff_from_ref": np.full(n_loci, np.nan, dtype=np.float32),
         "truth_short_diff_from_ref": np.full(n_loci, np.nan, dtype=np.float32),
@@ -327,7 +346,9 @@ def compare_sample(catalog_bed_path, eh_json_path, truth_tsv_path, high_confiden
         for name, mean_value in mean_probabilities.items():
             if mean_value is not None:
                 arrays[f"{name}_sum_compared"][row_number] = mean_value
-        arrays["is_exact"][row_number], arrays["is_within1"][row_number], arrays["abs_error"][row_number] = comparison
+        (arrays["is_exact"][row_number], arrays["is_within1"][row_number], arrays["abs_error"][row_number],
+         arrays["n_alleles_within_10_percent"][row_number]) = comparison
+        arrays["n_alleles_compared"][row_number] = len(eh_counts)
 
     if n_unknown_locus_ids:
         raise ValueError(f"{n_unknown_locus_ids:,} LocusIds in {eh_json_path} are not in "
