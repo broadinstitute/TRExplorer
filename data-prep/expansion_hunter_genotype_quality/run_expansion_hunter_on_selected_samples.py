@@ -24,14 +24,13 @@ them and continues from the last finished locus (see resume_checkpoint_dir in
 create_expansion_hunter_steps). A preemption then costs the CRAM copy, the decompression scan and at most
 one checkpoint interval of genotyping.
 
---sample-table-path also accepts genotype_quality_model_runs_to_launch.tsv, the table of the 135 runs for the
-genotype-quality model (one row per run, keyed by run_label, so HG002 at 10x/20x/31x are separate runs), copied
-from eh_on_modal/genotype_quality_model_runs.tsv on 2026-10-01 and given a truth VCF column. Results for
-such a table land in {OUTPUT_DIR}/{run_label}/json/. For the genotype-quality model runs on the TRExplorer
-v2.1 catalog:
+--sample-table-path also accepts short_read_samples_with_truth_data.tsv, the table of the 135 short-read samples
+for the genotype-quality model (keyed by sample_label, so HG002 at 10x/20x/31x are separate samples), copied from
+eh_on_modal/genotype_quality_model_runs.tsv on 2026-10-01 and given a truth VCF column. Results for such a table
+land in {OUTPUT_DIR}/{sample_label}/json/. For the genotype-quality model samples on the TRExplorer v2.1 catalog:
 
     python3 run_expansion_hunter_on_selected_samples.py --no-wait \\
-        --sample-table-path genotype_quality_model_runs_to_launch.tsv \\
+        --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.EH.json.gz \\
         --output-dir gs://str-truth-set-v2/tool_genotype_quality/expansion_hunter_v2.1
 
@@ -105,18 +104,19 @@ parser.add_argument("--no-resume", action="store_true",
 args = bp.parse_known_args()
 
 df = pd.read_table(args.sample_table_path)
-if "run_label" in df.columns:
-    # genotype_quality_model_runs_to_launch.tsv: one row per run rather than per sample.
+if "sample_label" in df.columns:
+    # short_read_samples_with_truth_data.tsv: one row per short-read sample, keyed by sample_label, so a genome
+    # sequenced at several depths (HG002 at 10x/20x/31x) has one row per depth.
     df = df.rename(columns={"sex": "Gender", "reads_path": "cram_path", "reads_index_path": "crai_path"})
 else:
-    df["run_label"] = df["sample_id"]
-assert df.run_label.is_unique, f"{args.sample_table_path} has duplicate run labels"
+    df["sample_label"] = df["sample_id"]
+assert df.sample_label.is_unique, f"{args.sample_table_path} has duplicate sample labels"
 if args.sample_id:
     # A mistyped -s would otherwise just drop out of the filter, and the run would submit a smaller
     # set of samples than was asked for without saying so.
-    missing = set(args.sample_id) - set(df.run_label)
+    missing = set(args.sample_id) - set(df.sample_label)
     assert not missing, f"sample id(s) not in {args.sample_table_path}: {sorted(missing)}"
-    df = df[df.run_label.isin(args.sample_id)]
+    df = df[df.sample_label.isin(args.sample_id)]
 
 if len(df) == 0:
     parser.error(f"{args.sample_table_path} lists no samples, so there is nothing to genotype. "
@@ -161,8 +161,8 @@ for _, row in df.iterrows():
         input_bai=row.crai_path,
         male_or_female=row.Gender,
         variant_catalog_file_paths=[args.catalog_path],
-        output_dir=os.path.join(args.output_dir, row.run_label),
-        output_prefix=f"{row.run_label}.EHv5-bw2-optimized",
+        output_dir=os.path.join(args.output_dir, row.sample_label),
+        output_prefix=f"{row.sample_label}.EHv5-bw2-optimized",
         analysis_mode=ANALYSIS_MODE,
         loci_to_exclude=None,
         min_locus_coverage=None,

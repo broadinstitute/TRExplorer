@@ -30,9 +30,9 @@ Usage:
     python3 run_truth_genotyping_on_selected_samples.py --no-wait
     python3 run_truth_genotyping_on_selected_samples.py -s HG01993 -s HG02293   # subset of samples
 
-    # Truth for the genotype-quality model runs on the TRExplorer v2.1 catalog:
+    # Truth for the genotype-quality model samples on the TRExplorer v2.1 catalog:
     python3 run_truth_genotyping_on_selected_samples.py --no-wait \\
-        --sample-table-path genotype_quality_model_runs_to_launch.tsv \\
+        --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-bed-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz \\
         --output-dir gs://str-truth-set-v2/tool_genotype_quality/truth_genotypes_v2.1
 """
@@ -69,9 +69,9 @@ parser.add_argument("-s", "--sample-id", action="append",
 args = bp.parse_known_args()
 
 df = pd.read_table(args.sample_table_path)
-# genotype_quality_model_runs_to_launch.tsv has one row per ExpansionHunter run, so a genome sequenced at
-# several coverages (HG002 at 10x/20x/31x) appears more than once. Its truth comes from the assembly, not
-# the reads, so it is genotyped once.
+# short_read_samples_with_truth_data.tsv has one row per short-read sample, so a genome sequenced at several
+# depths (HG002 at 10x/20x/31x) appears more than once. Its truth comes from the assembly, not the reads, so it
+# is genotyped once.
 assert df.groupby("sample_id").high_confidence_vcf_path.nunique().max() == 1, (
     f"{args.sample_table_path} lists different truth VCFs for the same sample_id")
 df = df.drop_duplicates("sample_id")
