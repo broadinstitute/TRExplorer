@@ -105,6 +105,9 @@ parser.add_argument("--checkpoint-dir", default=CHECKPOINT_DIR,
                          "preemption continues instead of starting over.")
 parser.add_argument("--checkpoint-interval-seconds", type=int, default=CHECKPOINT_INTERVAL_SECONDS,
                     help="How often each job copies its --resume files to --checkpoint-dir.")
+parser.add_argument("--cpu", type=int, default=CPU,
+                    help="Cores per job. Memory is highmem, 6.5GB per core, so pass 4 (26GB) to rerun a sample that "
+                         "ran out of memory at the default. Not part of the checkpoint key, so the rerun resumes.")
 parser.add_argument("--no-resume", action="store_true",
                     help="Do not checkpoint, and do not pass --resume to ExpansionHunter.")
 args = bp.parse_known_args()
@@ -177,7 +180,7 @@ for _, row in df.iterrows():
         use_illumina_expansion_hunter=False,
         catalog_prefilter_step=None,
         num_shards=1,
-        streaming_cpu=CPU,
+        streaming_cpu=args.cpu,
         streaming_threads=THREADS,
         streaming_memory=MEMORY,
         resume_checkpoint_dir=None if args.no_resume else args.checkpoint_dir,
