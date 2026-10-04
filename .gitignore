@@ -212,3 +212,6 @@ data/
 CLAUDE.md
 CLAUDE_HISTORY.md
 CLAUDE_HISTORY_*.md
+
+# Local operations notes and checks (e.g. BigQuery cost controls), kept out of the code base
+/ops/
