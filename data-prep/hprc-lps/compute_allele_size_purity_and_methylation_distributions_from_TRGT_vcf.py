@@ -26,8 +26,8 @@ contributes to its Pop_Sex cell plus the Pop row-marginal and the Sex column-mar
 adding 17 stratum-suffixed columns (5 populations + 2 sexes + 10 Pop_Sex cells).
 
 Output column format:
-    locus_id, interval, vc, AlleleSizeAndPurityDistribution, AlleleSizeAndPurityDistribution__<stratum>, ...
-    locus_id, interval, vc, AlleleSizeAndMethylationDistribution, AlleleSizeAndMethylationDistribution__<stratum>, ...
+    locus_id, interval, vc, trid, AlleleSizeAndPurityDistribution, AlleleSizeAndPurityDistribution__<stratum>, ...
+    locus_id, interval, vc, trid, AlleleSizeAndMethylationDistribution, AlleleSizeAndMethylationDistribution__<stratum>, ...
 
 Output filenames (suffixes match the LPS script):
     <stem>.allele_size_purity.stratified[.only_<pop>][.only_<sex>][.by_population][.by_sex].{N}_samples.tsv.gz
@@ -126,7 +126,7 @@ def build_sample_id_to_strata(df_metadata, sample_ids_to_include, stratify_by_po
 
 
 def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_loci=None):
-    """Parse VCF and yield (locus_ids, interval, vc, purity_counters, methylation_counters) per locus.
+    """Parse VCF and yield (locus_ids, interval, vc, trid, purity_counters, methylation_counters) per locus.
 
     ``locus_ids`` is the list of LocusIds (each ``chrom-start-end-motif``) the record covers
     from ``INFO/TRID`` whose motif suffix matches the record's single
@@ -265,7 +265,7 @@ def parse_vcf_and_compute_distributions(input_vcf, sample_index_to_strata, num_l
                                   if lid.endswith(suffix)]
             if not matching_locus_ids:
                 continue
-            yield matching_locus_ids, interval, vc, purity_counters, methylation_counters
+            yield matching_locus_ids, interval, vc, trid, purity_counters, methylation_counters
 
     print(f"Done. Processed {rows_processed:,d} rows total.", flush=True)
 
@@ -350,11 +350,11 @@ def main():
     purity_path = Path(base_stem + ".allele_size_purity" + suffix)
     methylation_path = Path(base_stem + ".methylation" + suffix)
 
-    purity_header = ["locus_id", "interval", "vc"] + [
+    purity_header = ["locus_id", "interval", "vc", "trid"] + [
         f"AlleleSizeAndPurityDistribution__{label}" if label else "AlleleSizeAndPurityDistribution"
         for label in strata_labels
     ]
-    methylation_header = ["locus_id", "interval", "vc"] + [
+    methylation_header = ["locus_id", "interval", "vc", "trid"] + [
         f"AlleleSizeAndMethylationDistribution__{label}" if label else "AlleleSizeAndMethylationDistribution"
         for label in strata_labels
     ]
@@ -365,7 +365,7 @@ def main():
 
     purity_rows_written = 0
     methylation_rows_written = 0
-    # Process-wide uniqueness check on (locus_id, interval, vc) — matches the
+    # Process-wide uniqueness check on (locus_id, interval, vc, trid) — matches the
     # design contract enforced by the LPS convert and decompose scripts.
     seen_output_keys = set()
     # Atomic write: stream into .tmp files so a mid-run failure (duplicate
@@ -377,7 +377,7 @@ def main():
             purity_out.write("\t".join(purity_header) + "\n")
             methylation_out.write("\t".join(methylation_header) + "\n")
 
-            for locus_ids, interval, vc, purity_counters, methylation_counters in parse_vcf_and_compute_distributions(
+            for locus_ids, interval, vc, trid, purity_counters, methylation_counters in parse_vcf_and_compute_distributions(
                 args.input_vcf, sample_index_to_strata, args.num_loci
             ):
                 purity_values = [format_distribution(purity_counters.get(label, collections.Counter())) for label in strata_labels]
@@ -387,14 +387,14 @@ def main():
                 if not has_purity and not has_methylation:
                     continue
                 for locus_id in locus_ids:
-                    key = (locus_id, interval, vc)
+                    key = (locus_id, interval, vc, trid)
                     if key in seen_output_keys:
                         raise ValueError(
                             f"duplicate output tuple "
-                            f"(locus_id={locus_id!r}, interval={interval!r}, vc={vc!r})"
+                            f"(locus_id={locus_id!r}, interval={interval!r}, vc={vc!r}, trid={trid!r})"
                         )
                     seen_output_keys.add(key)
-                    row_prefix = f"{locus_id}\t{interval}\t{vc}"
+                    row_prefix = f"{locus_id}\t{interval}\t{vc}\t{trid}"
                     if has_purity:
                         purity_out.write(f"{row_prefix}\t" + "\t".join(purity_values) + "\n")
                         purity_rows_written += 1

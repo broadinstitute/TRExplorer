@@ -45,13 +45,13 @@ parser.add_argument("--vamos-tsv", default="../data-prep/vamos_ori_and_eff_motif
 parser.add_argument("--hprc256-purity-stratified-tsv",
                     default=None,
                     help="Stratified per-locus allele-size-vs-purity TSV from "
-                         "compute_allele_size_purity_and_methylation_distributions_from_vcf.py. "
+                         "compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py. "
                          "The bare AlleleSizeAndPurityDistribution column (all 256 samples) is loaded "
                          "into the HPRC256_AlleleSizeAndPurityDistribution column of the main catalog.")
 parser.add_argument("--hprc256-methylation-stratified-tsv",
                     default=None,
                     help="Stratified per-locus allele-size-vs-methylation TSV from "
-                         "compute_allele_size_purity_and_methylation_distributions_from_vcf.py. "
+                         "compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py. "
                          "The bare AlleleSizeAndMethylationDistribution column (all 256 samples) is "
                          "loaded into the HPRC256_AlleleSizeAndMethylationDistribution column of the main catalog.")
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
@@ -151,6 +151,7 @@ _PASCALCASE_TO_SNAKE_CASE = {
     "Motif": "motif",
     "Interval": "interval",
     "VC": "vc",
+    "TRID": "trid",
     "AlleleSizeHistogram": "allele_size_histogram",
     "BiallelicHistogram": "biallelic_histogram",
     "Min": "min_allele",
@@ -204,7 +205,10 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         # Narrowest span first; ties broken by interval string for determinism.
         # The same (span, interval) ordering is used by parse_all_samples_distribution_column
         # so the LPS / purity / methylation loaders pick the *same* row per locus.
-        df = df.sort_values(["locus_id", "_interval_span", "interval"]).drop_duplicates(
+        # Two VCF records can cover the same repeat over the same span under different TRIDs,
+        # which ties on every other sort key, so break that tie on trid when the column is there.
+        sort_columns = ["locus_id", "_interval_span", "interval"] + (["trid"] if "trid" in df.columns else [])
+        df = df.sort_values(sort_columns).drop_duplicates(
             subset="locus_id", keep="first"
         ).drop(columns=["_interval_span"])
     df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
@@ -376,7 +380,7 @@ hprc256_purity_methylation_lookup = {}
 
 def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_interval_by_locus=None):
     """Read the bare 'All samples' distribution column (named `expected_column`) from a
-    stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
+    stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py.
 
     The TSV emits multiple rows per locus_id (one per TRGT interval). When
     ``narrowest_interval_by_locus`` is provided (a ``{locus_id: interval}`` map
@@ -404,9 +408,11 @@ def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_i
             )
         col_idx = header.index(expected_column)
         # The compute_allele_size_purity script writes columns in order:
-        # locus_id, interval, vc, AlleleSizeAndPurityDistribution, ...
+        # locus_id, interval, vc, trid, AlleleSizeAndPurityDistribution, ...
         # Fall back to col 0 if 'interval' isn't present (older format).
         interval_col_idx = header.index("interval") if "interval" in header else None
+        # Same tie-break as the LPS table: two records can share an interval and differ only in TRID.
+        trid_col_idx = header.index("trid") if "trid" in header else None
         for line in f:
             fields = line.rstrip("\n").split("\t")
             value = fields[col_idx] if col_idx < len(fields) else ""
@@ -430,8 +436,11 @@ def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_i
                 preference_rank = 1
             else:
                 preference_rank = 2
-            # Deterministic tie-break: (rank, span, interval_str) ascending.
-            key = (preference_rank, _interval_span(interval_str), interval_str)
+            trid_str = ""
+            if trid_col_idx is not None and trid_col_idx < len(fields):
+                trid_str = fields[trid_col_idx]
+            # Deterministic tie-break: (rank, span, interval_str, trid_str) ascending.
+            key = (preference_rank, _interval_span(interval_str), interval_str, trid_str)
             current = best_key.get(locus_id)
             if current is None or key < current:
                 result[locus_id] = value

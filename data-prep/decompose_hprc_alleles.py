@@ -7,7 +7,8 @@ LocusIds for a variation-cluster catalog entry) emits one row per LocusId,
 each decomposed under the motif parsed from that LocusId. Under the newer
 catalog convention a cluster names itself in ``INFO/TRID`` (``VC:chrom:start-end``)
 and lists its constituent LocusIds in ``INFO/STRUC`` instead; those are read from
-STRUC. Records where every sample is a no-call emit no rows at all. The per-LocusId
+STRUC. Records where no sample has a called first allele (the records trgt-lps drops,
+e.g. every sample ``./.`` or ``./0``) emit no rows at all. The per-LocusId
 coordinates (``start_0based``/``end_1based``) and ``motifs`` come from the
 LocusId itself, not from VCF POS/END/MOTIFS, since TRGT sometimes extends
 VCF POS to anchor at an adjacent locus while keeping each LocusId faithful
@@ -22,9 +23,10 @@ was genotyped as part of a cluster, or the empty string for an isolated TR.
 A cluster is recognized under any of the catalog conventions in circulation:
 ``INFO/STRUC`` starting with ``<VC``, which covers both the bare counter
 ``<VC1>`` and ``<VC:chrom:start-end>``, or ``INFO/TRID`` starting with ``VC:``.
-These columns disambiguate the rows that share
-a ``locus_id`` because the same LocusId was genotyped under multiple TRGT
-catalog intervals (e.g. once as a standalone TR and once inside a VC).
+``trid`` is the record's full ``INFO/TRID``. These columns disambiguate the
+rows that share a ``locus_id`` because the same LocusId was genotyped under
+multiple TRGT catalog intervals (e.g. once as a standalone TR and once inside
+a VC), or under two records covering the same repeat with different TRIDs.
 
 Decomposition uses trviz when feasible, with bypass paths for short motifs
 and skip reasons for inputs that are too long or contain non-ACGT bases.
@@ -282,20 +284,24 @@ def format_allele_data(seq_counts, ref_repeat, motif):
     return ";".join(records)
 
 
-def all_samples_no_call(fmt_fields, sample_fields):
-    """Returns True when every sample's GT is missing (``.`` / ``./.`` / ``.|.``).
+def no_sample_has_first_allele_called(fmt_fields, sample_fields):
+    """Returns True when no sample's GT has a called first allele.
 
-    Matches the records trgt-lps drops from its LPS output, and the same check
+    Matches the records trgt-lps drops from its LPS output (tested against trgt-lps 0.11.0: a
+    record where every sample is ``.``, ``./.``, ``.|.`` or ``./0`` gets no LPS row, while one
+    where a sample is ``0/.`` does), and the same check
     str_analysis/extract_trid_metadata_from_TRGT_vcf.py applies. Keeping the three producers of the
     (locus_id, interval, vc) triple agreed on which records exist is what lets their
     outputs be joined on it.
     """
-    if not fmt_fields or fmt_fields[0] != "GT":
+    if "GT" not in fmt_fields:
         # No GT field in this record; can't decide -- keep the record.
         return False
+    gt_index = fmt_fields.index("GT")
     for s in sample_fields:
-        gt = s.split(":", 1)[0]
-        if gt and gt not in (".", "./.", ".|."):
+        sample_values = s.split(":")
+        gt = sample_values[gt_index] if gt_index < len(sample_values) else ""
+        if gt.replace("|", "/").split("/")[0] not in ("", "."):
             return False
     return True
 
@@ -407,7 +413,7 @@ def process_record(line):
 
     # Interval is the VCF chrom (no "chr" prefix) + POS-END, matching the
     # format used by extract_trid_metadata_from_TRGT_vcf.py and
-    # compute_allele_size_purity_and_methylation_distributions_from_vcf.py.
+    # compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py.
     # Using the VCF chrom (rather than the TRID's chrom) keeps the three
     # producer scripts aligned even for catalogs whose TRIDs include "chr".
     vcf_chrom_no_prefix = chrom[3:] if chrom.startswith("chr") else chrom
@@ -422,7 +428,7 @@ def process_record(line):
     alts = [a[1:] if a != "*" else a for a in raw_alts]
 
     fmt_fields = fmt.split(":")
-    if all_samples_no_call(fmt_fields, sample_fields):
+    if no_sample_has_first_allele_called(fmt_fields, sample_fields):
         return
 
     gt_idx = fmt_fields.index("GT")
@@ -448,6 +454,7 @@ def process_record(line):
             "vcf_end_1based": vcf_end_1based,
             "interval": interval_str,
             "vc": vc_span,
+            "trid": trid_field,
             "motifs": locus_motif,
             "total_allele_number": total_called,
             "total_unique_alleles": total_unique,
@@ -467,6 +474,7 @@ def get_schema():
         ("vcf_end_1based", pa.int64()),
         ("interval", pa.string()),
         ("vc", pa.string()),
+        ("trid", pa.string()),
         ("motifs", pa.string()),
         ("total_allele_number", pa.int64()),
         ("total_unique_alleles", pa.int64()),
@@ -513,11 +521,11 @@ def stream_vcf_to_parquet(input_stream, output_path, max_rows=None):
                 continue
             line_rows_emitted = 0
             for row in process_record(line):
-                key = (row["locus_id"], row["interval"], row["vc"])
+                key = (row["locus_id"], row["interval"], row["vc"], row["trid"])
                 if key in seen_output_keys:
                     raise ValueError(
                         f"duplicate output tuple "
-                        f"(locus_id={key[0]!r}, interval={key[1]!r}, vc={key[2]!r})"
+                        f"(locus_id={key[0]!r}, interval={key[1]!r}, vc={key[2]!r}, trid={key[3]!r})"
                     )
                 seen_output_keys.add(key)
                 for name in schema.names:
@@ -553,7 +561,7 @@ def main():
     args = parser.parse_args()
 
     rows_written, vcf_lines_skipped = stream_vcf_to_parquet(sys.stdin, args.output, max_rows=args.max_rows)
-    # "no rows", not "unparseable": a well-formed all-no-call record is deliberately
+    # "no rows", not "unparseable": a well-formed record where no sample has a called first allele is deliberately
     # skipped to stay consistent with the other producers, and lands in this count too.
     print(f"Wrote {rows_written} rows to {args.output} ({vcf_lines_skipped} VCF lines produced no rows)")
 

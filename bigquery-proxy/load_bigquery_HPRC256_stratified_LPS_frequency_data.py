@@ -29,6 +29,7 @@ import tempfile
 import tqdm
 from google.cloud import bigquery
 
+from bigquery_loader_utils import is_smallest_trid_row, scan_for_smallest_trid
 from global_constants import HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS, HPRC256_STRATA_LABELS
 
 PROJECT_ID = "cmg-analysis"
@@ -133,6 +134,14 @@ def main():
                 f"run with --stratify-by-population --stratify-by-sex). First missing: {missing[:5]}"
             )
 
+        # TSVs written before the TRID tie-break was added have no TRID column, and one row per
+        # (LocusId, Interval) already, so there is nothing to collapse for those.
+        smallest_trid_by_key = {}
+        if "TRID" in col_idx and "Interval" in col_idx:
+            smallest_trid_by_key = scan_for_smallest_trid(
+                input_tsv, col_idx, locus_id_column="LocusId", interval_column="Interval",
+                trid_column="TRID")
+
         # Gzipped, because the upload is the slow part: this file is ~15 GB as plain NDJSON but
         # ~1.5 GB compressed, and BigQuery decompresses gzipped NDJSON on its side. At the ~3 MB/s
         # uplink here that turns a ~90 minute upload into ~10 minutes, and keeps the temp file
@@ -140,7 +149,7 @@ def main():
         # extra compression is not worth the write time when the file is this large.
         ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl.gz")
         atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
-        rows_loaded = 0
+        rows_loaded = rows_skipped = 0
         with gzip.open(ndjson_path, "wt", compresslevel=6) as ndjson_file:
             for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
                 fields = line.rstrip("\n").split("\t")
@@ -148,6 +157,11 @@ def main():
                     raise ValueError(
                         f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
                     )
+                if not is_smallest_trid_row(fields, col_idx, smallest_trid_by_key,
+                                            locus_id_column="LocusId", interval_column="Interval",
+                                            trid_column="TRID"):
+                    rows_skipped += 1
+                    continue
                 row = {name: coerce_cell(name, fields[col_idx[name]]) for name in schema_field_names}
                 ndjson_file.write(json.dumps(row) + "\n")
                 rows_loaded += 1
@@ -164,6 +178,9 @@ def main():
     os.remove(ndjson_path)
 
     print(f"Loaded {rows_loaded:,d} rows into {DATASET_ID}.{new_table_id}")
+    if rows_skipped:
+        print(f"  - skipped {rows_skipped:,d} rows that describe a (LocusId, Interval) already "
+              f"covered by a smaller TRID")
 
     if not args.skip_html_update:
         update_html_table_id(

@@ -6,7 +6,7 @@
 # Pipeline:
 #   1. str_analysis.extract_trid_metadata_from_TRGT_vcf
 #        VCF -> small (trid, locus_id, motif, interval, vc) TSV used by step 4.
-#   2. compute_allele_size_purity_and_methylation_distributions_from_vcf.py
+#   2. compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py
 #        VCF -> stratified allele-size-vs-purity + allele-size-vs-methylation
 #        TSVs (with --stratify-by-population --stratify-by-sex). After writing,
 #        we symlink the outputs into the legacy hprc-lps/ directory so the
@@ -30,7 +30,7 @@ set -euo pipefail
 # anywhere (e.g. `bash data-prep/generate_lps_tables.sh` from the repo root).
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-PURITY_METH_SCRIPT=hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
+PURITY_METH_SCRIPT=hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py
 DECOMPOSE_SCRIPT=run_decompose_hprc_alleles.py
 BATCH_DIR=hprc-lps_2026-05-19
 LEGACY_DIR=hprc-lps
@@ -76,7 +76,7 @@ echo "[done] step 1: $INTERVAL_TSV"
 
 echo
 echo "============================================================"
-echo "Step 2/4: compute_allele_size_purity_and_methylation_distributions_from_vcf.py"
+echo "Step 2/4: compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py"
 echo "============================================================"
 python3 "$PURITY_METH_SCRIPT" \
     --input-vcf "$VCF" \

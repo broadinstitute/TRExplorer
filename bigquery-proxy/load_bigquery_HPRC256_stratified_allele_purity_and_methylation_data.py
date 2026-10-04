@@ -9,7 +9,7 @@
      Source: trgt-hprc.methylation.stratified.by_population.by_sex.<N>_samples.tsv.gz
 
 Both inputs are produced by
-    data-prep/hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_vcf.py
+    data-prep/hprc-lps/compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py
 when run with `--stratify-by-population --stratify-by-sex`. Each table is keyed on
 (locus_id, interval) and clustered on (locus_id, interval) (no partitioning); the schemas live in
 global_constants.py as HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS and
@@ -32,6 +32,7 @@ import tempfile
 import tqdm
 from google.cloud import bigquery
 
+from bigquery_loader_utils import is_smallest_trid_row, scan_for_smallest_trid
 from global_constants import (
     HPRC256_ALLELE_PURITY_BIGQUERY_TABLE_COLUMNS,
     HPRC256_METHYLATION_BIGQUERY_TABLE_COLUMNS,
@@ -100,7 +101,7 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
     print(f"Reading {input_tsv}")
     ndjson_path = os.path.join(tempfile.gettempdir(), f"{new_table_id}.jsonl")
     atexit.register(lambda: os.path.exists(ndjson_path) and os.remove(ndjson_path))
-    rows_loaded = 0
+    rows_loaded = rows_skipped = 0
     with gzip.open(input_tsv, "rt") as f, open(ndjson_path, "wt") as ndjson_file:
         header = f.readline().rstrip("\n").split("\t")
         col_idx = {name: i for i, name in enumerate(header)}
@@ -112,9 +113,15 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
         if missing:
             parser.error(
                 f"Input {input_tsv} is missing {len(missing)} required column(s) (run the upstream "
-                f"compute_allele_size_purity_and_methylation_distributions_from_vcf.py with "
+                f"compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py with "
                 f"--stratify-by-population --stratify-by-sex). First missing: {missing[:5]}"
             )
+
+        # TSVs written before the TRID tie-break was added have no trid column, and one row per
+        # (locus_id, interval) already, so there is nothing to collapse for those.
+        smallest_trid_by_key = {}
+        if "trid" in col_idx and "interval" in col_idx:
+            smallest_trid_by_key = scan_for_smallest_trid(input_tsv, col_idx)
 
         for line_num, line in enumerate(tqdm.tqdm(f, unit=" rows", unit_scale=True), start=2):
             fields = line.rstrip("\n").split("\t")
@@ -122,6 +129,9 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
                 raise ValueError(
                     f"Field count mismatch on line {line_num}: got {len(fields)}, expected {len(header)}"
                 )
+            if not is_smallest_trid_row(fields, col_idx, smallest_trid_by_key):
+                rows_skipped += 1
+                continue
             row = {name: fields[col_idx[name]] for name in schema_field_names}
             ndjson_file.write(json.dumps(row) + "\n")
             rows_loaded += 1
@@ -138,6 +148,9 @@ def load_table(client, dataset_ref, input_tsv, table_prefix, schema_columns, par
     os.remove(ndjson_path)
 
     print(f"Loaded {rows_loaded:,d} rows into {DATASET_ID}.{new_table_id}")
+    if rows_skipped:
+        print(f"  - skipped {rows_skipped:,d} rows that describe a (locus_id, interval) already "
+              f"covered by a smaller TRID")
     return new_table_id
 
 
