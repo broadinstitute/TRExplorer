@@ -214,7 +214,7 @@ in the "SpliceAI (simulated alleles)" group. There are two ways to load them, an
 cd ../../bigquery-proxy
 TSV=../data-prep/splicing_prediction/TRExplorer_SpliceAI_summary.basic.tsv.gz
 python3 add_spliceai_columns_to_catalog_table.py $TSV --check-only     # only reports how many LocusIds match
-python3 add_spliceai_columns_to_catalog_table.py $TSV                  # fills the most recent catalog_* table
+python3 add_spliceai_columns_to_catalog_table.py $TSV                  # fills the table the website queries (TABLE_ID in ../website/header_template.html)
 python3 add_spliceai_columns_to_catalog_table.py $TSV --table-id catalog_YYYYMMDD_HHMMSS   # or a specific one
 ```
 
@@ -222,7 +222,8 @@ This runs these steps:
 
 1. Adds any missing `SpliceAI_*` columns to the table's schema.
 2. Loads the TSV into a temporary staging table.
-3. Sets every row's `SpliceAI_*` columns to NULL, then copies in the values by `LocusId`.
+3. In one `MERGE` statement, copies in the values by `LocusId` and sets the `SpliceAI_*` columns to NULL in
+   every other row. Being one statement, it either applies fully or leaves the table unchanged.
 4. Deletes the staging table.
 
 Loci missing from the TSV end up NULL, even if an earlier fill set them.

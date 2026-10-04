@@ -83,4 +83,5 @@ load:
 	    --non-coding-annotations-bed ../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz \
 	    --tanudisastro-2024-lookup-json ../data-prep/literature_review/Tanudisastro_2024/Tanudisastro_2024_lookup.json.gz \
 	    --manigbas-2024-lookup-json ../data-prep/literature_review/Manigbas_2024/Manigbas_2024_lookup.json.gz \
+	    --spliceai-summary-tsv ../data-prep/splicing_prediction/TRExplorer_SpliceAI_summary.basic.tsv.gz \
 	    --reason ""
