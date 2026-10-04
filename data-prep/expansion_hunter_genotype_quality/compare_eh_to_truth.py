@@ -33,6 +33,11 @@ What a locus contributes:
                                truth copies this only allows an exact match. Measuring in bp instead
                                gives the same result, since the motif size cancels.
   abs_error        mean |ExpansionHunter - truth| over alleles   (only where has_truth)
+  truth_short_allele, truth_long_allele   the truth repeat counts, and
+  eh_short_allele, eh_long_allele         the ExpansionHunter repeat counts they were paired with
+                       (shorter with shorter), so a per-allele score, such as how well the longest truth
+                       alleles were called, can be computed downstream. A haploid call has one allele,
+                       stored in both. nan unless has_truth.
   eh_diff_from_ref     how far the CALL sits from a homozygous-reference genotype, in repeats:
                        max over alleles of |allele - reference copies|. Separates "it called an
                        expansion" from "it called the reference", which the rates alone conflate,
@@ -79,6 +84,7 @@ NEAR_CONCORDANCE_TOLERANCE = 1
 # Kept as an integer percentage so the check stays exact integer arithmetic on repeat counts.
 WITHIN_PERCENT_TOLERANCE = 10
 
+LOCUS_RESULTS_PATTERN = re.compile(r'"LocusResults":\s*\{')
 LOCUS_ID_PATTERN = re.compile(r'"LocusId":\s*"([^"]+)"')
 QUICK_GENOTYPE_PATTERN = re.compile(r'"QuickGenotype":\s*(true|false)')
 GENOTYPE_PATTERN = re.compile(r'"Genotype":\s*"([^"]+)"')
@@ -142,21 +148,40 @@ def parse_eh_json(eh_json_path):
     The repeat counts come from the "Genotype" string ("9/9"), not from AlleleQualityMetrics, because
     the latter is deduplicated by allele size and so lists a homozygote's allele only once. pOk is
     averaged over the AlleleQualityMetrics entries, which is what the earlier reports used.
+
+    A locus record starts where its object opens inside "LocusResults", found by counting braces, not
+    at its "LocusId" line: ExpansionHunter writes a locus's keys in alphabetical order, so "Coverage"
+    comes before "LocusId", and starting the record at the LocusId would credit each locus's coverage
+    to the locus before it. This relies on one locus ending and the next starting on different lines,
+    which is how ExpansionHunter writes it (pretty-printed). No string value in the file contains a
+    brace.
     """
-    locus_id = None
-    record = new_eh_record()
+    locus_results_depth = None  # brace depth just inside the LocusResults object, once it opens
+    depth = 0
+    locus_id, record = None, None
     with open_maybe_gzipped(eh_json_path) as f:
         for line in f:
+            depth_before = depth
+            if locus_results_depth is None and LOCUS_RESULTS_PATTERN.search(line):
+                locus_results_depth = depth_before + 1
+            depth += line.count("{") - line.count("}")
+            if locus_results_depth is None:
+                continue
+            if depth_before <= locus_results_depth < depth:
+                # This line opens an object directly inside LocusResults: the next locus starts.
+                if locus_id is not None:
+                    yield locus_id, record
+                locus_id, record = None, new_eh_record()
+            elif depth < locus_results_depth:
+                # LocusResults closed; nothing after it (RunInfo) belongs to a locus.
+                if locus_id is not None:
+                    yield locus_id, record
+                locus_id, record = None, None
+            if record is None:
+                continue
             match = LOCUS_ID_PATTERN.search(line)
-            if match:
-                # A new LocusId marks the start of the next locus record, so the one being collected
-                # is finished. ExpansionHunter writes LocusId once per locus (its variants carry a
-                # VariantId instead), but comparing against the current id costs nothing and keeps
-                # this correct if a locus ever repeats the field.
-                if match.group(1) != locus_id:
-                    if locus_id is not None:
-                        yield locus_id, record
-                    locus_id, record = match.group(1), new_eh_record()
+            if match and locus_id is None:
+                locus_id = match.group(1)
                 # No `continue`: a writer that puts more than one field on a line would otherwise
                 # have every field after the LocusId silently dropped.
             match = GENOTYPE_PATTERN.search(line)
@@ -302,6 +327,10 @@ def compare_sample(catalog_bed_path, eh_json_path, truth_tsv_path, high_confiden
         "n_alleles_compared": np.zeros(n_loci, dtype=np.uint8),
         "n_alleles_within_10_percent": np.zeros(n_loci, dtype=np.uint8),
         "abs_error": np.zeros(n_loci, dtype=np.float32),
+        "truth_short_allele": np.full(n_loci, np.nan, dtype=np.float32),
+        "truth_long_allele": np.full(n_loci, np.nan, dtype=np.float32),
+        "eh_short_allele": np.full(n_loci, np.nan, dtype=np.float32),
+        "eh_long_allele": np.full(n_loci, np.nan, dtype=np.float32),
         "eh_diff_from_ref": np.full(n_loci, np.nan, dtype=np.float32),
         "truth_short_diff_from_ref": np.full(n_loci, np.nan, dtype=np.float32),
         "truth_long_diff_from_ref": np.full(n_loci, np.nan, dtype=np.float32),
@@ -349,6 +378,10 @@ def compare_sample(catalog_bed_path, eh_json_path, truth_tsv_path, high_confiden
         (arrays["is_exact"][row_number], arrays["is_within1"][row_number], arrays["abs_error"][row_number],
          arrays["n_alleles_within_10_percent"][row_number]) = comparison
         arrays["n_alleles_compared"][row_number] = len(eh_counts)
+        arrays["truth_short_allele"][row_number] = truth_short
+        arrays["truth_long_allele"][row_number] = truth_long
+        arrays["eh_short_allele"][row_number] = eh_counts[0]
+        arrays["eh_long_allele"][row_number] = eh_counts[-1]
 
     if n_unknown_locus_ids:
         raise ValueError(f"{n_unknown_locus_ids:,} LocusIds in {eh_json_path} are not in "

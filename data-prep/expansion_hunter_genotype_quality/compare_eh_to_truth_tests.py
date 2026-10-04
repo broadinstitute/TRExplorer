@@ -51,10 +51,12 @@ def direction_probabilities(pok):
     return too_short, round(1.0 - pok - too_short, 3)
 
 
-def write_eh_json(path, genotypes_and_poks, quick_loci=()):
+def write_eh_json(path, genotypes_and_poks, quick_loci=(), coverage_by_locus_id=None, sort_keys=False):
     """genotypes_and_poks: {LocusId: (genotype string or None, [pOk, ...])}
 
     quick_loci: the LocusIds ExpansionHunter genotyped on its fast path.
+    coverage_by_locus_id: per-locus Coverage (default 30.5 everywhere).
+    sort_keys: write keys alphabetically, as ExpansionHunter does, which puts Coverage before LocusId.
     """
     locus_results = {}
     for lid, (genotype, poks) in genotypes_and_poks.items():
@@ -62,7 +64,7 @@ def write_eh_json(path, genotypes_and_poks, quick_loci=()):
         # the variant record carries a VariantId instead.
         locus_results[lid] = {
             "LocusId": lid,
-            "Coverage": 30.5,
+            "Coverage": (coverage_by_locus_id or {}).get(lid, 30.5),
             "Variants": {
                 lid: {
                     "VariantId": lid,
@@ -79,7 +81,8 @@ def write_eh_json(path, genotypes_and_poks, quick_loci=()):
             },
         }
     with gzip.open(path, "wt") as f:
-        json.dump({"LocusResults": locus_results}, f, indent=4)
+        json.dump({"SampleParameters": {"SampleId": "S"}, "LocusResults": locus_results,
+                   "RunInfo": {"Version": "abc"}}, f, indent=4, sort_keys=sort_keys)
 
 
 def allele_record(allele_index, pok):
@@ -173,6 +176,34 @@ class CompareEhToTruthTests(unittest.TestCase):
         arrays = self.compare({lid: ("22/34", [0.5])}, {lid: (20, 30)})
         self.assertEqual(arrays["n_alleles_compared"][0], 2)
         self.assertEqual(arrays["n_alleles_within_10_percent"][0], 1)
+
+    def test_coverage_stays_with_its_locus_when_written_before_the_locus_id(self):
+        # ExpansionHunter writes keys alphabetically, so each locus's Coverage precedes its LocusId.
+        lids = [locus_id(row) for row in CATALOG_ROWS[:2]]
+        write_eh_json(self.eh_json, {lid: ("10/10", [0.9]) for lid in lids},
+                      coverage_by_locus_id={lids[0]: 11.0, lids[1]: 22.0}, sort_keys=True)
+        coverage = {lid: record["coverage"] for lid, record in compare_eh_to_truth.parse_eh_json(self.eh_json)}
+        self.assertEqual(coverage, {lids[0]: 11.0, lids[1]: 22.0})
+
+    def test_per_allele_counts_are_paired_shorter_with_shorter(self):
+        lid = locus_id(CATALOG_ROWS[0])
+        arrays = self.compare({lid: ("34/22", [0.5])}, {lid: (20, 30)})
+        self.assertEqual(arrays["truth_short_allele"][0], 20)
+        self.assertEqual(arrays["truth_long_allele"][0], 30)
+        self.assertEqual(arrays["eh_short_allele"][0], 22)
+        self.assertEqual(arrays["eh_long_allele"][0], 34)
+
+    def test_haploid_call_stores_its_one_allele_in_both(self):
+        lid = locus_id(CATALOG_ROWS[3])
+        arrays = self.compare({lid: ("7", [0.6])}, {lid: (7, 7)})
+        self.assertEqual(arrays["eh_short_allele"][3], 7)
+        self.assertEqual(arrays["eh_long_allele"][3], 7)
+
+    def test_per_allele_counts_are_nan_without_truth(self):
+        outside = locus_id(CATALOG_ROWS[2])
+        arrays = self.compare({outside: ("10/10", [0.9])}, {outside: (10, 10)})
+        for name in ("truth_short_allele", "truth_long_allele", "eh_short_allele", "eh_long_allele"):
+            self.assertTrue(np.isnan(arrays[name][2]), name)
 
     def test_haploid_call_counts_one_allele_toward_10_percent(self):
         lid = locus_id(CATALOG_ROWS[3])
