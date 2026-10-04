@@ -192,11 +192,12 @@ holds the queue.
 |---|---|
 | `LocusId` | TRExplorer locus ID without the `chr` prefix, e.g. `1-12345-12400-CAG` |
 | `SpliceAI_MaxDeltaScore` | largest delta score (acceptor or donor, gain or loss, on the selected transcript) of any simulated allele; 0 if none reached 0.01 |
-| `SpliceAI_MaxDeltaScoreAlleleSize` | the size that gave it: `2.5pct`, `97.5pct`, `99.5pct`, `+1x`, `+2x` or `+3x`; empty if none reached 0.01 |
+| `SpliceAI_MaxDeltaScoreAlleleSize` | the size that gave it: `2.5pct`, `97.5pct`, `99.5pct`, `99.5pct+1xMotifRange`, `99.5pct+2xMotifRange` or `99.5pct+3xMotifRange` (the `+1x`, `+2x` and `+3x` sizes above); empty if none reached 0.01 |
 | `SpliceAI_MinAlleleSizeThatAffectsSplicing` | the smallest size with a delta score of at least 0.2, with the same values; empty if none |
 | `SpliceAI_DeltaScoreByRepeatCount` | every simulated allele, sorted by repeat count, as `repeat_count:max_delta_score` plus the type of the largest change when it is at least 0.01 (`AG` acceptor gain, `AL` acceptor loss, `DG` donor gain, `DL` donor loss). Example: `18:0.000,25:0.030AG,40:0.310AG,95:0.880AL` |
 
-The sizes, in order of increasing length, are 2.5pct, 97.5pct, 99.5pct, +1x, +2x, +3x. When several sizes
+The sizes, in order of increasing length, are 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange,
+99.5pct+2xMotifRange, 99.5pct+3xMotifRange. When several sizes
 round to the same allele, the allele is named by the smallest. Loci that were not scored are left out of
 the summary, so their columns are NULL in BigQuery. These are loci that are not polymorphic in HPRC256,
 or that lie outside every GENCODE v50 basic transcript.

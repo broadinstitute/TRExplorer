@@ -14,7 +14,8 @@ class AlleleSizeNameTests(unittest.TestCase):
 
     def test_names(self):
         self.assertEqual([allele_size_name(label) for label in LABELS.values()],
-                         ["2.5pct", "97.5pct", "99.5pct", "+1x", "+2x", "+3x"])
+                         ["2.5pct", "97.5pct", "99.5pct", "99.5pct+1xMotifRange", "99.5pct+2xMotifRange",
+                          "99.5pct+3xMotifRange"])
 
 
 class SummarizeLocusTests(unittest.TestCase):
@@ -29,8 +30,8 @@ class SummarizeLocusTests(unittest.TestCase):
         row = summarize_locus("chr1-100-120-CA", alleles, labels, records)
         self.assertEqual(row["LocusId"], "1-100-120-CA")
         self.assertEqual(row["SpliceAI_MaxDeltaScore"], "0.880")
-        self.assertEqual(row["SpliceAI_MaxDeltaScoreAlleleSize"], "+3x")
-        self.assertEqual(row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], "+1x")
+        self.assertEqual(row["SpliceAI_MaxDeltaScoreAlleleSize"], "99.5pct+3xMotifRange")
+        self.assertEqual(row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], "99.5pct+1xMotifRange")
         self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCount"], "9:0.000,12:0.005,15:0.310AG,25:0.880AL")
 
     def test_locus_with_no_stored_alleles(self):
@@ -51,7 +52,7 @@ class SummarizeLocusTests(unittest.TestCase):
         alleles = ["chr1-100-A-ACA", "chr1-100-A-ACACA"]
         records = {v: record("0.500", "0.000", "0.000", "0.000") for v in alleles}
         row = summarize_locus("chr1-100-120-CA", alleles, [[LABELS["+1x"]], [LABELS["+2x"]]], records)
-        self.assertEqual(row["SpliceAI_MaxDeltaScoreAlleleSize"], "+1x")
+        self.assertEqual(row["SpliceAI_MaxDeltaScoreAlleleSize"], "99.5pct+1xMotifRange")
 
 
 if __name__ == "__main__":

@@ -12,9 +12,11 @@ have one), and writes a TSV with:
                                                loss, on the transcript the server selects) of any
                                                simulated allele at the locus; 0 if none reached 0.01
     SpliceAI_MaxDeltaScoreAlleleSize           which simulated size gave it: 2.5pct, 97.5pct, 99.5pct
-                                               (HPRC256 total allele length percentiles), or +1x, +2x,
-                                               +3x (the 99.5th percentile plus that multiple of the
-                                               motif's range); empty if no allele reached 0.01
+                                               (HPRC256 total allele length percentiles), or
+                                               99.5pct+1xMotifRange, 99.5pct+2xMotifRange,
+                                               99.5pct+3xMotifRange (the 99.5th percentile plus that
+                                               multiple of the motif's range); empty if no allele
+                                               reached 0.01
     SpliceAI_MinAlleleSizeThatAffectsSplicing  the smallest simulated size whose delta score is at least
                                                AFFECTS_SPLICING_MIN_DELTA_SCORE (0.2), with the same
                                                values; empty if none
@@ -25,7 +27,8 @@ have one), and writes a TSV with:
                                                "18:0.000,25:0.030AG,40:0.310AG,95:0.880AL" (3 decimals,
                                                as SpliceAI-lookup reports the scores)
 
-The sizes are in increasing length order (2.5pct < 97.5pct < 99.5pct < +1x < +2x < +3x). One allele
+The sizes are in increasing length order (2.5pct < 97.5pct < 99.5pct < 99.5pct+1xMotifRange <
+99.5pct+2xMotifRange < 99.5pct+3xMotifRange). One allele
 can stand for several sizes when they round to the same repeat count; it is then named by the smallest.
 Repeat counts are the hg38 tract length divided by the motif length (whole units, as in the allele
 design) plus the allele's change in units. An allele with no stored record scored below 0.01 on the
@@ -56,9 +59,10 @@ OUTPUT_COLUMNS = ("LocusId", "SpliceAI_MaxDeltaScore", "SpliceAI_MaxDeltaScoreAl
 
 
 def allele_size_name(target_label):
-    """Returns the column value for a target label, e.g. "97.5th percentile" -> "97.5pct", "99.5th + 2x motif range" -> "+2x"."""
+    """Returns the column value for a target label, e.g. "97.5th percentile" -> "97.5pct",
+    "99.5th + 2x motif range" -> "99.5pct+2xMotifRange"."""
     if target_label.startswith(f"{HIGHEST_PERCENTILE}th + "):
-        return "+" + target_label.split(" + ")[1].split()[0]
+        return f"{HIGHEST_PERCENTILE}pct+" + target_label.split(" + ")[1].split()[0] + "MotifRange"
     return target_label.split("th percentile")[0] + "pct"
 
 

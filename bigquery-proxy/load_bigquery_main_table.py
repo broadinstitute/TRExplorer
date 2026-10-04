@@ -24,7 +24,7 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -54,6 +54,12 @@ parser.add_argument("--hprc256-methylation-stratified-tsv",
                          "compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py. "
                          "The bare AlleleSizeAndMethylationDistribution column (all 256 samples) is "
                          "loaded into the HPRC256_AlleleSizeAndMethylationDistribution column of the main catalog.")
+parser.add_argument("--spliceai-summary-tsv",
+                    default=None,
+                    help="Per-locus SpliceAI summary TSV (LocusId plus the SpliceAI_* columns) from "
+                         "../data-prep/splicing_prediction/summarize_full_run_spliceai_scores_per_locus.py, e.g. "
+                         "../data-prep/splicing_prediction/TRExplorer_SpliceAI_summary.basic.tsv.gz. "
+                         "Loci missing from it get NULL SpliceAI_* columns.")
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 parser.add_argument("--non-coding-annotations-bed", default="../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz")
 parser.add_argument("--tanudisastro-2024-lookup-json",
@@ -350,6 +356,27 @@ def parse_vamos_tsv(vamos_tsv):
     return vamos_columns_lookup
 
 
+def parse_spliceai_summary_tsv(spliceai_summary_tsv):
+    """Returns {LocusId: {SpliceAI_* column: value}} from the per-locus SpliceAI summary TSV.
+
+    SpliceAI_MaxDeltaScore becomes a float; empty strings in the other columns become None (NULL).
+    """
+    print(f"Parsing {spliceai_summary_tsv}")
+    lookup = {}
+    fopen = gzip.open if spliceai_summary_tsv.endswith("gz") else open
+    with fopen(spliceai_summary_tsv, "rt") as f:
+        header = f.readline().rstrip("\n").split("\t")
+        missing_columns = set(SPLICEAI_COLUMN_NAMES) - set(header)
+        if missing_columns:
+            raise ValueError(f"{spliceai_summary_tsv} is missing columns: {sorted(missing_columns)}")
+        for line in f:
+            row = dict(zip(header, line.rstrip("\n").split("\t")))
+            lookup[row["LocusId"]] = {
+                c: (float(row[c]) if c == "SpliceAI_MaxDeltaScore" else row[c] or None) for c in SPLICEAI_COLUMN_NAMES}
+    print(f"Parsed SpliceAI summaries for {len(lookup):,d} loci")
+    return lookup
+
+
 ## Parse population allele frequency data from different sources
 # check that files exist
 for name in "reference_fasta", "tenk10k_tsv", "hprc256_tsv", "aou1027_tsv", "vamos_tsv":
@@ -514,6 +541,7 @@ if hprc256_lookup and aou1027_lookup:
             print(f"Correlation between the {column} at {len(valid_keys):,d} TR loci in HPRC256 and AoU1027 is {pearsonr:0.2f}")
 
 vamos_columns_lookup = parse_vamos_tsv(args.vamos_tsv)
+spliceai_summary_lookup = parse_spliceai_summary_tsv(os.path.expanduser(args.spliceai_summary_tsv)) if args.spliceai_summary_tsv else {}
 
 ## Parse known disease-associated loci from gnomAD, STRchive and STRipy
 if not args.known_disease_associated_loci:
@@ -1043,6 +1071,10 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
             key = (record["chrom"], gangstr_interval.begin, gangstr_interval.end, gangstr_canonical_motif)
             if key in gangstr_interval_set:
                 gangstr_interval_set.remove(key)
+
+    if record["LocusId"] in spliceai_summary_lookup:
+        counters["rows_with_spliceai_summary"] += 1
+        record.update(spliceai_summary_lookup[record["LocusId"]])
 
     if record["ReferenceRegion"] in vamos_columns_lookup:
         vamos_data = vamos_columns_lookup[record["ReferenceRegion"]]

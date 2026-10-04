@@ -18,6 +18,7 @@ GROUP_GENE_ANNOTATIONS = "Gene Annotations"
 GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
+GROUP_SPLICEAI = "SpliceAI (simulated alleles)"
 
 GROUP_ORDER = [
     GROUP_CORE,
@@ -27,7 +28,17 @@ GROUP_ORDER = [
     GROUP_POLYMORPHISM_HPRC256,
     GROUP_POLYMORPHISM_AOU1027,
     GROUP_POLYMORPHISM_TENK10K,
+    GROUP_SPLICEAI,
 ]
+
+SPLICEAI_SIMULATED_ALLELES_DESCRIPTION = (
+    "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the "
+    "server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele "
+    "sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; "
+    "99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 "
+    "times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th "
+    "percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, "
+    "99.5pct+2xMotifRange, 99.5pct+3xMotifRange.")
 
 MAIN_BIGQUERY_TABLE_COLUMNS = [
     # Core locus identifiers
@@ -1056,7 +1067,55 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "allowCustomFilter": True,
         "group": GROUP_CORE,
     },
+
+    # SpliceAI scores of simulated alleles, from the SpliceAI-lookup full run on Modal
+    # (../data-prep/splicing_prediction/, summarize_full_run_spliceai_scores_per_locus.py). NULL for loci that were not scored: loci with
+    # fewer than 2 distinct HPRC256 allele sizes, or outside every GENCODE v50 basic transcript.
+    {
+        "type": "FLOAT",
+        "name": "SpliceAI_MaxDeltaScore",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " The largest SpliceAI delta score (acceptor or donor, "
+                       "gain or loss) of any simulated allele at this locus; 0 if none reached 0.01.",
+        "displayName": "SpliceAI Max Delta Score",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_SPLICEAI,
+    },
+    {
+        "type": "STRING",
+        "name": "SpliceAI_MaxDeltaScoreAlleleSize",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " The simulated allele size that gave the largest delta "
+                       "score (the smallest such size if several tie); empty if no allele reached 0.01.",
+        "displayName": "SpliceAI Max Delta Score Allele Size",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_SPLICEAI,
+    },
+    {
+        "type": "STRING",
+        "name": "SpliceAI_MinAlleleSizeThatAffectsSplicing",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " The smallest simulated allele size with a SpliceAI "
+                       "delta score of at least 0.2; empty if none.",
+        "displayName": "SpliceAI Min Allele Size That Affects Splicing",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_SPLICEAI,
+    },
+    {
+        "type": "STRING",
+        "name": "SpliceAI_DeltaScoreByRepeatCount",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " Every simulated allele, sorted by repeat count, as "
+                       "repeat_count:max_delta_score followed by the type of the largest change (AG acceptor gain, "
+                       "AL acceptor loss, DG donor gain, DL donor loss) when it is at least 0.01, "
+                       "e.g. 18:0.000,25:0.030AG,40:0.310AG,95:0.880AL.",
+        "displayName": "SpliceAI Delta Score By Repeat Count",
+        "allowExport": True,
+        "group": GROUP_SPLICEAI,
+    },
 ]
+
+# The names of the SpliceAI_* columns, which add_spliceai_columns_to_catalog_table.py fills in an existing table
+SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c.get("group") == GROUP_SPLICEAI]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when
