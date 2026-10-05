@@ -24,7 +24,7 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
+from global_constants import EH_ALLELE_QUALITY_COLUMN_NAMES, MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -60,6 +60,12 @@ parser.add_argument("--spliceai-summary-tsv",
                          "../data-prep/splicing_prediction/summarize_full_run_spliceai_scores_per_locus.py, e.g. "
                          "../data-prep/splicing_prediction/TRExplorer_SpliceAI_summary.basic.tsv.gz. "
                          "Loci missing from it get NULL SpliceAI_* columns.")
+parser.add_argument("--eh-allele-quality-tsv",
+                    default=None,
+                    help="Per-locus ExpansionHunter accuracy TSV (LocusId plus the EH_allele_quality_* columns) from "
+                         "../data-prep/expansion_hunter_genotype_quality/write_eh_allele_quality_bigquery_tsv.py, e.g. "
+                         "../data-prep/expansion_hunter_genotype_quality/data/TRExplorer_EH_allele_quality.v2.1.tsv.gz. "
+                         "Loci missing from it get NULL EH_allele_quality_* columns.")
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 parser.add_argument("--non-coding-annotations-bed", default="../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz")
 parser.add_argument("--tanudisastro-2024-lookup-json",
@@ -68,6 +74,13 @@ parser.add_argument("--tanudisastro-2024-lookup-json",
 parser.add_argument("--manigbas-2024-lookup-json",
                     default="../data-prep/literature_review/Manigbas_2024/Manigbas_2024_lookup.json.gz",
                     help="JSON lookup with PheWAS data from Manigbas et al. 2024")
+parser.add_argument("--zhang-2025-lookup-json",
+                    default="../data-prep/literature_review/Zhang_2025/Zhang_2025_lookup.json.gz",
+                    help="JSON lookup with STR MPRA length effects from Zhang et al. 2025")
+parser.add_argument("--encode4-and-igvf-validated-elements-tsv",
+                    default="../data-prep/columns_from_EncodeV4/TRExplorer_v2.1_ENCODE4_columns.tsv.gz",
+                    help="Per-locus TSV (LocusId, ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements) from "
+                         "../data-prep/columns_from_EncodeV4/compute_encode4_columns_for_catalog_loci.py")
 parser.add_argument("--reason", default="", help="Reason for this data update (will be stored in data_last_updated_date.json)")
 parser.add_argument("--skip-html-update", action="store_true",
                     help="Don't rewrite the TABLE_ID constant in the website HTML files.")
@@ -217,6 +230,7 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
         df = df.sort_values(sort_columns).drop_duplicates(
             subset="locus_id", keep="first"
         ).drop(columns=["_interval_span"])
+    # ANALYSIS_OK[imputation]: some TenK10K loci (31,671 in the current TSV) have no histogram; "" keeps a float NaN out of the STRING *_AlleleHistogram columns
     df["allele_size_histogram"] = df["allele_size_histogram"].fillna("")
     df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
     df_grouped_by_motif = df.groupby("canonical_motif")
@@ -374,6 +388,30 @@ def parse_spliceai_summary_tsv(spliceai_summary_tsv):
             lookup[row["LocusId"]] = {
                 c: (float(row[c]) if c == "SpliceAI_MaxDeltaScore" else row[c] or None) for c in SPLICEAI_COLUMN_NAMES}
     print(f"Parsed SpliceAI summaries for {len(lookup):,d} loci")
+    return lookup
+
+
+def parse_eh_allele_quality_tsv(eh_allele_quality_tsv):
+    """Returns {LocusId: {EH_allele_quality_* column: value}} from the per-locus ExpansionHunter accuracy TSV.
+
+    Values are converted to their BigQuery column types (FLOAT, INTEGER or STRING); empty strings become
+    None (NULL).
+    """
+    print(f"Parsing {eh_allele_quality_tsv}")
+    column_types = {c["name"]: c["type"] for c in MAIN_BIGQUERY_TABLE_COLUMNS}
+    convert = {"FLOAT": float, "INTEGER": int, "STRING": str}
+    lookup = {}
+    fopen = gzip.open if eh_allele_quality_tsv.endswith("gz") else open
+    with fopen(eh_allele_quality_tsv, "rt") as f:
+        header = f.readline().rstrip("\n").split("\t")
+        missing_columns = set(EH_ALLELE_QUALITY_COLUMN_NAMES) - set(header)
+        if missing_columns:
+            raise ValueError(f"{eh_allele_quality_tsv} is missing columns: {sorted(missing_columns)}")
+        for line in f:
+            row = dict(zip(header, line.rstrip("\n").split("\t")))
+            lookup[row["LocusId"]] = {
+                c: convert[column_types[c]](row[c]) if row[c] else None for c in EH_ALLELE_QUALITY_COLUMN_NAMES}
+    print(f"Parsed ExpansionHunter accuracy for {len(lookup):,d} loci")
     return lookup
 
 
@@ -542,6 +580,7 @@ if hprc256_lookup and aou1027_lookup:
 
 vamos_columns_lookup = parse_vamos_tsv(args.vamos_tsv)
 spliceai_summary_lookup = parse_spliceai_summary_tsv(os.path.expanduser(args.spliceai_summary_tsv)) if args.spliceai_summary_tsv else {}
+eh_allele_quality_lookup = parse_eh_allele_quality_tsv(os.path.expanduser(args.eh_allele_quality_tsv)) if args.eh_allele_quality_tsv else {}
 
 ## Parse known disease-associated loci from gnomAD, STRchive and STRipy
 if not args.known_disease_associated_loci:
@@ -733,6 +772,29 @@ if args.manigbas_2024_lookup_json:
     with fopen(args.manigbas_2024_lookup_json, 'rt') as f:
         manigbas_2024_lookup = json.load(f)
     print(f"Parsed {len(manigbas_2024_lookup):,d} records from Manigbas 2024 lookup")
+
+## Parse Zhang 2025 STR MPRA lookup
+zhang_2025_lookup = {}
+if args.zhang_2025_lookup_json:
+    print(f"Parsing Zhang 2025 lookup from {args.zhang_2025_lookup_json}")
+    fopen = gzip.open if args.zhang_2025_lookup_json.endswith('gz') else open
+    with fopen(args.zhang_2025_lookup_json, 'rt') as f:
+        zhang_2025_lookup = json.load(f)
+    print(f"Parsed {len(zhang_2025_lookup):,d} records from Zhang 2025 lookup")
+
+## Parse ENCODE4 and IGVF validated elements
+encode4_and_igvf_validated_elements_lookup = {}
+if args.encode4_and_igvf_validated_elements_tsv:
+    print(f"Parsing ENCODE4 and IGVF validated elements from {args.encode4_and_igvf_validated_elements_tsv}")
+    fopen = gzip.open if args.encode4_and_igvf_validated_elements_tsv.endswith('gz') else open
+    with fopen(args.encode4_and_igvf_validated_elements_tsv, 'rt') as f:
+        header = f.readline().rstrip("\n").split("\t")
+        if header != ["LocusId", "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements"]:
+            raise ValueError(f"Unexpected header in {args.encode4_and_igvf_validated_elements_tsv}: {header}")
+        for line in f:
+            locus_id, validated_elements = line.rstrip("\n").split("\t")
+            encode4_and_igvf_validated_elements_lookup[locus_id] = validated_elements
+    print(f"Parsed {len(encode4_and_igvf_validated_elements_lookup):,d} loci with ENCODE4 or IGVF validated elements")
 
 ## Compute non-coding annotations lookup
 non_coding_annotations_interval_trees = collections.defaultdict(intervaltree.IntervalTree)
@@ -1076,6 +1138,10 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         counters["rows_with_spliceai_summary"] += 1
         record.update(spliceai_summary_lookup[record["LocusId"]])
 
+    if record["LocusId"] in eh_allele_quality_lookup:
+        counters["rows_with_eh_allele_quality"] += 1
+        record.update(eh_allele_quality_lookup[record["LocusId"]])
+
     if record["ReferenceRegion"] in vamos_columns_lookup:
         vamos_data = vamos_columns_lookup[record["ReferenceRegion"]]
         for c in "VamosUniqueMotifs", "VamosEfficientMotifs", "VamosMotifFrequencies":
@@ -1117,6 +1183,18 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
             counters["rows_with_manigbas_2024_associations"] += 1
         else:
             counters["rows_with_manigbas_2024_no_associations"] += 1
+
+    if record["LocusId"] in zhang_2025_lookup:
+        z2025_data = zhang_2025_lookup[record["LocusId"]]
+        counters[f"rows_with_zhang_2025_{z2025_data['LengthEffectTestResult'].replace(' ', '_')}"] += 1
+        record["Zhang2025_LengthEffectTestResult"] = z2025_data["LengthEffectTestResult"]
+        record["Zhang2025_LengthEffectSlope"] = z2025_data["LengthEffectSlope"]
+        record["Zhang2025_LengthEffectFDR"] = z2025_data["LengthEffectFDR"]
+        record["Zhang2025_Details"] = json.dumps(z2025_data["Details"])
+
+    if record["LocusId"] in encode4_and_igvf_validated_elements_lookup:
+        counters["rows_with_encode4_and_igvf_validated_elements"] += 1
+        record["ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements"] = encode4_and_igvf_validated_elements_lookup[record["LocusId"]]
 
     non_coding_annotations_interval_tree = non_coding_annotations_interval_trees[record["chrom"]]
     non_coding_annotations_catalog_overlap = non_coding_annotations_interval_tree.overlap(record["start_0based"], record["end_1based"])

@@ -1,0 +1,4 @@
+# Files downloaded from the ENCODE portal, and everything the scripts generate.
+# The repo-level .gitignore already covers *.tsv and *.tsv.gz.
+encode4_source_files/
+*.log

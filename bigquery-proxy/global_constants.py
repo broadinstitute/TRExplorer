@@ -19,6 +19,7 @@ GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
 GROUP_SPLICEAI = "SpliceAI (simulated alleles)"
+GROUP_EH_ALLELE_QUALITY = "ExpansionHunter Accuracy"
 
 GROUP_ORDER = [
     GROUP_CORE,
@@ -29,6 +30,7 @@ GROUP_ORDER = [
     GROUP_POLYMORPHISM_AOU1027,
     GROUP_POLYMORPHISM_TENK10K,
     GROUP_SPLICEAI,
+    GROUP_EH_ALLELE_QUALITY,
 ]
 
 SPLICEAI_SIMULATED_ALLELES_DESCRIPTION = (
@@ -39,6 +41,13 @@ SPLICEAI_SIMULATED_ALLELES_DESCRIPTION = (
     "times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th "
     "percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, "
     "99.5pct+2xMotifRange, 99.5pct+3xMotifRange.")
+
+EH_ALLELE_QUALITY_DESCRIPTION = (
+    "ExpansionHunter accuracy at this locus, from running ExpansionHunter on short-read genomes of 133 individuals "
+    "and comparing each allele to the truth allele derived from the same individual's assembly (only where the locus "
+    "lies inside that assembly's DipCall high-confidence regions). An allele counts as called correctly when "
+    "ExpansionHunter's repeat count is within 1 repeat or 10% of the truth repeat count, whichever is larger, and "
+    "ExpansionHunter did not call the reference repeat count for a truth allele that differs from the reference.")
 
 MAIN_BIGQUERY_TABLE_COLUMNS = [
     # Core locus identifiers
@@ -1042,6 +1051,56 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "group": GROUP_ADDITIONAL_LAYERS2,
     },
 
+    # STR MPRA from Zhang et al. 2025, from ../data-prep/literature_review/Zhang_2025/. NULL for loci that were not
+    # tested (or, for 43 STRs, were tested but could not be matched to a catalog locus).
+    {
+        "type": "STRING",
+        "name": "Zhang2025_LengthEffectTestResult",
+        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells: 'significant' (FDR < 0.1), 'not significant', or 'not enough data' (in the library, but too few barcodes to test). NULL if the locus was not tested.",
+        "displayName": "STR MPRA: Length Effect",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS2,
+    },
+    {
+        "type": "FLOAT",
+        "name": "Zhang2025_LengthEffectSlope",
+        "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025. Positive means longer alleles increase expression. NULL if not tested or not enough data.",
+        "displayName": "STR MPRA: Length Effect Slope",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS2,
+    },
+    {
+        "type": "FLOAT",
+        "name": "Zhang2025_LengthEffectFDR",
+        "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025. NULL if not tested or not enough data.",
+        "displayName": "STR MPRA: Length Effect FDR",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS2,
+    },
+    {
+        "type": "STRING",
+        "name": "Zhang2025_Details",
+        "description": "JSON with the Zhang et al. 2025 STR this locus was matched to: zhangLocusId, zhangInterval (0-based start), zhangMotif, and matchType ('exact' locus match, or 'fuzzy' overlap with the same motif).",
+        "displayName": "STR MPRA: Details",
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS2,
+    },
+
+    # Functional elements from ENCODE4 and IGVF, from ../data-prep/columns_from_EncodeV4/. NULL means no element
+    # called functional overlaps the locus, which usually means it was never tested.
+    {
+        "type": "STRING",
+        "name": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements",
+        "description": "Comma-separated data source:assay:biosample type triples (e.g. ENCODE:MPRA:HepG2,IGVF:CRISPR:HCT116) in which an element that overlaps the locus was called functional: ENCODE CRISPR screen elements marked significant, ENCODE MPRA elements with log2 fold change > 0 and FDR < 0.05, and IGVF CRISPR screen elements called by each lab's published rule. Empty does not mean the locus was tested; most loci were not.",
+        "displayName": "ENCODE4/IGVF: Validated Elements",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS2,
+    },
+
     # Reference sequence data
     {
         "type": "STRING",
@@ -1112,10 +1171,70 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "allowExport": True,
         "group": GROUP_SPLICEAI,
     },
+
+    # ExpansionHunter accuracy against assembly-derived truth in 133 genomes, from
+    # ../data-prep/expansion_hunter_genotype_quality/ (build_accuracy_table.py, then
+    # write_eh_allele_quality_bigquery_tsv.py). NULL for loci that were never genotyped or never scored.
+    {
+        "type": "FLOAT",
+        "name": "EH_allele_quality_largest_10",
+        "description": EH_ALLELE_QUALITY_DESCRIPTION + " The fraction of the 10 longest truth alleles at this locus, "
+                       "across all 133 genomes, that ExpansionHunter called correctly. Empty unless all 10 could be "
+                       "scored.",
+        "displayName": "ExpansionHunter Accuracy: 10 Longest Alleles",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_EH_ALLELE_QUALITY,
+    },
+    {
+        "type": "STRING",
+        "name": "EH_allele_quality_largest_10_truth_range",
+        "description": EH_ALLELE_QUALITY_DESCRIPTION + " The truth repeat counts of those 10 longest alleles, as "
+                       "shortest-longest (e.g. 33-36). Empty unless all 10 could be scored.",
+        "displayName": "ExpansionHunter Accuracy: 10 Longest Alleles Truth Range",
+        "allowExport": True,
+        "group": GROUP_EH_ALLELE_QUALITY,
+    },
+    {
+        "type": "FLOAT",
+        "name": "EH_allele_quality_all_non_ref",
+        "description": EH_ALLELE_QUALITY_DESCRIPTION + " The fraction of all scored truth alleles whose repeat count "
+                       "differs from the reference (longer or shorter) that ExpansionHunter called correctly. Empty "
+                       "if there were none. Based on few alleles at many loci; see "
+                       "EH_allele_quality_n_non_ref_alleles.",
+        "displayName": "ExpansionHunter Accuracy: Non-Reference Alleles",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_EH_ALLELE_QUALITY,
+    },
+    {
+        "type": "INTEGER",
+        "name": "EH_allele_quality_n_non_ref_alleles",
+        "description": EH_ALLELE_QUALITY_DESCRIPTION + " The number of scored truth alleles whose repeat count "
+                       "differs from the reference, i.e. how many alleles EH_allele_quality_all_non_ref is based on.",
+        "displayName": "ExpansionHunter Accuracy: Number of Non-Reference Alleles",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_EH_ALLELE_QUALITY,
+    },
+    {
+        "type": "STRING",
+        "name": "EH_allele_quality_266_haplotypes_distribution",
+        "description": EH_ALLELE_QUALITY_DESCRIPTION + " Every scored allele (up to 266, two per genome, one for a "
+                       "haploid call) as distinct truth,ExpansionHunter repeat-count pairs with how many alleles "
+                       "had each pair, most common first, e.g. 10,10x260;11,10x4 means 260 alleles of 10 repeats "
+                       "called as 10 and 4 alleles of 11 repeats called as 10.",
+        "displayName": "ExpansionHunter Accuracy: Truth vs Call Distribution",
+        "allowExport": True,
+        "group": GROUP_EH_ALLELE_QUALITY,
+    },
 ]
 
 # The names of the SpliceAI_* columns, which add_spliceai_columns_to_catalog_table.py fills in an existing table
 SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c.get("group") == GROUP_SPLICEAI]
+# The names of the EH_allele_quality_* columns, loaded with load_bigquery_main_table.py --eh-allele-quality-tsv
+EH_ALLELE_QUALITY_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS
+                                  if c.get("group") == GROUP_EH_ALLELE_QUALITY]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when
