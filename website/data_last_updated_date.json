@@ -1,4 +1,4 @@
 {
-    "data_last_updated_date": "9/18/2026",
-    "data_last_updated_details": "Reloaded from the v2.1 draft catalog (5,657,793 loci), with deduplicated AoU statistics"
+    "data_last_updated_date": "10/5/2026",
+    "data_last_updated_details": "Added SpliceAI, Zhang 2025 STR MPRA, and ENCODE4/IGVF validated-element columns"
 }
