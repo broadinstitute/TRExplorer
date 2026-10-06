@@ -5,7 +5,6 @@ phase of ENCODE (ENCODE4, described in "The Encyclopedia of DNA Elements", bioRx
 doi:10.64898/2026.07.06.731365) and in its successor consortium IGVF (https://data.igvf.org/). The output
 is one TSV keyed by `LocusId`, in the same form as the SpliceAI summary TSV in `../splicing_prediction/`.
 `../../bigquery-proxy/load_bigquery_main_table.py` loads it by default (`--encode4-and-igvf-validated-elements-tsv`).
-A few loci in the TSV (17 in v2.1) are not in the BigQuery catalog JSON, so they are not loaded.
 
 ## Column
 
