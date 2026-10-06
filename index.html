@@ -8525,12 +8525,6 @@ gtag('config', 'G-6R8FPBQRFH');
                     }
                 }
 
-                // Add known disease-associated loci condition
-                let knownDiseaseLoci = $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]').prop('checked')
-                if (knownDiseaseLoci) {
-                    conditions.push("KnownDiseaseAssociatedLocus IS NOT NULL AND KnownDiseaseAssociatedLocus != ''")
-                }
-
 
                 let motifSizeInput = $('input[name="keepMotifSize"]').val()
                 if (motifSizeInput) {
