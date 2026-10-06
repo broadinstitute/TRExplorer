@@ -24,7 +24,7 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from global_constants import EH_ALLELE_QUALITY_COLUMN_NAMES, MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
@@ -60,12 +60,6 @@ parser.add_argument("--spliceai-summary-tsv",
                          "../data-prep/splicing_prediction/summarize_full_run_spliceai_scores_per_locus.py, e.g. "
                          "../data-prep/splicing_prediction/TRExplorer_SpliceAI_summary.basic.tsv.gz. "
                          "Loci missing from it get NULL SpliceAI_* columns.")
-parser.add_argument("--eh-allele-quality-tsv",
-                    default=None,
-                    help="Per-locus ExpansionHunter accuracy TSV (LocusId plus the EH_allele_quality_* columns) from "
-                         "../data-prep/expansion_hunter_genotype_quality/write_eh_allele_quality_bigquery_tsv.py, e.g. "
-                         "../data-prep/expansion_hunter_genotype_quality/data/TRExplorer_EH_allele_quality.v2.1.tsv.gz. "
-                         "Loci missing from it get NULL EH_allele_quality_* columns.")
 parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.RepeatMasker.lookup.json.gz")
 parser.add_argument("--non-coding-annotations-bed", default="../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz")
 parser.add_argument("--tanudisastro-2024-lookup-json",
@@ -391,30 +385,6 @@ def parse_spliceai_summary_tsv(spliceai_summary_tsv):
     return lookup
 
 
-def parse_eh_allele_quality_tsv(eh_allele_quality_tsv):
-    """Returns {LocusId: {EH_allele_quality_* column: value}} from the per-locus ExpansionHunter accuracy TSV.
-
-    Values are converted to their BigQuery column types (FLOAT, INTEGER or STRING); empty strings become
-    None (NULL).
-    """
-    print(f"Parsing {eh_allele_quality_tsv}")
-    column_types = {c["name"]: c["type"] for c in MAIN_BIGQUERY_TABLE_COLUMNS}
-    convert = {"FLOAT": float, "INTEGER": int, "STRING": str}
-    lookup = {}
-    fopen = gzip.open if eh_allele_quality_tsv.endswith("gz") else open
-    with fopen(eh_allele_quality_tsv, "rt") as f:
-        header = f.readline().rstrip("\n").split("\t")
-        missing_columns = set(EH_ALLELE_QUALITY_COLUMN_NAMES) - set(header)
-        if missing_columns:
-            raise ValueError(f"{eh_allele_quality_tsv} is missing columns: {sorted(missing_columns)}")
-        for line in f:
-            row = dict(zip(header, line.rstrip("\n").split("\t")))
-            lookup[row["LocusId"]] = {
-                c: convert[column_types[c]](row[c]) if row[c] else None for c in EH_ALLELE_QUALITY_COLUMN_NAMES}
-    print(f"Parsed ExpansionHunter accuracy for {len(lookup):,d} loci")
-    return lookup
-
-
 ## Parse population allele frequency data from different sources
 # check that files exist
 for name in "reference_fasta", "tenk10k_tsv", "hprc256_tsv", "aou1027_tsv", "vamos_tsv":
@@ -580,7 +550,6 @@ if hprc256_lookup and aou1027_lookup:
 
 vamos_columns_lookup = parse_vamos_tsv(args.vamos_tsv)
 spliceai_summary_lookup = parse_spliceai_summary_tsv(os.path.expanduser(args.spliceai_summary_tsv)) if args.spliceai_summary_tsv else {}
-eh_allele_quality_lookup = parse_eh_allele_quality_tsv(os.path.expanduser(args.eh_allele_quality_tsv)) if args.eh_allele_quality_tsv else {}
 
 ## Parse known disease-associated loci from gnomAD, STRchive and STRipy
 if not args.known_disease_associated_loci:
@@ -1137,10 +1106,6 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
     if record["LocusId"] in spliceai_summary_lookup:
         counters["rows_with_spliceai_summary"] += 1
         record.update(spliceai_summary_lookup[record["LocusId"]])
-
-    if record["LocusId"] in eh_allele_quality_lookup:
-        counters["rows_with_eh_allele_quality"] += 1
-        record.update(eh_allele_quality_lookup[record["LocusId"]])
 
     if record["ReferenceRegion"] in vamos_columns_lookup:
         vamos_data = vamos_columns_lookup[record["ReferenceRegion"]]
