@@ -36,8 +36,10 @@ Usage:
         --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-bed-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz \\
         --eh-output-dir gs://tandem-repeat-explorer/tool_genotype_quality/expansion_hunter_v2.1 \\
-        --truth-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1 \\
-        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/comparisons_v2.1
+        --truth-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1_with_upstream_repeat_insertions \\
+        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/comparisons_v2.1_with_upstream_repeat_insertions
+
+    comparisons_v2.1/ holds the comparisons against the earlier truth_genotypes_v2.1/, kept for comparison.
 """
 import hashlib
 import os

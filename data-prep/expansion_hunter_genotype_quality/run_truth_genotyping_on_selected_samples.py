@@ -34,17 +34,20 @@ Usage:
     python3 run_truth_genotyping_on_selected_samples.py --no-wait \\
         --sample-table-path short_read_samples_with_truth_data.tsv \\
         --catalog-bed-path gs://tandem-repeat-catalog/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz \\
-        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1
+        --output-dir gs://tandem-repeat-explorer/tool_genotype_quality/truth_genotypes_v2.1_with_upstream_repeat_insertions
+
+    truth_genotypes_v2.1/ holds the earlier truth (sha256:5990e80c), which missed repeat insertions anchored a few
+    bases before a locus; it is kept for comparison.
 """
 import os
 
 import pandas as pd
 from step_pipeline import pipeline, Backend, Localize
 
-# Built from str-analysis 2d6c4fd, which includes 54fd419: a non-repeat insertion on either allele now sets the
-# whole locus to no call rather than dropping just that allele. The 10 samples genotyped on 2026-08-25 used
-# sha256:0f6cd8ef, which predates the insertion filter entirely.
-DOCKER_IMAGE = "weisburd/str-analysis-with-expansion-hunter@sha256:5990e80cd34ebf69e624c824b530504a03476d23ed0a421017f281587555a162"
+# Built from str-analysis bd68a2a, which counts a repeat insertion that left-alignment placed up to one motif
+# length before the locus (DipCall writes the FXN, NOP56 and C9ORF72 expansions that way); earlier images reported
+# the reference length there. The truth genotypes from 2026-10-02 used sha256:5990e80c (str-analysis 2d6c4fd).
+DOCKER_IMAGE = "weisburd/str-analysis-with-expansion-hunter@sha256:ec157fa9e0ed6a530c3bf5b6ca6fe0968c029a2f16801c6cae5bdf63197b034c"
 REFERENCE_FASTA_PATH = "gs://str-truth-set/hg38/ref/hg38.fa"
 REFERENCE_FASTA_FAI_PATH = "gs://str-truth-set/hg38/ref/hg38.fa.fai"
 
