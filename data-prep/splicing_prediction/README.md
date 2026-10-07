@@ -195,6 +195,7 @@ holds the queue.
 | `SpliceAI_MaxDeltaScoreAlleleSize` | the size that gave it: `2.5pct`, `97.5pct`, `99.5pct`, `99.5pct+1xMotifRange`, `99.5pct+2xMotifRange` or `99.5pct+3xMotifRange` (the `+1x`, `+2x` and `+3x` sizes above); empty if none reached 0.01 |
 | `SpliceAI_MinAlleleSizeThatAffectsSplicing` | the smallest size with a delta score of at least 0.2, with the same values; empty if none |
 | `SpliceAI_DeltaScoreByRepeatCount` | every simulated allele, sorted by repeat count, as `repeat_count:max_delta_score` plus the type of the largest change when it is at least 0.01 (`AG` acceptor gain, `AL` acceptor loss, `DG` donor gain, `DL` donor loss). Example: `18:0.000,25:0.030AG,40:0.310AG,95:0.880AL` |
+| `SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing` | the alleles in `SpliceAI_DeltaScoreByRepeatCount` with a delta score of at least 0.2, in the same form. Example: `40:0.310AG,95:0.880AL`; empty if none. The website's SpliceAI results column shows this |
 
 The sizes, in order of increasing length, are 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange,
 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. When several sizes
@@ -205,7 +206,8 @@ or that lie outside every GENCODE v50 basic transcript.
 ## Loading into BigQuery
 
 The column definitions are in `../../bigquery-proxy/global_constants.py`, as `SPLICEAI_COLUMN_NAMES`
-in the "SpliceAI (simulated alleles)" group. There are two ways to load them, and both are run from
+(every column whose name starts with `SpliceAI_`), shown on the website in the "New Columns (10/5/2026)" group.
+There are two ways to load them, and both are run from
 `../../bigquery-proxy/`.
 
 **A. Fill the live catalog table in place**, with no rebuild:

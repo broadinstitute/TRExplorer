@@ -593,6 +593,9 @@
         'NonCodingAnnotations',
         'Tanudisastro2024_SignificantCellTypes',
         'Manigbas2024_AssociatedTraits',
+        'encode4MpraExpression',
+        'zhang2025Mpra',
+        'spliceAI',
         'AoU1027_OE_LengthPercentile',
         'ReferenceLeftFlank',
         'ReferenceRepeatSequence',
@@ -669,6 +672,9 @@
         'isPathogenic',
         'AoU1027_OE_LengthPercentile',
         'dotPlot',
+        'encode4MpraExpression',
+        'zhang2025Mpra',
+        'spliceAI',
 
     ]
 
@@ -760,16 +766,10 @@
                                         value === 'false' ? false :
                                         !isNaN(value) ? Number(value) : value
                 if (key === 'showColumns') {
-                    // Backward compat: detect old numeric-index format (e.g. "0i1i5i8")
-                    const parts = value.split('i')
-                    let names
-                    if (parts.every(p => /^\d+$/.test(p))) {
-                        names = parts.map(idx => RESULTS_TABLE_COLUMN_NAMES[parseInt(idx)]).filter(Boolean)
-                    } else {
-                        names = value.split(SHOW_COLUMNS_VALUE_DELIMITER)
-                    }
-                    // Validate: drop any unrecognized column names
-                    names = names.filter(name => RESULTS_TABLE_COLUMN_NAMES.includes(name))
+                    // Drop any unrecognized column names. This includes the column indices (e.g. "0i1i5i8") that links
+                    // from before March 2026 stored, so those links show the default columns.
+                    const names = value.split(SHOW_COLUMNS_VALUE_DELIMITER)
+                        .filter(name => RESULTS_TABLE_COLUMN_NAMES.includes(name))
                     GLOBAL_PAGE_STATE[key] = names.length > 0
                         ? names.join(SHOW_COLUMNS_VALUE_DELIMITER)
                         : DEFAULT_GLOBAL_PAGE_STATE[key]
@@ -1120,6 +1120,13 @@
         })
     }
 
+    // Column help texts can contain HTML (<br />, <b>, <i>), so the (?) icons show them in a Semantic UI popup, which
+    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally. The text goes in the
+    // icon's data-html attribute, so only the characters that would end the attribute value early are escaped.
+    const escapeHelpTextForDataHtmlAttribute = (helpText) => helpText.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    const initializeHelpTextPopups = ($helpIcons) =>
+        $helpIcons.popup({ on: 'hover', position: 'top center', variation: 'wide' })
+
     const showExportOptionsDialog = (exportType, {showColumns = false, showTrgtOptions = false} = {}) => {
         pendingExportType = exportType
 
@@ -1193,11 +1200,8 @@
 
                 columns.forEach(opt => {
                     const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
-                    const escapedDescription = opt.description
-                        ? opt.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        : ''
                     const helpIcon = opt.description
-                        ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                        ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(opt.description)}">(?)</span>`
                         : ''
                     const checkboxHtml = `
                         <div class="export-column-checkbox-item">
@@ -1234,8 +1238,10 @@
             $('#export-trgt-options .ui.radio.checkbox').checkbox()
         }
 
-        // Show the dialog
+        // Show the dialog. The help text popups are set up after it opens, because opening a modal the first time
+        // clears popups set up on its contents.
         $('#export-column-dialog').modal('show')
+        initializeHelpTextPopups($('#export-column-checkboxes .export-column-help-icon'))
     }
 
     // --- Custom Filter Logic ---
@@ -1284,8 +1290,10 @@
         if (isLikeOp && text) text += LIKE_HELP_TEXT
         else if (isLikeOp) text = LIKE_HELP_TEXT.trim()
         if (text) {
-            const escaped = text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            $helpIcon.attr('data-tooltip', escaped).show()
+            // Re-create the popup, since a popup keeps the help text it was created with. The popup reads its text
+            // from the data-html attribute, which takes precedence over any text passed in its settings.
+            initializeHelpTextPopups($helpIcon.popup('destroy').attr('data-html', text))
+            $helpIcon.show()
         } else {
             $helpIcon.hide()
         }
@@ -1326,7 +1334,7 @@
         const operators = getOperatorsForType(colType)
         const placeholder = getPlaceholderForType(colType)
         const escapedDescription = colInfo && colInfo.description
-            ? colInfo.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            ? escapeHelpTextForDataHtmlAttribute(colInfo.description)
             : ''
 
         const operatorOptions = operators.map(op =>
@@ -1363,7 +1371,7 @@
                 <div class="menu">${operatorOptions}</div>
             </div>
             <input type="text" class="custom-filter-value" placeholder="${placeholder}" style="max-width: 300px; flex-grow: 1;">
-            <span class="custom-filter-help-icon" data-tooltip="${escapedDescription}" data-position="top center"${!escapedDescription ? ' style="display:none"' : ''}>(?)</span>
+            <span class="custom-filter-help-icon" data-html="${escapedDescription}"${!escapedDescription ? ' style="display:none"' : ''}>(?)</span>
             <i class="close icon custom-filter-delete"></i>
         </div>
         `
@@ -1444,8 +1452,8 @@
             persistAllAdvancedFormStateToUrl()
         })
 
-        // Initialize tooltip
-        $row.find('.custom-filter-help-icon').popup({ on: 'hover' })
+        // Initialize the help text popup
+        initializeHelpTextPopups($row.find('.custom-filter-help-icon'))
 
         return $row
     }
@@ -1541,11 +1549,8 @@
 
             columns.forEach(col => {
                 const isChecked = activeColumns.has(col.name) ? 'checked' : ''
-                const escapedDescription = col.description
-                    ? col.description.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    : ''
                 const helpIcon = col.description
-                    ? `<span class="export-column-help-icon" data-tooltip="${escapedDescription}" data-position="top center">(?)</span>`
+                    ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(col.description)}">(?)</span>`
                     : ''
                 const checkboxHtml = `
                     <div class="export-column-checkbox-item">
@@ -1562,11 +1567,13 @@
             checkboxesContainer.append(groupDiv)
         })
 
-        // Initialize checkboxes and tooltips
+        // Initialize checkboxes
         $('#custom-filter-column-checkboxes .ui.checkbox').checkbox()
-        $('#custom-filter-column-checkboxes .export-column-help-icon').popup({ on: 'hover' })
 
+        // The help text popups are set up after the dialog opens, because opening a modal the first time clears
+        // popups set up on its contents.
         $('#custom-filter-column-dialog').modal('show')
+        initializeHelpTextPopups($('#custom-filter-column-checkboxes .export-column-help-icon'))
     }
 
     // Wire the "Add custom filter..." link

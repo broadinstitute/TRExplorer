@@ -1524,6 +1524,233 @@ gtag('config', 'G-6R8FPBQRFH');
         return html
     }
 
+    // Cell lines in the ENCODE4 MPRA element results, as they appear in ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements
+    const ENCODE4_MPRA_CELL_LINE_DESCRIPTIONS = {
+        'A549': 'lung adenocarcinoma cells',
+        'GM12878': 'lymphoblastoid cells',
+        'HCT116': 'colorectal cancer cells',
+        'HepG2': 'liver cancer cells',
+        'K562': 'leukemia cells',
+        'SK-N-SH': 'neuroblastoma cells',
+    }
+
+    // Returns the cell lines of the ENCODE:MPRA:<cell line> entries in ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements,
+    // leaving out the CRISPR entries
+    function getEncode4MpraCellLines(row) {
+        return (row['ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements'] || '').split(',')
+            .filter(entry => entry.startsWith('ENCODE:MPRA:'))
+            .map(entry => entry.replace('ENCODE:MPRA:', ''))
+    }
+
+    // The ENCODE4 MPRA details shown in the ENCODE4 MPRA column's popup and on the locus page
+    function buildEncode4MpraDetailsHtml(row) {
+        const describeCellLine = (cellLine) => {
+            const description = ENCODE4_MPRA_CELL_LINE_DESCRIPTIONS[cellLine]
+            return description ? `<b>${description}</b> (${cellLine})` : cellLine
+        }
+        const cellLines = getEncode4MpraCellLines(row)
+        const cellLinesPhrase = cellLines.length === 1 ? 'this cell line' : `these ${cellLines.length} cell lines`
+
+        let html = `This TR locus overlaps (by at least 1 bp) a DNA element that ENCODE4 tested with a massively parallel
+            reporter assay (MPRA), in which each element is placed next to a reporter gene and its effect on expression
+            is measured. The element increased reporter expression (log2 fold change &gt; 0, FDR &lt; 0.05) in
+            ${cellLinesPhrase}:`
+        html += cellLines.length === 1
+            ? ` ${describeCellLine(cellLines[0])}.<br /><br />`
+            : `<ul>${cellLines.map(cellLine => `<li>${describeCellLine(cellLine)}</li>`).join('')}</ul>`
+        html += `<b>LIMITATIONS:</b> The repeat may not be the active part. An MPRA element is usually a few hundred bp, so the
+            activity can come from the sequence around the repeat. Also, only the reference sequence was tested.
+            These assays don't say anything about how changing the repeat length affects expression. A cell line
+            missing from this list may not have been tested.`
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: MPRA element results from the <a href="https://www.encodeproject.org" target="_blank">ENCODE portal</a>,
+            described in <a href="https://doi.org/10.64898/2026.07.06.731365" target="_blank">The Encyclopedia of DNA Elements</a>
+            (ENCODE Consortium, bioRxiv 2026)
+        </div>`
+
+        return html
+    }
+
+    // True if Zhang et al. 2025 tested this locus's length effect. False if it was not in their library, or was in it
+    // but had too few barcodes to test ('not enough data')
+    function wasZhang2025MpraLengthEffectTested(row) {
+        return ['significant', 'not significant'].includes(row['Zhang2025_LengthEffectTestResult'])
+    }
+
+    // The Zhang 2025 MPRA details shown in the Zhang 2025 MPRA column's popup and on the locus page, for loci where
+    // wasZhang2025MpraLengthEffectTested() is true
+    function buildZhang2025MpraDetailsHtml(row) {
+        const isSignificant = row['Zhang2025_LengthEffectTestResult'] === 'significant'
+        const slope = row['Zhang2025_LengthEffectSlope']
+        const fdr = row['Zhang2025_LengthEffectFDR']
+        let details = {}
+        try {
+            details = JSON.parse(row['Zhang2025_Details'] || '{}')
+        } catch (e) {
+            console.error('Failed to parse Zhang2025_Details:', e)
+        }
+
+        let html = `In the massively parallel reporter assay (MPRA) of promoter STRs from
+            <a href="https://www.biorxiv.org/content/10.1101/2025.09.14.676153" target="_blank">Zhang et al. 2025</a>,
+            changing the repeat copy number of this TR (-5, +3 and +5 copies relative to hg38)
+            <b>${isSignificant ? 'significantly changed' : 'did not significantly change'}</b> reporter expression in
+            HEK293T cells.<br /><br />`
+        html += `<b>False Discovery Rate (FDR):</b> ${fdr != null ? (fdr < 0.001 ? fdr.toExponential(1) : fdr.toFixed(4)) : 'n/a'}
+            <span style="color: #666;">(significant if &lt; 0.1)</span><br />
+            <b>Length Effect Slope:</b> ${slope != null ? slope.toFixed(3) : 'n/a'}<br />
+            <span style="color: #666;">change in reporter expression (RNA/DNA ratio) per added repeat copy; positive
+            means longer alleles increase expression</span>`
+        if (details.matchType === 'fuzzy') {
+            // Both intervals are chrom:start-end with a 0-based start, so each width is end - start
+            const locusIdParts = row['LocusId'].split('-')
+            const motif = locusIdParts.pop()
+            const end = parseInt(locusIdParts.pop())
+            const start0Based = parseInt(locusIdParts.pop())
+            const chrom = locusIdParts.join('-')
+            const [, zhangStart0Based, zhangEnd] = details.zhangInterval.match(/:(\d+)-(\d+)$/)
+            html += `<div style="background: #fff3cd; padding: 8px; margin-top: 10px; border-radius: 4px;">
+                <i class="info circle icon"></i>
+                <b>Note:</b> This TRExplorer locus definition (chr${chrom}:${start0Based}-${end}, width:
+                ${(end - start0Based).toLocaleString()}bp, motif: ${motif}) overlaps but is not exactly the same as the
+                <code>${details.zhangLocusId}</code> (${details.zhangInterval}, width:
+                ${(zhangEnd - zhangStart0Based).toLocaleString()}bp, motif: ${details.zhangMotif}) definition used in
+                Zhang et al.
+            </div>`
+        }
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: <a href="https://www.biorxiv.org/content/10.1101/2025.09.14.676153" target="_blank">Zhang et al. 2025</a>
+            (bioRxiv)
+        </div>`
+
+        return html
+    }
+
+    // Splits a SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing value such as "22:0.273AG,32:0.329AG" into
+    // [{repeatCount: 22, deltaScore: 0.273, changeType: 'AG'}, ...], in the value's order (by repeat count)
+    function parseSpliceAIDeltaScoresByRepeatCount(value) {
+        return (value || '').split(',').filter(Boolean).map(entry => {
+            const [repeatCount, scoreAndChangeType] = entry.split(':')
+            const [, deltaScore, changeType] = scoreAndChangeType.match(/^([0-9.]+)([A-Z]*)$/)
+            return {repeatCount: parseInt(repeatCount), deltaScore: parseFloat(deltaScore), changeType}
+        })
+    }
+
+    // The most common unitLength-long unit read in frame from the start of the tract, ties going to the one seen
+    // first, as most_common_in_frame_unit() in ../data-prep/splicing_prediction/make_tr_expansion_benchmark_alleles.py
+    function mostCommonInFrameUnit(tract, unitLength) {
+        const counts = new Map()
+        for (let i = 0; i + unitLength <= tract.length; i += unitLength) {
+            const unit = tract.slice(i, i + unitLength)
+            counts.set(unit, (counts.get(unit) || 0) + 1)
+        }
+        let mostCommonUnit = null
+        let mostCommonUnitCount = 0
+        for (const [unit, count] of counts) {   // a Map iterates in insertion order, so the first seen wins ties
+            if (count > mostCommonUnitCount) {
+                mostCommonUnit = unit
+                mostCommonUnitCount = count
+            }
+        }
+        return mostCommonUnit
+    }
+
+    // Returns the chrom-pos-ref-alt variant that the SpliceAI full run scored for the simulated allele with
+    // repeatCount repeats, built the way allele_to_variant() in make_tr_expansion_benchmark_alleles.py builds it:
+    // anchored on the base before the tract, an expansion inserts copies of the tract's most common in-frame unit and
+    // a contraction deletes the tract's first whole units. Returns null if the row lacks the reference sequences
+    // (the results query leaves out ReferenceRepeatSequence for loci over 10kb).
+    function getSpliceAISimulatedAlleleVariant(row, repeatCount) {
+        const locusIdParts = row['LocusId'].split('-')
+        const motif = locusIdParts.pop()
+        locusIdParts.pop()  // end
+        const start0Based = locusIdParts.pop()
+        const chrom = locusIdParts.join('-')
+        const tract = (row['ReferenceRepeatSequence'] || '').toUpperCase()
+        const anchor = (row['ReferenceLeftFlank'] || '').slice(-1).toUpperCase()
+        if (!tract || !anchor) return null
+
+        const unit = mostCommonInFrameUnit(tract, motif.length)
+        const referenceCount = Math.floor(tract.length / motif.length)
+        if (repeatCount > referenceCount) {
+            return `${chrom}-${start0Based}-${anchor}-${anchor}${unit.repeat(repeatCount - referenceCount)}`
+        }
+        return `${chrom}-${start0Based}-${anchor}${tract.slice(0, unit.length * (referenceCount - repeatCount))}-${anchor}`
+    }
+
+    // SpliceAI-lookup refuses longer variants (MAX_VARIANT_LENGTH in the SpliceAI-lookup repo's index.html)
+    const SPLICEAI_LOOKUP_MAX_VARIANT_LENGTH = 1900
+
+    const SPLICEAI_CHANGE_TYPE_NAMES = {
+        AG: 'acceptor gain',
+        AL: 'acceptor loss',
+        DG: 'donor gain',
+        DL: 'donor loss',
+    }
+
+    // Returns the background color for a SpliceAI delta score, using the same colors and thresholds as SpliceAI-lookup's
+    // delta score cells, or null if the score is below 0.2 or missing
+    function getSpliceAIDeltaScoreBackgroundColor(deltaScore) {
+        if (deltaScore == null) return null
+        if (deltaScore >= 0.8) return '#fccfb8'
+        if (deltaScore >= 0.5) return '#fff19d'
+        if (deltaScore >= 0.2) return '#cdffd7'
+        return null
+    }
+
+    // Shown in dark gray below the SpliceAI delta scores table in the SpliceAI column's popup and on the locus page
+    const SPLICEAI_SIMULATED_ALLELES_EXPLANATION = `Repeat expansions and contractions were simulated for the 2.5th
+        percentile, 97.5th, and 99.5th percentile allele sizes of the HPRC256 allele size distribution (as well as 3
+        hypothetical larger expansion sizes chosen based on the HPRC256 allele size distribution at other loci with the
+        same motif). These are the results of running SpliceAI on each of these simulated variants.`
+
+    // The table shown in the SpliceAI column's popup and on the locus page: every simulated allele, each score linking
+    // to SpliceAI-lookup with the settings the full run used (GENCODE v50 basic, distance 10,000, no masking). A score
+    // has no link when SpliceAI-lookup can't open its variant, and a footnote says why. Returns {tableHtml,
+    // footnotesHtml} so the caller can put the footnotes below SPLICEAI_SIMULATED_ALLELES_EXPLANATION.
+    function buildSpliceAIDeltaScoresTableHtml(row) {
+        let html = `<table class="ui compact table" style="width: auto; white-space: nowrap;">
+            <thead><tr><th style="padding-right: 2em;">Repeats</th><th>&Delta; Score</th></tr></thead><tbody>`
+        let hasVariantTooLongForSpliceAILookup = false
+        let hasVariantWithoutReferenceSequence = false
+        // Truncated at 12 bp like the results table's Motif column, with the motif length shown only when truncated
+        const motif = row['LocusId'].split('-').pop()
+        const motifHtml = motif.length > 12
+            ? `<span style="font-family: monospace">${motif.substring(0, 12)}</span>... (${motif.length})`
+            : `<span style="font-family: monospace">${motif}</span>`
+        for (const {repeatCount, deltaScore, changeType} of parseSpliceAIDeltaScoresByRepeatCount(
+                row['SpliceAI_DeltaScoreByRepeatCount'])) {
+            // The change type is left out of the data when the delta score is below 0.01
+            const scoreText = changeType
+                ? `${deltaScore.toFixed(2)} ${SPLICEAI_CHANGE_TYPE_NAMES[changeType]} (${changeType})`
+                : deltaScore.toFixed(2)
+            const variant = getSpliceAISimulatedAlleleVariant(row, repeatCount)
+            let scoreHtml = `${scoreText} *`  // the asterisk points to the footnote that says why there is no link
+            if (!variant) {
+                hasVariantWithoutReferenceSequence = true
+            } else if (variant.length > SPLICEAI_LOOKUP_MAX_VARIANT_LENGTH) {
+                hasVariantTooLongForSpliceAILookup = true
+            } else {
+                scoreHtml = `<a href="https://spliceailookup.broadinstitute.org/#variant=${variant}&amp;hg=38&amp;bc=basic&amp;distance=10000&amp;mask=0&amp;ra=0" target="_blank">${scoreText}</a>`
+            }
+            const backgroundColor = getSpliceAIDeltaScoreBackgroundColor(deltaScore)
+            html += `<tr><td style="text-align: right; padding-right: 2em;">${repeatCount} x ${motifHtml}</td>
+                <td${backgroundColor ? ` style="background-color: ${backgroundColor};"` : ''}>${scoreHtml}</td></tr>`
+        }
+        html += '</tbody></table>'
+        // Each footnote has a blank line above it, in the same color and size as SPLICEAI_SIMULATED_ALLELES_EXPLANATION
+        let footnotesHtml = ''
+        if (hasVariantTooLongForSpliceAILookup) {
+            footnotesHtml += `<p style="color: #666; margin-top: 1em;">* A score without a link is for a simulated
+                allele whose variant is longer than ${SPLICEAI_LOOKUP_MAX_VARIANT_LENGTH.toLocaleString()} characters
+                (the maximum input size accepted by SpliceAI-lookup).</p>`
+        }
+        if (hasVariantWithoutReferenceSequence) {
+            footnotesHtml += `<p style="color: #666; margin-top: 1em;">* The locus width is larger than 10 kb, so the
+                results table doesn't load its sequence. Open the locus page to get links to SpliceAI-lookup.</p>`
+        }
+        return {tableHtml: html, footnotesHtml}
+    }
+
     // Gene info popup helpers (used by GencodeGeneName, RefseqGeneName, ManeGeneName columns)
     const GENE_INFO_API_URL = 'https://us-central1-cmg-analysis.cloudfunctions.net/query_gene_lookup_db'
     const GENE_INFO_CACHE = new Map()
@@ -2295,6 +2522,82 @@ gtag('config', 'G-6R8FPBQRFH');
                 'Manigbas2024_AssociatedTraits',
                 'Manigbas2024_Details',
                 'Manigbas2024_MinPvalue'
+            ]
+        },
+        encode4MpraExpression: {
+            displayName: 'ENCODE4 MPRA',
+            defaultSortDirection: 'DESC',
+            helpText: 'Whether an element from the ENCODE4 MPRA (massively parallel reporter assay) experiments that overlaps this repeat was called active (it raised reporter expression with FDR < 0.05) in at least one cell line. Click <b>Yes</b> for the cell lines and caveats.',
+            getValue: (row) => {
+                if (getEncode4MpraCellLines(row).length === 0) return ''
+                const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>ENCODE4 Expression MPRA</b></div>
+                    ${buildEncode4MpraDetailsHtml(row)}`.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+                return `<span class="action-cell show-popup" data-variation="mpra-details-popup" data-html="${escapedPopupContent}">
+                    <i class="check circle icon"></i><span class="action-link">Yes</span>
+                </span>`
+            },
+            // Sort by the number of cell lines with an MPRA call. NULLIF turns 0 into NULL, so loci with no MPRA call
+            // (including those with only CRISPR calls) sort last in either direction.
+            getSortColumns: () => ["NULLIF(ARRAY_LENGTH(REGEXP_EXTRACT_ALL(ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements, 'ENCODE:MPRA:')), 0)"],
+            getRequiredColumns: () => ['ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements']
+        },
+        zhang2025Mpra: {
+            displayName: 'Zhang 2025 MPRA',
+            defaultSortDirection: 'DESC',
+            helpText: 'Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number changes reporter expression in HEK293T cells. A check means the repeat length significantly changed expression (FDR < 0.1), and a gray &#x2715; means it did not. Click either one for the length effect slope and FDR. Empty if the locus was not tested, or was in the library but had too few barcodes to test.',
+            getValue: (row) => {
+                if (!wasZhang2025MpraLengthEffectTested(row)) return ''
+                const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>Expression MPRA for promoter-proximal STRs</b></div>
+                    ${buildZhang2025MpraDetailsHtml(row)}`.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+                const icon = row['Zhang2025_LengthEffectTestResult'] === 'significant'
+                    ? '<i class="check circle icon"></i><span class="action-link">Significant</span>'
+                    : '<i class="times circle outline grey icon"></i><span class="action-link">Not Significant</span>'
+                return `<span class="action-cell show-popup" data-variation="mpra-details-popup" data-html="${escapedPopupContent}">${icon}</span>`
+            },
+            // Significant loci first, then not significant ones, each ordered from the smallest FDR. Loci with no
+            // result ('not enough data' or not tested) sort last in either direction.
+            getSortColumns: () => [
+                "CASE Zhang2025_LengthEffectTestResult WHEN 'significant' THEN 2 WHEN 'not significant' THEN 1 END",
+                'Zhang2025_LengthEffectFDR INVERSE',
+            ],
+            getRequiredColumns: () => [
+                'Zhang2025_LengthEffectTestResult',
+                'Zhang2025_LengthEffectSlope',
+                'Zhang2025_LengthEffectFDR',
+                'Zhang2025_Details',
+            ]
+        },
+        spliceAI: {
+            displayName: 'SpliceAI',
+            defaultSortDirection: 'DESC',
+            helpText: 'The simulated allele with the fewest repeats at which SpliceAI predicts this TR affects splicing (delta score of at least 0.2), followed by the type of the largest change (AG acceptor gain, AL acceptor loss, DG donor gain, DL donor loss). For example, 40 repeats: 0.31 AG means an allele of 40 repeats has a delta score of 0.31 for an acceptor gain. A trailing ... means more simulated alleles reached 0.2. Click the value to see the delta scores of all simulated alleles, each score linking to SpliceAI-lookup with that allele as a variant. The background color shows the largest delta score of any simulated allele at this locus: red if at least 0.8, yellow if at least 0.5, green if at least 0.2. Empty if no simulated allele reached 0.2, or the locus was not scored (fewer than 2 distinct HPRC256 allele sizes, or outside every GENCODE v50 basic transcript).',
+            getValue: (row) => {
+                const deltaScores = parseSpliceAIDeltaScoresByRepeatCount(row['SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing'])
+                if (deltaScores.length === 0) return ''
+                const {repeatCount, deltaScore, changeType} = deltaScores[0]
+                const {tableHtml, footnotesHtml} = buildSpliceAIDeltaScoresTableHtml(row)
+                const popupContent = '<div style="margin-bottom: 0.5em;"><b><span style="white-space: nowrap;">SpliceAI Scores for Simulated Expansions or Contractions</span></b></div>'
+                    + `<div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1em;">${tableHtml}</div>`
+                    + `<div style="color: #666;">${SPLICEAI_SIMULATED_ALLELES_EXPLANATION}</div>`
+                    + footnotesHtml
+                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+                return `<span class="action-cell show-popup" data-variation="wide" data-html="${escapedPopupContent}">
+                    <span class="action-link">${repeatCount} repeat${repeatCount === 1 ? '' : 's'}: ${deltaScore.toFixed(2)} ${changeType}${deltaScores.length > 1 ? ' ...' : ''}</span>
+                </span>`
+            },
+            getCellStyle: (row) => {
+                const backgroundColor = getSpliceAIDeltaScoreBackgroundColor(row['SpliceAI_MaxDeltaScore'])
+                return backgroundColor ? ` background-color: ${backgroundColor};` : ''
+            },
+            // Sort by the largest delta score, counting only scores of at least 0.2 (the loci with a value in this
+            // column), so loci with an empty cell sort last in either direction
+            getSortColumns: () => ['IF(SpliceAI_MaxDeltaScore >= 0.2, SpliceAI_MaxDeltaScore, NULL)'],
+            getRequiredColumns: () => [
+                'SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing',
+                'SpliceAI_DeltaScoreByRepeatCount',     // the popup lists every simulated allele
+                'SpliceAI_MaxDeltaScore',
+                'ReferenceLeftFlank',       // its last base anchors the SpliceAI-lookup variants
+                'ReferenceRepeatSequence',
             ]
         },
     }

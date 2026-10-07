@@ -26,6 +26,11 @@ have one), and writes a TSV with:
                                                donor gain, DL donor loss) when it is at least 0.01, e.g.
                                                "18:0.000,25:0.030AG,40:0.310AG,95:0.880AL" (3 decimals,
                                                as SpliceAI-lookup reports the scores)
+    SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing
+                                               the alleles in SpliceAI_DeltaScoreByRepeatCount whose
+                                               delta score is at least AFFECTS_SPLICING_MIN_DELTA_SCORE
+                                               (0.2), in the same form, e.g. "40:0.310AG,95:0.880AL";
+                                               empty if none
 
 The sizes are in increasing length order (2.5pct < 97.5pct < 99.5pct < 99.5pct+1xMotifRange <
 99.5pct+2xMotifRange < 99.5pct+3xMotifRange). One allele
@@ -55,7 +60,8 @@ AFFECTS_SPLICING_MIN_DELTA_SCORE = 0.2
 MIN_DELTA_SCORE_TO_NAME_THE_CHANGE = 0.01
 DELTA_SCORES = ("DS_AG", "DS_AL", "DS_DG", "DS_DL")
 OUTPUT_COLUMNS = ("LocusId", "SpliceAI_MaxDeltaScore", "SpliceAI_MaxDeltaScoreAlleleSize",
-                  "SpliceAI_MinAlleleSizeThatAffectsSplicing", "SpliceAI_DeltaScoreByRepeatCount")
+                  "SpliceAI_MinAlleleSizeThatAffectsSplicing", "SpliceAI_DeltaScoreByRepeatCount",
+                  "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing")
 
 
 def allele_size_name(target_label):
@@ -101,13 +107,18 @@ def summarize_locus(locus_id, alleles, target_labels, records_by_variant, unscor
     # Ties go to the smallest size
     max_size = next(s[4] for s in scored if s[2] == max_delta) if max_delta >= MIN_DELTA_SCORE_TO_NAME_THE_CHANGE else ""
     min_affecting_size = next((s[4] for s in scored if s[2] >= AFFECTS_SPLICING_MIN_DELTA_SCORE), "")
-    by_repeat_count = ",".join(f"{count}:{delta:.3f}{change}" for _, count, delta, change, _ in sorted(scored, key=lambda s: s[1]))
+    alleles_by_repeat_count = sorted(scored, key=lambda s: s[1])
+    by_repeat_count = ",".join(f"{count}:{delta:.3f}{change}" for _, count, delta, change, _ in alleles_by_repeat_count)
+    affecting_by_repeat_count = ",".join(
+        f"{count}:{delta:.3f}{change}" for _, count, delta, change, _ in alleles_by_repeat_count
+        if delta >= AFFECTS_SPLICING_MIN_DELTA_SCORE)
     return {
         "LocusId": locus_id[3:] if locus_id.startswith("chr") else locus_id,
         "SpliceAI_MaxDeltaScore": f"{max_delta:.3f}",
         "SpliceAI_MaxDeltaScoreAlleleSize": max_size,
         "SpliceAI_MinAlleleSizeThatAffectsSplicing": min_affecting_size,
         "SpliceAI_DeltaScoreByRepeatCount": by_repeat_count,
+        "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing": affecting_by_repeat_count,
     }
 
 

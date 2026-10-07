@@ -33,12 +33,30 @@ class SummarizeLocusTests(unittest.TestCase):
         self.assertEqual(row["SpliceAI_MaxDeltaScoreAlleleSize"], "99.5pct+3xMotifRange")
         self.assertEqual(row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], "99.5pct+1xMotifRange")
         self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCount"], "9:0.000,12:0.005,15:0.310AG,25:0.880AL")
+        self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"], "15:0.310AG,25:0.880AL")
 
     def test_locus_with_no_stored_alleles(self):
         row = summarize_locus("chr2-5-9-A", ["chr2-5-A-AA"], [[LABELS["+1x"]]], {})
         self.assertEqual((row["SpliceAI_MaxDeltaScore"], row["SpliceAI_MaxDeltaScoreAlleleSize"],
-                          row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], row["SpliceAI_DeltaScoreByRepeatCount"]),
-                         ("0.000", "", "", "5:0.000"))
+                          row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], row["SpliceAI_DeltaScoreByRepeatCount"],
+                          row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"]),
+                         ("0.000", "", "", "5:0.000", ""))
+
+    def test_alleles_below_the_affects_splicing_score_are_left_out(self):
+        # 0.199 is just under the 0.2 cutoff and 0.200 is exactly at it
+        alleles = ["chr1-100-A-ACA", "chr1-100-A-ACACA"]
+        records = {alleles[0]: record("0.199", "0.000", "0.000", "0.000"),
+                   alleles[1]: record("0.000", "0.000", "0.200", "0.000")}
+        row = summarize_locus("chr1-100-120-CA", alleles, [[LABELS["+1x"]], [LABELS["+2x"]]], records)
+        self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"], "12:0.200DG")
+
+    def test_blank_when_no_allele_affects_splicing(self):
+        alleles = ["chr1-100-A-ACA", "chr1-100-A-ACACA"]
+        records = {alleles[0]: record("0.199", "0.000", "0.000", "0.000"),
+                   alleles[1]: record("0.050", "0.000", "0.000", "0.000")}
+        row = summarize_locus("chr1-100-120-CA", alleles, [[LABELS["+1x"]], [LABELS["+2x"]]], records)
+        self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCount"], "11:0.199AG,12:0.050AG")
+        self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"], "")
 
     def test_alleles_whose_scoring_returned_an_error_are_left_out(self):
         alleles = ["chr1-100-A-ACA", "chr1-100-A-ACACA"]

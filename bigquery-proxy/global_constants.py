@@ -18,9 +18,11 @@ GROUP_GENE_ANNOTATIONS = "Gene Annotations"
 GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
-GROUP_SPLICEAI = "SpliceAI (simulated alleles)"
+# The SpliceAI, Zhang 2025 STR MPRA and ENCODE4/IGVF columns, grouped together and shown first so they're easy to find
+GROUP_COLUMNS_ADDED_2026_10_05 = "New Columns (10/5/2026)"
 
 GROUP_ORDER = [
+    GROUP_COLUMNS_ADDED_2026_10_05,
     GROUP_CORE,
     GROUP_ADDITIONAL_LAYERS,
     GROUP_ADDITIONAL_LAYERS2,
@@ -28,7 +30,6 @@ GROUP_ORDER = [
     GROUP_POLYMORPHISM_HPRC256,
     GROUP_POLYMORPHISM_AOU1027,
     GROUP_POLYMORPHISM_TENK10K,
-    GROUP_SPLICEAI,
 ]
 
 SPLICEAI_SIMULATED_ALLELES_DESCRIPTION = (
@@ -1047,11 +1048,11 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Zhang2025_LengthEffectTestResult",
-        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells: 'significant' (FDR < 0.1), 'not significant', or 'not enough data' (in the library, but too few barcodes to test). NULL if the locus was not tested.",
+        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. Possible values include:<ul><li><b>\"significant\"</b>: FDR < 0.1</li><li><b>\"not significant\"</b>: FDR ≥ 0.1</li><li><b>\"not enough data\"</b>: in the library, but too few barcodes to test</li><li><b>NULL</b>: the locus was not tested</li></ul>",
         "displayName": "STR MPRA: Length Effect",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS2,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "FLOAT",
@@ -1060,7 +1061,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "STR MPRA: Length Effect Slope",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS2,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "FLOAT",
@@ -1069,7 +1070,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "STR MPRA: Length Effect FDR",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS2,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "STRING",
@@ -1077,7 +1078,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "description": "JSON with the Zhang et al. 2025 STR this locus was matched to: zhangLocusId, zhangInterval (0-based start), zhangMotif, and matchType ('exact' locus match, or 'fuzzy' overlap with the same motif).",
         "displayName": "STR MPRA: Details",
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS2,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
 
     # Functional elements from ENCODE4 and IGVF, from ../data-prep/columns_from_EncodeV4/. NULL means no element
@@ -1089,7 +1090,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "ENCODE4/IGVF: Validated Elements",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_ADDITIONAL_LAYERS2,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
 
     # Reference sequence data
@@ -1129,7 +1130,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "SpliceAI Max Delta Score",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_SPLICEAI,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "STRING",
@@ -1139,7 +1140,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "SpliceAI Max Delta Score Allele Size",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_SPLICEAI,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "STRING",
@@ -1149,7 +1150,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "displayName": "SpliceAI Min Allele Size That Affects Splicing",
         "allowCustomFilter": True,
         "allowExport": True,
-        "group": GROUP_SPLICEAI,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
     {
         "type": "STRING",
@@ -1160,12 +1161,22 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
                        "e.g. 18:0.000,25:0.030AG,40:0.310AG,95:0.880AL.",
         "displayName": "SpliceAI Delta Score By Repeat Count",
         "allowExport": True,
-        "group": GROUP_SPLICEAI,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
+    },
+    {
+        "type": "STRING",
+        "name": "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " The simulated alleles in "
+                       "SpliceAI_DeltaScoreByRepeatCount whose delta score is at least 0.2, in the same form, "
+                       "e.g. 40:0.310AG,95:0.880AL; empty if none.",
+        "displayName": "SpliceAI Delta Score By Repeat Count That Affects Splicing",
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },
 ]
 
 # The names of the SpliceAI_* columns, which add_spliceai_columns_to_catalog_table.py fills in an existing table
-SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c.get("group") == GROUP_SPLICEAI]
+SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("SpliceAI_")]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when

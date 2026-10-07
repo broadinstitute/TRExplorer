@@ -103,6 +103,13 @@
     <div class="ui row">
         <div class="three wide column"></div>
         <div class="ten wide column">
+            <div id="locus-page-splicing-and-expression-effects"></div>
+        </div>
+        <div class="three wide column"></div>
+    </div>
+    <div class="ui row">
+        <div class="three wide column"></div>
+        <div class="ten wide column">
             <div id="locus-page-interval-selector" style="display: none; padding: 10px 0;"></div>
             <div id="locus-page-allele-sequences"></div>
         </div>
@@ -231,6 +238,14 @@
         "Manigbas2024_AssociatedTraits",
         "Manigbas2024_MinPvalue",
         "Manigbas2024_Details",
+
+        "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing",
+        "SpliceAI_DeltaScoreByRepeatCount",
+        "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements",
+        "Zhang2025_LengthEffectTestResult",
+        "Zhang2025_LengthEffectSlope",
+        "Zhang2025_LengthEffectFDR",
+        "Zhang2025_Details",
     ]
 
     //locus page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
@@ -450,6 +465,40 @@
         return combinedHtml
     }
 
+    function generateSpliceAISection(row) {
+        const deltaScores = parseSpliceAIDeltaScoresByRepeatCount(row['SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing'])
+        if (deltaScores.length === 0) return ''
+
+        const {tableHtml, footnotesHtml} = buildSpliceAIDeltaScoresTableHtml(row)
+        let html = '<h4>SpliceAI (simulated alleles)</h4>'
+        html += `<div style="margin-bottom: 1em;">${tableHtml}</div>`
+        html += `<p style="color: #666;">${SPLICEAI_SIMULATED_ALLELES_EXPLANATION}</p>`
+        html += footnotesHtml
+        html += `<p style="font-size: 0.9em; color: #666;">
+            Scored with the
+            <a href="https://spliceailookup.broadinstitute.org" target="_blank">SpliceAI-lookup</a> code (GENCODE v50
+            basic transcripts, max distance 10,000 bp, no masking).
+        </p>`
+        return html
+    }
+
+    function generateEncode4MpraSection(row) {
+        if (getEncode4MpraCellLines(row).length === 0) return ''
+        return `<h4>ENCODE4 MPRA</h4><div>${buildEncode4MpraDetailsHtml(row)}</div>`
+    }
+
+    function generateZhang2025MpraSection(row) {
+        if (!wasZhang2025MpraLengthEffectTested(row)) return ''
+        return `<h4>Zhang 2025 MPRA</h4><div>${buildZhang2025MpraDetailsHtml(row)}</div>`
+    }
+
+    // The SpliceAI, Zhang 2025 MPRA and ENCODE4 MPRA results for this locus, leaving out those with no data
+    function generateSplicingAndExpressionEffectsSection(row) {
+        return [generateSpliceAISection(row), generateZhang2025MpraSection(row), generateEncode4MpraSection(row)]
+            .filter(Boolean)
+            .join('<div style="margin-top: 30px;"></div>')  // Spacing between sections
+    }
+
     const displaySearchResults = async () => {
 
         const row = window.searchResults.rows[0]
@@ -555,6 +604,19 @@
             )
         } else {
             $('#locus-page-literature-review').html('')
+        }
+
+        // Generate the Splicing and Expression Effects section
+        const splicingAndExpressionEffectsHtml = generateSplicingAndExpressionEffectsSection(row)
+        if (splicingAndExpressionEffectsHtml) {
+            $('#locus-page-splicing-and-expression-effects').html(
+                `<div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
+                    <h3>Splicing and Expression Effects</h3>
+                    ${splicingAndExpressionEffectsHtml}
+                </div>`
+            )
+        } else {
+            $('#locus-page-splicing-and-expression-effects').html('')
         }
 
         // Lazy-fetch the list of TRGT intervals that genotyped this LocusId, then
