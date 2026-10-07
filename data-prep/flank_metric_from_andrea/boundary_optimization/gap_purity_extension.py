@@ -20,20 +20,58 @@ unit inside "ATATATATAT". Newly added sequence = "CTCTATATATATAT" (14bp, 2 misma
 CTCT gap) -- purity = 12/14 = 0.857. With the default min_purity_of_new_sequence=0.9 this specific
 example would be REJECTED (below threshold); a less degenerate gap or a longer pure run would pass.
 
-Reuses boundary_metrics.cumulative_purity_and_hamming for the per-position phase/match arrays (same
-validated phase logic as motif_reanchor_extension.py) rather than re-deriving the reversed-coordinate
-math for the left side by hand.
+Reuses boundary_metrics.cumulative_mismatched_bases for the per-position phase/match arrays rather
+than re-deriving the reversed-coordinate math for the left side by hand.
 """
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from boundary_metrics import cumulative_purity_and_hamming
+from boundary_metrics import cumulative_mismatched_bases
 
 MAX_REPEATS_IN_GAP = 2
 MIN_PURITY_OF_NEW_SEQUENCE = 0.9
 MAX_OFFSET = 300
+MAX_RESCAN_ATTEMPTS = 5  # each attempt triples the fetch window, so the last is 81x the first. The
+# first window is motif-dependent (see scan_side) and at least MAX_OFFSET, which for a motif of 100bp
+# or less gives 300bp, 900bp, 2700bp, 8100bp, 24300bp. Five is one attempt beyond the offset where a
+# real locus's extension was observed to stabilize, so convergence (two consecutive equal values) has
+# a chance to be confirmed rather than merely reached on the last attempt.
+
+
+def scan_side(fasta, chrom, side, start_0based, end_1based, motif, core_length):
+    """Extend one side, tripling the fetched flank window on each retry until the returned extension
+    stops changing. A truncated fetch window can cut short
+    either the anchor search or the pure-repeat run that follows an anchor inside
+    extend_by_gap_purity, in either case producing a value that looks like a genuine,
+    rule-determined stop but isn't -- the only way to tell the two apart from outside that function
+    is to check whether a bigger window changes the answer. Returns (extension,
+    still_capped_after_max_attempts).
+
+    Lives here rather than in either scan script because both of them need it and they must agree:
+    when the two produced their own copies, one was fixed to test for convergence and the other was
+    left testing whether the extension merely landed short of the fetch window, which accepts a
+    truncated answer as final.
+
+    The first window is at least the anchor search's full reach, (max_repeats_in_gap + 1) motif
+    copies. A fixed 300bp start is smaller than that for motifs over 100bp, and two windows too small
+    to finish the search can agree on a value neither of them was in a position to determine, which
+    convergence alone cannot tell apart from a genuine stop.
+    """
+    offset = max(MAX_OFFSET, (MAX_REPEATS_IN_GAP + 1) * len(motif))
+    prev_ext = None
+    for _ in range(MAX_RESCAN_ATTEMPTS):
+        if side == "left":
+            flank = fasta.fetch(chrom, max(0, start_0based - offset), start_0based)[::-1]
+        else:
+            flank = fasta.fetch(chrom, end_1based, end_1based + offset)
+        ext = extend_by_gap_purity(flank, motif, core_length, side)
+        if ext == prev_ext:
+            return ext, False
+        prev_ext = ext
+        offset *= 3
+    return prev_ext, True
 
 
 def extend_by_gap_purity(
@@ -46,14 +84,15 @@ def extend_by_gap_purity(
     verbose=False,
 ):
     """flank_seq: forward genomic order for 'right', reversed (boundary-adjacent base first) for
-    'left' -- same convention as motif_reanchor_extension.py. Returns the accepted extension length.
+    'left', which is the same convention pytrf_style_extension.py uses. Returns the accepted
+    extension length.
     """
     motif = motif.upper()
     flank_seq = flank_seq.upper()
     motif_length = len(motif)
     max_offset = len(flank_seq)
 
-    mismatched = cumulative_purity_and_hamming(flank_seq, motif, core_length, side)["mismatched_bases"]
+    mismatched = cumulative_mismatched_bases(flank_seq, motif, core_length, side)
 
     def mismatches_in(start, end):
         if start >= end:

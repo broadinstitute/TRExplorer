@@ -59,12 +59,14 @@ def _flank_phases(core_length, motif_length, side, max_offset):
     return relative_positions % motif_length
 
 
-def cumulative_purity_and_hamming(flank_seq, motif, core_length, side):
-    """Cumulative purity/hamming-distance of the region [boundary, boundary + offset) for offset in 1..len(flank_seq).
+def cumulative_mismatched_bases(flank_seq, motif, core_length, side):
+    """Hamming distance from the region [boundary, boundary + offset) to a perfect tiled repeat of
+    the motif, for offset in 1..len(flank_seq).
 
-    Returns a dict of numpy arrays (index i = offset i+1): matched_bases, mismatched_bases (= Hamming
-    distance to a perfect tiled repeat), total_bases, purity (matched / total).
-    This is the same matched-base convention ExpansionHunter uses for ReferenceRepeatPurity.
+    Returns one numpy array, index i holding the count for offset i+1. Matching starts from the
+    matched-base convention ExpansionHunter uses for ReferenceRepeatPurity, then deliberately departs
+    from it in one way: an IUPAC ambiguity code in the motif matches any base it represents, where
+    ExpansionHunter compares characters literally. See _IUPAC_MATCH_TABLE below for why.
     """
     max_offset = len(flank_seq)
     phases = _flank_phases(core_length, len(motif), side, max_offset)
@@ -75,11 +77,4 @@ def cumulative_purity_and_hamming(flank_seq, motif, core_length, side):
     # polyalanine loci GCN/NGC (N = any base) or RFC1's AARRG (R = A-or-G) -- match any base in
     # their represented set, not just their own literal letter.
     is_match = _IUPAC_MATCH_TABLE[flank_array, motif_at_phase]
-    matched_cumulative = np.cumsum(is_match)
-    total = np.arange(1, max_offset + 1)
-    return {
-        "matched_bases": matched_cumulative,
-        "mismatched_bases": total - matched_cumulative,
-        "total_bases": total,
-        "purity": matched_cumulative / total,
-    }
+    return np.arange(1, max_offset + 1) - np.cumsum(is_match)

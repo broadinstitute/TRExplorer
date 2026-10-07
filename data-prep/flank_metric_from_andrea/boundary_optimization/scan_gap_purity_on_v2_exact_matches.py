@@ -14,33 +14,13 @@ from pathlib import Path
 import pandas as pd
 import pysam
 
-from gap_purity_extension import extend_by_gap_purity, MAX_OFFSET
+from gap_purity_extension import scan_side, MAX_OFFSET, MAX_RESCAN_ATTEMPTS
 
 DATA_DIR = Path(__file__).parent / "data"
 CATALOG_PATH = Path(__file__).parent.parent / "TR_catalog_2_6bp_with_flank_metrics.tsv.gz"
 MATCH_IDS_PATH = DATA_DIR / "andrea_v2_exact_matches.sorted.txt"
 FASTA_PATH = "/Users/weisburd/hg38.fa"
 OUTPUT_PATH = DATA_DIR / "gap_purity_scan_v2_exact_matches.tsv"
-MAX_RESCAN_ATTEMPTS = 4  # 300bp, 900bp, 2700bp, 8100bp
-
-
-def scan_side(fasta, chrom, side, start_0based, end_1based, motif, core_length):
-    """Extend one side, growing the fetched flank window (starting at MAX_OFFSET, tripling each
-    retry) whenever the returned extension lands exactly on the fetch-window edge -- that's
-    indistinguishable from a genuine rule-determined stop otherwise, since extend_by_gap_purity only
-    ever sees what was fetched. Returns (extension, still_capped_after_max_attempts).
-    """
-    offset = MAX_OFFSET
-    for attempt in range(MAX_RESCAN_ATTEMPTS):
-        if side == "left":
-            flank = fasta.fetch(chrom, max(0, start_0based - offset), start_0based)[::-1]
-        else:
-            flank = fasta.fetch(chrom, end_1based, end_1based + offset)
-        ext = extend_by_gap_purity(flank, motif, core_length, side)
-        if ext < len(flank):
-            return ext, False
-        offset *= 3
-    return ext, True
 
 
 def main():
@@ -63,10 +43,6 @@ def main():
             print(f"  {i:,} / {len(df):,}")
         core_seq = fasta.fetch(row.chrom, row.start_0based, row.end_1based)
         core_length = len(core_seq)
-        # extend_by_gap_purity only sees however much flank was fetched, so an extension landing
-        # exactly on the fetch window's edge can't be distinguished from a genuine rule-determined
-        # stop -- scan_side re-fetches a larger window in that case rather than silently treating a
-        # possibly-truncated value as final.
         left_ext, left_capped = scan_side(fasta, row.chrom, "left", row.start_0based, row.end_1based, row.ReferenceMotif, core_length)
         right_ext, right_capped = scan_side(fasta, row.chrom, "right", row.start_0based, row.end_1based, row.ReferenceMotif, core_length)
         rows.append((row.LocusId, row.chrom, row.start_0based, row.end_1based, row.ReferenceMotif, left_ext, right_ext,
@@ -78,9 +54,10 @@ def main():
     print(f"\nWrote {len(out_df):,} rows to {OUTPUT_PATH}")
     n_capped = (out_df["left_ext_capped"] | out_df["right_ext_capped"]).sum()
     if n_capped:
-        max_offset_reached = MAX_OFFSET * 3 ** (MAX_RESCAN_ATTEMPTS - 1)
         print(f"WARNING: {n_capped} locus/loci still hit the fetch-window edge on at least one side "
-              f"after {MAX_RESCAN_ATTEMPTS} rescan attempts (up to {max_offset_reached:,}bp) -- their "
+              f"after {MAX_RESCAN_ATTEMPTS} rescan attempts (the last window is "
+              f"{3 ** (MAX_RESCAN_ATTEMPTS - 1)}x the first, which is at least {MAX_OFFSET:,}bp "
+              f"and grows with the motif) -- their "
               f"extension may still be truncated, not a genuine rule-determined stop. See left/right_ext_capped.")
 
     extended = (out_df["left_ext"] > 0) | (out_df["right_ext"] > 0)

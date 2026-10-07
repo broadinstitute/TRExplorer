@@ -90,7 +90,7 @@ for _, row in df.iterrows():
     local_catalog = s1.input(args.catalog_path)
 
     s1.command("set -euxo pipefail")
-    s1.command(f"""/usr/bin/time --verbose ExpansionHunter --threads {THREADS} --cache-mates \\
+    s1.command(f"""/usr/bin/time --verbose ExpansionHunter --threads {THREADS} \\
         --dont-output-consensus-sequences --output-genotype-timing --compress-output-files \\
         --reference {local_fasta} \\
         --reads {local_bam} \\
