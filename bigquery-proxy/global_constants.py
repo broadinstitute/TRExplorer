@@ -4,6 +4,8 @@ This module contains the BigQuery schema definition with column descriptions tha
 as the single source of truth for column documentation across the project.
 """
 
+from html.parser import HTMLParser
+
 # Gene region priority description used in multiple column descriptions
 GENE_REGION_PRIORITY = (
     "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > "
@@ -1048,7 +1050,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Zhang2025_LengthEffectTestResult",
-        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. Possible values include:<ul><li><b>\"significant\"</b>: FDR < 0.1</li><li><b>\"not significant\"</b>: FDR ≥ 0.1</li><li><b>\"not enough data\"</b>: in the library, but too few barcodes to test</li><li><b>NULL</b>: the locus was not tested</li></ul>",
+        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. Possible values include:<ul><li><b>“significant”</b>: FDR < 0.1</li><li><b>“not significant”</b>: FDR ≥ 0.1</li><li><b>“not enough data”</b>: in the library, but too few barcodes to test</li><li><b>NULL</b>: the locus was not tested</li></ul>",
         "displayName": "STR MPRA: Length Effect",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1325,3 +1327,50 @@ def get_exportable_columns():
                 "description": col.get("description", ""),
             })
     return exportable
+
+
+# The HTML tags that the column descriptions shown on the website may use
+HTML_TAGS_ALLOWED_IN_COLUMN_DESCRIPTIONS = {"a", "b", "br", "code", "i", "li", "ul"}
+
+
+class HtmlTagNameCollector(HTMLParser):
+    """Collects the names of the start and end tags in the HTML fed to it, lowercased."""
+
+    def __init__(self):
+        super().__init__()
+        self.tag_names = set()
+
+    def handle_starttag(self, tag, attrs):
+        self.tag_names.add(tag)
+
+    def handle_endtag(self, tag):
+        self.tag_names.add(tag)
+
+
+def find_problems_in_column_descriptions_shown_on_website(columns):
+    """Returns a message for each problem in the column descriptions that the website shows in help text popups.
+
+    The popups render a description as HTML, and the results table and locus page insert it unescaped into a
+    double-quoted data-html attribute. So a description must not contain a straight double quote, which would end the
+    attribute early (use “ and ” instead, and single quotes around tag attributes), or a tag outside
+    HTML_TAGS_ALLOWED_IN_COLUMN_DESCRIPTIONS. Literal text such as <VC:...> would be read as an unknown tag and
+    disappear, so write it as &lt;VC:...&gt;.
+
+    Args:
+        columns (list): column definitions, each a dict with a "name" and optionally a "description"
+
+    Returns:
+        list: one message per problem; empty if there are none
+    """
+    problems = []
+    for column in columns:
+        description = column.get("description", "")
+        if '"' in description:
+            problems.append(f"{column['name']}: contains a straight double quote; use “ and ” instead")
+        tag_name_collector = HtmlTagNameCollector()
+        tag_name_collector.feed(description)
+        tag_name_collector.close()
+        for tag_name in sorted(tag_name_collector.tag_names - HTML_TAGS_ALLOWED_IN_COLUMN_DESCRIPTIONS):
+            problems.append(f"{column['name']}: contains the tag <{tag_name}>, which is not in "
+                            f"HTML_TAGS_ALLOWED_IN_COLUMN_DESCRIPTIONS; write a literal < as &lt;")
+    return problems

@@ -12,7 +12,13 @@ import sys
 
 # Add bigquery-proxy directory to path to import global_constants
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bigquery-proxy'))
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ORDER, get_column_descriptions, get_custom_filter_columns, get_exportable_columns
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ORDER, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, find_problems_in_column_descriptions_shown_on_website
+
+# The website shows the main table's column descriptions in help text popups, so stop before writing any page if one
+# of them would render wrong there
+column_description_problems = find_problems_in_column_descriptions_shown_on_website(MAIN_BIGQUERY_TABLE_COLUMNS)
+if column_description_problems:
+    sys.exit("Fix these column descriptions in bigquery-proxy/global_constants.py:\n  " + "\n  ".join(column_description_problems))
 
 jinja2_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
 
