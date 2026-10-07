@@ -1121,9 +1121,7 @@
     }
 
     // Column help texts can contain HTML (<br />, <b>, <i>), so the (?) icons show them in a Semantic UI popup, which
-    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally. The text goes in the
-    // icon's data-html attribute, so only the characters that would end the attribute value early are escaped.
-    const escapeHelpTextForDataHtmlAttribute = (helpText) => helpText.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally
     const initializeHelpTextPopups = ($helpIcons) =>
         $helpIcons.popup({ on: 'hover', position: 'top center', variation: 'wide' })
 
@@ -2476,7 +2474,7 @@
                             <input type="checkbox" name="show_column_${columnName}" ${isChecked ? 'checked' : ''}>
                             <label>${TABLE_COLUMNS[columnName]?.displayName || ''}</label>
                         </div>
-                        ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
+                        ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${escapeHelpTextForDataHtmlAttribute(TABLE_COLUMNS[columnName].helpText)}"></i>` : ''}
                     </div>`
             }).join('')
 

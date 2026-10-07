@@ -12,7 +12,7 @@ import sys
 
 # Add bigquery-proxy directory to path to import global_constants
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bigquery-proxy'))
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ORDER, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, find_problems_in_column_descriptions_shown_on_website
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ORDER, GENE_REGION_PRIORITY, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, find_problems_in_column_descriptions_shown_on_website
 
 # The website shows the main table's column descriptions in help text popups, so stop before writing any page if one
 # of them would render wrong there
@@ -47,6 +47,7 @@ for template_file in glob.glob("*_page_template.html"):
     html_content = template.render(
         column_descriptions=column_descriptions,
         column_groups=GROUP_ORDER,
+        gene_region_priority=GENE_REGION_PRIORITY,
         custom_filter_columns_json=custom_filter_columns_json,
         exportable_columns_json=exportable_columns_json,
         data_last_updated_date=data_last_updated_date,

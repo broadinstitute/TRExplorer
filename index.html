@@ -2391,8 +2391,8 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const STDEV_HELP_TEXTS = {
-        'HPRC256_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>]. <br />`,
+        'HPRC256_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>]. <br />`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>]. <br />`,
         'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br />`,
         'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br />`
@@ -2490,7 +2490,15 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const BIGQUERY_COLUMN_GROUPS = ["New Columns (10/5/2026)", "Core", "Additional Layers", "Additional Layers #2", "Gene Annotations", "Polymorphism (HPRC256)", "Polymorphism (AoU1027)", "Polymorphism (TenK10K)"]
 
-    const gene_region_priority = "with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR"
+    // GENE_REGION_PRIORITY from global_constants.py via Jinja2
+    const gene_region_priority = "with significance defined as coding \u003e 5\u0027 UTR \u003e 3\u0027 UTR \u003e exon in non-coding gene \u003e intron \u003e promoter region spanning 1,000bp upstream of the 5\u0027 UTR"
+
+    // Help texts are HTML that a Semantic UI popup renders from an element's data-html attribute. This escapes the
+    // characters that would end that double-quoted attribute value early or be decoded by it, so the popup gets the help
+    // text's HTML exactly as written.
+    function escapeHelpTextForDataHtmlAttribute(helpText) {
+        return helpText.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    }
 
     // Help texts for UI columns - starts with BigQuery descriptions, then adds/overrides
     // with custom text for UI-only columns or those needing HTML formatting
@@ -2506,7 +2514,7 @@ gtag('config', 'G-6R8FPBQRFH');
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
         ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=&quot;_blank&quot;>Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
+        AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
         GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v49 ${gene_region_priority}`,
@@ -3182,7 +3190,7 @@ gtag('config', 'G-6R8FPBQRFH');
         if (row.AoU1027_OE_LengthPercentile != null) {
             html += `
                 <div style="margin-top: 15px; text-align: center;">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${escapeHelpTextForDataHtmlAttribute(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
                 </div>
             `
         }
@@ -3223,7 +3231,7 @@ gtag('config', 'G-6R8FPBQRFH');
                                 = ${row[key].toFixed(3)}
                             </td>
                             <td style="text-align: right;">
-                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${STDEV_HELP_TEXTS[key]}"></i>
+                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHelpTextForDataHtmlAttribute(STDEV_HELP_TEXTS[key])}"></i>
                             </td>
                         </tr>
                     `
@@ -3245,7 +3253,7 @@ gtag('config', 'G-6R8FPBQRFH');
             if (row.AoU1027_OE_LengthPercentile != null) {
                 polymorphismDialogContent1 += `
                     <div style="margin-top: 25px">
-                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile']}"></i>
+                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHelpTextForDataHtmlAttribute(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
                     </div>
                 `
             }
@@ -4621,7 +4629,7 @@ gtag('config', 'G-6R8FPBQRFH');
         Tanudisastro2024_SignificantCellTypes: {
             displayName: 'sc-eTRs 2024',
             defaultSortDirection: 'DESC',
-            helpText: 'Immune cell types with significant sc-eTR associations from [<a href=&quot;https://www.biorxiv.org/content/10.1101/2024.11.02.621562&quot; target=&quot;_blank&quot;>Tanudisastro 2024</a>]',
+            helpText: 'Immune cell types with significant sc-eTR associations from [<a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro 2024</a>]',
             getValue: (row) => {
                 if (!row['Tanudisastro2024_SignificantCellTypes']) return ''
                 const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
@@ -4650,7 +4658,7 @@ gtag('config', 'G-6R8FPBQRFH');
         Manigbas2024_AssociatedTraits: {
             displayName: 'PheWAS 2024',
             defaultSortDirection: 'DESC',  // ASC = lowest p-value first = most significant first
-            helpText: 'Traits with fine-mapped causal TR associations from [<a href=&quot;https://www.nature.com/articles/s41467-024-54678-0&quot; target=&quot;_blank&quot;>Manigbas 2024</a>] UK Biobank PheWAS',
+            helpText: 'Traits with fine-mapped causal TR associations from [<a href="https://www.nature.com/articles/s41467-024-54678-0" target="_blank">Manigbas 2024</a>] UK Biobank PheWAS',
             getValue: (row) => {
                 // Check if locus was tested (has Details) vs not tested (NULL)
                 if (row['Manigbas2024_Details'] === null || row['Manigbas2024_Details'] === undefined) {
@@ -6952,9 +6960,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     // Column help texts can contain HTML (<br />, <b>, <i>), so the (?) icons show them in a Semantic UI popup, which
-    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally. The text goes in the
-    // icon's data-html attribute, so only the characters that would end the attribute value early are escaped.
-    const escapeHelpTextForDataHtmlAttribute = (helpText) => helpText.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally
     const initializeHelpTextPopups = ($helpIcons) =>
         $helpIcons.popup({ on: 'hover', position: 'top center', variation: 'wide' })
 
@@ -8307,7 +8313,7 @@ gtag('config', 'G-6R8FPBQRFH');
                             <input type="checkbox" name="show_column_${columnName}" ${isChecked ? 'checked' : ''}>
                             <label>${TABLE_COLUMNS[columnName]?.displayName || ''}</label>
                         </div>
-                        ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''}
+                        ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${escapeHelpTextForDataHtmlAttribute(TABLE_COLUMNS[columnName].helpText)}"></i>` : ''}
                     </div>`
             }).join('')
 

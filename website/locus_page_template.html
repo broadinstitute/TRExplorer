@@ -504,7 +504,7 @@
         const row = window.searchResults.rows[0]
 
         const getHelpIcon = (columnName) => {
-            return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${TABLE_COLUMNS[columnName].helpText}"></i>` : ''
+            return TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle outline icon" style="margin-left:10px" data-html="${escapeHelpTextForDataHtmlAttribute(TABLE_COLUMNS[columnName].helpText)}"></i>` : ''
         }
 
         // Generate the tables at the top of the page

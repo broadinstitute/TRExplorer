@@ -1350,11 +1350,11 @@ class HtmlTagNameCollector(HTMLParser):
 def find_problems_in_column_descriptions_shown_on_website(columns):
     """Returns a message for each problem in the column descriptions that the website shows in help text popups.
 
-    The popups render a description as HTML, and the results table and locus page insert it unescaped into a
-    double-quoted data-html attribute. So a description must not contain a straight double quote, which would end the
-    attribute early (use “ and ” instead, and single quotes around tag attributes), or a tag outside
+    The popups render a description as HTML, so a description must not contain a tag outside
     HTML_TAGS_ALLOWED_IN_COLUMN_DESCRIPTIONS. Literal text such as <VC:...> would be read as an unknown tag and
-    disappear, so write it as &lt;VC:...&gt;.
+    disappear, so write it as &lt;VC:...&gt;. The website escapes the text it puts in a popup's double-quoted data-html
+    attribute, but a description must also not contain a straight double quote (use “ and ” instead, and single quotes
+    around tag attributes), so that it stays safe in any attribute that is not escaped.
 
     Args:
         columns (list): column definitions, each a dict with a "name" and optionally a "description"
