@@ -21,13 +21,30 @@ Per locus, over the samples that had something to contribute:
                           the same samples counted by allele: how many alleles were scored, and how many
                           of those were within 10% of the truth allele size
     n_longest_truth_alleles_scored, shortest_of_the_longest_truth_alleles,
-    fraction_of_longest_truth_alleles_within_10_percent, mean_abs_error_of_longest_truth_alleles
+    EH_allele_quality_largest_10, mean_abs_error_of_longest_truth_alleles
                           the per-locus accuracy score: across all scored genomes, the
-                          N_LONGEST_TRUTH_ALLELES longest truth alleles at the locus (fewer if fewer
-                          were scored) and how well ExpansionHunter called each of them. Long alleles
-                          are where a short-read caller is most likely to fail, so this says how far its
-                          calls at this locus can be trusted when an allele is long. Ties in truth
-                          length go to the sample that sorts first by sample label.
+                          N_LONGEST_TRUTH_ALLELES longest truth alleles at the locus and how well
+                          ExpansionHunter called each of them. Long alleles are where a short-read
+                          caller is most likely to fail, so this says how far its calls at this locus
+                          can be trusted when an allele is long. Ties in truth length go to the sample
+                          that sorts first by sample label. An allele is called correctly when
+                          |ExpansionHunter - truth| is at most 1 repeat or 10% of the truth size,
+                          whichever is larger, and ExpansionHunter did not call the reference size for
+                          a truth allele that differs from it (a missed variant is an error even when
+                          it is off by only one repeat). The score and its mean error are left blank
+                          when fewer than N_LONGEST_TRUTH_ALLELES alleles were scored, so every score
+                          comes from the same number of alleles; this mostly happens where the
+                          assemblies give usable truth in only one or two genomes.
+    EH_allele_quality_largest_10_truth_range
+                          the truth sizes those alleles span, in repeats ("33-36"), blank with the score
+    EH_allele_quality_all_non_ref, n_non_reference_truth_alleles
+                          the same rule applied to every scored allele whose truth size differs from the
+                          reference (longer or shorter): the fraction called correctly, and how many there
+                          were. Blank where there were none.
+    EH_allele_quality_<N>_haplotypes_distribution
+                          every scored allele as distinct (truth, ExpansionHunter) repeat-count pairs with
+                          their counts, most common first: "10,10x260;11,10x4". N is twice the number of
+                          scored genomes; a haploid call contributes one allele.
 
 Rates are over whatever samples had a call and a truth genotype at that locus, which differs from
 locus to locus, so n_compared is carried alongside them to weight or filter by.
@@ -52,11 +69,20 @@ DEFAULT_SAMPLE_TABLE_PATH = os.path.join(SCRIPT_DIR, "short_read_samples_with_tr
 N_LONGEST_TRUTH_ALLELES = 10
 # Same rule as compare_eh_to_truth.WITHIN_PERCENT_TOLERANCE: |ExpansionHunter - truth| <= 10% of truth.
 WITHIN_PERCENT_TOLERANCE = 10
+# The per-locus score also accepts an error of this many repeats, so short alleles are not held to an
+# exact match while long ones get 10%.
+WITHIN_REPEATS_TOLERANCE = 1
 
 ARRAY_NAMES = ("has_call", "pok_sum", "pok_sum_compared", "has_truth", "is_exact", "is_within1",
                "abs_error", "n_alleles_compared", "n_alleles_within_10_percent")
 FLOAT_ARRAYS = ("pok_sum", "pok_sum_compared", "abs_error")
 PER_ALLELE_ARRAYS = ("truth_short_allele", "truth_long_allele", "eh_short_allele", "eh_long_allele")
+LARGEST_10_SCORE_COLUMN = "EH_allele_quality_largest_10"
+LARGEST_10_TRUTH_RANGE_COLUMN = "EH_allele_quality_largest_10_truth_range"
+NON_REFERENCE_SCORE_COLUMN = "EH_allele_quality_all_non_ref"
+NON_REFERENCE_COUNTS = ("n_non_reference_truth_alleles", "n_non_reference_truth_alleles_called_correctly")
+# Bits for each repeat count in an allele pair key (see allele_pair_keys); counts must be below 65,536.
+PAIR_VALUE_BITS = 16
 
 
 def read_cohort(sample_table_path):
@@ -86,31 +112,49 @@ def read_cohort(sample_table_path):
 
 
 def read_catalog(bed_path):
-    """Return (locus_ids, chroms, starts, ends, motifs) in file order, which is the array order."""
-    locus_ids, chroms, starts, ends, motifs = [], [], [], [], []
+    """Return (starts, ends, motif sizes) as arrays in file order, which is the array order.
+
+    The text columns are not kept: 5.7 million locus ids and motifs as Python strings take ~3 GB, so
+    read_catalog_text_columns reads them again while the table is written.
+    """
+    starts, ends, motif_sizes = [], [], []
+    with gzip.open(bed_path, "rt") as f:
+        for line in f:
+            _, start, end, motif = line.split("\t")[:4]
+            starts.append(int(start))
+            ends.append(int(end))
+            motif_sizes.append(len(motif))
+    return np.array(starts), np.array(ends), np.array(motif_sizes)
+
+
+def read_catalog_text_columns(bed_path):
+    """Yield (locus_id, chrom, start, end, motif) for each catalog row, in file order."""
     with gzip.open(bed_path, "rt") as f:
         for line in f:
             chrom, start, end, motif = line.split("\t")[:4]
-            locus_ids.append(f"{chrom}-{start}-{end}-{motif}")
-            chroms.append(chrom)
-            starts.append(int(start))
-            ends.append(int(end))
-            motifs.append(motif)
-    return locus_ids, chroms, starts, ends, motifs
+            yield f"{chrom}-{start}-{end}-{motif}", chrom, start, end, motif
 
 
-def keep_longest_truth_alleles(longest_truth, longest_eh, truth_alleles, eh_alleles):
+def keep_longest_truth_alleles(longest_truth, longest_eh, truth_alleles, eh_alleles, loci_per_chunk=500_000):
     """Merge one sample's alleles into the running per-locus N_LONGEST_TRUTH_ALLELES longest.
 
     All arrays are (rows, n_loci) with nan for an empty slot. Returns the updated (truth, eh) pair. The
     sort is stable and the running set comes first, so a tie in truth length keeps the allele seen
-    earlier.
+    earlier. Loci are sorted loci_per_chunk at a time: sorting all 5.7 million at once needs ~3.5 GB of
+    temporary arrays per sample.
     """
     truth = np.vstack([longest_truth, truth_alleles])
     eh = np.vstack([longest_eh, eh_alleles])
-    order = np.argsort(np.where(np.isnan(truth), np.inf, -truth), axis=0, kind="stable")[
-        :N_LONGEST_TRUTH_ALLELES]
-    return np.take_along_axis(truth, order, axis=0), np.take_along_axis(eh, order, axis=0)
+    n_kept = min(len(truth), N_LONGEST_TRUTH_ALLELES)
+    kept_truth = np.empty((n_kept, truth.shape[1]), dtype=truth.dtype)
+    kept_eh = np.empty((n_kept, eh.shape[1]), dtype=eh.dtype)
+    for start in range(0, truth.shape[1], loci_per_chunk):
+        chunk = slice(start, start + loci_per_chunk)
+        order = np.argsort(np.where(np.isnan(truth[:, chunk]), np.inf, -truth[:, chunk]), axis=0,
+                           kind="stable")[:n_kept]
+        kept_truth[:, chunk] = np.take_along_axis(truth[:, chunk], order, axis=0)
+        kept_eh[:, chunk] = np.take_along_axis(eh[:, chunk], order, axis=0)
+    return kept_truth, kept_eh
 
 
 def sample_alleles(arrays):
@@ -128,13 +172,67 @@ def sample_alleles(arrays):
     return truth.astype(np.float32), eh.astype(np.float32)
 
 
-def sum_comparisons(comparison_paths, n_loci):
+def is_called_correctly(truth, eh, reference_copies):
+    """Return which alleles ExpansionHunter called correctly: |EH - truth| is at most
+    WITHIN_REPEATS_TOLERANCE repeats or WITHIN_PERCENT_TOLERANCE % of truth, whichever is larger, and EH
+    did not call the reference size for a truth allele that differs from it. False where truth is nan."""
+    error = np.abs(eh - truth)
+    within_tolerance = (error <= WITHIN_REPEATS_TOLERANCE) | (100 * error <= WITHIN_PERCENT_TOLERANCE * truth)
+    missed_variant = (eh == reference_copies) & (truth != reference_copies)
+    return within_tolerance & ~missed_variant
+
+
+def allele_pair_keys(truth, eh):
+    """Encode each scored (truth, EH) allele pair of one sample as one int64: locus row, truth, EH.
+
+    truth and eh are (rows, n_loci) with nan where nothing was scored.
+    """
+    present = ~np.isnan(truth)
+    locus_rows = np.nonzero(present)[1].astype(np.int64)
+    truth_values = truth[present].astype(np.int64)
+    eh_values = eh[present].astype(np.int64)
+    for name, values in (("truth", truth_values), ("ExpansionHunter", eh_values)):
+        if len(values) and (values.min() < 0 or values.max() >= 1 << PAIR_VALUE_BITS):
+            raise ValueError(f"a {name} repeat count is outside 0 to {(1 << PAIR_VALUE_BITS) - 1}")
+    return (locus_rows << (2 * PAIR_VALUE_BITS)) | (truth_values << PAIR_VALUE_BITS) | eh_values
+
+
+def merge_allele_pair_counts(keys, counts, new_keys):
+    """Add new_keys (one per allele) to the running sorted distinct keys and their counts."""
+    unique_keys, inverse = np.unique(np.concatenate([keys, new_keys]), return_inverse=True)
+    counts = np.bincount(inverse, weights=np.concatenate([counts, np.ones(len(new_keys))]))
+    return unique_keys, counts.astype(np.int64)
+
+
+def allele_pair_distribution_by_locus(keys, counts, n_loci):
+    """Return a function giving one locus row's distribution string, e.g. "10,10x260;11,10x4": each
+    distinct (truth, ExpansionHunter) repeat-count pair and how many alleles had it, most common first,
+    ties by truth then ExpansionHunter repeat count."""
+    locus_rows = keys >> (2 * PAIR_VALUE_BITS)
+    order = np.lexsort((keys, -counts, locus_rows))
+    truth = (keys[order] >> PAIR_VALUE_BITS) & ((1 << PAIR_VALUE_BITS) - 1)
+    eh = keys[order] & ((1 << PAIR_VALUE_BITS) - 1)
+    counts = counts[order]
+    boundaries = np.searchsorted(locus_rows[order], np.arange(n_loci + 1))
+
+    def distribution(row):
+        start, end = boundaries[row], boundaries[row + 1]
+        return ";".join(f"{t},{e}x{n}" for t, e, n in zip(truth[start:end], eh[start:end], counts[start:end]))
+    return distribution
+
+
+def sum_comparisons(comparison_paths, reference_copies):
     """Add up the per-sample arrays. Returns ({array name: per-locus total}, longest truth alleles,
-    the ExpansionHunter calls paired with them)."""
+    the ExpansionHunter calls paired with them, the distinct allele pair keys and their counts).
+
+    The totals also hold n_non_reference_truth_alleles and n_non_reference_truth_alleles_called_correctly.
+    """
+    n_loci = len(reference_copies)
     totals = {name: np.zeros(n_loci, dtype=np.float64 if name in FLOAT_ARRAYS else np.int64)
-              for name in ARRAY_NAMES}
+              for name in ARRAY_NAMES + NON_REFERENCE_COUNTS}
     longest_truth = np.full((0, n_loci), np.nan, dtype=np.float32)
     longest_eh = np.full((0, n_loci), np.nan, dtype=np.float32)
+    pair_keys, pair_counts = np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.int64)
     for path in comparison_paths:
         with np.load(path) as arrays:
             missing = [name for name in ARRAY_NAMES + PER_ALLELE_ARRAYS if name not in arrays.files]
@@ -147,21 +245,33 @@ def sum_comparisons(comparison_paths, n_loci):
                                  f"{n_loci:,}, so they were not built from the same catalog")
             for name in ARRAY_NAMES:
                 totals[name] += arrays[name]
-            longest_truth, longest_eh = keep_longest_truth_alleles(
-                longest_truth, longest_eh, *sample_alleles(arrays))
+            truth, eh = sample_alleles(arrays)
+        longest_truth, longest_eh = keep_longest_truth_alleles(longest_truth, longest_eh, truth, eh)
+        non_reference = ~np.isnan(truth) & (truth != reference_copies)
+        totals["n_non_reference_truth_alleles"] += non_reference.sum(axis=0)
+        totals["n_non_reference_truth_alleles_called_correctly"] += (
+            non_reference & is_called_correctly(truth, eh, reference_copies)).sum(axis=0)
+        pair_keys, pair_counts = merge_allele_pair_counts(pair_keys, pair_counts, allele_pair_keys(truth, eh))
         print(f"  added {os.path.basename(path)}")
-    return totals, longest_truth, longest_eh
+    return totals, longest_truth, longest_eh, pair_keys, pair_counts
 
 
-def score_longest_truth_alleles(longest_truth, longest_eh):
-    """Return per-locus (n scored, shortest of them, fraction within 10%, mean |EH - truth|)."""
+def score_longest_truth_alleles(longest_truth, longest_eh, reference_copies):
+    """Return per-locus (n scored, shortest of them, longest of them, fraction called correctly,
+    mean |EH - truth|).
+
+    reference_copies holds each locus's reference repeat count. The last two are nan unless all
+    N_LONGEST_TRUTH_ALLELES were scored.
+    """
     present = ~np.isnan(longest_truth)
     n_scored = present.sum(axis=0)
     error = np.abs(longest_eh - longest_truth)
-    within = present & (100 * error <= WITHIN_PERCENT_TOLERANCE * longest_truth)
+    correct = present & is_called_correctly(longest_truth, longest_eh, reference_copies)
     shortest = np.where(n_scored > 0, np.nanmin(np.where(present, longest_truth, np.inf), axis=0), np.nan)
-    return (n_scored, shortest, divide(within.sum(axis=0), n_scored),
-            divide(np.where(present, error, 0).sum(axis=0), n_scored))
+    longest = np.where(n_scored > 0, np.nanmax(np.where(present, longest_truth, -np.inf), axis=0), np.nan)
+    n_scored_if_complete = np.where(n_scored == N_LONGEST_TRUTH_ALLELES, n_scored, 0)
+    return (n_scored, shortest, longest, divide(correct.sum(axis=0), n_scored_if_complete),
+            divide(np.where(present, error, 0).sum(axis=0), n_scored_if_complete))
 
 
 def divide(numerator, denominator):
@@ -216,8 +326,11 @@ def main():
                              "be asked for.")
     args = parser.parse_args()
 
-    locus_ids, chroms, starts, ends, motifs = read_catalog(args.catalog_bed)
-    print(f"{len(locus_ids):,} locus definitions in {args.catalog_bed}")
+    starts, ends, motif_sizes = read_catalog(args.catalog_bed)
+    n_loci = len(starts)
+    print(f"{n_loci:,} locus definitions in {args.catalog_bed}")
+    # Rounded down, as the truth genotyper's NumRepeatsInReference is (identical at every HG002 locus).
+    reference_copies = ((ends - starts) // motif_sizes).astype(np.float32)
 
     comparison_paths = sorted(glob.glob(os.path.join(args.comparison_dir, "**", "*.comparison.npz"),
                                         recursive=True))
@@ -228,7 +341,7 @@ def main():
                                            args.allow_partial_cohort, parser)
 
     print(f"summing {len(comparison_paths)} samples:")
-    totals, longest_truth, longest_eh = sum_comparisons(comparison_paths, len(locus_ids))
+    totals, longest_truth, longest_eh, pair_keys, pair_counts = sum_comparisons(comparison_paths, reference_copies)
 
     mean_pok = divide(totals["pok_sum"], totals["has_call"])
     mean_pok_compared = divide(totals["pok_sum_compared"], totals["has_truth"])
@@ -236,8 +349,11 @@ def main():
     fraction_within1 = divide(totals["is_within1"], totals["has_truth"])
     mean_abs_error = divide(totals["abs_error"], totals["has_truth"])
     fraction_within_10_percent = divide(totals["n_alleles_within_10_percent"], totals["n_alleles_compared"])
-    (n_longest_scored, shortest_longest, fraction_longest_within_10_percent,
-     mean_abs_error_longest) = score_longest_truth_alleles(longest_truth, longest_eh)
+    (n_longest_scored, shortest_longest, longest_longest, fraction_longest_called_correctly,
+     mean_abs_error_longest) = score_longest_truth_alleles(longest_truth, longest_eh, reference_copies)
+    fraction_non_reference_called_correctly = divide(totals["n_non_reference_truth_alleles_called_correctly"],
+                                                     totals["n_non_reference_truth_alleles"])
+    distribution = allele_pair_distribution_by_locus(pair_keys, pair_counts, n_loci)
 
     os.makedirs(os.path.dirname(args.by_locus_path), exist_ok=True)
     columns = ["locus_id", "chrom", "start_0based", "end_1based", "motif", "motif_size",
@@ -245,15 +361,18 @@ def main():
                "fraction_exact", "fraction_within1", "mean_abs_error", "mean_pOk_on_compared",
                "n_alleles_compared", "n_alleles_within_10_percent", "fraction_alleles_within_10_percent",
                "n_longest_truth_alleles_scored", "shortest_of_the_longest_truth_alleles",
-               "fraction_of_longest_truth_alleles_within_10_percent", "mean_abs_error_of_longest_truth_alleles"]
+               LARGEST_10_SCORE_COLUMN, LARGEST_10_TRUTH_RANGE_COLUMN, "mean_abs_error_of_longest_truth_alleles",
+               "n_non_reference_truth_alleles", NON_REFERENCE_SCORE_COLUMN,
+               f"EH_allele_quality_{2 * len(comparison_paths)}_haplotypes_distribution"]
     n_rows = 0
     with gzip.open(args.by_locus_path, "wt") as f:
         f.write("\t".join(columns) + "\n")
-        for row in range(len(locus_ids)):
+        for row, (locus_id, chrom, start, end, motif) in enumerate(read_catalog_text_columns(args.catalog_bed)):
             if totals["has_call"][row] == 0:
                 continue  # never genotyped in any sample, so there is nothing to report
+            has_largest_10_score = not np.isnan(fraction_longest_called_correctly[row])
             f.write("\t".join(str(v) for v in [
-                locus_ids[row], chroms[row], starts[row], ends[row], motifs[row], len(motifs[row]),
+                locus_id, chrom, start, end, motif, len(motif),
                 totals["has_call"][row], format_float(mean_pok[row]),
                 totals["has_truth"][row], totals["is_exact"][row], totals["is_within1"][row],
                 format_float(fraction_exact[row]), format_float(fraction_within1[row]),
@@ -261,10 +380,16 @@ def main():
                 totals["n_alleles_compared"][row], totals["n_alleles_within_10_percent"][row],
                 format_float(fraction_within_10_percent[row]),
                 n_longest_scored[row], format_float(shortest_longest[row], digits=0),
-                format_float(fraction_longest_within_10_percent[row]),
+                format_float(fraction_longest_called_correctly[row]),
+                f"{shortest_longest[row]:.0f}-{longest_longest[row]:.0f}" if has_largest_10_score else "",
                 format_float(mean_abs_error_longest[row]),
+                totals["n_non_reference_truth_alleles"][row],
+                format_float(fraction_non_reference_called_correctly[row]),
+                distribution(row),
             ]) + "\n")
             n_rows += 1
+    if row != n_loci - 1:
+        raise ValueError(f"{args.catalog_bed} changed while the table was being written")
     print(f"wrote {n_rows:,} rows to {args.by_locus_path}")
 
     n_compared = totals["has_truth"].sum()
@@ -277,6 +402,16 @@ def main():
         n_alleles = totals["n_alleles_compared"].sum()
         print(f"  alleles within 10% of truth: {100 * totals['n_alleles_within_10_percent'].sum() / n_alleles:.2f}% "
               f"of {n_alleles:,}")
+        has_score = ~np.isnan(fraction_longest_called_correctly)
+        if has_score.any():
+            print(f"  {N_LONGEST_TRUTH_ALLELES}-longest-truth-allele score: mean "
+                  f"{fraction_longest_called_correctly[has_score].mean():.4f} over {has_score.sum():,} loci, "
+                  f"{(fraction_longest_called_correctly[has_score] == 1).mean():.1%} of them 1.0")
+        has_non_reference = ~np.isnan(fraction_non_reference_called_correctly)
+        if has_non_reference.any():
+            print(f"  non-reference truth alleles called correctly: "
+                  f"{totals['n_non_reference_truth_alleles_called_correctly'].sum() / totals['n_non_reference_truth_alleles'].sum():.2%} "
+                  f"of {totals['n_non_reference_truth_alleles'].sum():,}, at {has_non_reference.sum():,} loci")
 
 
 if __name__ == "__main__":

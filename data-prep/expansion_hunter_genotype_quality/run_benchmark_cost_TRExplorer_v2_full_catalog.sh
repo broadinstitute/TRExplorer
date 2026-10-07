@@ -46,6 +46,7 @@ launch () {
     --tool EHv5-bw2-optimized \
     --data-type illumina \
     --custom-catalog-path "${CATALOG_BASE}/${cat_file}" \
+    --truth-set-catalog-name combined_43_catalog \
     --output-dir "$OUTPUT_DIR" \
     --output-subdir "$subdir" \
     --skip-combine-expansion-hunter-step \

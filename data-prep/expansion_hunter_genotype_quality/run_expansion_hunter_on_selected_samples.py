@@ -73,6 +73,7 @@ from step_pipeline import pipeline, Backend
 HAIL_BATCH_PIPELINES_DIR = os.path.expanduser(
     "~/code/str-truth-set-v2/str-truth-set/tool_comparison/hail_batch_pipelines")
 sys.path.append(HAIL_BATCH_PIPELINES_DIR)
+import expansion_hunter_pipeline
 from expansion_hunter_pipeline import create_expansion_hunter_steps, DOCKER_IMAGE, REFERENCE_FASTA_PATH, \
     REFERENCE_FASTA_FAI_PATH
 
@@ -110,7 +111,14 @@ parser.add_argument("--cpu", type=int, default=CPU,
                          "ran out of memory at the default. Not part of the checkpoint key, so the rerun resumes.")
 parser.add_argument("--no-resume", action="store_true",
                     help="Do not checkpoint, and do not pass --resume to ExpansionHunter.")
+parser.add_argument("--docker-image", default=DOCKER_IMAGE,
+                    help="ExpansionHunter image to run instead of expansion_hunter_pipeline's pinned one, e.g. a newer "
+                         "build with a different embedded genotype-quality model. It is recorded in eh_run.json and "
+                         "is part of the checkpoint key, so pair a new image with a new --output-dir.")
 args = bp.parse_known_args()
+# create_expansion_hunter_steps reads the module's DOCKER_IMAGE when it builds each job (including the checkpoint
+# key), so setting it here switches every job to the requested image.
+expansion_hunter_pipeline.DOCKER_IMAGE = args.docker_image
 
 df = pd.read_table(args.sample_table_path)
 if "sample_label" in df.columns:
@@ -146,7 +154,7 @@ catalog_stat = subprocess.run(["gsutil", "stat", args.catalog_path], capture_out
 catalog_crc32c = re.search(r"Hash \(crc32c\):\s*(\S+)", catalog_stat)
 assert catalog_crc32c, f"gsutil stat {args.catalog_path} reported no crc32c:\n{catalog_stat}"
 run_record = {
-    "docker_image": DOCKER_IMAGE,
+    "docker_image": args.docker_image,
     "analysis_mode": ANALYSIS_MODE,
     "output_motif_composition": OUTPUT_MOTIF_COMPOSITION,
     "max_depth": MAX_DEPTH,
