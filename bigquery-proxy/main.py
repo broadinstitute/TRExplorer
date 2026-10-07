@@ -35,6 +35,9 @@ def _get_signing_credentials():
     global _SIGNING_CREDENTIALS, _SIGNING_SA_EMAIL
     if _SIGNING_CREDENTIALS is None:
         _SIGNING_CREDENTIALS, _ = google.auth.default()
+        # Compute Engine credentials report their service_account_email as "default" until the first refresh, which
+        # looks up the real email, and the IAM signBlob API rejects "default"
+        _SIGNING_CREDENTIALS.refresh(google.auth.transport.requests.Request())
         _SIGNING_SA_EMAIL = getattr(_SIGNING_CREDENTIALS, "service_account_email", None) \
             or os.getenv("K_SERVICE_ACCOUNT") \
             or os.getenv("FUNCTION_IDENTITY")
