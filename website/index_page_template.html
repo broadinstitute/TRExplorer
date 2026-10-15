@@ -228,7 +228,7 @@
                 <!-- Advanced Search (Initially Hidden) -->
                 <form id="advanced-search-form" class="ui form" style="display:none">
 
-                    <div style="display: flex; gap: 120px; align-items: flex-end;">
+                    <div id="source-catalog-and-add-custom-filter-link-row" style="display: flex; gap: 120px; align-items: flex-end;">
                     <div class="field" style="padding-top: 5px; max-width: 420px">
                         <label>Search TR Catalog</label>
                         <div class="ui selection dropdown" id="source-catalog-dropdown" style="min-width: 420px !important">
@@ -370,9 +370,10 @@
                         </div>
                     </div>
 
-                    <div style="padding-bottom: 0.6em;">
+                    <div id="add-custom-filter-link-container" style="padding-bottom: 0.6em;">
                         <a href="#" id="add-custom-filter-link">Add custom filter...</a>
-                        <i class="question circle icon link" style="margin-left: 5px;" data-html="Apply a custom filter to any column(s) in the database.<br><br>If multiple custom filters are added, they will be grouped together using either &quot;AND&quot; or &quot;OR&quot; logic based on your selection. The custom filter group will then be combined with other search filters (if specified) using &quot;AND&quot; logic.<br><br>In other words, the search results will have to match:<br>&quot;search-keywords AND filter1 AND filter2 AND ... ( custom-filter1 AND/OR custom-filter2 AND/OR ... )&quot;."></i>
+                        <i class="question circle icon link" style="margin-left: 5px;" data-html="Apply a custom filter to any column(s) in the database.<br><br>If multiple custom filters are added, they will be grouped together using either &quot;AND&quot; or &quot;OR&quot; logic based on your selection. &quot;Add filter group with AND...&quot; starts a new group with its own AND/OR selection, and the search results must match every group. The custom filter groups will then be combined with other search filters (if specified) using &quot;AND&quot; logic.<br><br>In other words, the search results will have to match:<br>&quot;search-keywords AND filter1 AND filter2 AND ... ( custom-filter1 AND/OR custom-filter2 AND/OR ... ) AND ( 2nd-group-custom-filter1 AND/OR ... ) AND ...&quot;."></i>
+                        <a href="#" id="add-custom-filter-group-link" style="display: none; margin-left: 30px;">Add filter group with AND...</a>
                     </div>
                     </div>
 
@@ -826,8 +827,8 @@
         $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
 
         // Restore custom filters from URL
-        $('#custom-filter-rows').empty()
-        deserializeAndCreateCustomFilters(GLOBAL_PAGE_STATE['customFilters'])
+        customFilterGroups = parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters'])
+        renderCustomFilterGroups()
 
         // Restore extra polymorphism filter rows from URL
         $('#polymorphism-filter-rows').empty()
@@ -1244,7 +1245,14 @@
 
     // --- Custom Filter Logic ---
 
-    let customFilterNextId = 0
+    // The custom filters (the model), as a list of groups. Each group is {conjunction: 'AND' or 'OR', filters: [...]}
+    // with at least one filter, and each filter is {column, operator, value, enabled}. A locus passes when it matches
+    // every group, and it matches a group when it matches the group's enabled filters joined by the group's
+    // conjunction. renderCustomFilterGroups draws the custom filter rows on the page (the view) from this list.
+    let customFilterGroups = []
+
+    // The group that the column dialog adds filters to, or null when the dialog starts a new group
+    let customFilterColumnDialogTargetGroup = null
 
     const CUSTOM_FILTER_GROUP_ORDER = BIGQUERY_COLUMN_GROUPS.filter(g => g !== 'Additional Layers #2')
 
@@ -1278,13 +1286,11 @@
 
     const LIKE_HELP_TEXT = ' The LIKE / NOT LIKE operators do pattern matching. Use % to match any sequence of characters and _ to match any single character. For example, "SCN_A" would match "SCN2A", "SCN3A", etc, while "SCN%" would match any name that starts with "SCN".'
 
-    const updateFilterTooltip = ($row) => {
-        const fieldValue = $row.find('.custom-filter-field').dropdown('get value')
-        const opValue = $row.find('.custom-filter-op').dropdown('get value')
-        const info = getCustomFilterColumnInfo(fieldValue)
+    const updateCustomFilterHelpIcon = ($row, filter) => {
+        const info = getCustomFilterColumnInfo(filter.column)
         const $helpIcon = $row.find('.custom-filter-help-icon')
         let text = info ? (info.description || '') : ''
-        const isLikeOp = opValue === 'LIKE' || opValue === 'NOT LIKE'
+        const isLikeOp = filter.operator === 'LIKE' || filter.operator === 'NOT LIKE'
         if (isLikeOp && text) text += LIKE_HELP_TEXT
         else if (isLikeOp) text = LIKE_HELP_TEXT.trim()
         if (text) {
@@ -1323,137 +1329,175 @@
         return menuHtml
     }
 
-    const addCustomFilterRow = (columnName, conjunction) => {
-        // New rows inherit the existing shared conjunction if not explicitly provided.
-        if (conjunction !== 'OR' && conjunction !== 'AND') conjunction = getCurrentCustomFilterConjunction()
-        const filterId = customFilterNextId++
-        const colInfo = columnName ? getCustomFilterColumnInfo(columnName) : null
+    const buildOperatorDropdownMenu = (colType) => getOperatorsForType(colType).map(op =>
+        `<div class="item" data-value="${op.value}">${op.label}</div>`
+    ).join('')
+
+    const isNullCheckOperator = (operator) => operator === 'IS NULL' || operator === 'IS NOT NULL'
+
+    // Draws a filter of the given group as a new row at the end of $group, and wires the row's controls to update the
+    // filter (and, for the AND/OR selector, the group)
+    const addCustomFilterRowToView = ($group, group, filter) => {
+        const colInfo = getCustomFilterColumnInfo(filter.column)
         const colType = colInfo ? colInfo.type : 'STRING'
-        const operators = getOperatorsForType(colType)
-        const placeholder = getPlaceholderForType(colType)
-        const escapedDescription = colInfo && colInfo.description
-            ? escapeHelpTextForDataHtmlAttribute(colInfo.description)
-            : ''
 
-        const operatorOptions = operators.map(op =>
-            `<div class="item" data-value="${op.value}">${op.label}</div>`
-        ).join('')
-
-        const conjActive = (val) => conjunction === val ? ' active selected' : ''
-
-        const rowHtml = `
-        <div class="custom-filter-row" data-filter-id="${filterId}">
+        const $row = $(`
+        <div class="custom-filter-row">
             <div class="ui checkbox custom-filter-enable-checkbox">
-                <input type="checkbox" name="customFilterEnabled_${filterId}" checked>
+                <input type="checkbox"${filter.enabled ? ' checked' : ''}>
                 <label></label>
             </div>
             <div class="ui selection dropdown custom-filter-conjunction">
-                <input type="hidden" name="customFilterConjunction_${filterId}" value="${conjunction}">
+                <input type="hidden">
                 <i class="dropdown icon"></i>
-                <div class="text">${conjunction}</div>
+                <div class="text"></div>
                 <div class="menu">
-                    <div class="item${conjActive('AND')}" data-value="AND">AND</div>
-                    <div class="item${conjActive('OR')}" data-value="OR">OR</div>
+                    <div class="item" data-value="AND">AND</div>
+                    <div class="item" data-value="OR">OR</div>
                 </div>
             </div>
             <div class="ui selection search dropdown custom-filter-field" style="min-width: 220px;">
-                <input type="hidden" name="customFilterField_${filterId}">
+                <input type="hidden">
                 <i class="dropdown icon"></i>
                 <div class="default text">Select column</div>
                 <div class="menu">${buildColumnDropdownMenu()}</div>
             </div>
             <div class="ui selection dropdown custom-filter-op" style="min-width: 130px;">
-                <input type="hidden" name="customFilterOp_${filterId}">
+                <input type="hidden">
                 <i class="dropdown icon"></i>
                 <div class="default text">Op</div>
-                <div class="menu">${operatorOptions}</div>
+                <div class="menu">${buildOperatorDropdownMenu(colType)}</div>
             </div>
-            <input type="text" class="custom-filter-value" placeholder="${placeholder}" style="max-width: 300px; flex-grow: 1;">
-            <span class="custom-filter-help-icon" data-html="${escapedDescription}"${!escapedDescription ? ' style="display:none"' : ''}>(?)</span>
+            <input type="text" class="custom-filter-value" placeholder="${getPlaceholderForType(colType)}" style="max-width: 300px; flex-grow: 1;">
+            <span class="custom-filter-help-icon" style="display:none">(?)</span>
             <i class="close icon custom-filter-delete"></i>
         </div>
-        `
+        `).appendTo($group)
 
-        $('#custom-filter-rows').append(rowHtml)
-        const $row = $(`.custom-filter-row[data-filter-id="${filterId}"]`)
-
-        // Initialize dropdowns
-        $row.find('.custom-filter-field').dropdown({
+        const zIndexOpts = {
             onShow: function() { $(this).css('z-index', 10001) },
             onHide: function() { $(this).css('z-index', '') },
-            onChange: function(value) {
-                const info = getCustomFilterColumnInfo(value)
-                if (!info) {
-                    persistCustomFiltersToUrl()
-                    return
-                }
-                const ops = getOperatorsForType(info.type)
-                const $opDropdown = $row.find('.custom-filter-op')
-
-                // Rebuild operator menu
-                const newMenu = ops.map(op =>
-                    `<div class="item" data-value="${op.value}">${op.label}</div>`
-                ).join('')
-                $opDropdown.find('.menu').html(newMenu)
-                $opDropdown.dropdown('clear')
-                $opDropdown.dropdown('refresh')
-
-                // Update placeholder
-                $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(info.type))
-
-                // Update help icon
-                updateFilterTooltip($row)
-
-                persistCustomFiltersToUrl()
-            }
-        })
-
-        $row.find('.custom-filter-op').dropdown({
-            onShow: function() { $(this).css('z-index', 10001) },
-            onHide: function() { $(this).css('z-index', '') },
-            onChange: function(value) {
-                if (value === 'IS NULL' || value === 'IS NOT NULL') {
-                    $row.find('.custom-filter-value').hide()
-                } else {
-                    $row.find('.custom-filter-value').show()
-                }
-                updateFilterTooltip($row)
-                persistCustomFiltersToUrl()
-            }
-        })
-
-        $row.find('.custom-filter-conjunction').dropdown({
-            onShow: function() { $(this).css('z-index', 10001) },
-            onHide: function() { $(this).css('z-index', '') },
-            onChange: function(value) {
-                syncCustomFilterConjunctions(value)
-                persistCustomFiltersToUrl()
-            }
-        })
-
-        // Set initial column value if provided
-        if (columnName) {
-            $row.find('.custom-filter-field').dropdown('set selected', columnName)
         }
 
-        // Persist value edits to URL when the field loses focus
-        $row.find('.custom-filter-value').on('change', persistCustomFiltersToUrl)
+        // The dropdown change handlers ignore values the model already has, which includes the values set here while
+        // drawing the row
+        $row.find('.custom-filter-conjunction').dropdown({
+            ...zIndexOpts,
+            onChange: (value) => {
+                if (value === group.conjunction) return
+                group.conjunction = value
+                // The AND/OR selectors of a group are linked, so show the new value in the group's other rows too
+                $row.siblings('.custom-filter-row').find('.custom-filter-conjunction').dropdown('set selected', value)
+                persistAllAdvancedFormStateToUrl()
+            },
+        }).dropdown('set selected', group.conjunction)
 
-        // Enable/disable checkbox
+        $row.find('.custom-filter-field').dropdown({
+            ...zIndexOpts,
+            onChange: (value) => {
+                if (value === filter.column) return
+                filter.column = value
+                // The operators offered depend on the column's type, so clear the operator. Its change handler then
+                // clears filter.operator and shows the value input if a null check had hidden it.
+                const newColType = getCustomFilterColumnInfo(value)?.type || 'STRING'
+                const $opDropdown = $row.find('.custom-filter-op')
+                $opDropdown.find('.menu').html(buildOperatorDropdownMenu(newColType))
+                $opDropdown.dropdown('clear')
+                $opDropdown.dropdown('refresh')
+                $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(newColType))
+                updateCustomFilterHelpIcon($row, filter)
+                persistAllAdvancedFormStateToUrl()
+            },
+        }).dropdown('set selected', filter.column)
+
+        $row.find('.custom-filter-op').dropdown({
+            ...zIndexOpts,
+            onChange: (value) => {
+                if (value === filter.operator) return
+                filter.operator = value
+                $row.find('.custom-filter-value').toggle(!isNullCheckOperator(value))
+                updateCustomFilterHelpIcon($row, filter)
+                persistAllAdvancedFormStateToUrl()
+            },
+        })
+        if (filter.operator) $row.find('.custom-filter-op').dropdown('set selected', filter.operator)
+
+        // The value is written to the URL by the form's change handler, when the input loses focus
+        $row.find('.custom-filter-value')
+            .val(filter.value)
+            .toggle(!isNullCheckOperator(filter.operator))
+            .on('input', function() { filter.value = $(this).val() })
+
         $row.find('.custom-filter-enable-checkbox').checkbox({
-            onChange: persistCustomFiltersToUrl,
+            onChange: function() {
+                filter.enabled = this.checked
+                persistAllAdvancedFormStateToUrl()
+            },
         })
 
-        // Delete button
-        $row.find('.custom-filter-delete').click(function() {
-            $row.remove()
+        $row.find('.custom-filter-delete').click(() => {
+            group.filters.splice(group.filters.indexOf(filter), 1)
+            // A group can't be empty, so delete the group along with its last filter
+            if (group.filters.length === 0) customFilterGroups.splice(customFilterGroups.indexOf(group), 1)
+            renderCustomFilterGroups()
             persistAllAdvancedFormStateToUrl()
         })
 
-        // Initialize the help text popup
-        initializeHelpTextPopups($row.find('.custom-filter-help-icon'))
+        updateCustomFilterHelpIcon($row, filter)
+    }
 
-        return $row
+    // A short vine with a leaf that grows to the right and curls at its tip. The separator mirrors it on the left side.
+    const CUSTOM_FILTER_GROUP_SEPARATOR_VINE_SVG = `
+        <svg class="custom-filter-group-separator-vine" viewBox="0 0 60 16" width="60" height="16">
+            <path d="M1 8 C 9 3, 17 3, 25 8 S 41 13, 47 8 C 51 4.5, 57 5, 57 9 C 57 12, 53 12.5, 52 10"
+                fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M25 8 C 27 4, 31 3, 34 3.5 C 32 6, 28.5 7.5, 25 8 Z" fill="currentColor"/>
+        </svg>`
+
+    // A small ornament with "AND" in the middle, drawn between custom filter groups
+    const CUSTOM_FILTER_GROUP_SEPARATOR_HTML = `
+        <div class="custom-filter-group-separator">
+            ${CUSTOM_FILTER_GROUP_SEPARATOR_VINE_SVG}
+            <span class="custom-filter-group-separator-diamond small"></span>
+            <span class="custom-filter-group-separator-diamond"></span>
+            <span class="custom-filter-group-separator-text">AND</span>
+            <span class="custom-filter-group-separator-diamond"></span>
+            <span class="custom-filter-group-separator-diamond small"></span>
+            ${CUSTOM_FILTER_GROUP_SEPARATOR_VINE_SVG}
+        </div>`
+
+    // Draws the custom filter rows (the view) from customFilterGroups (the model), with an "AND" ornament between
+    // groups and an "Add another custom filter..." link at the bottom of each group. When there are no filters, the
+    // "Add custom filter..." link sits to the right of the catalog selector. Otherwise the help icon and the "Add
+    // filter group with AND..." link follow the last group's "Add another custom filter..." link.
+    const renderCustomFilterGroups = () => {
+        // Take out the links before clearing the rows, since the last group holds them. detach() keeps their click
+        // handlers, which empty() would remove.
+        const $linkContainer = $('#add-custom-filter-link-container').detach()
+        const $container = $('#custom-filter-rows').empty()
+        customFilterGroups.forEach((group, groupIndex) => {
+            if (groupIndex > 0) $container.append(CUSTOM_FILTER_GROUP_SEPARATOR_HTML)
+            const $group = $('<div class="custom-filter-group"></div>').appendTo($container)
+            group.filters.forEach(filter => addCustomFilterRowToView($group, group, filter))
+            $('<div class="custom-filter-group-links"><a href="#">Add another custom filter...</a></div>')
+                .appendTo($group)
+                .find('a').click((e) => {
+                    e.preventDefault()
+                    showCustomFilterColumnDialog(group)
+                })
+        })
+
+        const hasFilters = customFilterGroups.length > 0
+        if (hasFilters) {
+            $linkContainer.appendTo($container.find('.custom-filter-group-links').last())
+        } else {
+            $linkContainer.appendTo('#source-catalog-and-add-custom-filter-link-row')
+        }
+        $('#add-custom-filter-link').toggle(!hasFilters)
+        $('#add-custom-filter-group-link').toggle(hasFilters)
+        // Semantic UI tears down a popup when its icon is removed from the page, which moving it counts as, so set
+        // the help popup up again
+        $('#add-custom-filter-link-container .question').popup({ on: 'click' })
     }
 
     // Captures the current state of every control in the advanced search form
@@ -1482,48 +1526,15 @@
         GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
         GLOBAL_PAGE_STATE['vcFilter'] = $('input[name="vcFilter"]').prop('checked') ? 1 : 0
         GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
-        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilters()
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(customFilterGroups)
         GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
         writePersistentPageStateToUrl()
     }
 
-    // Aliases for the section-specific helpers used by older event handlers —
-    // all delegate to the comprehensive helper now.
-    const persistCustomFiltersToUrl = persistAllAdvancedFormStateToUrl
-
-    // Returns the current shared conjunction value across all custom filter rows,
-    // or 'AND' if none exist yet (used as default for new rows).
-    const getCurrentCustomFilterConjunction = () => {
-        const $existing = $('#custom-filter-rows .custom-filter-conjunction')
-        if (!$existing.length) return 'AND'
-        return $existing.first().dropdown('get value') || 'AND'
-    }
-
-    // Synchronize all custom-filter conjunction dropdowns to the same value.
-    // Mixing AND/OR across rows is not allowed — toggling one toggles all.
-    let suppressCustomConjunctionSync = false
-    const syncCustomFilterConjunctions = (value) => {
-        if (suppressCustomConjunctionSync) return
-        const newConj = value === 'OR' ? 'OR' : 'AND'
-        suppressCustomConjunctionSync = true
-        try {
-            $('#custom-filter-rows .custom-filter-conjunction').each(function() {
-                if ($(this).dropdown('get value') !== newConj) {
-                    $(this).dropdown('set selected', newConj)
-                }
-            })
-        } finally {
-            suppressCustomConjunctionSync = false
-        }
-    }
-
-    const showCustomFilterColumnDialog = () => {
-        // Get currently active filter columns
-        const activeColumns = new Set()
-        $('#custom-filter-rows .custom-filter-row').each(function() {
-            const val = $(this).find('.custom-filter-field').dropdown('get value')
-            if (val) activeColumns.add(val)
-        })
+    // Opens the column dialog, which adds a filter for each column checked in it, either to targetGroup or, when
+    // targetGroup is null, to a new group
+    const showCustomFilterColumnDialog = (targetGroup) => {
+        customFilterColumnDialogTargetGroup = targetGroup
 
         // Build grouped checkboxes
         const checkboxesContainer = $('#custom-filter-column-checkboxes')
@@ -1546,14 +1557,13 @@
             const itemsContainer = groupDiv.find('.export-column-group-items')
 
             columns.forEach(col => {
-                const isChecked = activeColumns.has(col.name) ? 'checked' : ''
                 const helpIcon = col.description
                     ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(col.description)}">(?)</span>`
                     : ''
                 const checkboxHtml = `
                     <div class="export-column-checkbox-item">
                         <div class="ui checkbox">
-                            <input type="checkbox" name="cf_col_${col.name}" data-column-name="${col.name}" ${isChecked}>
+                            <input type="checkbox" name="cf_col_${col.name}" data-column-name="${col.name}">
                             <label>${col.displayName}</label>
                         </div>
                         ${helpIcon}
@@ -1574,10 +1584,11 @@
         initializeHelpTextPopups($('#custom-filter-column-checkboxes .export-column-help-icon'))
     }
 
-    // Wire the "Add custom filter..." link
-    $('#add-custom-filter-link').click(function(e) {
+    // Wire the "Add custom filter..." link (shown only when there are no filters) and the "Add filter group with
+    // AND..." link, which both start a new group
+    $('#add-custom-filter-link, #add-custom-filter-group-link').click(function(e) {
         e.preventDefault()
-        showCustomFilterColumnDialog()
+        showCustomFilterColumnDialog(null)
     })
 
     $('#custom-filter-columns-clear-all').click((e) => {
@@ -1587,35 +1598,20 @@
 
     // "Add Filters" button handler in modal
     $('#custom-filter-dialog-add-button').click(function() {
-        const checkedColumns = new Set()
-        $('#custom-filter-column-checkboxes input[type="checkbox"]:checked').each(function() {
-            checkedColumns.add($(this).data('column-name'))
-        })
+        const newFilters = $('#custom-filter-column-checkboxes input[type="checkbox"]:checked').map(function() {
+            return {column: $(this).data('column-name'), operator: '', value: '', enabled: true}
+        }).get()
 
-        // Single pass: remove every row whose column is no longer checked, and
-        // collect the set of columns that remain. Iterating directly (rather
-        // than via a Map<columnName, $row>) ensures that duplicate-column rows
-        // — which can arise if the user manually retargets one row's column
-        // dropdown to match another — are all removed, not just one.
-        const remainingColumns = new Set()
-        $('#custom-filter-rows .custom-filter-row').each(function() {
-            const val = $(this).find('.custom-filter-field').dropdown('get value')
-            if (!val) return
-            if (checkedColumns.has(val)) {
-                remainingColumns.add(val)
+        // Nothing checked adds nothing, so a new group is only created with at least one filter
+        if (newFilters.length > 0) {
+            if (customFilterColumnDialogTargetGroup) {
+                customFilterColumnDialogTargetGroup.filters.push(...newFilters)
             } else {
-                $(this).remove()
+                customFilterGroups.push({conjunction: 'AND', filters: newFilters})
             }
-        })
-
-        // Add rows for newly checked columns
-        checkedColumns.forEach(colName => {
-            if (!remainingColumns.has(colName)) {
-                addCustomFilterRow(colName)
-            }
-        })
-
-        persistAllAdvancedFormStateToUrl()
+            renderCustomFilterGroups()
+            persistAllAdvancedFormStateToUrl()
+        }
 
         $('#custom-filter-column-dialog').modal('hide')
     })
@@ -1625,64 +1621,90 @@
         $('#custom-filter-column-dialog').modal('hide')
     })
 
-    const serializeCustomFilters = () => {
-        const parts = []
-        $('#custom-filter-rows .custom-filter-row').each(function() {
-            const col = $(this).find('.custom-filter-field').dropdown('get value')
-            const op = $(this).find('.custom-filter-op').dropdown('get value')
-            const val = $(this).find('.custom-filter-value').val()
-            const enabled = $(this).find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
-            const conjunction = $(this).find('.custom-filter-conjunction').dropdown('get value') || 'AND'
-            // Persist rows that have at least a column so partial filters survive a reload.
-            // Disabled filters are prefixed with '!' for backward-compatible URL parsing.
-            // Format: [!]col|op|encoded_val|conj — the conjunction is always written
-            // explicitly so a value literally equal to 'AND' or 'OR' can't be
-            // mistaken for the conjunction segment on reload.
-            if (col) {
-                const colSegment = enabled ? col : `!${col}`
-                const conjSegment = conjunction === 'OR' ? 'OR' : 'AND'
-                parts.push(`${colSegment}|${op || ''}|${encodeURIComponent(val || '')}|${conjSegment}`)
+    // In the URL, each filter is written as [!]col|op|encoded_val|conj, where '!' marks a disabled filter and conj is
+    // its group's conjunction. The conjunction is always written explicitly so a value literally equal to 'AND' or
+    // 'OR' can't be mistaken for the conjunction segment on reload. Filters are joined by ';', and an 'AND' entry
+    // starts the next group. Links from before filter groups existed have no 'AND' entries, so they load as one group.
+    const CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL = 'AND'
+
+    const serializeCustomFilterGroups = (groups) => groups
+        .map(group => group.filters
+            .map(filter => `${filter.enabled ? '' : '!'}${filter.column}|${filter.operator}|${encodeURIComponent(filter.value)}|${group.conjunction}`)
+            .join(';'))
+        .join(`;${CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL};`)
+
+    const parseCustomFilterGroups = (serialized) => {
+        const groups = []
+        let group = null
+        for (const entry of (serialized || '').split(';')) {
+            if (entry === CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL) {
+                group = null
+                continue
             }
-        })
-        return parts.join(';')
+            // The value is URL-encoded so a literal '|' in it is %7C and the last segment is unambiguously the
+            // conjunction.
+            const segments = entry.split('|')
+            if (segments.length < 4) continue
+            const enabled = !segments[0].startsWith('!')
+            const column = enabled ? segments[0] : segments[0].slice(1)
+            if (!column) continue
+            // Drop an operator the column's operator dropdown doesn't offer, so the form asks for one
+            const columnType = getCustomFilterColumnInfo(column)?.type || 'STRING'
+            const operator = getOperatorsForType(columnType).some(op => op.value === segments[1]) ? segments[1] : ''
+            const valueEncoded = segments.slice(2, -1).join('|')
+            let value
+            try {
+                value = decodeURIComponent(valueEncoded)
+            } catch (e) {
+                value = valueEncoded
+            }
+            // A group's conjunction is read from its first filter, since all filters in a group share it
+            if (!group) {
+                group = {conjunction: segments[segments.length - 1] === 'OR' ? 'OR' : 'AND', filters: []}
+                groups.push(group)
+            }
+            group.filters.push({column, operator, value, enabled})
+        }
+        return groups
     }
 
-    const deserializeAndCreateCustomFilters = (serialized) => {
-        if (!serialized) return
-        const parts = serialized.split(';')
-        parts.forEach(part => {
-            const segments = part.split('|')
-            // Format: col|op|encoded_val|conj (4 segments). The value is
-            // URL-encoded so a literal '|' in it is %7C and the last segment is
-            // unambiguously the conjunction.
-            if (segments.length < 4) return
-            let col = segments[0]
-            let enabled = true
-            if (col.startsWith('!')) {
-                enabled = false
-                col = col.slice(1)
-            }
-            const op = segments[1]
-            const conjunction = segments[segments.length - 1] === 'OR' ? 'OR' : 'AND'
-            const valueEncoded = segments.slice(2, -1).join('|')
-            let val
-            try {
-                val = decodeURIComponent(valueEncoded)
-            } catch (e) {
-                val = valueEncoded
-            }
-            const $row = addCustomFilterRow(col, conjunction)
-            if (!enabled) {
-                $row.find('.custom-filter-enable-checkbox').checkbox('uncheck')
-            }
-            if (op) {
-                $row.find('.custom-filter-op').dropdown('set selected', op)
-            }
-            $row.find('.custom-filter-value').val(val)
-            if (op === 'IS NULL' || op === 'IS NOT NULL') {
-                $row.find('.custom-filter-value').hide()
-            }
+    const ALLOWED_CUSTOM_FILTER_OPERATORS = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IS NULL', 'IS NOT NULL'])
+
+    // Returns the SQL condition for one custom filter, or null if its column or operator isn't allowed
+    const buildSqlConditionFromCustomFilter = (filter) => {
+        const colInfo = getCustomFilterColumnInfo(filter.column)
+        if (!colInfo || !ALLOWED_CUSTOM_FILTER_OPERATORS.has(filter.operator)) return null
+        if (isNullCheckOperator(filter.operator)) return `${filter.column} ${filter.operator}`
+        if (filter.operator === 'LIKE' || filter.operator === 'NOT LIKE' || colInfo.type === 'STRING') {
+            return `${filter.column} ${filter.operator} '${filter.value.replace(/'/g, "''")}'`
+        }
+        return `${filter.column} ${filter.operator} ${Number(filter.value)}`
+    }
+
+    // Returns one SQL condition per custom filter group: the group's enabled filters joined by the group's AND/OR. The
+    // caller joins these to each other and to the other search conditions with AND.
+    const buildSqlConditionsFromCustomFilterGroups = (groups) => groups
+        .map(group => {
+            const filterConditions = group.filters
+                .filter(filter => filter.enabled)
+                .map(buildSqlConditionFromCustomFilter)
+                .filter(Boolean)
+            return filterConditions.length > 1 ? `(${filterConditions.join(` ${group.conjunction} `)})` : filterConditions[0]
         })
+        .filter(Boolean)
+
+    // Returns an HTML error message for a custom filter that can't be searched yet, or null if it can be
+    const getCustomFilterErrorMessage = (filter) => {
+        const colInfo = getCustomFilterColumnInfo(filter.column)
+        if (!filter.column) return 'Please select a column for all custom filters'
+        if (!colInfo) return `Unknown filter column: <i>${escapeHtml(filter.column)}</i>`
+        if (!filter.operator) return `Please select an operator for the <i>${colInfo.displayName}</i> custom filter`
+        if (isNullCheckOperator(filter.operator)) return null
+        if (!filter.value) return `Please enter a value for the <i>${colInfo.displayName}</i> custom filter`
+        if ((colInfo.type === 'INTEGER' || colInfo.type === 'FLOAT') && (filter.value.trim() === '' || !isFinite(Number(filter.value)))) {
+            return `The value '${escapeHtml(filter.value)}' is not a valid number for the <i>${colInfo.displayName}</i> filter`
+        }
+        return null
     }
 
     // --- End Custom Filter Logic ---
@@ -3099,52 +3121,8 @@
                     conditions.push(`(${regionConditions.join(' OR ')})`)
                 }
 
-                // Add custom filter conditions — multiple rows are combined with per-row
-                // conjunction (AND/OR); the first row's conjunction is ignored.
-                {
-                    const allowedFilterColumns = new Set(CUSTOM_FILTER_COLUMNS.map(c => c.name))
-                    const allowedFilterOps = new Set(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IS NULL', 'IS NOT NULL'])
-                    const customClauses = [] // {conjunction, clause}
-                    $('#custom-filter-rows .custom-filter-row').each(function(idx) {
-                        const enabled = $(this).find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')
-                        if (!enabled) return
-
-                        const columnName = $(this).find('.custom-filter-field').dropdown('get value')
-                        const operator = $(this).find('.custom-filter-op').dropdown('get value')
-                        const value = $(this).find('.custom-filter-value').val()
-                        const conjunctionRaw = $(this).find('.custom-filter-conjunction').dropdown('get value') || 'AND'
-                        const conjunction = conjunctionRaw === 'OR' ? 'OR' : 'AND'
-
-                        if (!columnName || !operator) return
-                        if (!allowedFilterColumns.has(columnName) || !allowedFilterOps.has(operator)) return
-
-                        const colInfo = getCustomFilterColumnInfo(columnName)
-                        const colType = colInfo ? colInfo.type : 'STRING'
-
-                        let clause
-                        if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
-                            clause = `${columnName} ${operator}`
-                        } else if (operator === 'LIKE' || operator === 'NOT LIKE') {
-                            const escapedValue = value.replace(/'/g, "''")
-                            clause = `${columnName} ${operator} '${escapedValue}'`
-                        } else if (colType === 'STRING') {
-                            const escapedValue = value.replace(/'/g, "''")
-                            clause = `${columnName} ${operator} '${escapedValue}'`
-                        } else {
-                            clause = `${columnName} ${operator} ${Number(value)}`
-                        }
-                        customClauses.push({ conjunction, clause })
-                    })
-                    if (customClauses.length === 1) {
-                        conditions.push(customClauses[0].clause)
-                    } else if (customClauses.length > 1) {
-                        let combined = customClauses[0].clause
-                        for (let i = 1; i < customClauses.length; i++) {
-                            combined += ` ${customClauses[i].conjunction} ${customClauses[i].clause}`
-                        }
-                        conditions.push(`(${combined})`)
-                    }
-                }
+                // Add the custom filter groups, which are ANDed with each other and with the other conditions
+                conditions.push(...buildSqlConditionsFromCustomFilterGroups(customFilterGroups))
             }
 
             //retrieve all required columns for the visible columns
@@ -3432,59 +3410,18 @@
             }
         }
 
-        // Validate custom filters
-        let customFilterValid = true
-        $('#custom-filter-rows .custom-filter-row').each(function() {
-            const $row = $(this)
-            // Skip validation for disabled filters since they won't be applied
-            if (!$row.find('.custom-filter-enable-checkbox input[type="checkbox"]').is(':checked')) {
-                $row.removeClass('error')
-                return
-            }
-            const col = $row.find('.custom-filter-field').dropdown('get value')
-            const op = $row.find('.custom-filter-op').dropdown('get value')
-            const val = $row.find('.custom-filter-value').val()
-            const colInfo = col ? getCustomFilterColumnInfo(col) : null
-            const displayName = colInfo ? colInfo.displayName : 'unknown'
-
-            if (!col) {
+        // Validate custom filters, skipping disabled ones since they won't be applied
+        $('.custom-filter-row.error').removeClass('error')
+        for (const [groupIndex, group] of customFilterGroups.entries()) {
+            for (const [filterIndex, filter] of group.filters.entries()) {
+                const errorMessage = filter.enabled ? getCustomFilterErrorMessage(filter) : null
+                if (!errorMessage) continue
                 if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
-                $('#form-error-message').html('<b>ERROR:</b> Please select a column for all custom filters').show()
-                $row.addClass('error')
-                customFilterValid = false
-                return false // break .each
-            }
-            if (!colInfo) {
-                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
-                $('#form-error-message').html(`<b>ERROR:</b> Unknown filter column: <i>${escapeHtml(col)}</i>`).show()
-                $row.addClass('error')
-                customFilterValid = false
+                $('#form-error-message').html(`<b>ERROR:</b> ${errorMessage}`).show()
+                $('#custom-filter-rows .custom-filter-group').eq(groupIndex).children('.custom-filter-row').eq(filterIndex).addClass('error')
                 return false
             }
-            if (!op) {
-                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
-                $('#form-error-message').html(`<b>ERROR:</b> Please select an operator for the <i>${displayName}</i> custom filter`).show()
-                $row.addClass('error')
-                customFilterValid = false
-                return false
-            }
-            if (op !== 'IS NULL' && op !== 'IS NOT NULL' && !val) {
-                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
-                $('#form-error-message').html(`<b>ERROR:</b> Please enter a value for the <i>${displayName}</i> custom filter`).show()
-                $row.addClass('error')
-                customFilterValid = false
-                return false
-            }
-            if (op !== 'IS NULL' && op !== 'IS NOT NULL' && colInfo && (colInfo.type === 'INTEGER' || colInfo.type === 'FLOAT') && (val.trim() === '' || !isFinite(Number(val)))) {
-                if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) toggleAdvancedSearch()
-                $('#form-error-message').html(`<b>ERROR:</b> The value '${escapeHtml(val)}' is not a valid number for the <i>${displayName}</i> filter`).show()
-                $row.addClass('error')
-                customFilterValid = false
-                return false
-            }
-            $row.removeClass('error')
-        })
-        if (!customFilterValid) return false
+        }
 
         // Clear any form errors
         $('#form-error-message').hide();
@@ -3697,7 +3634,7 @@
     // Persist changes to checkboxes and text inputs in the advanced form
     // (and the main search input) immediately to the URL hash. Dropdowns are
     // handled by their own Semantic-UI onChange callbacks above and in
-    // addCustomFilterRow / addPolymorphismFilterRow. Text inputs fire 'change'
+    // addCustomFilterRowToView / addPolymorphismFilterRow. Text inputs fire 'change'
     // on blur so the URL doesn't churn on every keystroke.
     $('#advanced-search-form').on('change', 'input[type="checkbox"], input[type="text"]', persistAllAdvancedFormStateToUrl)
     $('#search-query').on('change', persistAllAdvancedFormStateToUrl)

@@ -598,7 +598,7 @@
         font-size: 1.1em;
     }
 
-    /* Conjunction dropdown only appears on the 2nd+ rows */
+    /* Conjunction dropdown only appears on the 2nd+ rows of each custom filter group */
     .custom-filter-row .ui.selection.dropdown.custom-filter-conjunction {
         min-width: 80px;
         width: 80px;
@@ -606,6 +606,55 @@
 
     .custom-filter-row:first-child .custom-filter-conjunction {
         display: none;
+    }
+
+    /* Puts the first custom filter about 16px below the catalog selector, a little more than the 12px between
+       consecutive filters */
+    #custom-filter-rows > .custom-filter-group:first-child {
+        margin-top: 9px;
+    }
+
+    /* The "Add another custom filter..." line at the bottom of each custom filter group. The last group's line also
+       holds the help icon and the "Add filter group with AND..." link. */
+    .custom-filter-group-links {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    /* Small ornament between custom filter groups: a curling vine and diamonds on each side of "AND" */
+    .custom-filter-group-separator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 2px 0 10px 0;
+        color: #777;
+    }
+
+    /* The left vine is the right one mirrored, so both grow outward from the middle */
+    .custom-filter-group-separator-vine:first-child {
+        transform: scaleX(-1);
+    }
+
+    .custom-filter-group-separator-diamond {
+        width: 7px;
+        height: 7px;
+        background: currentColor;
+        transform: rotate(45deg);
+    }
+
+    .custom-filter-group-separator-diamond.small {
+        width: 4px;
+        height: 4px;
+    }
+
+    .custom-filter-group-separator-text {
+        padding: 0 3px;
+        color: #444;
+        font-weight: bold;
+        font-size: 0.9em;
+        letter-spacing: 0.1em;
     }
 
     .custom-filter-row .custom-filter-value {
