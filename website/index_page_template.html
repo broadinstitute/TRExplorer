@@ -3442,7 +3442,9 @@
         }
 
         const polymorphismDialogContent = generatePolymorphismDialogContent(row)
-        $('#polymorphism-dialog-header').html(`${row.ReferenceMotif} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
+        // Motifs over 12 bp are truncated like the results table's Motif column, and clicking one shows the full motif
+        const motifHtml = row.ReferenceMotif.length > 12 ? showTruncatedSequence(row.ReferenceMotif, 12, true) : row.ReferenceMotif
+        $('#polymorphism-dialog-header').html(`${motifHtml} repeats &nbsp; @ &nbsp; ${row.ReferenceRegion}`)
         $('#polymorphism-dialog-content').html('')
         $('#polymorphism-dialog-content').html(polymorphismDialogContent.replace(/\s+/g, ' ').trim())
 
@@ -3451,6 +3453,8 @@
         $('#polymorphism-dialog').modal('show')
 
         $('.question').popup({ on: 'click' })
+        // Set up after the dialog is shown: set up before it, the truncated motif's popup doesn't open on click
+        $('#polymorphism-dialog-header .show-popup').popup({ on: 'click', hoverable: true })
 
     }
 

@@ -34,13 +34,23 @@ class SummarizeLocusTests(unittest.TestCase):
         self.assertEqual(row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], "99.5pct+1xMotifRange")
         self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCount"], "9:0.000,12:0.005,15:0.310AG,25:0.880AL")
         self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"], "15:0.310AG,25:0.880AL")
+        self.assertEqual(row["SpliceAI_AlleleSizesByRepeatCount"],
+                         "9:2.5pct,12:97.5pct/99.5pct,15:99.5pct+1xMotifRange,25:99.5pct+3xMotifRange")
+
+    def test_allele_sizes_are_listed_smallest_first_whatever_the_input_order(self):
+        alleles = ["chr1-100-A-ACA", "chr1-100-A-ACACA"]
+        labels = [[LABELS["99.5"], LABELS["2.5"]], [LABELS["+3x"], LABELS["+2x"]]]
+        row = summarize_locus("chr1-100-120-CA", alleles, labels, {})
+        self.assertEqual(row["SpliceAI_AlleleSizesByRepeatCount"],
+                         "11:2.5pct/99.5pct,12:99.5pct+2xMotifRange/99.5pct+3xMotifRange")
 
     def test_locus_with_no_stored_alleles(self):
         row = summarize_locus("chr2-5-9-A", ["chr2-5-A-AA"], [[LABELS["+1x"]]], {})
         self.assertEqual((row["SpliceAI_MaxDeltaScore"], row["SpliceAI_MaxDeltaScoreAlleleSize"],
                           row["SpliceAI_MinAlleleSizeThatAffectsSplicing"], row["SpliceAI_DeltaScoreByRepeatCount"],
-                          row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"]),
-                         ("0.000", "", "", "5:0.000", ""))
+                          row["SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing"],
+                          row["SpliceAI_AlleleSizesByRepeatCount"]),
+                         ("0.000", "", "", "5:0.000", "", "5:99.5pct+1xMotifRange"))
 
     def test_alleles_below_the_affects_splicing_score_are_left_out(self):
         # 0.199 is just under the 0.2 cutoff and 0.200 is exactly at it
@@ -64,6 +74,7 @@ class SummarizeLocusTests(unittest.TestCase):
         labels = [[LABELS["+1x"]], [LABELS["+2x"]]]
         row = summarize_locus("chr1-100-120-CA", alleles, labels, records, unscored_variants={alleles[0]})
         self.assertEqual(row["SpliceAI_DeltaScoreByRepeatCount"], "12:0.300AG")
+        self.assertEqual(row["SpliceAI_AlleleSizesByRepeatCount"], "12:99.5pct+2xMotifRange")
         self.assertIsNone(summarize_locus("chr1-100-120-CA", alleles, labels, records, unscored_variants=set(alleles)))
 
     def test_ties_go_to_the_smallest_size(self):

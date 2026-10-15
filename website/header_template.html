@@ -104,7 +104,7 @@ gtag('config', 'G-6R8FPBQRFH');
     REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
 
     const REFERENCE_TRACKS = [
-        ["igv_gencode", "Gencode v49", `${REFERENCE_BASE_URL}/gencode_v49/gencode.v49.GRCh38.sorted.txt.gz`],
+        ["igv_gencode", "Gencode v50 basic", `${REFERENCE_BASE_URL}/gencode_v50/gencode.v50.GRCh38.sorted.txt.gz`],
         ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
         ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
         ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
@@ -126,7 +126,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20261005_174918'
+    const TABLE_ID = 'catalog_20261014_235925'
     const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260902_143605'
     const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260521_033520'
     const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260521_022709'
@@ -355,7 +355,7 @@ gtag('config', 'G-6R8FPBQRFH');
         AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
-        GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v49 ${gene_region_priority}`,
+        GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive) ${gene_region_priority}`,
         RefseqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
         ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
         HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
@@ -1643,6 +1643,15 @@ gtag('config', 'G-6R8FPBQRFH');
         })
     }
 
+    // Splits a SpliceAI_AlleleSizesByRepeatCount value such as "18:2.5pct,25:97.5pct/99.5pct" into a Map from repeat
+    // count to the simulated sizes that allele stands for: {18 => ['2.5pct'], 25 => ['97.5pct', '99.5pct']}
+    function parseSpliceAIAlleleSizesByRepeatCount(value) {
+        return new Map((value || '').split(',').filter(Boolean).map(entry => {
+            const [repeatCount, alleleSizes] = entry.split(':')
+            return [parseInt(repeatCount), alleleSizes.split('/')]
+        }))
+    }
+
     // The most common unitLength-long unit read in frame from the start of the tract, ties going to the one seen
     // first, as most_common_in_frame_unit() in ../data-prep/splicing_prediction/make_tr_expansion_benchmark_alleles.py
     function mostCommonInFrameUnit(tract, unitLength) {
@@ -1711,13 +1720,15 @@ gtag('config', 'G-6R8FPBQRFH');
         hypothetical larger expansion sizes chosen based on the HPRC256 allele size distribution at other loci with the
         same motif). These are the results of running SpliceAI on each of these simulated variants.`
 
-    // The table shown in the SpliceAI column's popup and on the locus page: every simulated allele, each score linking
-    // to SpliceAI-lookup with the settings the full run used (GENCODE v50 basic, distance 10,000, no masking). A score
-    // has no link when SpliceAI-lookup can't open its variant, and a footnote says why. Returns {tableHtml,
+    // The table shown in the SpliceAI column's popup and on the locus page: every simulated allele, with the
+    // percentile size(s) it was simulated for (one per line when several round to the same repeat count) and its score
+    // linking to SpliceAI-lookup with the settings the full run used (GENCODE v50 basic, distance 10,000, no masking).
+    // A score has no link when SpliceAI-lookup can't open its variant, and a footnote says why. Returns {tableHtml,
     // footnotesHtml} so the caller can put the footnotes below SPLICEAI_SIMULATED_ALLELES_EXPLANATION.
     function buildSpliceAIDeltaScoresTableHtml(row) {
         let html = `<table class="ui compact table" style="width: auto; white-space: nowrap;">
-            <thead><tr><th style="padding-right: 2em;">Repeats</th><th>&Delta; Score</th></tr></thead><tbody>`
+            <thead><tr><th style="padding-right: 2em;">Percentile</th><th style="padding-right: 2em;">Repeats</th><th>&Delta; Score</th></tr></thead><tbody>`
+        const alleleSizesByRepeatCount = parseSpliceAIAlleleSizesByRepeatCount(row['SpliceAI_AlleleSizesByRepeatCount'])
         let hasVariantTooLongForSpliceAILookup = false
         let hasVariantWithoutReferenceSequence = false
         // Truncated at 12 bp like the results table's Motif column, with the motif length shown only when truncated
@@ -1741,7 +1752,8 @@ gtag('config', 'G-6R8FPBQRFH');
                 scoreHtml = `<a href="https://spliceailookup.broadinstitute.org/#variant=${variant}&amp;hg=38&amp;bc=basic&amp;distance=10000&amp;mask=0&amp;ra=0" target="_blank">${scoreText}</a>`
             }
             const backgroundColor = getSpliceAIDeltaScoreBackgroundColor(deltaScore)
-            html += `<tr><td style="text-align: right; padding-right: 2em;">${repeatCount} x ${motifHtml}</td>
+            html += `<tr><td style="padding-right: 2em;">${(alleleSizesByRepeatCount.get(repeatCount) || []).join('<br>')}</td>
+                <td style="text-align: right; padding-right: 2em;">${repeatCount} x ${motifHtml}</td>
                 <td${backgroundColor ? ` style="background-color: ${backgroundColor};"` : ''}>${scoreHtml}</td></tr>`
         }
         html += '</tbody></table>'
@@ -2603,6 +2615,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => [
                 'SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing',
                 'SpliceAI_DeltaScoreByRepeatCount',     // the popup lists every simulated allele
+                'SpliceAI_AlleleSizesByRepeatCount',    // and the percentile size(s) each one stands for
                 'SpliceAI_MaxDeltaScore',
                 'ReferenceLeftFlank',       // its last base anchors the SpliceAI-lookup variants
                 'ReferenceRepeatSequence',

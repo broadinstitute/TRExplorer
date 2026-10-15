@@ -356,7 +356,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneRegion",
-        "description": f"The most significant gene region that overlaps the TR locus in Gencode v49, {GENE_REGION_PRIORITY}.",
+        "description": f"The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive), {GENE_REGION_PRIORITY}.",
         "displayName": "Gencode Gene Region",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -365,7 +365,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneName",
-        "description": "Gencode v49 gene name",
+        "description": "Gencode v50 (comprehensive) gene name",
         "displayName": "Gencode Gene Name",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -374,7 +374,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeGeneId",
-        "description": "Gencode v49 gene ID (ENSG)",
+        "description": "Gencode v50 (comprehensive) gene ID (ENSG)",
         "displayName": "Gencode Gene ID",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -383,7 +383,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "GencodeTranscriptId",
-        "description": "Gencode v49 transcript ID (ENST)",
+        "description": "Gencode v50 (comprehensive) transcript ID (ENST)",
         "displayName": "Gencode Transcript ID",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1172,6 +1172,17 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
                        "SpliceAI_DeltaScoreByRepeatCount whose delta score is at least 0.2, in the same form, "
                        "e.g. 40:0.310AG,95:0.880AL; empty if none.",
         "displayName": "SpliceAI Delta Score By Repeat Count That Affects Splicing",
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10_05,
+    },
+    {
+        "type": "STRING",
+        "name": "SpliceAI_AlleleSizesByRepeatCount",
+        "description": SPLICEAI_SIMULATED_ALLELES_DESCRIPTION + " The simulated alleles in "
+                       "SpliceAI_DeltaScoreByRepeatCount, in the same order, as repeat_count:allele_sizes, where "
+                       "allele_sizes lists every simulated size that rounds to that repeat count, smallest first, "
+                       "joined by /, e.g. 18:2.5pct,25:97.5pct/99.5pct,40:99.5pct+1xMotifRange.",
+        "displayName": "SpliceAI Allele Sizes By Repeat Count",
         "allowExport": True,
         "group": GROUP_COLUMNS_ADDED_2026_10_05,
     },

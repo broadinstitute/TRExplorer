@@ -196,10 +196,11 @@ holds the queue.
 | `SpliceAI_MinAlleleSizeThatAffectsSplicing` | the smallest size with a delta score of at least 0.2, with the same values; empty if none |
 | `SpliceAI_DeltaScoreByRepeatCount` | every simulated allele, sorted by repeat count, as `repeat_count:max_delta_score` plus the type of the largest change when it is at least 0.01 (`AG` acceptor gain, `AL` acceptor loss, `DG` donor gain, `DL` donor loss). Example: `18:0.000,25:0.030AG,40:0.310AG,95:0.880AL` |
 | `SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing` | the alleles in `SpliceAI_DeltaScoreByRepeatCount` with a delta score of at least 0.2, in the same form. Example: `40:0.310AG,95:0.880AL`; empty if none. The website's SpliceAI results column shows this |
+| `SpliceAI_AlleleSizesByRepeatCount` | the alleles of `SpliceAI_DeltaScoreByRepeatCount`, in the same order, as `repeat_count:allele_sizes`, where `allele_sizes` lists every size the allele stands for, smallest first, joined by `/`. Example: `18:2.5pct,25:97.5pct/99.5pct,40:99.5pct+1xMotifRange`. The website's SpliceAI popup shows these next to the repeat counts |
 
 The sizes, in order of increasing length, are 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange,
 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. When several sizes
-round to the same allele, the allele is named by the smallest. Loci that were not scored are left out of
+round to the same allele, the other size columns name the allele by the smallest. Loci that were not scored are left out of
 the summary, so their columns are NULL in BigQuery. These are loci that are not polymorphic in HPRC256,
 or that lie outside every GENCODE v50 basic transcript.
 

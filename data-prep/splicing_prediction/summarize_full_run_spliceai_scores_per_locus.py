@@ -31,10 +31,16 @@ have one), and writes a TSV with:
                                                delta score is at least AFFECTS_SPLICING_MIN_DELTA_SCORE
                                                (0.2), in the same form, e.g. "40:0.310AG,95:0.880AL";
                                                empty if none
+    SpliceAI_AlleleSizesByRepeatCount          the alleles of SpliceAI_DeltaScoreByRepeatCount, in the same
+                                               order, as repeat_count:allele_sizes, where allele_sizes
+                                               are all the sizes the allele stands for, smallest first,
+                                               joined by "/", e.g.
+                                               "18:2.5pct,25:97.5pct/99.5pct,40:99.5pct+1xMotifRange"
 
 The sizes are in increasing length order (2.5pct < 97.5pct < 99.5pct < 99.5pct+1xMotifRange <
 99.5pct+2xMotifRange < 99.5pct+3xMotifRange). One allele
-can stand for several sizes when they round to the same repeat count; it is then named by the smallest.
+can stand for several sizes when they round to the same repeat count; the size columns other than
+SpliceAI_AlleleSizesByRepeatCount then name it by the smallest.
 Repeat counts are the hg38 tract length divided by the motif length (whole units, as in the allele
 design) plus the allele's change in units. An allele with no stored record scored below 0.01 on the
 selected transcript (the pipeline stores only alleles at or above it), so its delta score is 0. An
@@ -61,7 +67,7 @@ MIN_DELTA_SCORE_TO_NAME_THE_CHANGE = 0.01
 DELTA_SCORES = ("DS_AG", "DS_AL", "DS_DG", "DS_DL")
 OUTPUT_COLUMNS = ("LocusId", "SpliceAI_MaxDeltaScore", "SpliceAI_MaxDeltaScoreAlleleSize",
                   "SpliceAI_MinAlleleSizeThatAffectsSplicing", "SpliceAI_DeltaScoreByRepeatCount",
-                  "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing")
+                  "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing", "SpliceAI_AlleleSizesByRepeatCount")
 
 
 def allele_size_name(target_label):
@@ -98,20 +104,21 @@ def summarize_locus(locus_id, alleles, target_labels, records_by_variant, unscor
             change = max(DELTA_SCORES, key=lambda k: float(record[k]))
             delta = float(record[change])
             change = change[3:] if delta >= MIN_DELTA_SCORE_TO_NAME_THE_CHANGE else ""
-        smallest_label = min(labels, key=size_order.__getitem__)
-        scored.append((size_order[smallest_label], repeat_count, delta, change, allele_size_name(smallest_label)))
+        sizes = [allele_size_name(label) for label in sorted(labels, key=size_order.__getitem__)]
+        scored.append((size_order[min(labels, key=size_order.__getitem__)], repeat_count, delta, change, sizes))
     if not scored:
         return None
     scored.sort()
     max_delta = max(s[2] for s in scored)
     # Ties go to the smallest size
-    max_size = next(s[4] for s in scored if s[2] == max_delta) if max_delta >= MIN_DELTA_SCORE_TO_NAME_THE_CHANGE else ""
-    min_affecting_size = next((s[4] for s in scored if s[2] >= AFFECTS_SPLICING_MIN_DELTA_SCORE), "")
+    max_size = next(s[4][0] for s in scored if s[2] == max_delta) if max_delta >= MIN_DELTA_SCORE_TO_NAME_THE_CHANGE else ""
+    min_affecting_size = next((s[4][0] for s in scored if s[2] >= AFFECTS_SPLICING_MIN_DELTA_SCORE), "")
     alleles_by_repeat_count = sorted(scored, key=lambda s: s[1])
     by_repeat_count = ",".join(f"{count}:{delta:.3f}{change}" for _, count, delta, change, _ in alleles_by_repeat_count)
     affecting_by_repeat_count = ",".join(
         f"{count}:{delta:.3f}{change}" for _, count, delta, change, _ in alleles_by_repeat_count
         if delta >= AFFECTS_SPLICING_MIN_DELTA_SCORE)
+    sizes_by_repeat_count = ",".join(f"{count}:{'/'.join(sizes)}" for _, count, _, _, sizes in alleles_by_repeat_count)
     return {
         "LocusId": locus_id[3:] if locus_id.startswith("chr") else locus_id,
         "SpliceAI_MaxDeltaScore": f"{max_delta:.3f}",
@@ -119,6 +126,7 @@ def summarize_locus(locus_id, alleles, target_labels, records_by_variant, unscor
         "SpliceAI_MinAlleleSizeThatAffectsSplicing": min_affecting_size,
         "SpliceAI_DeltaScoreByRepeatCount": by_repeat_count,
         "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing": affecting_by_repeat_count,
+        "SpliceAI_AlleleSizesByRepeatCount": sizes_by_repeat_count,
     }
 
 
