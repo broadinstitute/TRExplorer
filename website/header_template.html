@@ -126,10 +126,10 @@ gtag('config', 'G-6R8FPBQRFH');
     // initialize BigQuery client
     const PROJECT_ID = 'cmg-analysis'
     const DATASET_ID = 'tandem_repeat_explorer'
-    const TABLE_ID = 'catalog_20261014_235925'
+    const TABLE_ID = 'catalog_20261016_002129'
     const HPRC256_LPS_STRATIFIED_TABLE_ID = 'hprc256_stratified_lps_20260902_143605'
     // Rewritten by bigquery-proxy/load_bigquery_HPRC256_stratified_LPS_frequency_data.py --allele-size-measure total-length
-    const HPRC256_TOTAL_LENGTH_STRATIFIED_TABLE_ID = 'hprc256_stratified_total_allele_length_not_loaded_yet'
+    const HPRC256_TOTAL_LENGTH_STRATIFIED_TABLE_ID = 'hprc256_stratified_total_allele_length_20261016_004909'
     const HPRC256_METHYLATION_TABLE_ID = 'hprc256_methylation_20260521_033520'
     const HPRC256_ALLELE_PURITY_TABLE_ID = 'hprc256_allele_purity_20260521_022709'
     const COMPLETE_TABLE_ID = `\`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\``
@@ -706,9 +706,10 @@ gtag('config', 'G-6R8FPBQRFH');
             return window.searchResults[cacheKey]
         }
         const escapedLocusId = locusId.replace(/'/g, "\\'")
-        let where = `${cfg.locusIdColumn} = '${escapedLocusId}'`
+        // Backtick-quoted, since `interval` is a reserved word in BigQuery SQL
+        let where = `\`${cfg.locusIdColumn}\` = '${escapedLocusId}'`
         if (interval) {
-            where += ` AND ${cfg.intervalColumn} = '${interval.replace(/'/g, "\\'")}'`
+            where += ` AND \`${cfg.intervalColumn}\` = '${interval.replace(/'/g, "\\'")}'`
         }
         const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${where} LIMIT 1`
         const result = await queryBigQuery(query, 0, 1, null, null)

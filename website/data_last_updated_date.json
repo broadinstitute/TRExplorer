@@ -1,4 +1,4 @@
 {
-    "data_last_updated_date": "10/15/2026",
-    "data_last_updated_details": "Updated the Gencode gene annotations from v49 to v50"
+    "data_last_updated_date": "10/16/2026",
+    "data_last_updated_details": "Added HPRC256TotalLength columns, the AoU1027 majority-rule fix and SpliceAI allele sizes"
 }
