@@ -481,17 +481,28 @@
         opacity: 0.5;
     }
 
-    .results-table-column-settings-checkbox-flex-container {
-        display: flex;
-        flex-direction: column;
-        flex-wrap: wrap;
-        max-height: calc(11 * 35px);
-        gap: 5px 20px;
+    /* one grid column per group of checkboxes, each group listed top to bottom */
+    .results-table-column-settings-checkbox-grid {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 20px;
     }
 
+    .results-table-column-settings-checkbox-column {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    /* flex keeps the help icon beside its label when a long label wraps in a narrow window */
     .results-table-column-settings-checkbox-item {
-        min-width: 200px;
+        display: flex;
+        align-items: center;
         padding: 5px 0;
+    }
+
+    .results-table-column-settings-checkbox-item .question.icon {
+        flex: none;
     }
 
     #results-table-column-settings-dialog.ui.modal, #faq-modal.ui.modal, #downloads-modal.ui.modal, #whats-new-modal.ui.modal {

@@ -289,7 +289,7 @@ def test_search_reports_an_incomplete_filter_in_a_later_group(page, base_url):
     open_index_page_with_custom_filters(
         page, base_url, "AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND;HPRC256_Stdev|||AND")
     page.click("#search-button")
-    assert "Please select an operator for the HPRC256 (LPS) Stdev custom filter" in page.inner_text("#form-error-message")
+    assert "Please select an operator for the HPRC256:LPS Stdev custom filter" in page.inner_text("#form-error-message")
     rows_marked_as_errors = page.evaluate("""() => [...document.querySelectorAll('#custom-filter-rows .custom-filter-group')]
         .flatMap((group, groupIndex) => [...group.querySelectorAll('.custom-filter-row')]
             .map((row, rowIndex) => row.classList.contains('error') ? [groupIndex, rowIndex] : null)

@@ -182,9 +182,9 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
     const STDEV_SIGMA_SUBSCRIPTS = {
-        'HPRC256_Stdev': 'Hprc256 LPS',
-        'HPRC256TotalLength_Stdev': 'Hprc256 total length',
-        'AoU1027_Stdev': 'AoU1027 LPS',
+        'HPRC256_Stdev': 'Hprc256:LPS',
+        'HPRC256TotalLength_Stdev': 'Hprc256:Length',
+        'AoU1027_Stdev': 'AoU1027:LPS',
         'TenK10K_Stdev': '10k10k',
         'StdevFromIllumina174k': '1kGP',
         'StdevFromT2TAssemblies': 'T2T',
@@ -204,13 +204,13 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
-        'HPRC256_AlleleHistogram': 'HPRC256 (LPS)',
-        'HPRC256TotalLength_AlleleHistogram': 'HPRC256 (total length)',
+        'HPRC256_AlleleHistogram': 'HPRC256:LPS',
+        'HPRC256TotalLength_AlleleHistogram': 'HPRC256:Length',
         'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-        'HPRC256_BiallelicHistogram': 'HPRC256 (LPS)',
-        'HPRC256TotalLength_BiallelicHistogram': 'HPRC256 (total length)',
+        'HPRC256_BiallelicHistogram': 'HPRC256:LPS',
+        'HPRC256TotalLength_BiallelicHistogram': 'HPRC256:Length',
         'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
         'HPRC256_AlleleSizeAndPurityDistribution': 'HPRC256',
         'HPRC256_AlleleSizeAndMethylationDistribution': 'HPRC256',
@@ -978,9 +978,9 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const SUMMARY_STATS_DATASETS = [
-        { prefix: 'HPRC256_', name: 'HPRC 256 (LPS)', description: '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS' },
-        { prefix: 'HPRC256TotalLength_', name: 'HPRC 256 (total length)', description: 'The same 256 HPRC samples, using the total length of each TRGT allele (of the whole variation cluster for a locus in one)' },
-        { prefix: 'AoU1027_', name: 'AoU Phase 1 (LPS)', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleleLengths'] },
+        { prefix: 'HPRC256_', name: 'HPRC256:LPS', description: '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS' },
+        { prefix: 'HPRC256TotalLength_', name: 'HPRC256:Length', description: 'The same 256 HPRC samples, using the total length of each TRGT allele (of the whole variation cluster for a locus in one)' },
+        { prefix: 'AoU1027_', name: 'AoU1027:LPS', description: '1,027 long-read PacBio samples from AoU genotyped using TRGT-LPS', hideColumns: ['UniqueAlleleLengths'] },
         { prefix: 'TenK10K_', name: 'TenK10K Phase 1', description: '1,925 short-read samples from TenK10K genotyped using ExpansionHunter' },
     ]
 
@@ -1020,7 +1020,7 @@ gtag('config', 'G-6R8FPBQRFH');
         return {
             // Only annotate the dataset name with the interval when multiple HPRC256
             // rows are present — otherwise it's redundant clutter.
-            name: showIntervalInName ? `HPRC 256 (LPS) — ${kindLabel}` : 'HPRC 256 (LPS)',
+            name: showIntervalInName ? `HPRC256:LPS — ${kindLabel}` : 'HPRC256:LPS',
             description: showIntervalInName
                 ? 'Per-interval stats from the HPRC256 stratified LPS table'
                 : '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS',
@@ -2562,7 +2562,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ManeGeneName']
         },
         HPRC256_BiallelicHistogram: {
-            displayName: 'HPRC256 (LPS) Biallelic Histogram',
+            displayName: 'HPRC256:LPS Biallelic Histogram',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC256_BiallelicHistogram'],
             getValue: (row) => row['HPRC256_BiallelicHistogram'],
@@ -2570,7 +2570,7 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['HPRC256_BiallelicHistogram']
         },
         HPRC256TotalLength_BiallelicHistogram: {
-            displayName: 'HPRC256 (total length) Biallelic Histogram',
+            displayName: 'HPRC256:Length Biallelic Histogram',
             defaultSortDirection: 'DESC',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC256TotalLength_BiallelicHistogram'],
             getValue: (row) => row['HPRC256TotalLength_BiallelicHistogram'],

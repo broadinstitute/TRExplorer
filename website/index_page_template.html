@@ -464,15 +464,15 @@
                                     <div class="menu">
                                         <div class="item" data-value=""></div>
                                         <div class="header">Stdev rank percentile</div>
-                                        <div class="item" data-value="pctile_HPRC256">σ rank % <sub>HPRC256 LPS</sub></div>
-                                        <div class="item" data-value="pctile_HPRC256TotalLength">σ rank % <sub>HPRC256 total length</sub></div>
-                                        <div class="item" data-value="pctile_AoU1027">σ rank % <sub>AoU1027 LPS</sub></div>
+                                        <div class="item" data-value="pctile_HPRC256">σ rank % <sub>HPRC256:LPS</sub></div>
+                                        <div class="item" data-value="pctile_HPRC256TotalLength">σ rank % <sub>HPRC256:Length</sub></div>
+                                        <div class="item" data-value="pctile_AoU1027">σ rank % <sub>AoU1027:LPS</sub></div>
                                         <div class="item" data-value="pctile_TenK10K">σ rank % <sub>10k10k</sub></div>
                                         <div class="divider"></div>
                                         <div class="header">Stdev</div>
-                                        <div class="item" data-value="sigma_HPRC256">σ<sub>HPRC256 LPS</sub></div>
-                                        <div class="item" data-value="sigma_HPRC256TotalLength">σ<sub>HPRC256 total length</sub></div>
-                                        <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027 LPS</sub></div>
+                                        <div class="item" data-value="sigma_HPRC256">σ<sub>HPRC256:LPS</sub></div>
+                                        <div class="item" data-value="sigma_HPRC256TotalLength">σ<sub>HPRC256:Length</sub></div>
+                                        <div class="item" data-value="sigma_AoU1027">σ<sub>AoU1027:LPS</sub></div>
                                         <div class="item" data-value="sigma_TenK10K">σ<sub>10k10k</sub></div>
                                         <div class="item" data-value="sigma_1kGP">σ<sub>1kGP</sub></div>
                                         <div class="item" data-value="sigma_T2T">σ<sub>T2T</sub></div>
@@ -631,59 +631,64 @@
     //copy the default persistent page state
     let GLOBAL_PAGE_STATE = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
 
-    const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES = [
-        'ReferenceRegion',
-        'ReferenceMotif',
-        'CanonicalMotif',
-        'NumRepeatsInReference',
-        'ReferenceRepeatPurity',
-        'FlanksAndLocusMappability',
-        'variationCluster',
-        'TRsInRegion',
-        'ReferenceRepeatSequence',
-        'ReferenceLeftFlank',
-        'ReferenceRightFlank',
+    // Each inner list is one column of checkboxes in the Results Table Columns dialog
+    const RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES_BY_DIALOG_COLUMN = [
+        [
+            'ReferenceRegion',
+            'ReferenceMotif',
+            'CanonicalMotif',
+            'NumRepeatsInReference',
+            'ReferenceRepeatPurity',
+            'FlanksAndLocusMappability',
+            'variationCluster',
+            'TRsInRegion',
+            'ReferenceRepeatSequence',
+            'ReferenceLeftFlank',
+            'ReferenceRightFlank',
+        ],
+        [
+            'GencodeGeneName',
+            'GencodeGeneRegion',
+            'GencodeGeneId',
+            'GencodeTranscriptId',
+            'RefseqGeneRegion',
+            'RefseqGeneId',
+            'RefseqGeneName',
+            'RefseqTranscriptId',
+            'ManeGeneRegion',
+            'ManeGeneId',
+            'ManeGeneName',
+        ],
+        [
+            'VamosMotifFrequencies',
+            'polymorphism',
 
-        'GencodeGeneName',
-        'GencodeGeneRegion',
-        'GencodeGeneId',
-        'GencodeTranscriptId',
-        'RefseqGeneRegion',
-        'RefseqGeneId',
-        'RefseqGeneName',
-        'RefseqTranscriptId',
-        'ManeGeneRegion',
-        'ManeGeneId',
-        'ManeGeneName',
+            'HPRC256_AlleleHistogram',
+            'HPRC256TotalLength_AlleleHistogram',
+            'TenK10K_AlleleHistogram',
+            'AlleleFrequenciesFromIllumina174k',
+            'AlleleFrequenciesFromT2TAssemblies',
 
-        'VamosMotifFrequencies',
-        'polymorphism',
-
-        'HPRC256_AlleleHistogram',
-        'HPRC256TotalLength_AlleleHistogram',
-        'TenK10K_AlleleHistogram',
-        'AlleleFrequenciesFromIllumina174k',
-        'AlleleFrequenciesFromT2TAssemblies',
-
-        'HPRC256_Stdev',
-        'HPRC256TotalLength_Stdev',
-        'AoU1027_Stdev',
-        'TenK10K_Stdev',
-        'StdevFromIllumina174k',
-        'StdevFromT2TAssemblies',
-
-        'Source',
-        'RepeatMaskerIntervals',
-        'NonCodingAnnotations',
-        'Tanudisastro2024_SignificantCellTypes',
-        'Manigbas2024_AssociatedTraits',
-        'isPathogenic',
-        'AoU1027_OE_LengthPercentile',
-        'dotPlot',
-        'encode4MpraExpression',
-        'zhang2025Mpra',
-        'spliceAI',
-
+            'HPRC256_Stdev',
+            'HPRC256TotalLength_Stdev',
+            'AoU1027_Stdev',
+            'TenK10K_Stdev',
+            'StdevFromIllumina174k',
+            'StdevFromT2TAssemblies',
+        ],
+        [
+            'Source',
+            'RepeatMaskerIntervals',
+            'NonCodingAnnotations',
+            'Tanudisastro2024_SignificantCellTypes',
+            'Manigbas2024_AssociatedTraits',
+            'isPathogenic',
+            'AoU1027_OE_LengthPercentile',
+            'dotPlot',
+            'encode4MpraExpression',
+            'zhang2025Mpra',
+            'spliceAI',
+        ],
     ]
 
     // Columns that can be used for filtering in the UI, with their display names and group
@@ -2493,11 +2498,11 @@
             // Clear existing checkboxes
             $('.results-table-column-settings-checkboxes tr').remove()
 
-            // Create a flex container div
-            $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-flex-container"></div>')
+            // Create a grid with one column per group of checkboxes
+            $('.results-table-column-settings-checkboxes').html('<div class="results-table-column-settings-checkbox-grid"></div>')
 
             const visibleColumns = GLOBAL_PAGE_STATE['showColumns'].split(SHOW_COLUMNS_VALUE_DELIMITER)
-            const checkboxes = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES.map((columnName) => {
+            const generateCheckboxHtml = (columnName) => {
                 const isChecked = visibleColumns.includes(columnName)
                 return `
                     <div class="results-table-column-settings-checkbox-item">
@@ -2507,9 +2512,12 @@
                         </div>
                         ${TABLE_COLUMNS[columnName]?.helpText ? `<i class="question circle icon" data-html="${escapeHelpTextForDataHtmlAttribute(TABLE_COLUMNS[columnName].helpText)}"></i>` : ''}
                     </div>`
-            }).join('')
+            }
+            const checkboxColumns = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES_BY_DIALOG_COLUMN.map((columnNames) =>
+                `<div class="results-table-column-settings-checkbox-column">${columnNames.map(generateCheckboxHtml).join('')}</div>`
+            ).join('')
 
-            $('.results-table-column-settings-checkbox-flex-container').append(checkboxes)
+            $('.results-table-column-settings-checkbox-grid').append(checkboxColumns)
 
             // Initialize checkboxes
             $('.results-table-column-settings-checkboxes .ui.checkbox').checkbox()
