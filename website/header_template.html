@@ -412,7 +412,8 @@ gtag('config', 'G-6R8FPBQRFH');
     // BigQuery column descriptions - generated from global_constants.py via Jinja2
     const BIGQUERY_COLUMN_DESCRIPTIONS = {{ column_descriptions | tojson }}
 
-    const BIGQUERY_COLUMN_GROUPS = {{ column_groups | tojson }}
+    // The column groups, one list per row of group boxes in the export and custom filter dialogs
+    const BIGQUERY_COLUMN_GROUP_ROWS = {{ column_group_rows | tojson }}
 
     // GENE_REGION_PRIORITY from global_constants.py via Jinja2
     const gene_region_priority = {{ gene_region_priority | tojson }}

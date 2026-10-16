@@ -1199,34 +1199,38 @@
                 groupedColumns[opt.group].push(opt)
             })
 
-            // Create HTML for each group in the specified order
-            BIGQUERY_COLUMN_GROUPS.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
-                const columns = groupedColumns[groupName]
-                const groupDiv = $(`<div class="export-column-group">
-                    <div class="export-column-group-header">${groupName}</div>
-                    <div class="export-column-group-items"></div>
-                </div>`)
+            // Create HTML for each group, one row of group boxes at a time
+            BIGQUERY_COLUMN_GROUP_ROWS.forEach(groupRow => {
+                const rowDiv = $('<div class="export-column-group-row"></div>')
+                groupRow.filter(groupName => groupedColumns[groupName]).forEach(groupName => {
+                    const columns = groupedColumns[groupName]
+                    const groupDiv = $(`<div class="export-column-group">
+                        <div class="export-column-group-header">${groupName}</div>
+                        <div class="export-column-group-items"></div>
+                    </div>`)
 
-                const itemsContainer = groupDiv.find('.export-column-group-items')
+                    const itemsContainer = groupDiv.find('.export-column-group-items')
 
-                columns.forEach(opt => {
-                    const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
-                    const helpIcon = opt.description
-                        ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(opt.description)}">(?)</span>`
-                        : ''
-                    const checkboxHtml = `
-                        <div class="export-column-checkbox-item">
-                            <div class="ui checkbox">
-                                <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
-                                <label>${opt.displayName}</label>
+                    columns.forEach(opt => {
+                        const isChecked = preSelectedExportColumns.has(opt.name) ? 'checked' : ''
+                        const helpIcon = opt.description
+                            ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(opt.description)}">(?)</span>`
+                            : ''
+                        const checkboxHtml = `
+                            <div class="export-column-checkbox-item">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="export_col_${opt.name}" data-column-name="${opt.name}" ${isChecked}>
+                                    <label>${opt.displayName}</label>
+                                </div>
+                                ${helpIcon}
                             </div>
-                            ${helpIcon}
-                        </div>
-                    `
-                    itemsContainer.append(checkboxHtml)
-                })
+                        `
+                        itemsContainer.append(checkboxHtml)
+                    })
 
-                checkboxesContainer.append(groupDiv)
+                    rowDiv.append(groupDiv)
+                })
+                if (rowDiv.children().length > 0) checkboxesContainer.append(rowDiv)
             })
 
             // Initialize Semantic UI checkboxes
@@ -1266,7 +1270,9 @@
     // The group that the column dialog adds filters to, or null when the dialog starts a new group
     let customFilterColumnDialogTargetGroup = null
 
-    const CUSTOM_FILTER_GROUP_ORDER = BIGQUERY_COLUMN_GROUPS.filter(g => g !== 'Additional Layers #2')
+    // The custom filter dialog and menus list the 'Additional Layers #2' columns under 'Additional Layers'
+    const CUSTOM_FILTER_GROUP_ROWS = BIGQUERY_COLUMN_GROUP_ROWS.map(groupRow => groupRow.filter(g => g !== 'Additional Layers #2'))
+    const CUSTOM_FILTER_GROUP_ORDER = CUSTOM_FILTER_GROUP_ROWS.flat()
 
     const getCustomFilterColumnInfo = (columnName) => {
         return CUSTOM_FILTER_COLUMNS.find(c => c.name === columnName)
@@ -1559,32 +1565,36 @@
             grouped[group].push(col)
         })
 
-        CUSTOM_FILTER_GROUP_ORDER.filter(g => grouped[g]).forEach(groupName => {
-            const columns = grouped[groupName]
-            const groupDiv = $(`<div class="export-column-group">
-                <div class="export-column-group-header">${groupName}</div>
-                <div class="export-column-group-items"></div>
-            </div>`)
+        CUSTOM_FILTER_GROUP_ROWS.forEach(groupRow => {
+            const rowDiv = $('<div class="export-column-group-row"></div>')
+            groupRow.filter(g => grouped[g]).forEach(groupName => {
+                const columns = grouped[groupName]
+                const groupDiv = $(`<div class="export-column-group">
+                    <div class="export-column-group-header">${groupName}</div>
+                    <div class="export-column-group-items"></div>
+                </div>`)
 
-            const itemsContainer = groupDiv.find('.export-column-group-items')
+                const itemsContainer = groupDiv.find('.export-column-group-items')
 
-            columns.forEach(col => {
-                const helpIcon = col.description
-                    ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(col.description)}">(?)</span>`
-                    : ''
-                const checkboxHtml = `
-                    <div class="export-column-checkbox-item">
-                        <div class="ui checkbox">
-                            <input type="checkbox" name="cf_col_${col.name}" data-column-name="${col.name}">
-                            <label>${col.displayName}</label>
+                columns.forEach(col => {
+                    const helpIcon = col.description
+                        ? `<span class="export-column-help-icon" data-html="${escapeHelpTextForDataHtmlAttribute(col.description)}">(?)</span>`
+                        : ''
+                    const checkboxHtml = `
+                        <div class="export-column-checkbox-item">
+                            <div class="ui checkbox">
+                                <input type="checkbox" name="cf_col_${col.name}" data-column-name="${col.name}">
+                                <label>${col.displayName}</label>
+                            </div>
+                            ${helpIcon}
                         </div>
-                        ${helpIcon}
-                    </div>
-                `
-                itemsContainer.append(checkboxHtml)
-            })
+                    `
+                    itemsContainer.append(checkboxHtml)
+                })
 
-            checkboxesContainer.append(groupDiv)
+                rowDiv.append(groupDiv)
+            })
+            if (rowDiv.children().length > 0) checkboxesContainer.append(rowDiv)
         })
 
         // Initialize checkboxes
