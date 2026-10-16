@@ -4,31 +4,28 @@ This script finds all TR_catalog shard files matching a specific pattern,
 combines them into a single JSON array. It tracks statistics about field presence across all records.
 """
 
+import argparse
 import collections
-import glob
 import gzip
 import json
+import pathlib
 import re
 import tqdm
 
-# Find all sharded JSON files matching the pattern
+p = argparse.ArgumentParser()
+p.add_argument("input_file_paths", nargs="+", help="TR_catalog.shard_XX_of_YY.*.json.gz or .ndjson.gz files exported from TRExplorer")
+args = p.parse_args()
+input_file_paths = sorted(args.input_file_paths, key=lambda path: pathlib.Path(path).name)
 
-pattern = "TR_catalog.shard_*_of_20.5599658_loci.20260123_033937.json.gz"
-input_file_paths = glob.glob(pattern)
-
-if not input_file_paths:
-    print(f"{pattern} files not found in the current directory")
-    exit()
-
-print(f"Input paths:\n   ", "\n    ".join(sorted(input_file_paths)))
+print(f"Input paths:\n   ", "\n    ".join(input_file_paths))
 
 
 # Construct output filename
-first_file = input_file_paths[0]
-# Match pattern: TR_catalog.shard_XX_of_YY.ZZZZZ_loci.YYYYMMDD_HHMMSS.json.gz
-match = re.match(r"TR_catalog\.shard_\d+_of_\d+\.(.+)\.json\.gz", first_file)
+first_file = pathlib.Path(input_file_paths[0]).name
+# Match pattern: TR_catalog.shard_XX_of_YY.ZZZZZ_loci.YYYYMMDD_HHMMSS.json.gz (or .ndjson.gz)
+match = re.match(r"TR_catalog\.shard_\d+_of_\d+\.(.+)\.(nd)?json\.gz", first_file)
 if not match:
-    print(f"Could not parse filename pattern from {first_file}")
+    p.error(f"Could not parse filename pattern from {first_file}")
 
 suffix = match.group(1)  # e.g., "4863041_loci.20250611_144717"
 output_json_path = f"TR_catalog.{suffix}.json.gz"
@@ -39,7 +36,7 @@ key_counters = collections.Counter()
 with gzip.open(output_json_path, "wt") as out_json:
     out_json.write("[")
     first_object = True
-    for path in sorted(input_file_paths):
+    for path in input_file_paths:
         print(f"Processing {path}")
         with gzip.open(path, "rt") as f:
             for line in tqdm.tqdm(f, unit=" lines", unit_scale=True):
