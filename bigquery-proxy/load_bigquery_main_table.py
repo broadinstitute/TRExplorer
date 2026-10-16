@@ -1101,6 +1101,11 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         if pm_record["AlleleSizeAndMethylationDistribution"]:
             record["HPRC256_AlleleSizeAndMethylationDistribution"] = pm_record["AlleleSizeAndMethylationDistribution"]
 
+    # The catalog's annotation step embeds AoU1027_* values of its own, from an older AoU1027 table. The --aou1027-tsv
+    # table replaces them, so a locus it leaves out (e.g. one with no row covering most of its alleles) gets none.
+    if aou1027_lookup:
+        for key in [k for k in record if k.startswith("AoU1027_")]:
+            del record[key]
     if record["LocusId"] in aou1027_lookup:
         counters["rows_with_aou1027_data"] += 1
         aou1027_record = aou1027_lookup[record["LocusId"]]
