@@ -5,9 +5,9 @@ This script merges three input tables:
 - AoULR_phase1_TRGT_Weisburd_v1_distinctAndTotalAlleles.txt.gz
 - AoULR_phase1_TRGT_Weisburd_v1.0.1_TRConstraint.txt.gz
 
-It filters to keep only loci where the canonical motif matches the longest pure segment motif,
-computes additional statistics, and outputs a combined table with OE_len_percentile and
-StdevRankByMotif columns.
+It filters to keep only rows whose longest pure segment motif matches the locus motif on the same
+strand, and only rows that cover more than half of their locus's called alleles, computes additional
+statistics, and outputs a combined table with OE_len_percentile and StdevRankByMotif columns.
 """
 
 import pandas as pd
@@ -29,18 +29,21 @@ for filename in filenames:
     df_list.append(df)
     print("-" * 80)
 
+def compute_same_strand_motif(motif):
+    """Returns the motif's alphabetically first rotation, without considering its reverse complement."""
+    return compute_canonical_motif(motif, include_reverse_complement=False)
+
 def get_individual_repeat_id_that_matches_longest_pure_segment_motif(row):
     trid = row["TRID"]
-    if "," not in trid:  
+    if "," not in trid:
         return trid
-    
+
     trid_parts = trid.split(",")
     trid2 = None
     for trid_part in trid_parts:
         if trid_part.count("-") != 3:
             return None
-        trid_part_canonical_motif = compute_canonical_motif(trid_part.split("-")[3])
-        if trid_part_canonical_motif == row["longestPureSegmentMotif"]:
+        if compute_same_strand_motif(trid_part.split("-")[3]) == row["sameStrandLongestPureSegmentMotif"]:
             if trid2 is None:
                 trid2 = trid_part
             else:
@@ -51,10 +54,11 @@ def get_individual_repeat_id_that_matches_longest_pure_segment_motif(row):
 df = df_list[0]
 df = df[df.Stdev.notna()].copy()
 
-# Keep the motif exactly as it arrived, before the canonicalization below merges strand variants.
-# It is what tells apart a row pair that collapsed together here from one that was already
-# duplicated in the input table.
-df["rawLongestPureSegmentMotif"] = df["longestPureSegmentMotif"]
+# The input's longestPureSegmentMotif is read from the plus strand, so a row whose motif is only the
+# reverse complement of a locus's motif measures a different, neighbouring run: at 1-6695162-6695173-T,
+# the "A" row describes the 19 bp A run right before the T run. Rows are therefore matched to loci on
+# the same strand (rotations only), while the output keeps the strand-merged canonical motif.
+df["sameStrandLongestPureSegmentMotif"] = df["longestPureSegmentMotif"].apply(compute_same_strand_motif)
 df["longestPureSegmentMotif"] = df["longestPureSegmentMotif"].apply(compute_canonical_motif)
 df["TRID2"] = df.apply(get_individual_repeat_id_that_matches_longest_pure_segment_motif, axis=1)
 
@@ -67,33 +71,36 @@ df["motif"] = df["TRID2"].str.split("-").str[3]
 df["canonical_motif"] = df["motif"].apply(compute_canonical_motif)
 
 before = len(df)
-df = df[df.canonical_motif == df.longestPureSegmentMotif]
-print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows where canonical motif == longestPureSegmentMotif")
+df = df[df.motif.apply(compute_same_strand_motif) == df.sameStrandLongestPureSegmentMotif]
+print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows whose longest pure segment motif "
+      f"matches the locus motif on the same strand")
+df = df.drop(columns=["sameStrandLongestPureSegmentMotif"])
 
-# compute_canonical_motif folds strand and rotation together, so motifs that differ only by strand
-# ("CT" and "AG", "A" and "T") or by strand plus a rotation ("ATC" and "ATG") become the same value
-# above. Those arrive as separate rows, one per motif, so a locus whose alleles were not all called
-# on the same strand is left with more than one row for the same TRID2.
-# Collapse those rows only when they genuinely divide the locus's alleles between them, which is what
-# their N_motif adding up to numCalledAlleles shows. N_motif counts the alleles whose longest pure
-# segment had that motif, so in that case the minority strand is a small slice of the cohort and the
-# row the most alleles support is the one to keep. When the rows do not add up, each is its own
-# summary of the whole cohort and they simply disagree: their N_motif is often identical, which would
-# leave the choice to input row order. Those are left for the conflicting-rows check below, which is
-# the same treatment the rows that already shared a motif before canonicalization get.
+# Each input row summarizes only the N_motif alleles whose longest pure segment had its motif, so a
+# locus can have several rows, e.g. one for a single allele with an odd pure run hundreds of bp long.
+# Keep a row only if it covers more than half of the locus's called alleles, since only then does it
+# describe the cohort. Rows that split a locus's alleles between them can't both pass. The input also
+# sometimes summarizes the same locus more than once for the whole cohort (its rows' N_motif add up to
+# more than numCalledAlleles). When only one of those summaries has a row covering more than half of
+# the alleles, that row is kept: in the cases checked, it is the summary of the locus itself, while the
+# other summary is dominated by a longer neighbouring run. When several do, the conflicting-rows check
+# below drops the locus. A locus with no such row, e.g. a homopolymer inside a variation cluster whose
+# longest pure segment is another locus's motif in most alleles, gets no All of Us statistics rather
+# than a minority's.
 alleles_per_locus = df_list[1].set_index("TRID")["numCalledAlleles"]
+if not alleles_per_locus.index.is_unique:
+    raise ValueError(f"{filenames[1]} has more than one row for some TRIDs")
+if not df.TRID.isin(alleles_per_locus.index).all():
+    raise ValueError(f"{(~df.TRID.isin(alleles_per_locus.index)).sum():,} rows have a TRID that is not in {filenames[1]}")
+
+n_motif_sum_per_trid = df_list[0].drop_duplicates().groupby("TRID")["N_motif"].sum()
+trids_summarized_more_than_once = n_motif_sum_per_trid.index[
+    n_motif_sum_per_trid > alleles_per_locus.reindex(n_motif_sum_per_trid.index)]
 
 before = len(df)
-df = df.sort_values("N_motif", ascending=False, kind="mergesort")
-dominant_raw_motif = df.groupby("TRID2")["rawLongestPureSegmentMotif"].transform("first")
-distinct_motif_rows = df.drop_duplicates(subset=["TRID2", "rawLongestPureSegmentMotif", "N_motif"])
-divides_the_locus = (df.TRID2.map(distinct_motif_rows.groupby("TRID2")["N_motif"].sum())
-                     == df.TRID.map(alleles_per_locus))
-df = df[~divides_the_locus | (df.rawLongestPureSegmentMotif == dominant_raw_motif)].sort_index()
-print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows after dropping "
-      f"minority-strand rows from loci whose strand-split rows account for every called allele")
-
-df = df.drop(columns=["rawLongestPureSegmentMotif"])
+df = df[df.N_motif * 2 > df.TRID.map(alleles_per_locus)]
+print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows that cover more than half "
+      f"of their locus's called alleles")
 
 # A row that repeats another row in every column is the same summary of the same locus written
 # twice, so keeping one copy loses nothing.
@@ -102,18 +109,20 @@ df = df.drop_duplicates()
 print(f"Kept {len(df):,} out of {before:,} ({100 * len(df) / before:.2f}%) rows after dropping rows "
       f"that repeat another row exactly")
 
-# Whatever still shares a TRID2 is one locus and one motif summarized more than once with conflicting
-# numbers, and nothing here can tell which summary is right. These rows do not divide the locus's
-# alleles between them either: summing their N_motif overshoots numCalledAlleles by a whole cohort,
-# so the row with the larger N_motif is not the more complete one, just a differently wrong one.
-# Drop the locus rather than pick a row, so that it ends up with no All of Us statistics at all
-# instead of arbitrary ones. Fixing this for real needs a corrected input table.
+# Whatever still shares a TRID2 is one locus summarized more than once for the whole cohort, with a row
+# covering more than half of the alleles in each summary and conflicting numbers (e.g. the same N_motif
+# but a different Stdev), and nothing here can tell which summary is right. Drop the locus rather than
+# pick a row, so that it ends up with no All of Us statistics at all instead of arbitrary ones. Fixing
+# this for real needs a corrected input table.
 ambiguous = df.TRID2.duplicated(keep=False)
 if ambiguous.any():
     examples = sorted(df.TRID2[ambiguous].unique())[:3]
     print(f"WARNING: dropping {df.TRID2[ambiguous].nunique():,} loci ({ambiguous.sum():,} rows) that "
           f"are summarized more than once with conflicting values, e.g. {examples}")
     df = df[~ambiguous]
+
+print(f"Kept the only summary with a row covering more than half of the called alleles at "
+      f"{df.TRID.isin(trids_summarized_more_than_once).sum():,} loci that the input summarizes more than once")
 
 # Every consumer of this table keys on TRID2, so it has to identify a row on its own.
 if df.TRID2.duplicated().any():
