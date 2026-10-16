@@ -75,6 +75,7 @@ load:
 	    --reference-fasta ~/hg38.fa \
 	    --tenk10k-tsv ../data-prep/tenk10k_str_mt_rows.reformatted.tsv.gz \
 	    --hprc256-tsv ../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.256_samples.tsv.gz \
+	    --hprc256-total-length-tsv ../data-prep/hprc-lps/hprc-total-allele-length.per_locus_and_motif.256_samples.tsv.gz \
 	    --aou1027-tsv ../data-prep/AoULR_phase1_TRGT_Weisburd_v1_combined.txt.gz \
 	    --vamos-tsv ../data-prep/vamos_ori_and_eff_motif_columns.tsv.gz \
 	    --hprc256-purity-stratified-tsv ../data-prep/hprc-lps/trgt-hprc.allele_size_purity.stratified.by_population.by_sex.256_samples.tsv.gz \

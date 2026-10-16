@@ -9,6 +9,7 @@ DATASET_ID = "tandem_repeat_explorer"
 TABLE_ID_PREFIXES = [
     "catalog",
     "hprc256_stratified_lps",
+    "hprc256_stratified_total_allele_length",
     "hprc256_allele_purity",
     "hprc256_methylation",
     "hprc256_decomposed_alleles",

@@ -1,10 +1,14 @@
-"""Create and populate a BigQuery table containing HPRC256 stratified LPS allele-frequency
+"""Create and populate a BigQuery table containing HPRC256 stratified allele-frequency
 histograms (per-population, per-sex, and Pop_Sex strata).
 
-Input: a wide-format TSV produced by
+--allele-size-measure picks which allele sizes the table holds:
+    lps           (default) the longest pure segment, from generate_lps_tables.sh; default input
+                  ../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz
+    total-length  the total allele length, from generate_total_allele_length_tables.sh; default input
+                  ../data-prep/hprc-lps/hprc-total-allele-length.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz
+Each is a wide-format TSV produced by
     str_analysis/convert_multisample_LPS_table_to_allele_frequency_histograms.py
-when run with `--stratify-by-population --stratify-by-sex`. Default path:
-    ../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz
+when run with `--stratify-by-population --stratify-by-sex`.
 
 The new table mirrors `HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS` from global_constants.py:
 LocusId + 17 strata x 2 histogram types = 35 columns. The unstratified base histograms
@@ -34,10 +38,22 @@ from global_constants import HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS, HPRC
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
-TABLE_ID = "hprc256_stratified_lps"
-HTML_TABLE_ID_CONST_NAME = "HPRC256_LPS_STRATIFIED_TABLE_ID"
 
-DEFAULT_INPUT = "../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz"
+# For each --allele-size-measure: the new table's name prefix, the website constant that gets its table id, and the
+# default input. The prefixes must not start with one another, since delete_previous_bigquery_tables.py groups
+# tables by prefix.
+TABLE_SETTINGS_BY_ALLELE_SIZE_MEASURE = {
+    "lps": {
+        "table_id_prefix": "hprc256_stratified_lps",
+        "html_table_id_const_name": "HPRC256_LPS_STRATIFIED_TABLE_ID",
+        "default_input": "../data-prep/hprc-lps/hprc-lps.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz",
+    },
+    "total-length": {
+        "table_id_prefix": "hprc256_stratified_total_allele_length",
+        "html_table_id_const_name": "HPRC256_TOTAL_LENGTH_STRATIFIED_TABLE_ID",
+        "default_input": "../data-prep/hprc-lps/hprc-total-allele-length.per_locus_and_motif.by_population.by_sex.256_samples.tsv.gz",
+    },
+}
 
 
 def update_html_table_id(html_paths, const_name, new_table_id):
@@ -71,13 +87,16 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--input-tsv", default=DEFAULT_INPUT,
-                        help="Stratified LPS wide-format TSV (gzipped).")
+    parser.add_argument("--allele-size-measure", choices=sorted(TABLE_SETTINGS_BY_ALLELE_SIZE_MEASURE), default="lps",
+                        help="Which allele sizes the input holds: the longest pure segment or the total allele length")
+    parser.add_argument("--input-tsv",
+                        help="Stratified wide-format TSV (gzipped). Default: the --allele-size-measure's default input.")
     parser.add_argument("--skip-html-update", action="store_true",
                         help="Don't rewrite TABLE_ID constants in the website HTML files.")
     args = parser.parse_args()
 
-    input_tsv = os.path.expanduser(args.input_tsv)
+    table_settings = TABLE_SETTINGS_BY_ALLELE_SIZE_MEASURE[args.allele_size_measure]
+    input_tsv = os.path.expanduser(args.input_tsv or table_settings["default_input"])
     if not os.path.isfile(input_tsv):
         parser.error(f"Input file not found: {input_tsv}")
 
@@ -106,7 +125,7 @@ def main():
     client = bigquery.Client(project=PROJECT_ID)
     dataset_ref = client.dataset(DATASET_ID)
 
-    new_table_id = f"{TABLE_ID}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    new_table_id = f"{table_settings['table_id_prefix']}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     new_table_ref = dataset_ref.table(new_table_id)
     new_table = bigquery.Table(new_table_ref, schema=schema)
     # Cluster on (LocusId, Interval) so per-locus + per-interval lookups still
@@ -185,7 +204,7 @@ def main():
     if not args.skip_html_update:
         update_html_table_id(
             ["../website/header_template.html", "../index.html", "../locus.html"],
-            HTML_TABLE_ID_CONST_NAME,
+            table_settings["html_table_id_const_name"],
             new_table_id,
         )
 
