@@ -1757,6 +1757,145 @@ gtag('config', 'G-6R8FPBQRFH');
         return html
     }
 
+    // How the Miga lab's CenSat annotation workflow (https://github.com/kmiga/alphaAnnotation) found each kind of region
+    const ALPHA_SATELLITE_ANNOTATION_METHOD = `Alpha satellite was annotated with <a href="https://github.com/fedorrik/HumAS-HMMER_for_AnVIL" target="_blank">HumAS-HMMER</a>
+        (Fedor Ryabov), and the results were sorted into active HOR, inactive HOR, diverged HOR, monomeric and mixed alpha satellite.`
+    const HSAT2_AND_HSAT3_ANNOTATION_METHOD = `HSat2 and HSat3 were annotated with Nicolas Altemose's
+        <a href="https://github.com/altemose/chm13_hsat" target="_blank">HSat2/HSat3 annotation script</a>.`
+    const describeRepeatMaskerAnnotationMethod = (repeatFamilies) => `Annotated by RepeatMasker as the ${repeatFamilies}.`
+
+    // The classes of the CentromereAndSatelliteRegion column: what each abbreviation stands for, a definition, and how it
+    // was annotated. Shown in the column's popup.
+    const CENTROMERE_AND_SATELLITE_REGION_CLASSES = {
+        active_hor: {
+            name: 'Active alpha satellite higher-order repeat (HOR) array',
+            definition: `The alpha satellite array where the centromere forms. Alpha satellite is built from ~171 bp
+                repeat units, and in a higher-order repeat (HOR) array a block of several of these units repeats as one
+                unit. Each chromosome has one active array.`,
+            annotationMethod: ALPHA_SATELLITE_ANNOTATION_METHOD,
+            hg38Note: `In hg38, the centromeres are synthetic models of the alpha satellite arrays rather than assembled
+                sequence (98% of hg38's active_hor regions lie in these models), so TR loci here are in modeled sequence.`,
+        },
+        hor: {
+            name: 'Inactive alpha satellite higher-order repeat (HOR) array',
+            definition: `An alpha satellite HOR array other than the one where the centromere forms.`,
+            annotationMethod: ALPHA_SATELLITE_ANNOTATION_METHOD,
+        },
+        dhor: {
+            name: 'Diverged alpha satellite higher-order repeat (HOR) array',
+            definition: `An alpha satellite array whose higher-order repeat units have diverged substantially from each other.`,
+            annotationMethod: ALPHA_SATELLITE_ANNOTATION_METHOD,
+        },
+        mon: {
+            name: 'Monomeric alpha satellite',
+            definition: `Alpha satellite whose ~171 bp repeat units are not organized into higher-order repeats.`,
+            annotationMethod: ALPHA_SATELLITE_ANNOTATION_METHOD,
+        },
+        mixedAlpha: {
+            name: 'Mixed alpha satellite',
+            definition: `Alpha satellite that could not be sorted into the active HOR, inactive HOR, diverged HOR or
+                monomeric classes.`,
+            annotationMethod: ALPHA_SATELLITE_ANNOTATION_METHOD,
+        },
+        HSat1A: {
+            name: 'Human satellite 1A (HSat1A) array',
+            definition: `An array of classical human satellite 1A (formerly called SAR), a 42 bp repeat that makes up some
+                of the most AT-rich regions of the genome.`,
+            annotationMethod: describeRepeatMaskerAnnotationMethod('Dfam family SAR'),
+        },
+        HSat1B: {
+            name: 'Human satellite 1B (HSat1B) array',
+            definition: `An array of classical human satellite 1B (formerly called HSATI), one of the most AT-rich
+                satellites, found mostly on chromosome Y.`,
+            annotationMethod: describeRepeatMaskerAnnotationMethod('Dfam family HSAT1'),
+        },
+        HSat2: {
+            name: 'Human satellite 2 (HSat2) array',
+            definition: `An array of classical human satellite 2. HSat2 and HSat3 are both derived from the simple repeat
+                (CATTC)n, and form some of the largest satellite arrays in the human genome.`,
+            annotationMethod: HSAT2_AND_HSAT3_ANNOTATION_METHOD,
+        },
+        HSat3: {
+            name: 'Human satellite 3 (HSat3) array',
+            definition: `An array of classical human satellite 3. HSat2 and HSat3 are both derived from the simple repeat
+                (CATTC)n, and form some of the largest satellite arrays in the human genome.`,
+            annotationMethod: HSAT2_AND_HSAT3_ANNOTATION_METHOD,
+        },
+        HSat2_3: {
+            name: 'Human satellite 2 or 3 array',
+            definition: `A human satellite array that could not be resolved as either HSat2 or HSat3, because the HSat2 and
+                HSat3 annotations overlap here.`,
+            annotationMethod: HSAT2_AND_HSAT3_ANNOTATION_METHOD,
+        },
+        'GAP,HSat2': {
+            name: 'Human satellite 2 (HSat2) array next to an assembly gap',
+            definition: `An HSat2 array that ends at a gap in the reference genome, where the rest of the array is missing
+                from the assembly.`,
+            annotationMethod: `${HSAT2_AND_HSAT3_ANNOTATION_METHOD} The workflow extends HSat2 and HSat3 annotations up to
+                any adjacent assembly gap, so the region is labeled with both.`,
+        },
+        'GAP,HSat3': {
+            name: 'Human satellite 3 (HSat3) array next to an assembly gap',
+            definition: `An HSat3 array that ends at a gap in the reference genome, where the rest of the array is missing
+                from the assembly.`,
+            annotationMethod: `${HSAT2_AND_HSAT3_ANNOTATION_METHOD} The workflow extends HSat2 and HSat3 annotations up to
+                any adjacent assembly gap, so the region is labeled with both.`,
+        },
+        bSat: {
+            name: 'Beta satellite (bSat) array',
+            definition: `An array of beta satellite, which is more GC-rich than alpha satellite and densely CpG methylated.`,
+            annotationMethod: describeRepeatMaskerAnnotationMethod('Dfam families BSR, LSAU and BSAT'),
+        },
+        gSat: {
+            name: 'Gamma satellite (gSat) array',
+            definition: `An array of gamma satellite, which is more GC-rich than alpha satellite and densely CpG methylated.`,
+            annotationMethod: describeRepeatMaskerAnnotationMethod('Dfam families GSAT and TAR1'),
+        },
+        cenSat: {
+            name: 'Other centromeric satellite',
+            definition: `An array of a centromeric satellite other than alpha, beta, gamma and the classical human satellites.`,
+            annotationMethod: describeRepeatMaskerAnnotationMethod('Dfam families CER, SATR, SST1, ACRO, HSAT4, HSAT5 or TAF11'),
+        },
+        rDNA: {
+            name: 'Ribosomal DNA (rDNA) array',
+            definition: `An array of tandem copies of the ~45 kb ribosomal RNA gene unit, found on the short arms of the
+                acrocentric chromosomes.`,
+            annotationMethod: `Annotated with an HMM built from the beginning and end of the rDNA repeat unit.`,
+        },
+        ct: {
+            name: 'Centromeric transition region',
+            definition: `Sequence between the satellite arrays of a centromere that is not itself a satellite array. These
+                regions are largely long segmental duplications, and can include expressed genes.`,
+            annotationMethod: `The workflow merges all satellite annotations within 2 Mb of each other, takes the merged region
+                that contains the active alpha satellite array as the centromere, and labels each stretch inside it that
+                isn't part of a satellite array as ct.`,
+        },
+    }
+
+    // The details shown in the popup of the CentromereAndSatelliteRegion column, for a locus with a value
+    function buildCentromereAndSatelliteRegionDetailsHtml(row) {
+        const regionClass = row['CentromereAndSatelliteRegion']
+        const classInfo = CENTROMERE_AND_SATELLITE_REGION_CLASSES[regionClass]
+        let html = `<div style="margin-bottom: 0.5em;"><b>${regionClass}</b>${classInfo ? `: ${classInfo.name}` : ''}</div>`
+        if (classInfo) {
+            html += `<div style="margin-bottom: 0.5em;">${classInfo.definition}</div>`
+            html += `<div style="margin-bottom: 0.5em;"><b>How it was annotated:</b> ${classInfo.annotationMethod}</div>`
+            if (classInfo.hg38Note) {
+                html += `<div style="margin-bottom: 0.5em;"><b>NOTE:</b> ${classInfo.hg38Note}</div>`
+            }
+        }
+        html += `<div style="margin-bottom: 0.5em;">This TR locus overlaps a region of this class. A locus that overlaps
+            regions of more than one class is labeled with the class of the region it overlaps the most.</div>`
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: the Miga lab's centromeric satellite (CenSat) annotation (hg38.cenSatv1.0 for hg38,
+            chm13v2.0.cenSatv2.1 for CHM13) from <a href="https://github.com/hloucks/CenSatData" target="_blank">CenSatData</a>,
+            made with their <a href="https://github.com/kmiga/alphaAnnotation" target="_blank">CenSat annotation workflow</a>.
+            Class definitions are based on <a href="https://doi.org/10.1126/science.abl4178" target="_blank">Altemose et al. 2022</a>.
+        </div>`
+
+        return html
+    }
+
     // Splits a SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing value such as "22:0.273AG,32:0.329AG" into
     // [{repeatCount: 22, deltaScore: 0.273, changeType: 'AG'}, ...], in the value's order (by repeat count)
     function parseSpliceAIDeltaScoresByRepeatCount(value) {
@@ -2752,6 +2891,26 @@ gtag('config', 'G-6R8FPBQRFH');
                 'ReferenceLeftFlank',       // its last base anchors the SpliceAI-lookup variants
                 'ReferenceRepeatSequence',
             ]
+        },
+        CentromereAndSatelliteRegion: {
+            displayName: 'Centromere and Satellite Regions',
+            // Shorter than the column's description in global_constants.py, whose list of every class makes the popup
+            // too tall to fit next to the column dialog's ? icon, so it never shows. The value popups explain each class.
+            helpText: `The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from
+                the Miga lab's centromeric satellite annotation. For example: HSat3 (a human satellite 3 array),
+                active_hor (the alpha satellite array where the centromere forms), or ct (a centromeric transition region
+                between satellite arrays). Empty if the TR locus doesn't overlap any of these regions.<br /><br />Click a
+                value to see its definition, how it was annotated, and its source.`,
+            getValue: (row) => {
+                if (!row['CentromereAndSatelliteRegion']) return ''
+                const escapedPopupContent = buildCentromereAndSatelliteRegionDetailsHtml(row)
+                    .replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+                return `<span class="action-cell show-popup" data-variation="centromere-and-satellite-region-popup" data-html="${escapedPopupContent}">
+                    <span class="action-link">${row['CentromereAndSatelliteRegion']}</span>
+                </span>`
+            },
+            getSortColumns: () => ['CentromereAndSatelliteRegion'],
+            getRequiredColumns: () => ['CentromereAndSatelliteRegion'],
         },
     }
 
