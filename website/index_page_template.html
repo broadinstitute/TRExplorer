@@ -1136,9 +1136,26 @@
     }
 
     // Column help texts can contain HTML (<br />, <b>, <i>), so the (?) icons show them in a Semantic UI popup, which
-    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally
+    // renders HTML, rather than the CSS-only data-tooltip, which shows the tags literally.
+    // inline: true inserts each popup next to its icon, so it's positioned relative to the same container as the icon
+    // and scrolls with it. A popup appended to the body instead is positioned in page coordinates, which in Firefox put
+    // the help popups of the scrolling column dialogs far from their icons after the page had been scrolled.
+    // lastResort shows a popup that doesn't fit anywhere (such as a description with a long list of values, in a short
+    // window) rather than not showing it at all, on whichever side of its icon has more room in the window.
     const initializeHelpTextPopups = ($helpIcons) =>
-        $helpIcons.popup({ on: 'hover', position: 'top center', variation: 'wide' })
+        $helpIcons.popup({
+            on: 'hover',
+            position: 'top center',
+            variation: 'wide',
+            inline: true,
+            lastResort: 'bottom center',
+            // onShow runs before the popup is positioned, so it can pick the lastResort side for the icon's current spot
+            onShow: (icon) => {
+                const iconBox = icon.getBoundingClientRect()
+                $(icon).popup('setting', 'lastResort',
+                    iconBox.top > window.innerHeight - iconBox.bottom ? 'top center' : 'bottom center')
+            },
+        })
 
     const showExportOptionsDialog = (exportType, {showColumns = false, showTrgtOptions = false} = {}) => {
         pendingExportType = exportType
@@ -1315,8 +1332,11 @@
         else if (isLikeOp) text = LIKE_HELP_TEXT.trim()
         if (text) {
             // Re-create the popup, since a popup keeps the help text it was created with. The popup reads its text
-            // from the data-html attribute, which takes precedence over any text passed in its settings.
-            initializeHelpTextPopups($helpIcon.popup('destroy').attr('data-html', text))
+            // from the data-html attribute, which takes precedence over any text passed in its settings. destroy
+            // leaves an inline popup's element next to the icon, so remove it too, or the old help text would stay on
+            // screen or pile up.
+            $helpIcon.popup('destroy').nextAll('.ui.popup').remove()
+            initializeHelpTextPopups($helpIcon.attr('data-html', text))
             $helpIcon.show()
         } else {
             $helpIcon.hide()

@@ -590,6 +590,13 @@
         color: #333;
     }
 
+    /* The (?) help popups are inline (see initializeHelpTextPopups()), so their shrink-to-fit width would depend on how
+       far the icon is from the right edge of its container, and would shrink on each hover, since an inline popup keeps
+       its last position. max-content keeps the width up to the wide variation's max-width instead. */
+    .export-column-checkbox-item > .ui.popup, .custom-filter-row > .ui.popup {
+        width: max-content;
+    }
+
     .export-column-help-icon[data-tooltip]::after {
         max-width: 400px;
         width: max-content;
