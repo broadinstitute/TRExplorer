@@ -1110,6 +1110,39 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,
     },
+    # Added to the catalog by tandem-repeat-catalogs/scripts/add_centromere_and_satellite_region_annotations.py, and
+    # to an existing BigQuery table by add_centromere_and_satellite_region_column_to_catalog_table.py
+    {
+        "type": "STRING",
+        "name": "CentromereAndSatelliteRegion",
+        "description": (
+            "The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from the "
+            "Miga lab's centromeric satellite annotation (hg38.cenSatv1.0, chm13v2.0.cenSatv2.1). Possible values "
+            "include:<ul>"
+            "<li><b>HSat3</b>: a human satellite 3 array</li>"
+            "<li><b>active_hor</b>: the alpha satellite array where the centromere forms</li>"
+            "<li><b>ct</b>: a centromeric transition region between satellite arrays</li>"
+            "<li><b>hor</b>: an inactive alpha satellite higher-order repeat array</li>"
+            "<li><b>dhor</b>: a diverged alpha satellite higher-order repeat array</li>"
+            "<li><b>mon</b>: monomeric alpha satellite, which is not organized into higher-order repeats</li>"
+            "<li><b>mixedAlpha</b>: alpha satellite that does not fit into one of the other alpha satellite classes</li>"
+            "<li><b>HSat1A</b>: a human satellite 1A array</li>"
+            "<li><b>HSat1B</b>: a human satellite 1B array</li>"
+            "<li><b>HSat2</b>: a human satellite 2 array</li>"
+            "<li><b>HSat2_3</b>: a human satellite array that could not be resolved as either HSat2 or HSat3</li>"
+            "<li><b>GAP,HSat2</b> and <b>GAP,HSat3</b>: an HSat2 or HSat3 array that ends at a gap in the reference "
+            "genome</li>"
+            "<li><b>bSat</b>: a beta satellite array</li>"
+            "<li><b>gSat</b>: a gamma satellite array</li>"
+            "<li><b>cenSat</b>: another centromeric satellite, such as CER, SATR, SST1, ACRO, HSAT4, HSAT5 or TAF11</li>"
+            "<li><b>rDNA</b>: a ribosomal DNA array</li>"
+            "</ul>"
+            "If the TR locus doesn't overlap any of these regions, its value is NULL or empty."),
+        "displayName": "Centromere and Satellite Regions",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_ADDITIONAL_LAYERS,
+    },
 
     # Vamos data
     {
