@@ -2343,7 +2343,9 @@
                 if (isSorted) {
                     icon = sortDirection === 'ASC' ? '<i class="sort up icon"></i>' : '<i class="sort down icon"></i>'
                 }
-                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnName}">${columnObject.displayName} ${icon}</th>`
+                // resultsTableHeaderName is an optional shorter label for the header, for columns whose displayName
+                // (still used in the column chooser) would make the column too wide
+                tableHtml += `<th class="${isSorted ? 'sorted' : ''} results-table-sortable-header" data-column="${columnName}">${columnObject.resultsTableHeaderName || columnObject.displayName} ${icon}</th>`
             }
         })
 
