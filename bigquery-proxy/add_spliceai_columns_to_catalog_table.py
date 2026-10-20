@@ -29,12 +29,12 @@ import argparse
 import datetime
 import gzip
 import os
-import re
 import shutil
 import tempfile
 
 from google.cloud import bigquery
 
+from bigquery_loader_utils import read_website_table_id
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -57,16 +57,6 @@ def build_fill_sql(catalog_table, staging_table):
     return (f"MERGE `{catalog_table}` T USING `{staging_table}` S ON T.LocusId = S.LocusId "
             f"WHEN MATCHED THEN UPDATE SET {copy} "
             f"WHEN NOT MATCHED BY SOURCE THEN UPDATE SET {clear}")
-
-
-def read_website_table_id():
-    """Returns the catalog table the website queries: the TABLE_ID constant in ../website/header_template.html."""
-    header_template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "website", "header_template.html")
-    with open(header_template) as f:
-        match = re.search(r"const TABLE_ID\s*=\s*'(catalog[^']*)'", f.read())
-    if not match:
-        raise SystemExit(f"No TABLE_ID constant found in {header_template}; pass --table-id")
-    return match.group(1)
 
 
 def read_tsv_locus_ids(tsv_path, max_loci=None):

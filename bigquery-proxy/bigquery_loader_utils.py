@@ -1,8 +1,20 @@
-"""Helpers shared by the scripts that load per-locus HPRC256 tables into BigQuery."""
+"""Helpers shared by the scripts that load or fill tables in BigQuery."""
 
 import gzip
+import os
+import re
 
 import tqdm
+
+
+def read_website_table_id():
+    """Returns the catalog table the website queries: the TABLE_ID constant in ../website/header_template.html."""
+    header_template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "website", "header_template.html")
+    with open(header_template) as f:
+        match = re.search(r"const TABLE_ID\s*=\s*'(catalog[^']*)'", f.read())
+    if not match:
+        raise SystemExit(f"No TABLE_ID constant found in {header_template}; pass --table-id")
+    return match.group(1)
 
 
 def scan_for_smallest_trid(input_tsv, col_idx, locus_id_column="locus_id", interval_column="interval",
