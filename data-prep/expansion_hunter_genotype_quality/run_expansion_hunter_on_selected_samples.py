@@ -88,6 +88,9 @@ ANALYSIS_MODE = "optimized-streaming"
 CPU = 2
 THREADS = 4
 MEMORY = "highmem"
+# A genome with the 5.65M-locus TRExplorer v2.1 catalog needs about 29GB of disk beyond the CRAM (see
+# extra_disk_gib_beyond_read_data_file in create_expansion_hunter_steps), so 40GiB leaves about 13GB to spare.
+EXTRA_DISK_GIB_BEYOND_READ_DATA_FILE = 40
 CHECKPOINT_INTERVAL_SECONDS = 600
 # Motif composition counts are written for every locus that has a record. Turning them on raises EH's default
 # --max-depth from 150 to 500, which changes the calls at high-coverage loci; MAX_DEPTH keeps it at 150 so the calls
@@ -109,6 +112,9 @@ parser.add_argument("--checkpoint-interval-seconds", type=int, default=CHECKPOIN
 parser.add_argument("--cpu", type=int, default=CPU,
                     help="Cores per job. Memory is highmem, 6.5GB per core, so pass 4 (26GB) to rerun a sample that "
                          "ran out of memory at the default. Not part of the checkpoint key, so the rerun resumes.")
+parser.add_argument("--extra-disk-gib-beyond-read-data-file", type=int, default=EXTRA_DISK_GIB_BEYOND_READ_DATA_FILE,
+                    help="Local disk per job beyond the size of the CRAM or BAM, in GiB. Raise it for a sample that "
+                         "ran out of disk. Not part of the checkpoint key, so the rerun resumes.")
 parser.add_argument("--no-resume", action="store_true",
                     help="Do not checkpoint, and do not pass --resume to ExpansionHunter.")
 parser.add_argument("--docker-image", default=DOCKER_IMAGE,
@@ -191,6 +197,7 @@ for _, row in df.iterrows():
         streaming_cpu=args.cpu,
         streaming_threads=THREADS,
         streaming_memory=MEMORY,
+        extra_disk_gib_beyond_read_data_file=args.extra_disk_gib_beyond_read_data_file,
         resume_checkpoint_dir=None if args.no_resume else args.checkpoint_dir,
         checkpoint_interval_seconds=args.checkpoint_interval_seconds,
         output_motif_composition=OUTPUT_MOTIF_COMPOSITION,
