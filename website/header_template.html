@@ -1710,7 +1710,8 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     // The Zhang 2025 MPRA details shown in the Zhang 2025 MPRA column's popup and on the locus page, for loci where
-    // wasZhang2025MpraLengthEffectTested() is true
+    // wasZhang2025MpraLengthEffectTested() is true. The Zhang2025_LengthEffect columns come from the paper's main
+    // library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus.
     function buildZhang2025MpraDetailsHtml(row) {
         const isSignificant = row['Zhang2025_LengthEffectTestResult'] === 'significant'
         const slope = row['Zhang2025_LengthEffectSlope']
@@ -1721,17 +1722,40 @@ gtag('config', 'G-6R8FPBQRFH');
         } catch (e) {
             console.error('Failed to parse Zhang2025_Details:', e)
         }
+        const formatFdr = (value) => value < 0.001 ? value.toExponential(1) : value.toFixed(4)
+        const sourceLibrary = details.lengthEffectSourceLibrary
+        const sourceLibraryResults = details[sourceLibrary] || {}
 
         let html = `In the massively parallel reporter assay (MPRA) of promoter STRs from
             <a href="https://www.biorxiv.org/content/10.1101/2025.09.14.676153" target="_blank">Zhang et al. 2025</a>,
             changing the repeat copy number of this TR (-5, +3 and +5 copies relative to hg38)
             <b>${isSignificant ? 'significantly changed' : 'did not significantly change'}</b> reporter expression in
-            HEK293T cells.<br /><br />`
-        html += `<b>False Discovery Rate (FDR):</b> ${fdr != null ? (fdr < 0.001 ? fdr.toExponential(1) : fdr.toFixed(4)) : 'n/a'}
+            HEK293T cells.`
+        if (sourceLibrary === 'hSTR1') {
+            html += ` This result is from the paper's main library (hSTR1).`
+        } else if (sourceLibrary === 'hSTR2') {
+            html += ` This result is from the paper's second library (hSTR2), since its main library (hSTR1) had too
+                few barcodes to test this TR.`
+        }
+        html += `<br /><br />`
+        html += `<b>False Discovery Rate (FDR):</b> ${fdr != null ? formatFdr(fdr) : 'n/a'}
             <span style="color: #666;">(significant if &lt; 0.1)</span><br />
             <b>Length Effect Slope:</b> ${slope != null ? slope.toFixed(3) : 'n/a'}<br />
             <span style="color: #666;">change in reporter expression (RNA/DNA ratio) per added repeat copy; positive
             means longer alleles increase expression</span>`
+        if (sourceLibraryResults.pearsonR != null) {
+            html += `<br /><b>Pearson r:</b> ${sourceLibraryResults.pearsonR.toFixed(3)}
+                <span style="color: #666;">(between repeat copy number and expression)</span>`
+        }
+        // When the result is from hSTR1, also show hSTR2's result for the same TR, if hSTR2 tested it
+        if (sourceLibrary === 'hSTR1' && details.hSTR2) {
+            const {lengthEffectFDR, lengthEffectSlope, pearsonR} = details.hSTR2
+            html += `<br /><br />In the paper's second library (hSTR2), the length effect was
+                <b>${lengthEffectFDR < 0.1 ? 'significant' : 'not significant'}</b> (FDR: ${formatFdr(lengthEffectFDR)},
+                slope: ${lengthEffectSlope.toFixed(3)}, Pearson r: ${pearsonR.toFixed(3)}).
+                <span style="color: #666;">hSTR2 slopes are about half the size of hSTR1 slopes, so compare the
+                direction rather than the size.</span>`
+        }
         if (details.matchType === 'fuzzy') {
             // Both intervals are chrom:start-end with a 0-based start, so each width is end - start
             const locusIdParts = row['LocusId'].split('-')
@@ -2835,7 +2859,7 @@ gtag('config', 'G-6R8FPBQRFH');
         zhang2025Mpra: {
             displayName: 'Zhang 2025 MPRA',
             defaultSortDirection: 'DESC',
-            helpText: 'Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number changes reporter expression in HEK293T cells. A check means the repeat length significantly changed expression (FDR < 0.1), and a gray &#x2715; means it did not. Click either one for the length effect slope and FDR. Empty if the locus was not tested, or was in the library but had too few barcodes to test.',
+            helpText: 'Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number changes reporter expression in HEK293T cells. A check means the repeat length significantly changed expression (FDR < 0.1), and a gray &#x2715; means it did not. Click either one for the length effect slope and FDR. The result is from the paper\'s main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Empty if the locus was not tested, or had too few barcodes in both libraries.',
             getValue: (row) => {
                 if (!wasZhang2025MpraLengthEffectTested(row)) return ''
                 const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>Expression MPRA for promoter-proximal STRs</b></div>

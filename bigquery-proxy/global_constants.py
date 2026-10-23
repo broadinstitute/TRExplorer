@@ -1245,11 +1245,12 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     },
 
     # STR MPRA from Zhang et al. 2025, from ../data-prep/literature_review/Zhang_2025/. NULL for loci that were not
-    # tested (or, for 43 STRs, were tested but could not be matched to a catalog locus).
+    # tested (or, for 43 STRs, were tested but could not be matched to a catalog locus). The LengthEffect columns come
+    # from the paper's main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes.
     {
         "type": "STRING",
         "name": "Zhang2025_LengthEffectTestResult",
-        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. Possible values include:<ul><li><b>“significant”</b>: FDR < 0.1</li><li><b>“not significant”</b>: FDR ≥ 0.1</li><li><b>“not enough data”</b>: in the library, but too few barcodes to test</li><li><b>NULL</b>: the locus was not tested</li></ul>",
+        "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. The result is from the paper's main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Zhang2025_Details says which. Possible values include:<ul><li><b>“significant”</b>: FDR < 0.1</li><li><b>“not significant”</b>: FDR ≥ 0.1</li><li><b>“not enough data”</b>: in the library, but too few barcodes to test in either hSTR1 or hSTR2</li><li><b>NULL</b>: the locus was not tested</li></ul>",
         "displayName": "STR MPRA: Length Effect",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1258,7 +1259,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "Zhang2025_LengthEffectSlope",
-        "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025. Positive means longer alleles increase expression. NULL if not tested or not enough data.",
+        "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. Positive means longer alleles increase expression. The two libraries' slopes are on different scales: for loci significant in both, hSTR2 slopes are about half of hSTR1's. NULL if not tested or not enough data.",
         "displayName": "STR MPRA: Length Effect Slope",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1267,7 +1268,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "Zhang2025_LengthEffectFDR",
-        "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025. NULL if not tested or not enough data.",
+        "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. NULL if not tested or not enough data.",
         "displayName": "STR MPRA: Length Effect FDR",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1276,7 +1277,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Zhang2025_Details",
-        "description": "JSON with the Zhang et al. 2025 STR this locus was matched to: zhangLocusId, zhangInterval (0-based start), zhangMotif, and matchType ('exact' locus match, or 'fuzzy' overlap with the same motif).",
+        "description": "JSON with the Zhang et al. 2025 STR this locus was matched to: zhangLocusId, zhangInterval (0-based start), zhangMotif, and matchType ('exact' locus match, or 'fuzzy' overlap with the same motif). Also lengthEffectSourceLibrary, the library the LengthEffect columns come from ('hSTR1', 'hSTR2', or null if not enough data), and an hSTR1 and/or hSTR2 object (lengthEffectSlope, lengthEffectFDR, pearsonR) for each library that tested the locus.",
         "displayName": "STR MPRA: Details",
         "allowExport": True,
         "group": GROUP_COLUMNS_ADDED_2026_10,
@@ -1389,6 +1390,10 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
 
 # The names of the SpliceAI_* columns, which add_spliceai_columns_to_catalog_table.py fills in an existing table
 SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("SpliceAI_")]
+
+# The names of the Zhang2025_* columns, which add_or_update_zhang_2025_columns_in_catalog_table.py fills in an
+# existing table
+ZHANG_2025_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("Zhang2025_")]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when

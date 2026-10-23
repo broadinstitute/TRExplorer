@@ -1,6 +1,7 @@
 """Helpers shared by the scripts that load or fill tables in BigQuery."""
 
 import gzip
+import json
 import os
 import re
 
@@ -15,6 +16,27 @@ def read_website_table_id():
     if not match:
         raise SystemExit(f"No TABLE_ID constant found in {header_template}; pass --table-id")
     return match.group(1)
+
+
+def get_zhang_2025_column_values(zhang_2025_lookup_entry):
+    """Returns the Zhang2025_* column values for one locus of the Zhang 2025 lookup JSON.
+
+    Both load_bigquery_main_table.py and add_or_update_zhang_2025_columns_in_catalog_table.py use this, so a table
+    filled either way holds the same values.
+
+    Args:
+        zhang_2025_lookup_entry (dict): the lookup's entry for the locus, written by
+            ../data-prep/literature_review/Zhang_2025/generate_Zhang_2025_lookup_json.py
+
+    Returns:
+        dict: column name -> value, with Zhang2025_Details as a JSON string
+    """
+    return {
+        "Zhang2025_LengthEffectTestResult": zhang_2025_lookup_entry["LengthEffectTestResult"],
+        "Zhang2025_LengthEffectSlope": zhang_2025_lookup_entry["LengthEffectSlope"],
+        "Zhang2025_LengthEffectFDR": zhang_2025_lookup_entry["LengthEffectFDR"],
+        "Zhang2025_Details": json.dumps(zhang_2025_lookup_entry["Details"]),
+    }
 
 
 def scan_for_smallest_trid(input_tsv, col_idx, locus_id_column="locus_id", interval_column="interval",

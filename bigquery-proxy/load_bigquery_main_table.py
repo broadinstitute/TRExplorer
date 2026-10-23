@@ -24,6 +24,7 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
+from bigquery_loader_utils import get_zhang_2025_column_values
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -1194,10 +1195,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
     if record["LocusId"] in zhang_2025_lookup:
         z2025_data = zhang_2025_lookup[record["LocusId"]]
         counters[f"rows_with_zhang_2025_{z2025_data['LengthEffectTestResult'].replace(' ', '_')}"] += 1
-        record["Zhang2025_LengthEffectTestResult"] = z2025_data["LengthEffectTestResult"]
-        record["Zhang2025_LengthEffectSlope"] = z2025_data["LengthEffectSlope"]
-        record["Zhang2025_LengthEffectFDR"] = z2025_data["LengthEffectFDR"]
-        record["Zhang2025_Details"] = json.dumps(z2025_data["Details"])
+        record.update(get_zhang_2025_column_values(z2025_data))
 
     if record["LocusId"] in encode4_and_igvf_validated_elements_lookup:
         counters["rows_with_encode4_and_igvf_validated_elements"] += 1

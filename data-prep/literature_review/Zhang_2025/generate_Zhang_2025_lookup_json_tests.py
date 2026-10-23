@@ -9,9 +9,11 @@ from generate_Zhang_2025_lookup_json import (
     TEST_RESULT_NOT_ENOUGH_DATA,
     TEST_RESULT_NOT_SIGNIFICANT,
     TEST_RESULT_SIGNIFICANT,
+    build_lookup_entry,
     classify_test_result,
     collect_catalog_candidates,
     find_trexplorer_match,
+    merge_regression_results,
     pick_best_entry,
     read_zhang_strs,
 )
@@ -64,14 +66,56 @@ class Zhang2025LookupTests(unittest.TestCase):
         # Different motif.
         self.assertEqual(find_trexplorer_match("1", 100, 130, "GT", locus_ids, candidates), (None, None))
 
-    def test_pick_best_entry_prefers_analyzed_then_lowest_fdr(self):
-        entries = [
-            {"LengthEffectFDR": None, "id": "not analyzed"},
-            {"LengthEffectFDR": 0.5, "id": "weak"},
-            {"LengthEffectFDR": 0.01, "id": "strong"},
-        ]
-        self.assertEqual(pick_best_entry(entries)["id"], "strong")
-        self.assertEqual(pick_best_entry(entries[:1])["id"], "not analyzed")
+    def test_merge_regression_results(self):
+        strs = pd.DataFrame({"zhang_locus_number": [7, 8], "motif": ["CAG", "A"]})
+        results = pd.DataFrame({"locus": [8], "repeat_unit": ["A"], "r": [0.4], "beta_0": [1.0], "beta_1": [0.2],
+                                "padj": [0.05]})
+        merged = merge_regression_results(strs, results, "hSTR2")
+        self.assertEqual(list(merged.columns), ["zhang_locus_number", "motif", "hSTR2_pearson_r", "hSTR2_slope", "hSTR2_fdr"])
+        self.assertTrue(merged.iloc[0][["hSTR2_pearson_r", "hSTR2_slope", "hSTR2_fdr"]].isna().all())
+        self.assertEqual(merged.iloc[1][["hSTR2_pearson_r", "hSTR2_slope", "hSTR2_fdr"]].tolist(), [0.4, 0.2, 0.05])
+
+        # A result for an STR that's not in the library.
+        with self.assertRaises(ValueError):
+            merge_regression_results(strs, results.assign(locus=[9]), "hSTR2")
+        # A tab-separated file read as comma-separated has a single column.
+        with self.assertRaises(ValueError):
+            merge_regression_results(strs, pd.DataFrame({"locus\trepeat_unit\tr\tbeta_1\tpadj": ["8\tA\t0.4\t0.2\t0.05"]}), "hSTR2")
+
+    def test_build_lookup_entry_uses_hstr1_then_hstr2(self):
+        hstr1 = {"lengthEffectSlope": 0.3, "lengthEffectFDR": 0.5, "pearsonR": 0.1}
+        hstr2 = {"lengthEffectSlope": 0.1, "lengthEffectFDR": 0.01, "pearsonR": 0.2}
+        details = {"zhangLocusId": "Human_STR_7"}
+
+        entry = build_lookup_entry({"hSTR1": hstr1, "hSTR2": hstr2}, details)
+        self.assertEqual(entry["LengthEffectTestResult"], TEST_RESULT_NOT_SIGNIFICANT)
+        self.assertEqual((entry["LengthEffectSlope"], entry["LengthEffectFDR"]), (0.3, 0.5))
+        self.assertEqual(entry["Details"], {"zhangLocusId": "Human_STR_7", "lengthEffectSourceLibrary": "hSTR1",
+                                            "hSTR1": hstr1, "hSTR2": hstr2})
+
+        entry = build_lookup_entry({"hSTR2": hstr2}, details)
+        self.assertEqual(entry["LengthEffectTestResult"], TEST_RESULT_SIGNIFICANT)
+        self.assertEqual((entry["LengthEffectSlope"], entry["LengthEffectFDR"]), (0.1, 0.01))
+        self.assertEqual(entry["Details"]["lengthEffectSourceLibrary"], "hSTR2")
+        self.assertNotIn("hSTR1", entry["Details"])
+
+        entry = build_lookup_entry({}, details)
+        self.assertEqual(entry["LengthEffectTestResult"], TEST_RESULT_NOT_ENOUGH_DATA)
+        self.assertEqual((entry["LengthEffectSlope"], entry["LengthEffectFDR"]), (None, None))
+        self.assertEqual(entry["Details"], {"zhangLocusId": "Human_STR_7", "lengthEffectSourceLibrary": None})
+
+    def test_pick_best_entry_prefers_hstr1_then_hstr2_then_lowest_fdr(self):
+        def entry(source_library, fdr, entry_id):
+            return {"LengthEffectFDR": fdr, "Details": {"lengthEffectSourceLibrary": source_library}, "id": entry_id}
+
+        not_analyzed = entry(None, None, "not analyzed")
+        weak_hstr1 = entry("hSTR1", 0.5, "weak hSTR1")
+        strong_hstr1 = entry("hSTR1", 0.01, "strong hSTR1")
+        strong_hstr2 = entry("hSTR2", 0.001, "strong hSTR2")
+        self.assertEqual(pick_best_entry([not_analyzed, weak_hstr1, strong_hstr1, strong_hstr2])["id"], "strong hSTR1")
+        self.assertEqual(pick_best_entry([not_analyzed, weak_hstr1, strong_hstr2])["id"], "weak hSTR1")
+        self.assertEqual(pick_best_entry([not_analyzed, strong_hstr2])["id"], "strong hSTR2")
+        self.assertEqual(pick_best_entry([not_analyzed])["id"], "not analyzed")
 
     def test_collect_catalog_candidates_keeps_only_overlapping_loci(self):
         catalog = self.dir / "catalog.json"
