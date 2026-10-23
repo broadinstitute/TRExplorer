@@ -5151,12 +5151,18 @@ gtag('config', 'G-6R8FPBQRFH');
         CentromereAndSatelliteRegion: {
             displayName: 'Centromere and Satellite Regions',
             resultsTableHeaderName: 'CenSat',
-            // Shorter than the column's description in global_constants.py, whose list of every class makes the popup
-            // too tall to fit next to the column dialog's ? icon, so it never shows. The value popups explain each class.
+            // Lists every class in a few grouped lines rather than as the column's description in global_constants.py
+            // does (one list item with a definition per class), which makes the popup too tall to fit next to the
+            // column dialog's ? icon, so it never shows. The value popups explain each class.
             helpText: `The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from
-                the Miga lab's centromeric satellite annotation. For example: HSat3 (a human satellite 3 array),
-                active_hor (the alpha satellite array where the centromere forms), or ct (a centromeric transition region
-                between satellite arrays). Empty if the TR locus doesn't overlap any of these regions.`,
+                the Miga lab's centromeric satellite annotation. Possible values:<br />
+                <b>Alpha satellite:</b> active_hor (the array where the centromere forms), hor (inactive), dhor
+                (diverged), mon (monomeric), mixedAlpha<br />
+                <b>Human satellite:</b> HSat1A, HSat1B, HSat2, HSat3, HSat2_3 (HSat2 or HSat3), and GAP,HSat2 or
+                GAP,HSat3 (next to an assembly gap)<br />
+                <b>Other satellite:</b> bSat (beta), gSat (gamma), cenSat (any other centromeric satellite)<br />
+                <b>Other:</b> rDNA (ribosomal DNA array), ct (centromeric transition region between satellite arrays)<br />
+                Empty if the TR locus doesn't overlap any of these regions.`,
             getValue: (row) => {
                 if (!row['CentromereAndSatelliteRegion']) return ''
                 const escapedPopupContent = buildCentromereAndSatelliteRegionDetailsHtml(row)
