@@ -2746,6 +2746,9 @@ gtag('config', 'G-6R8FPBQRFH');
         // Extra polymorphism filter rows (in addition to the single primary one)
         extraPolymorphismFilters: '',
 
+        // Search results plots, as serialized by serializeSearchResultsPlotSettingsList
+        plots: '',
+
         // Custom track URLs
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
@@ -2851,7 +2854,8 @@ gtag('config', 'G-6R8FPBQRFH');
         Object.entries(URL_PARAM_ALIASES).map(([k, v]) => [v, k])
     )
 
-    const writePersistentPageStateToUrl = () => {
+    // replaceCurrentHistoryEntry = true changes the current browser history entry instead of adding one
+    const writePersistentPageStateToUrl = (replaceCurrentHistoryEntry = false) => {
         // Create object with only non-default values
         const nonDefaultParams = {}
         for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
@@ -2869,7 +2873,11 @@ gtag('config', 'G-6R8FPBQRFH');
         const currentHash = window.location.hash
         if (currentHash !== hash) {
             // Update URL and add to browser history
-            window.history.pushState(null, '', hash)
+            if (replaceCurrentHistoryEntry) {
+                window.history.replaceState(null, '', hash)
+            } else {
+                window.history.pushState(null, '', hash)
+            }
         }
     }
 
@@ -6272,6 +6280,150 @@ gtag('config', 'G-6R8FPBQRFH');
     </div>
 </div>
 
+<!-- modal dialog for adding or editing a search results plot -->
+<div class="ui small modal" id="search-results-plot-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="search-results-plot-dialog-title">Add Plot</div>
+    <div class="content">
+        <div class="ui form">
+            <div class="inline fields">
+                <label>Plot type:</label>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="bar" checked><label>Bar Plot</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="scatter"><label>Scatter Plot</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="box"><label>Box Plot</label></div></div>
+            </div>
+            <div class="fields">
+                <div class="field">
+                    <label>X-axis</label>
+                    <div class="ui search selection dropdown" id="plot-x-column-dropdown">
+                        <input type="hidden">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">Select column</div>
+                        <div class="menu"></div>
+                    </div>
+                </div>
+                <div class="field" id="plot-x-scale-field">
+                    <label>X-axis scale</label>
+                    <div class="ui selection dropdown" id="plot-x-scale-dropdown">
+                        <input type="hidden" value="linear">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Linear</div>
+                        <div class="menu">
+                            <div class="item" data-value="linear">Linear</div>
+                            <div class="item" data-value="log">Log</div>
+                            <div class="item" data-value="symlog">Symmetric log</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="inline fields" id="plot-x-mode-field">
+                <label>Treat X-axis values as:</label>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotXMode" value="categories" checked><label>Categories (one bar per value)</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotXMode" value="bins"><label>Numbers (histogram)</label></div></div>
+            </div>
+            <div class="inline field" id="plot-bins-field">
+                <label>Number of bins:</label>
+                <input type="number" id="plot-bins-input" min="2" max="200" style="width: 90px">
+            </div>
+            <div class="fields">
+                <div class="field">
+                    <label>Y-axis</label>
+                    <div class="ui search selection dropdown" id="plot-y-column-dropdown">
+                        <input type="hidden">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">Select column</div>
+                        <div class="menu"></div>
+                    </div>
+                </div>
+                <div class="field" id="plot-y-scale-field">
+                    <label>Y-axis scale</label>
+                    <div class="ui selection dropdown" id="plot-y-scale-dropdown">
+                        <input type="hidden" value="linear">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Linear</div>
+                        <div class="menu">
+                            <div class="item" data-value="linear">Linear</div>
+                            <div class="item" data-value="log">Log</div>
+                            <div class="item" data-value="symlog">Symmetric log</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="field" id="plot-y-aggregate-field">
+                <label>Bar height</label>
+                <div class="ui selection dropdown" id="plot-y-aggregate-dropdown">
+                    <input type="hidden" value="mean">
+                    <i class="dropdown icon"></i>
+                    <div class="text">Mean</div>
+                    <div class="menu">
+                        <div class="item" data-value="mean">Mean</div>
+                        <div class="item" data-value="median">Median</div>
+                        <div class="item" data-value="min">Min</div>
+                        <div class="item" data-value="max">Max</div>
+                        <div class="item" data-value="sum">Sum</div>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label>Color by (optional)</label>
+                <div class="ui search selection dropdown" id="plot-color-column-dropdown">
+                    <input type="hidden">
+                    <i class="dropdown icon"></i>
+                    <div class="default text">None</div>
+                    <div class="menu"></div>
+                </div>
+            </div>
+            <div class="fields" id="plot-sort-fields">
+                <div class="field">
+                    <label>Sort categories by</label>
+                    <div class="ui search selection dropdown" id="plot-sort-dropdown">
+                        <input type="hidden" value="height">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Bar height</div>
+                        <div class="menu">
+                            <div class="item" data-value="height">Bar height</div>
+                            <div class="item" data-value="count">Number of loci</div>
+                            <div class="item" data-value="value">Category value</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Order</label>
+                    <div class="ui selection dropdown" id="plot-sort-direction-dropdown">
+                        <input type="hidden" value="desc">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Descending</div>
+                        <div class="menu">
+                            <div class="item" data-value="desc">Descending</div>
+                            <div class="item" data-value="asc">Ascending</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="inline field" id="plot-top-n-field">
+                <label>Show the</label>
+                <input type="number" id="plot-top-n-input" min="1" max="100" style="width: 80px">
+                <label style="margin-left: 0.5em">most frequent categories (at most 20 for colors)</label>
+            </div>
+            <div class="inline fields" id="plot-show-other-field">
+                <div class="field"><div class="ui checkbox"><input type="checkbox" id="plot-show-other-checkbox"><label>Show the less frequent categories as "Other"</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" id="plot-show-missing-checkbox"><label>Show loci with no value as "Missing"</label></div></div>
+            </div>
+            <div class="field" id="plot-percent-field">
+                <div class="ui checkbox"><input type="checkbox" id="plot-percent-checkbox"><label>Show each stacked bar as percentages</label></div>
+            </div>
+            <div id="search-results-plot-dialog-error" class="ui negative message" style="display: none"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">Cancel</div>
+        <div class="ui positive right labeled icon button" id="search-results-plot-dialog-ok-button">
+            OK
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for selecting columns to export -->
 <div class="ui modal" id="export-column-dialog">
     <i class="close icon"></i>
@@ -6410,7 +6562,7 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav" style="min-width: 700px">
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(10/20/2026)</span></a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(10/24/2026)</span></a>
         <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>
@@ -6787,6 +6939,12 @@ gtag('config', 'G-6R8FPBQRFH');
                 <div class="pagination-container top-pagination"></div>
                 <div id="results-table"></div>
                 <div class="pagination-container bottom-pagination"></div>
+                <div id="search-results-plots-area" style="display: none">
+                    <div id="search-results-plots"></div>
+                    <div id="add-search-results-plot-link-container">
+                        <a href="#" id="add-search-results-plot-link">Add plot...</a>
+                    </div>
+                </div>
                 <div id="error-message" class="ui negative message" style="display: none">
                     <i class="close icon"></i>
                     <div class="header">Error</div>
@@ -6797,6 +6955,1500 @@ gtag('config', 'G-6R8FPBQRFH');
         <div class="one wide column"></div>
     </div>
 </div>
+
+<style>
+    #search-results-plots-area {
+        margin-top: 10px;
+    }
+    .search-results-plot {
+        margin: 25px 0 10px 0;
+        padding: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+    }
+    .search-results-plot-canvas-container {
+        position: relative;
+        height: 420px;
+    }
+    .search-results-plot-caption {
+        margin-top: 8px;
+        color: #555555;
+        font-size: 13px;
+    }
+    .search-results-plot-links {
+        margin-top: 8px;
+    }
+    .search-results-plot-links a {
+        margin-right: 20px;
+        cursor: pointer;
+    }
+    #add-search-results-plot-link-container {
+        margin: 15px 0 25px 0;
+    }
+    /* The plot dialog's dropdowns are only as wide as their text, instead of as wide as their field */
+    #search-results-plot-dialog .ui.form .field > .selection.dropdown {
+        width: auto;
+        min-width: 0;
+    }
+    /* ...except that an open search dropdown widens, so that the typed search text fits */
+    #search-results-plot-dialog .ui.form .field > .search.selection.dropdown.active {
+        min-width: 14em;
+    }
+    /* Each open menu is as wide as its longest item, and at least as wide as its dropdown */
+    #search-results-plot-dialog .ui.selection.dropdown .menu {
+        width: max-content;
+        min-width: calc(100% + 2px);
+    }
+</style>
+
+<script>
+
+    // Search results plots: bar, scatter and box plots of the loci that the current search returns. Each plot is
+    // described by a settings object (see DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS), and the list of these is kept in the
+    // URL (the "plots" page state key) so that reloading the page shows the same plots. Each plot runs its own BigQuery
+    // query, using the WHERE clause of the current search, to compute the aggregate values that it shows.
+
+    // Columns that the plots can use, with their plotAxisType ('categorical', 'numerical' or 'categorical_or_numerical')
+    // Generated by get_plot_columns() in global_constants.py
+    const SEARCH_RESULTS_PLOT_COLUMNS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "type": "STRING", "plotAxisType": "categorical"}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "type": "STRING", "plotAxisType": "categorical"}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "type": "STRING", "plotAxisType": "categorical"}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "Source", "displayName": "Source", "group": "Core", "type": "STRING", "plotAxisType": "categorical"}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "VariationClusterFilterReason", "displayName": "VC Filter Reason", "group": "Additional Layers", "type": "STRING", "plotAxisType": "categorical"}, {"name": "KnownDiseaseAssociatedLocus", "displayName": "Known Disease Locus", "group": "Additional Layers", "type": "STRING", "plotAxisType": "categorical"}, {"name": "KnownDiseaseAssociatedMotif", "displayName": "Known Disease Motif", "group": "Additional Layers", "type": "STRING", "plotAxisType": "categorical"}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "type": "STRING", "plotAxisType": "categorical"}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_ShortAllele99thPercentile", "displayName": "TenK10K Short Allele 99th Percentile", "group": "Polymorphism (TenK10K)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "TenK10K_ShortAlleleMax", "displayName": "TenK10K Short Allele Max", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_UniqueAlleleLengths", "displayName": "TenK10K Unique Allele Lengths", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "TenK10K_StdevRankPercentile", "displayName": "TenK10K Stdev Rank Percentile", "group": "Polymorphism (TenK10K)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256:LPS Min Allele", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256:LPS Mode Allele", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_Stdev", "displayName": "HPRC256:LPS Stdev", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_Median", "displayName": "HPRC256:LPS Median", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256:LPS 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256:LPS Max Allele", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_ShortAllele99thPercentile", "displayName": "HPRC256:LPS Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_ShortAlleleMax", "displayName": "HPRC256:LPS Short Allele Max", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_HemiAllele99thPercentile", "displayName": "HPRC256:LPS Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_HemiAlleleMax", "displayName": "HPRC256:LPS Hemi Allele Max", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_UniqueAlleleLengths", "displayName": "HPRC256:LPS Unique Allele Lengths", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256:LPS Num Called", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256:LPS Stdev Rank", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "HPRC256_StdevRankPercentile", "displayName": "HPRC256:LPS Stdev Rank Percentile", "group": "Polymorphism (HPRC256:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256_NumIntervalsThatIncludeThisLocusId", "displayName": "HPRC256:LPS # Intervals", "group": "Polymorphism (HPRC256:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_MinAllele", "displayName": "HPRC256:Length Min Allele", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_ModeAllele", "displayName": "HPRC256:Length Mode Allele", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_Stdev", "displayName": "HPRC256:Length Stdev", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_Median", "displayName": "HPRC256:Length Median", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_99thPercentile", "displayName": "HPRC256:Length 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_MaxAllele", "displayName": "HPRC256:Length Max Allele", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_ShortAllele99thPercentile", "displayName": "HPRC256:Length Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_ShortAlleleMax", "displayName": "HPRC256:Length Short Allele Max", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_HemiAllele99thPercentile", "displayName": "HPRC256:Length Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_HemiAlleleMax", "displayName": "HPRC256:Length Hemi Allele Max", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_UniqueAlleleLengths", "displayName": "HPRC256:Length Unique Allele Lengths", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_NumCalledAlleles", "displayName": "HPRC256:Length Num Called", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "HPRC256TotalLength_StdevRankByMotif", "displayName": "HPRC256:Length Stdev Rank", "group": "Polymorphism (HPRC256:Length)", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "HPRC256TotalLength_StdevRankPercentile", "displayName": "HPRC256:Length Stdev Rank Percentile", "group": "Polymorphism (HPRC256:Length)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027:LPS Min Allele", "group": "Polymorphism (AoU1027:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027:LPS Mode Allele", "group": "Polymorphism (AoU1027:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "AoU1027_Stdev", "displayName": "AoU1027:LPS Stdev", "group": "Polymorphism (AoU1027:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_Median", "displayName": "AoU1027:LPS Median", "group": "Polymorphism (AoU1027:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027:LPS 99th Percentile", "group": "Polymorphism (AoU1027:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027:LPS Max Allele", "group": "Polymorphism (AoU1027:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027:LPS Num Called", "group": "Polymorphism (AoU1027:LPS)", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027:LPS Stdev Rank", "group": "Polymorphism (AoU1027:LPS)", "type": "INTEGER", "plotAxisType": "numerical"}, {"name": "AoU1027_StdevRankPercentile", "displayName": "AoU1027:LPS Stdev Rank Percentile", "group": "Polymorphism (AoU1027:LPS)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Additional Layers #2", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Additional Layers #2", "type": "INTEGER", "plotAxisType": "categorical_or_numerical"}, {"name": "Tanudisastro2024_MinPvalue", "displayName": "sc-eTRs: Min P-value", "group": "Additional Layers #2", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "Manigbas2024_MinPvalue", "displayName": "PheWAS: Min P-value", "group": "Additional Layers #2", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "CentromereAndSatelliteRegion", "displayName": "Centromere and Satellite Regions", "group": "New Columns (10/2026)", "type": "STRING", "plotAxisType": "categorical"}, {"name": "Zhang2025_LengthEffectTestResult", "displayName": "STR MPRA: Length Effect", "group": "New Columns (10/2026)", "type": "STRING", "plotAxisType": "categorical"}, {"name": "Zhang2025_LengthEffectSlope", "displayName": "STR MPRA: Length Effect Slope", "group": "New Columns (10/2026)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "Zhang2025_LengthEffectFDR", "displayName": "STR MPRA: Length Effect FDR", "group": "New Columns (10/2026)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "SpliceAI_MaxDeltaScore", "displayName": "SpliceAI Max Delta Score", "group": "New Columns (10/2026)", "type": "FLOAT", "plotAxisType": "numerical"}, {"name": "SpliceAI_MaxDeltaScoreAlleleSize", "displayName": "SpliceAI Max Delta Score Allele Size", "group": "New Columns (10/2026)", "type": "STRING", "plotAxisType": "categorical"}, {"name": "SpliceAI_MinAlleleSizeThatAffectsSplicing", "displayName": "SpliceAI Min Allele Size That Affects Splicing", "group": "New Columns (10/2026)", "type": "STRING", "plotAxisType": "categorical"}]
+    const SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME = Object.fromEntries(SEARCH_RESULTS_PLOT_COLUMNS.map(c => [c.name, c]))
+
+    // The "Add plot..." link appears when a search returns at least this many loci
+    const MIN_SEARCH_RESULTS_TO_SHOW_PLOTS = 1
+
+    // The query proxy returns at most this many rows per request
+    const QUERY_PROXY_MAX_PAGE_SIZE = 10000
+
+    // Scatter plots of larger searches show a random sample of this many loci
+    const MAX_SCATTER_PLOT_POINTS = QUERY_PROXY_MAX_PAGE_SIZE
+
+    // Category labels that the plot queries return for values outside the top N, for missing values, and (in
+    // histograms) for values that a log scale can't show
+    const PLOT_OTHER_CATEGORY = '__other__'
+    const PLOT_MISSING_CATEGORY = '__missing__'
+    const PLOT_EXCLUDED_BIN = '__excluded__'
+
+    const PLOT_TYPES = ['bar', 'scatter', 'box']
+    const PLOT_X_MODES = ['categories', 'bins']
+    const PLOT_SCALES = ['linear', 'log', 'symlog']
+    const PLOT_AGGREGATES = ['mean', 'median', 'min', 'max', 'sum']
+    const PLOT_SORT_ORDERS = ['height', 'count', 'value']
+    const PLOT_SORT_DIRECTIONS = ['desc', 'asc']
+
+    const PLOT_AGGREGATE_SQL = {
+        mean: 'AVG(y)',
+        // 100 buckets, since with fewer the approximation can land on the wrong value of a column with few values
+        median: 'APPROX_QUANTILES(y, 100)[SAFE_OFFSET(50)]',
+        min: 'MIN(y)',
+        max: 'MAX(y)',
+        sum: 'SUM(y)',
+    }
+    const PLOT_AGGREGATE_LABELS = {mean: 'Mean', median: 'Median', min: 'Min', max: 'Max', sum: 'Sum of'}
+    const PLOT_SCALE_LABELS = {linear: 'linear', log: 'log', symlog: 'symmetric log'}
+
+    const DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS = {
+        type: 'bar',
+        x: '',               // x-axis column
+        xMode: 'categories', // bar plots: one bar per x value ('categories'), or a histogram of the x values ('bins')
+        bins: 30,            // histograms: number of bins
+        y: '',               // y-axis column. For bar plots, '' means the bar height is the number of loci
+        agg: 'mean',         // bar plots with a y column: how the bar height summarizes the y values
+        color: '',           // optional column whose values set the colors
+        xScale: 'linear',
+        yScale: 'linear',
+        topN: 10,            // how many of the most frequent categories to show
+        other: 0,            // 1 = show the categories outside the top N as one "Other" category
+        missing: 0,          // 1 = show loci with no value as a "Missing" category
+        sort: 'height',      // categorical x-axes: 'height' (bar height or box median), 'count', 'value', or a column name to sort by its mean
+        dir: 'desc',
+        pct: 0,              // stacked bar plots: 1 = show each stack as percentages that add up to 100
+    }
+
+    // Short names for the settings in the URL
+    const SEARCH_RESULTS_PLOT_SETTING_URL_KEYS = {
+        type: 't', x: 'x', xMode: 'xm', bins: 'b', y: 'y', agg: 'a', color: 'c', xScale: 'xs', yScale: 'ys',
+        topN: 'n', other: 'o', missing: 'm', sort: 's', dir: 'd', pct: 'p',
+    }
+    const SEARCH_RESULTS_PLOT_SETTING_NAMES_BY_URL_KEY = Object.fromEntries(
+        Object.entries(SEARCH_RESULTS_PLOT_SETTING_URL_KEYS).map(([name, urlKey]) => [urlKey, name]))
+    const NUMERIC_SEARCH_RESULTS_PLOT_SETTINGS = ['bins', 'topN', 'other', 'missing', 'pct']
+
+    // Tableau 10 followed by lighter shades, for the color categories
+    const PLOT_CATEGORY_COLORS = [
+        '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
+        '#aec7e8', '#ffbb78', '#ff9896', '#98df8a', '#c5b0d5', '#c49c94', '#f7b6d2', '#dbdb8d', '#9edae5', '#17becf',
+    ]
+    const PLOT_SINGLE_SERIES_COLOR = '#2185d0'
+
+    // The number of color categories: the number of most frequent categories to show, but at most one per palette
+    // color, so that no two categories share a color
+    const getNumColorCategories = (settings) => Math.min(settings.topN, PLOT_CATEGORY_COLORS.length)
+    const PLOT_OTHER_CATEGORY_COLOR = '#888888'
+    const PLOT_MISSING_CATEGORY_COLOR = '#cccccc'
+
+    const canColumnBeCategoricalPlotAxis = (column) => !!column && column.plotAxisType !== 'numerical'
+    const canColumnBeNumericalPlotAxis = (column) => !!column && column.plotAxisType !== 'categorical'
+    // A summary of genomic coordinates (such as the mean start of the loci in a bar) means little, so these columns
+    // can be scatter plot axes and histogram X-axes, but not bar or box plot Y-axes
+    const GENOMIC_COORDINATE_COLUMN_NAMES = new Set(['start_0based', 'end_1based'])
+    const canColumnBeBarOrBoxPlotYAxis = (column) => canColumnBeNumericalPlotAxis(column) && !GENOMIC_COORDINATE_COLUMN_NAMES.has(column.name)
+
+    // Whether a bar plot is a histogram of a numeric x column. A numerical-only x column always is, and a
+    // categorical-only one never is.
+    const isHistogramPlot = (settings) => {
+        if (settings.type !== 'bar') return false
+        const xColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x]
+        if (!xColumn) return false
+        if (xColumn.plotAxisType === 'numerical') return true
+        if (xColumn.plotAxisType === 'categorical') return false
+        return settings.xMode === 'bins'
+    }
+
+    // Bar plots stack the color categories when the bar heights add up (counts and sums), and put them side by side
+    // otherwise (means, medians, mins and maxes)
+    const isStackedBarPlot = (settings) => settings.type === 'bar' && !!settings.color && (!settings.y || settings.agg === 'sum')
+
+    const doesPlotHaveCategoricalXAxis = (settings) => settings.type === 'box' || (settings.type === 'bar' && !isHistogramPlot(settings))
+
+    // --- Settings and the URL ---
+
+    /**
+     * Returns the reason the given plot settings can't be plotted, or '' if they can.
+     */
+    const findProblemWithSearchResultsPlotSettings = (settings) => {
+        if (!PLOT_TYPES.includes(settings.type)) return `Unknown plot type: ${settings.type}`
+        const xColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x]
+        const yColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.y]
+        if (!settings.x) return 'Select an X-axis column.'
+        if (!xColumn) return `Unknown X-axis column: ${settings.x}`
+        if (settings.type === 'scatter' && !canColumnBeNumericalPlotAxis(xColumn)) return `${xColumn.displayName} can't be a scatter plot X-axis since it isn't numeric.`
+        if (settings.type === 'box' && !canColumnBeCategoricalPlotAxis(xColumn)) return `${xColumn.displayName} can't be a box plot X-axis since it isn't categorical.`
+        if (settings.type !== 'bar' && !settings.y) return 'Select a Y-axis column.'
+        if (settings.y && !yColumn) return `Unknown Y-axis column: ${settings.y}`
+        if (settings.y && !canColumnBeNumericalPlotAxis(yColumn)) return `${yColumn.displayName} can't be a Y-axis since it isn't numeric.`
+        if (settings.y && settings.type !== 'scatter' && !canColumnBeBarOrBoxPlotYAxis(yColumn)) return `${yColumn.displayName} can only be a scatter plot Y-axis.`
+        if (settings.color && !canColumnBeCategoricalPlotAxis(SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.color])) return `Unknown or non-categorical color column: ${settings.color}`
+        if (!PLOT_X_MODES.includes(settings.xMode)) return `Unknown X-axis mode: ${settings.xMode}`
+        if (!PLOT_SCALES.includes(settings.xScale) || !PLOT_SCALES.includes(settings.yScale)) return 'Unknown axis scale.'
+        if (!PLOT_AGGREGATES.includes(settings.agg)) return `Unknown aggregate: ${settings.agg}`
+        if (!PLOT_SORT_DIRECTIONS.includes(settings.dir)) return `Unknown sort direction: ${settings.dir}`
+        if (!PLOT_SORT_ORDERS.includes(settings.sort) && !canColumnBeNumericalPlotAxis(SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.sort])) return `Unknown sort order: ${settings.sort}`
+        if (!Number.isInteger(settings.topN) || settings.topN < 1 || settings.topN > 100) return 'The number of categories must be a whole number between 1 and 100.'
+        if (!Number.isInteger(settings.bins) || settings.bins < 2 || settings.bins > 200) return 'The number of bins must be a whole number between 2 and 200.'
+        return ''
+    }
+
+    /**
+     * Converts a list of plot settings to the string stored in the URL, e.g. "t:bar,x:GencodeGeneRegion;t:box,..."
+     * Only the settings that differ from DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS are written, except the plot type.
+     */
+    const serializeSearchResultsPlotSettingsList = (settingsList) => settingsList.map(settings =>
+        Object.entries(SEARCH_RESULTS_PLOT_SETTING_URL_KEYS)
+            .filter(([name]) => name === 'type' || settings[name] !== DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS[name])
+            .map(([name, urlKey]) => `${urlKey}:${encodeURIComponent(settings[name])}`)
+            .join(',')
+    ).join(';')
+
+    /**
+     * Parses the string written by serializeSearchResultsPlotSettingsList. Plots whose settings can't be plotted (e.g.
+     * a column that no longer exists) are dropped with a console warning.
+     */
+    const parseSearchResultsPlotSettingsList = (serialized) => {
+        if (!serialized) return []
+        return String(serialized).split(';').filter(s => s.trim()).map(serializedSettings => {
+            const settings = {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS}
+            serializedSettings.split(',').forEach(keyAndValue => {
+                const separatorIndex = keyAndValue.indexOf(':')
+                const name = SEARCH_RESULTS_PLOT_SETTING_NAMES_BY_URL_KEY[keyAndValue.slice(0, separatorIndex)]
+                if (separatorIndex < 0 || !name) return
+                const value = decodeURIComponent(keyAndValue.slice(separatorIndex + 1))
+                settings[name] = NUMERIC_SEARCH_RESULTS_PLOT_SETTINGS.includes(name) ? Number(value) : value
+            })
+            const problem = findProblemWithSearchResultsPlotSettings(settings)
+            if (problem) {
+                console.warn(`Skipping plot "${serializedSettings}" from the URL: ${problem}`)
+                return null
+            }
+            return settings
+        }).filter(settings => settings !== null)
+    }
+
+    // --- Queries ---
+
+    const plotCategoryExpression = (column) => column.type === 'STRING' ? `NULLIF(TRIM(${column.name}), '')` : column.name
+    const plotNumberExpression = (column) => `CAST(${column.name} AS FLOAT64)`
+
+    // The SQL that maps a value to the plotted position on an axis with the given scale. NULL means the value can't
+    // be shown (zero or negative values on a log scale).
+    const plotScaleTransformSql = (expression, scale) => {
+        if (scale === 'log') return `IF(${expression} > 0, LOG10(${expression}), NULL)`
+        // Below 1e-8, log10(1 + |x|) is computed as |x| / ln(10), since 1 + |x| would round to 1 for tiny values
+        // like small p-values
+        if (scale === 'symlog') return `SIGN(${expression}) * IF(ABS(${expression}) < ${SYMLOG_LINEAR_BELOW}, ABS(${expression}) / LN(10), LOG10(1 + ABS(${expression})))`
+        return expression
+    }
+
+    // Values that can be shown on an axis with the given scale
+    const plotableValueSql = (expression, scale) => scale === 'log' ? `(${expression} > 0)` : `(${expression} IS NOT NULL)`
+
+    // A CTE with the topN most frequent non-missing values of one of the "base" CTE's columns
+    const topValuesCte = (cteName, valueAlias, topN) =>
+        `${cteName} AS (SELECT ${valueAlias} AS value FROM base WHERE ${valueAlias} IS NOT NULL GROUP BY ${valueAlias} ` +
+        `ORDER BY COUNT(*) DESC, CAST(${valueAlias} AS STRING) LIMIT ${topN})`
+
+    const categoryLabelSql = (valueAlias, topValuesCteName) =>
+        `CASE WHEN ${valueAlias} IS NULL THEN '${PLOT_MISSING_CATEGORY}' ` +
+        `WHEN ${valueAlias} IN (SELECT value FROM ${topValuesCteName}) THEN CAST(${valueAlias} AS STRING) ` +
+        `ELSE '${PLOT_OTHER_CATEGORY}' END`
+
+    const isSortByColumn = (settings) => !PLOT_SORT_ORDERS.includes(settings.sort)
+
+    /**
+     * Returns the SQL query that computes what the given plot shows.
+     *
+     * Bar and box plots return one row per (x category, color category) pair, plus the rows that ROLLUP adds: one per
+     * x category with c_label NULL (is_total_over_colors = 1), and one for all loci (is_grand_total = 1).
+     * Scatter plots return up to MAX_SCATTER_PLOT_POINTS loci, chosen by hashing the LocusId so that the same loci
+     * are chosen every time, plus the number of loci in the search results in every row.
+     *
+     * Args:
+     *   settings: plot settings that findProblemWithSearchResultsPlotSettings accepts
+     *   completeTableId: the backtick-quoted BigQuery table
+     *   whereClause: the search's WHERE clause, or ''
+     */
+    const buildSearchResultsPlotQuery = (settings, completeTableId, whereClause) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const xColumn = columns[settings.x]
+        const yColumn = settings.y ? columns[settings.y] : null
+        const colorColumn = settings.color ? columns[settings.color] : null
+        const sortColumn = doesPlotHaveCategoricalXAxis(settings) && isSortByColumn(settings) ? columns[settings.sort] : null
+        const fromClause = `FROM ${completeTableId} ${whereClause}`.trim()
+
+        const histogram = isHistogramPlot(settings)
+        const baseColumns = [`${settings.type === 'scatter' || histogram ? plotNumberExpression(xColumn) : plotCategoryExpression(xColumn)} AS x`]
+        if (yColumn) baseColumns.push(`${plotNumberExpression(yColumn)} AS y`)
+        if (colorColumn) baseColumns.push(`${plotCategoryExpression(colorColumn)} AS c`)
+        if (sortColumn) baseColumns.push(`${plotNumberExpression(sortColumn)} AS s`)
+        if (settings.type === 'scatter') baseColumns.push('LocusId', 'FARM_FINGERPRINT(LocusId) AS locus_hash')
+
+        const ctes = [`base AS (SELECT ${baseColumns.join(', ')} ${fromClause})`]
+        if (colorColumn) ctes.push(topValuesCte('top_colors', 'c', getNumColorCategories(settings)))
+        const colorLabel = colorColumn ? categoryLabelSql('c', 'top_colors') : "''"
+
+        if (settings.type === 'scatter') {
+            const plotable = `${plotableValueSql('x', settings.xScale)} AND ${plotableValueSql('y', settings.yScale)}`
+            ctes.push(`counts AS (SELECT COUNT(*) AS n_rows, COUNTIF(x IS NOT NULL AND y IS NOT NULL) AS n_with_x_and_y, COUNTIF(${plotable}) AS n_plotable FROM base)`)
+            return `WITH ${ctes.join(', ')} ` +
+                `SELECT x, y, ${colorLabel} AS c_label, LocusId, n_rows, n_with_x_and_y, n_plotable ` +
+                `FROM base CROSS JOIN counts WHERE ${plotable} ORDER BY locus_hash, LocusId LIMIT ${MAX_SCATTER_PLOT_POINTS}`
+        }
+
+        // A fixed row order, so that if aggregate results ever span several pages of the query proxy (see
+        // fetchAllPagesOfPlotQuery), the pages don't overlap
+        const orderByLabels = 'ORDER BY is_grand_total, is_total_over_colors, x_label, c_label'
+        const valueColumns = [yColumn ? 'y' : null, sortColumn ? 's' : null].filter(Boolean).map(c => `, ${c}`).join('')
+        const rollupColumns = 'GROUPING(x_label) AS is_grand_total, GROUPING(c_label) AS is_total_over_colors, COUNT(*) AS n'
+        const sortValueColumns = sortColumn ? ', SUM(s) AS s_sum, COUNT(s) AS s_n' : ''
+        const yValueColumns = yColumn ? `, ${PLOT_AGGREGATE_SQL[settings.agg]} AS y_value, COUNT(y) AS n_y` : ''
+
+        if (histogram) {
+            // Equal-width bins in the plotted (scaled) space. A linear axis over an integer column gets bins whose
+            // width is a whole number, so that each bin holds a fixed set of integers.
+            const isIntegerBins = xColumn.type === 'INTEGER' && settings.xScale === 'linear'
+            const binWidth = isIntegerBins
+                ? `GREATEST(1, CEIL((MAX(tx) - MIN(tx) + 1) / ${settings.bins}))`
+                : `(MAX(tx) - MIN(tx)) / ${settings.bins}`
+            ctes.push(`transformed AS (SELECT *, ${plotScaleTransformSql('x', settings.xScale)} AS tx FROM base)`)
+            ctes.push(`bin_range AS (SELECT MIN(tx) AS lo, MAX(tx) AS hi, ${binWidth} AS width FROM transformed)`)
+            // Bin i holds the values from lo + i * width (inclusive) to lo + (i + 1) * width. Since floating point
+            // division can land just below or above a whole number, the estimate from dividing is corrected by
+            // comparing with those edges directly. The click filters use the same edges (see getHistogramBins, which
+            // turns them into whole numbers for integer columns on log and symmetric log axes).
+            ctes.push(`estimated_bins AS (SELECT *, CAST(IFNULL(FLOOR(SAFE_DIVIDE(tx - lo, width)), 0) AS INT64) AS estimated_bin ` +
+                'FROM transformed CROSS JOIN bin_range)')
+            const binSql = 'IF(width > 0, estimated_bin - IF(tx < lo + estimated_bin * width, 1, 0) + IF(tx >= lo + (estimated_bin + 1) * width, 1, 0), 0)'
+            ctes.push(`labeled AS (SELECT CASE WHEN x IS NULL THEN '${PLOT_MISSING_CATEGORY}' WHEN tx IS NULL THEN '${PLOT_EXCLUDED_BIN}' ` +
+                `ELSE CAST(LEAST(${settings.bins - 1}, GREATEST(0, ${binSql})) AS STRING) END AS x_label, ` +
+                `${colorLabel} AS c_label${valueColumns} FROM estimated_bins)`)
+            return `WITH ${ctes.join(', ')} ` +
+                `SELECT x_label, c_label, ${rollupColumns}${yValueColumns}, ` +
+                `(SELECT lo FROM bin_range) AS bin_range_lo, (SELECT hi FROM bin_range) AS bin_range_hi, (SELECT width FROM bin_range) AS bin_width ` +
+                `FROM labeled GROUP BY ROLLUP(x_label, c_label) ${orderByLabels}`
+        }
+
+        ctes.push(topValuesCte('top_x', 'x', settings.topN))
+        ctes.push(`labeled AS (SELECT ${categoryLabelSql('x', 'top_x')} AS x_label, ${colorLabel} AS c_label${valueColumns} FROM base)`)
+
+        if (settings.type === 'bar') {
+            return `WITH ${ctes.join(', ')} ` +
+                `SELECT x_label, c_label, ${rollupColumns}${yValueColumns}${sortValueColumns} FROM labeled GROUP BY ROLLUP(x_label, c_label) ${orderByLabels}`
+        }
+
+        // Box plots: approximate quartiles, and whiskers that reach the most extreme values within 1.5 times the
+        // interquartile range (IQR) of the box
+        const plotable = plotableValueSql('y', settings.yScale)
+        ctes.push(`stats AS (SELECT x_label, c_label, ${rollupColumns}, COUNTIF(${plotable}) AS n_y, ` +
+            `APPROX_QUANTILES(IF(${plotable}, y, NULL), 100) AS q${sortValueColumns} FROM labeled GROUP BY ROLLUP(x_label, c_label))`)
+        const q1 = 'stats.q[SAFE_OFFSET(25)]', q3 = 'stats.q[SAFE_OFFSET(75)]'
+        ctes.push(`whiskers AS (SELECT labeled.x_label, labeled.c_label, ` +
+            `MIN(IF(y >= ${q1} - 1.5 * (${q3} - ${q1}), y, NULL)) AS lower_whisker, ` +
+            `MAX(IF(y <= ${q3} + 1.5 * (${q3} - ${q1}), y, NULL)) AS upper_whisker ` +
+            `FROM labeled JOIN stats ON labeled.x_label = stats.x_label AND labeled.c_label = stats.c_label ` +
+            `WHERE ${plotable} GROUP BY 1, 2)`)
+        return `WITH ${ctes.join(', ')} ` +
+            `SELECT stats.x_label, stats.c_label, is_grand_total, is_total_over_colors, n, n_y, ` +
+            `${q1} AS q1, stats.q[SAFE_OFFSET(50)] AS median, ${q3} AS q3, ` +
+            `lower_whisker, upper_whisker${sortColumn ? ', s_sum, s_n' : ''} ` +
+            `FROM stats LEFT JOIN whiskers ON stats.x_label = whiskers.x_label AND stats.c_label = whiskers.c_label ` +
+            'ORDER BY is_grand_total, is_total_over_colors, stats.x_label, stats.c_label'
+    }
+
+    // --- Axis scales ---
+
+    // The same formula as plotScaleTransformSql's symmetric log, so that click filters agree with the histogram
+    // query's bins to the last digit. Below 1e-8, log10(1 + |v|) is computed as |v| / ln(10), since 1 + |v| would
+    // round to 1 for tiny values like small p-values.
+    const SYMLOG_LINEAR_BELOW = 1e-8
+    const symlogTransform = (value) => Math.sign(value) *
+        (Math.abs(value) < SYMLOG_LINEAR_BELOW ? Math.abs(value) / Math.LN10 : Math.log10(1 + Math.abs(value)))
+    const inverseSymlogTransform = (value) => Math.sign(value) *
+        (Math.abs(value) < SYMLOG_LINEAR_BELOW / Math.LN10 ? Math.abs(value) * Math.LN10 : Math.pow(10, Math.abs(value)) - 1)
+
+    // The value at which to draw a number on an axis with the given scale. Log scales are drawn by Chart.js itself.
+    const toPlottedValue = (value, scale) => (value === null || value === undefined) ? null : (scale === 'symlog' ? symlogTransform(value) : value)
+
+    const formatPlotNumber = (value) => {
+        if (value === null || value === undefined || Number.isNaN(value)) return ''
+        // Integers (e.g. genomic coordinates) are shown exactly
+        if (Number.isInteger(value)) return value.toLocaleString()
+        // Very small values (e.g. p-values) would round to 0 in decimal notation
+        if (Math.abs(value) < 1e-4) return value.toExponential(2)
+        return Number(value.toPrecision(3)).toLocaleString(undefined, {maximumFractionDigits: 20})
+    }
+
+    // For each axis scale, the functions that map a value to its plotted position and back
+    const PLOT_SCALE_TRANSFORMS = {
+        linear: {transform: (v) => v, inverse: (v) => v},
+        log: {transform: Math.log10, inverse: (v) => Math.pow(10, v)},
+        symlog: {transform: symlogTransform, inverse: inverseSymlogTransform},
+    }
+
+    /**
+     * Returns the values to label on a log or symmetric log axis that spans the given raw values: the 1, 5 and 2
+     * multiples of powers of 10 (signed, plus 0, on a symmetric log axis), in that order of preference. A value is
+     * skipped when it would be drawn closer than 1/12 of the axis length to a label already chosen, since the labels
+     * would overlap.
+     */
+    const computeAxisTickValuesForScale = (rawMin, rawMax, scale) => {
+        const {transform} = PLOT_SCALE_TRANSFORMS[scale]
+        const candidates = scale === 'symlog' ? [0] : []
+        for (const multiple of [1, 5, 2]) {
+            for (let exponent = scale === 'symlog' ? -3 : -300; exponent <= 15; exponent++) {
+                const value = Number((multiple * Math.pow(10, exponent)).toPrecision(1))
+                candidates.push(value)
+                if (scale === 'symlog') candidates.push(-value)
+            }
+        }
+        const minSpacing = (transform(rawMax) - transform(rawMin)) / 12
+        const tickValues = []
+        candidates.filter(v => v >= rawMin && v <= rawMax).forEach(value => {
+            if (tickValues.every(t => Math.abs(transform(value) - transform(t)) >= minSpacing)) {
+                tickValues.push(value)
+            }
+        })
+        return tickValues.sort((a, b) => a - b)
+    }
+
+    /**
+     * The Chart.js options for a linear axis whose values were already mapped to their plotted positions by the
+     * given log or symmetric log scale's transform, labeled with the original values.
+     */
+    const buildTransformedValueAxisOptions = (scale, title, extraOptions = {}) => {
+        const {transform, inverse} = PLOT_SCALE_TRANSFORMS[scale]
+        return {
+            type: 'linear',
+            title: {display: true, text: title, font: {size: 13}},
+            ...extraOptions,
+            afterBuildTicks: (axis) => {
+                const tickValues = computeAxisTickValuesForScale(inverse(axis.min), inverse(axis.max), scale)
+                // Axes too narrow for two such values keep the ticks that Chart.js chose
+                if (tickValues.length >= 2) axis.ticks = tickValues.map(value => ({value: transform(value)}))
+            },
+            ticks: {callback: (value) => formatPlotNumber(Number(inverse(value).toPrecision(6)))},
+        }
+    }
+
+    // The Chart.js options for a numeric axis with the given scale
+    const buildNumericAxisOptions = (scale, title, extraOptions = {}) => {
+        if (scale === 'symlog') return buildTransformedValueAxisOptions(scale, title, extraOptions)
+        const axisOptions = {
+            type: scale === 'log' ? 'logarithmic' : 'linear',
+            title: {display: true, text: title, font: {size: 13}},
+            ...extraOptions,
+        }
+        if (scale === 'log') {
+            axisOptions.ticks = {callback: (value) => {
+                // Label only 1, 2 and 5 times powers of 10, so the labels don't overlap
+                const leadingDigit = Number(value.toExponential(0)[0])
+                return [1, 2, 5].includes(leadingDigit) ? formatPlotNumber(value) : ''
+            }}
+        }
+        return axisOptions
+    }
+
+    // --- Chart configs ---
+
+    const plotCategoryDisplayLabel = (label) => label === PLOT_OTHER_CATEGORY ? 'Other' : (label === PLOT_MISSING_CATEGORY ? 'Missing' : label)
+
+    const isCategoryShown = (label, settings) => {
+        if (label === PLOT_OTHER_CATEGORY) return settings.other === 1
+        if (label === PLOT_MISSING_CATEGORY) return settings.missing === 1
+        return true
+    }
+
+    // Puts "Other" and then "Missing" after the other categories
+    const specialCategoryRank = (label) => label === PLOT_OTHER_CATEGORY ? 1 : (label === PLOT_MISSING_CATEGORY ? 2 : 0)
+
+    const colorForCategory = (label, index) => {
+        if (label === PLOT_OTHER_CATEGORY) return PLOT_OTHER_CATEGORY_COLOR
+        if (label === PLOT_MISSING_CATEGORY) return PLOT_MISSING_CATEGORY_COLOR
+        return PLOT_CATEGORY_COLORS[index % PLOT_CATEGORY_COLORS.length]
+    }
+
+    const hexColorWithAlpha = (hexColor, alpha) => {
+        const [r, g, b] = [1, 3, 5].map(i => parseInt(hexColor.slice(i, i + 2), 16))
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+    }
+
+    /**
+     * Returns the color categories of a bar, box or scatter plot's rows, with "Other" and "Missing" last and only if
+     * the settings show them. Numeric color columns are in increasing order, and the others are most frequent first.
+     * Returns [''] for plots with no color column.
+     */
+    const getShownColorCategories = (settings, rows) => {
+        if (!settings.color) return ['']
+        const countsByColor = {}
+        rows.filter(r => settings.type === 'scatter' || (r.is_grand_total === 0 && r.is_total_over_colors === 0)).forEach(r => {
+            countsByColor[r.c_label] = (countsByColor[r.c_label] || 0) + (settings.type === 'scatter' ? 1 : r.n)
+        })
+        const isNumericColorColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.color].type !== 'STRING'
+        return Object.keys(countsByColor)
+            .filter(label => isCategoryShown(label, settings))
+            .sort((a, b) => specialCategoryRank(a) - specialCategoryRank(b)
+                || (isNumericColorColumn && specialCategoryRank(a) === 0 ? Number(a) - Number(b) : countsByColor[b] - countsByColor[a])
+                || a.localeCompare(b))
+    }
+
+    const getPlotTitle = (settings) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const x = columns[settings.x].displayName
+        const y = settings.y ? columns[settings.y].displayName : ''
+        let title
+        if (settings.type === 'scatter') {
+            title = `${y} vs. ${x}`
+        } else if (settings.type === 'box') {
+            title = `${y} by ${x}`
+        } else if (isHistogramPlot(settings)) {
+            title = y ? `${PLOT_AGGREGATE_LABELS[settings.agg]} ${y} by ${x}` : `Distribution of ${x}`
+        } else {
+            title = y ? `${PLOT_AGGREGATE_LABELS[settings.agg]} ${y} by ${x}` : `Number of loci by ${x}`
+        }
+        return settings.color ? `${title}, colored by ${columns[settings.color].displayName}` : title
+    }
+
+    const pluralizeLoci = (n) => `${formatPlotNumber(n)} ${n === 1 ? 'locus' : 'loci'}`
+
+    // Sentences about the loci that the plot leaves out because they're in hidden categories
+    const describeHiddenCategories = (settings, xTotalRows, leafRows) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const sentences = []
+        const countLoci = (rowsToCount, label) => rowsToCount.filter(r => r.x_label === label).reduce((sum, r) => sum + r.n, 0)
+        const xName = columns[settings.x].displayName
+        if (doesPlotHaveCategoricalXAxis(settings) && settings.other !== 1 && countLoci(xTotalRows, PLOT_OTHER_CATEGORY) > 0) {
+            sentences.push(`${pluralizeLoci(countLoci(xTotalRows, PLOT_OTHER_CATEGORY))} whose ${xName} is not among the ${settings.topN} most frequent values are not shown.`)
+        }
+        if (settings.missing !== 1 && countLoci(xTotalRows, PLOT_MISSING_CATEGORY) > 0) {
+            sentences.push(`${pluralizeLoci(countLoci(xTotalRows, PLOT_MISSING_CATEGORY))} with no ${xName} value are not shown.`)
+        }
+        if (settings.color) {
+            const colorName = columns[settings.color].displayName
+            // Loci in a log histogram's excluded bin aren't plotted at all, and have their own caption sentence
+            const shownXLabels = new Set(xTotalRows.filter(r => isCategoryShown(r.x_label, settings) && r.x_label !== PLOT_EXCLUDED_BIN).map(r => r.x_label))
+            const countColorLoci = (label) => leafRows.filter(r => r.c_label === label && shownXLabels.has(r.x_label)).reduce((sum, r) => sum + r.n, 0)
+            if (settings.other !== 1 && countColorLoci(PLOT_OTHER_CATEGORY) > 0) {
+                sentences.push(`${pluralizeLoci(countColorLoci(PLOT_OTHER_CATEGORY))} whose ${colorName} is not among the ${getNumColorCategories(settings)} most frequent values are not shown.`)
+            }
+            if (settings.missing !== 1 && countColorLoci(PLOT_MISSING_CATEGORY) > 0) {
+                sentences.push(`${pluralizeLoci(countColorLoci(PLOT_MISSING_CATEGORY))} with no ${colorName} value are not shown.`)
+            }
+        }
+        return sentences
+    }
+
+    /**
+     * Orders a bar or box plot's x categories by the plot's sort settings. The "Other" and "Missing" categories always
+     * go last.
+     *
+     * Args:
+     *   settings: plot settings
+     *   xLabels: the x categories to order
+     *   heightsByXLabel: the bar heights, or the box medians
+     *   xTotalRowsByXLabel: the query row with each x category's totals over the color categories
+     */
+    const sortPlotCategories = (settings, xLabels, heightsByXLabel, xTotalRowsByXLabel) => {
+        const xColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x]
+        const sortKey = (label) => {
+            const row = xTotalRowsByXLabel[label]
+            if (settings.sort === 'height') return heightsByXLabel[label]
+            if (settings.sort === 'count') return row.n
+            if (settings.sort === 'value') return xColumn.type === 'STRING' ? label : Number(label)
+            return row.s_n > 0 ? row.s_sum / row.s_n : null
+        }
+        const direction = settings.dir === 'asc' ? 1 : -1
+        return [...xLabels].sort((a, b) => {
+            const specialRankDifference = specialCategoryRank(a) - specialCategoryRank(b)
+            if (specialRankDifference !== 0 || specialCategoryRank(a) > 0) return specialRankDifference
+            const [keyA, keyB] = [sortKey(a), sortKey(b)]
+            // Categories without a sort key (e.g. no values in the sort column) go last in either direction
+            if (keyA === null || keyA === undefined) return (keyB === null || keyB === undefined) ? 0 : 1
+            if (keyB === null || keyB === undefined) return -1
+            // Numeric comparison of digit runs puts text values like chromosome "9" before "10"
+            const comparison = typeof keyA === 'string' ? keyA.localeCompare(keyB, undefined, {numeric: true}) : keyA - keyB
+            return direction * comparison || a.localeCompare(b, undefined, {numeric: true})
+        })
+    }
+
+    /**
+     * Returns the smallest whole number whose plotted position on the given log or symmetric log axis is at or
+     * after the given (plotted) bin edge. So for an integer column, the filter >= this number selects the same loci
+     * as the histogram query's comparison of plotted positions with the edge.
+     */
+    const smallestIntegerAtOrAfterPlottedEdge = (edge, scale) => {
+        const {transform, inverse} = PLOT_SCALE_TRANSFORMS[scale]
+        let n = Math.ceil(inverse(edge))
+        while (transform(n - 1) >= edge) n--
+        while (transform(n) < edge) n++
+        return n
+    }
+
+    /**
+     * Returns the raw value at a (plotted) bin edge on a log or symmetric log axis, rounded to 12 significant digits
+     * when the rounded value is still plotted at or after the edge, so that e.g. a value of exactly 9 lands in the
+     * bin that starts at symlog(9) both in the histogram query and in the click filter.
+     */
+    const roundedValueAtOrAfterPlottedEdge = (edge, scale) => {
+        const {transform, inverse} = PLOT_SCALE_TRANSFORMS[scale]
+        const rounded = Number(inverse(edge).toPrecision(12))
+        return transform(rounded) >= edge ? rounded : inverse(edge)
+    }
+
+    // The labels and sort order of a histogram's bins, from the bin edges that the query returned
+    const getHistogramBins = (settings, rows) => {
+        const xColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x]
+        const firstRow = rows[0]
+        if (!firstRow || firstRow.bin_range_lo === null || firstRow.bin_range_lo === undefined) return []
+        const {bin_range_lo: lo, bin_range_hi: hi, bin_width: width} = firstRow
+        const isIntegerBins = xColumn.type === 'INTEGER' && settings.xScale === 'linear'
+        const numBins = isIntegerBins ? Math.ceil((hi - lo + 1) / width) : (width > 0 ? settings.bins : 1)
+        const toRawValue = PLOT_SCALE_TRANSFORMS[settings.xScale].inverse
+        const bins = []
+        for (let i = 0; i < numBins; i++) {
+            // rawStart and rawEnd are the bin's range, used to filter the search results to it. Integer bins
+            // include rawEnd, the others don't (except the last bin).
+            let displayLabel, rawStart, rawEnd
+            if (isIntegerBins) {
+                // The last bin can extend past the largest value, so its label stops there
+                [rawStart, rawEnd] = [lo + i * width, Math.min(lo + (i + 1) * width - 1, hi)]
+                displayLabel = rawStart === rawEnd ? formatPlotNumber(rawStart) : `${formatPlotNumber(rawStart)}-${formatPlotNumber(rawEnd)}`
+            } else {
+                [rawStart, rawEnd] = [toRawValue(lo + i * width), toRawValue(width > 0 ? lo + (i + 1) * width : hi)]
+                displayLabel = `${formatPlotNumber(rawStart)}-${formatPlotNumber(rawEnd)}`
+            }
+            // The edges that the click filter uses. On a log or symmetric log axis, the inverse of an edge can round
+            // to just past the value it stands for (e.g. 10 ** log10(5) is 5.000000000000001), so an integer
+            // column's edges are whole numbers, and other columns' edges are rounded when that keeps them on the
+            // same side of the edge.
+            const plottedEdges = [lo + i * width, lo + (i + 1) * width]
+            let [filterStart, filterEnd] = [rawStart, rawEnd]
+            if (settings.xScale !== 'linear' && width > 0) {
+                [filterStart, filterEnd] = plottedEdges.map(edge => xColumn.type === 'INTEGER'
+                    ? smallestIntegerAtOrAfterPlottedEdge(edge, settings.xScale)
+                    : roundedValueAtOrAfterPlottedEdge(edge, settings.xScale))
+            }
+            bins.push({xLabel: String(i), displayLabel, rawStart: filterStart, rawEnd: filterEnd, isFirstBin: i === 0, isLastBin: i === numBins - 1, isIntegerBins})
+        }
+        return bins
+    }
+
+    const buildBarPlotChart = (settings, rows) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const histogram = isHistogramPlot(settings)
+        const stacked = isStackedBarPlot(settings)
+        const percent = stacked && settings.pct === 1
+        const leafRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 0)
+        const xTotalRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 1)
+        const xTotalRowsByXLabel = Object.fromEntries(xTotalRows.map(r => [r.x_label, r]))
+        const grandTotalRow = rows.find(r => r.is_grand_total === 1)
+        const barValue = (row) => settings.y ? row.y_value : row.n
+        const colorLabels = getShownColorCategories(settings, rows)
+
+        // valuesByXLabel[xLabel][colorLabel] = the bar (or bar segment) value
+        const valuesByXLabel = {}
+        leafRows.forEach(r => {
+            valuesByXLabel[r.x_label] = valuesByXLabel[r.x_label] || {}
+            valuesByXLabel[r.x_label][settings.color ? r.c_label : ''] = barValue(r)
+        })
+
+        let xCategories
+        if (histogram) {
+            xCategories = getHistogramBins(settings, rows)
+            if (settings.missing === 1 && xTotalRowsByXLabel[PLOT_MISSING_CATEGORY]) {
+                xCategories.push({xLabel: PLOT_MISSING_CATEGORY, displayLabel: 'Missing'})
+            }
+        } else {
+            const shownXLabels = xTotalRows.map(r => r.x_label).filter(label => isCategoryShown(label, settings))
+            const heightsByXLabel = Object.fromEntries(shownXLabels.map(label => [label, stacked
+                ? colorLabels.reduce((sum, c) => sum + (valuesByXLabel[label]?.[c] || 0), 0)
+                : barValue(xTotalRowsByXLabel[label])]))
+            xCategories = sortPlotCategories(settings, shownXLabels, heightsByXLabel, xTotalRowsByXLabel)
+                .map(label => ({xLabel: label, displayLabel: plotCategoryDisplayLabel(label)}))
+        }
+
+        // Percent stacks divide by the sum of the segments' absolute values, so that sums of a signed column (which
+        // can add up to 0 or less) still give each segment a share with its own sign
+        const stackAbsoluteTotals = xCategories.map(({xLabel}) => colorLabels.reduce((sum, c) => sum + Math.abs(valuesByXLabel[xLabel]?.[c] || 0), 0))
+        // On a symmetric log axis, stacked segments are drawn as floating bars between the scaled running totals,
+        // since Chart.js would otherwise add up the scaled values
+        const drawStackAsFloatingBars = stacked && !percent && settings.yScale === 'symlog'
+        // Like Chart.js's own stacking, negative values (possible in sums) stack downward from 0 separately from the
+        // positive ones
+        const positiveRunningTotals = xCategories.map(() => 0)
+        const negativeRunningTotals = xCategories.map(() => 0)
+        const datasets = colorLabels.map((colorLabel, colorIndex) => {
+            const rawValues = xCategories.map(({xLabel}, i) => {
+                const value = valuesByXLabel[xLabel]?.[colorLabel]
+                if (value === undefined || value === null) return null
+                return percent ? (stackAbsoluteTotals[i] > 0 ? 100 * value / stackAbsoluteTotals[i] : 0) : value
+            })
+            const data = rawValues.map((value, i) => {
+                if (value === null) return null
+                if (!drawStackAsFloatingBars) return toPlottedValue(value, percent ? 'linear' : settings.yScale)
+                const runningTotals = value >= 0 ? positiveRunningTotals : negativeRunningTotals
+                const segment = [symlogTransform(runningTotals[i]), symlogTransform(runningTotals[i] + value)]
+                runningTotals[i] += value
+                return segment
+            })
+            const color = settings.color ? colorForCategory(colorLabel, colorIndex) : PLOT_SINGLE_SERIES_COLOR
+            return {
+                label: settings.color ? plotCategoryDisplayLabel(colorLabel) : (settings.y ? `${PLOT_AGGREGATE_LABELS[settings.agg]} ${columns[settings.y].displayName}` : 'Number of loci'),
+                data,
+                rawValues,
+                backgroundColor: hexColorWithAlpha(color, 0.75),
+                borderColor: color,
+                borderWidth: 1,
+                grouped: !drawStackAsFloatingBars,
+                ...(histogram && (stacked || !settings.color) ? {barPercentage: 1, categoryPercentage: 1} : {}),
+            }
+        })
+
+        const yValueTitle = settings.y ? `${PLOT_AGGREGATE_LABELS[settings.agg]} ${columns[settings.y].displayName}` : 'Number of loci'
+        // Percent stacks of sums show each color's share of the summed values, not of the loci
+        const yTitle = percent ? (settings.y ? `Percent of summed ${columns[settings.y].displayName}` : 'Percent of loci') : yValueTitle
+        const xTitle = histogram ? `${columns[settings.x].displayName}${settings.xScale === 'linear' ? '' : ` (${PLOT_SCALE_LABELS[settings.xScale]} bins)`}` : columns[settings.x].displayName
+        const yScale = percent ? 'linear' : settings.yScale
+        // Bars start at the bottom of the axis. A log axis would otherwise start at the smallest bar's value,
+        // drawing that bar (e.g. a category with 1 locus) with no height, so it starts at the power of 10 below it.
+        const smallestPositiveBarValue = Math.min(...datasets.flatMap(d => d.rawValues).filter(v => v !== null && v > 0))
+        // Percent stacks end at 100 (floating point rounding can make a stack's sum a hair over 100, which would
+        // stretch the axis to 120)
+        const yAxisStartOptions = percent ? {beginAtZero: true, max: 100}
+            : yScale === 'linear' ? {beginAtZero: true}
+            : (yScale === 'log' && Number.isFinite(smallestPositiveBarValue) ? {min: Math.pow(10, Math.floor(Math.log10(smallestPositiveBarValue * 0.999)))} : {})
+
+        const captionSentences = [`Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results.`]
+        if (settings.y) {
+            const aggregateDescription = {mean: 'mean', median: 'approximate median', min: 'minimum', max: 'maximum', sum: 'sum'}[settings.agg]
+            captionSentences.push(`Bar heights show the ${aggregateDescription} of ${columns[settings.y].displayName} over the loci in each ${histogram ? 'bin' : 'category'}.`)
+            const shownXLabelSet = new Set(xCategories.map(c => c.xLabel))
+            const shownColorLabelSet = new Set(colorLabels)
+            const lociWithoutY = leafRows.filter(r => shownXLabelSet.has(r.x_label) && shownColorLabelSet.has(settings.color ? r.c_label : ''))
+                .reduce((sum, r) => sum + r.n - r.n_y, 0)
+            if (lociWithoutY > 0) {
+                captionSentences.push(`${pluralizeLoci(lociWithoutY)} with no ${columns[settings.y].displayName} value are not included in the bar heights.`)
+            }
+        }
+        if (percent && settings.y) {
+            captionSentences.push(`Each bar's percentages are shares of the sum of the absolute values of its segments, so negative sums show as negative percentages.`)
+        }
+        if (yScale === 'log') {
+            const numNonPositiveBars = datasets.flatMap(d => d.rawValues).filter(v => v !== null && v <= 0).length
+            if (numNonPositiveBars > 0) {
+                captionSentences.push(`${formatPlotNumber(numNonPositiveBars)} ${numNonPositiveBars === 1 ? 'bar has a value' : 'bars have values'} ≤ 0 that can't be shown on a log scale.`)
+            }
+        }
+        if (histogram) {
+            const excludedRow = xTotalRowsByXLabel[PLOT_EXCLUDED_BIN]
+            if (excludedRow) captionSentences.push(`${pluralizeLoci(excludedRow.n)} with ${columns[settings.x].displayName} ≤ 0 can't be shown on a log scale.`)
+        }
+        captionSentences.push(...describeHiddenCategories(settings, xTotalRows, leafRows))
+
+        return {
+            chartConfig: {
+                type: 'bar',
+                data: {labels: xCategories.map(c => c.displayLabel), datasets},
+                options: {
+                    scales: {
+                        x: {stacked: stacked && !drawStackAsFloatingBars, title: {display: true, text: xTitle, font: {size: 13}}},
+                        y: buildNumericAxisOptions(yScale, yTitle, {stacked: stacked && !drawStackAsFloatingBars, ...yAxisStartOptions}),
+                    },
+                    plugins: {
+                        legend: {
+                            display: !!settings.color,
+                            title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''},
+                            // Floating stack segments are positioned from all the colors' values, so hiding a color
+                            // from the legend would leave the others at the wrong heights
+                            ...(drawStackAsFloatingBars ? {onClick: () => {}} : {}),
+                        },
+                        tooltip: {callbacks: {label: (context) => {
+                            const value = context.dataset.rawValues[context.dataIndex]
+                            return `${context.dataset.label}: ${percent ? `${formatPlotNumber(value)}%` : formatPlotNumber(value)}`
+                        }}},
+                    },
+                },
+            },
+            captionSentences,
+            clickTargets: {xCategories, colorLabels},
+        }
+    }
+
+    // Draws each box's median line and whiskers, from the boxPlotStats that buildBoxPlotChart adds to its datasets.
+    // The boxes themselves are floating bars from the 25th to the 75th percentile.
+    const BOX_PLOT_MEDIANS_AND_WHISKERS_PLUGIN = {
+        id: 'boxPlotMediansAndWhiskers',
+        afterDatasetsDraw: (chart) => {
+            const ctx = chart.ctx
+            const yAxis = chart.scales.y
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex)
+                if (!dataset.boxPlotStats || meta.hidden) return
+                meta.data.forEach((bar, i) => {
+                    const stats = dataset.boxPlotStats[i]
+                    if (!stats) return
+                    const {x, width} = bar.getProps(['x', 'width'], true)
+                    const [q1, median, q3, lowerWhisker, upperWhisker] = [stats.q1, stats.median, stats.q3, stats.lowerWhisker, stats.upperWhisker]
+                        .map(v => v === null ? null : yAxis.getPixelForValue(v))
+                    ctx.save()
+                    ctx.strokeStyle = dataset.borderColor
+                    ctx.lineWidth = 1.5
+                    ctx.beginPath()
+                    const drawLine = (x1, y1, x2, y2) => { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2) }
+                    if (upperWhisker !== null) { drawLine(x, q3, x, upperWhisker); drawLine(x - width / 4, upperWhisker, x + width / 4, upperWhisker) }
+                    if (lowerWhisker !== null) { drawLine(x, q1, x, lowerWhisker); drawLine(x - width / 4, lowerWhisker, x + width / 4, lowerWhisker) }
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.lineWidth = 3
+                    if (median !== null) drawLine(x - width / 2, median, x + width / 2, median)
+                    ctx.stroke()
+                    ctx.restore()
+                })
+            })
+        },
+    }
+
+    const buildBoxPlotChart = (settings, rows) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const leafRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 0)
+        const xTotalRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 1)
+        const xTotalRowsByXLabel = Object.fromEntries(xTotalRows.map(r => [r.x_label, r]))
+        const grandTotalRow = rows.find(r => r.is_grand_total === 1)
+        const colorLabels = getShownColorCategories(settings, rows)
+        const leafRowsByLabels = Object.fromEntries(leafRows.map(r => [`${r.x_label}\t${settings.color ? r.c_label : ''}`, r]))
+
+        const shownXLabels = xTotalRows.map(r => r.x_label).filter(label => isCategoryShown(label, settings))
+        const mediansByXLabel = Object.fromEntries(shownXLabels.map(label => [label, xTotalRowsByXLabel[label].median]))
+        const xLabels = sortPlotCategories(settings, shownXLabels, mediansByXLabel, xTotalRowsByXLabel)
+
+        const datasets = colorLabels.map((colorLabel, colorIndex) => {
+            const boxRows = xLabels.map(xLabel => {
+                const row = leafRowsByLabels[`${xLabel}\t${colorLabel}`]
+                return row && row.n_y > 0 ? row : null
+            })
+            const color = settings.color ? colorForCategory(colorLabel, colorIndex) : PLOT_SINGLE_SERIES_COLOR
+            return {
+                label: settings.color ? plotCategoryDisplayLabel(colorLabel) : columns[settings.y].displayName,
+                data: boxRows.map(r => r ? [toPlottedValue(r.q1, settings.yScale), toPlottedValue(r.q3, settings.yScale)] : null),
+                boxRows,
+                boxPlotStats: boxRows.map(r => r ? {
+                    q1: toPlottedValue(r.q1, settings.yScale),
+                    median: toPlottedValue(r.median, settings.yScale),
+                    q3: toPlottedValue(r.q3, settings.yScale),
+                    lowerWhisker: toPlottedValue(r.lower_whisker, settings.yScale),
+                    upperWhisker: toPlottedValue(r.upper_whisker, settings.yScale),
+                } : null),
+                backgroundColor: hexColorWithAlpha(color, 0.35),
+                borderColor: color,
+                borderWidth: 1.5,
+                borderSkipped: false,
+            }
+        })
+
+        // The whiskers can reach beyond the boxes, so the y-axis has to span them
+        const plottedValues = datasets.flatMap(d => d.boxPlotStats.filter(Boolean).flatMap(s => [s.lowerWhisker, s.upperWhisker, s.q1, s.q3])).filter(v => v !== null)
+        const yAxisRange = plottedValues.length > 0 ? {suggestedMin: Math.min(...plottedValues), suggestedMax: Math.max(...plottedValues)} : {}
+
+        const yName = columns[settings.y].displayName
+        const captionSentences = [
+            `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
+        ]
+        const shownXLabelSet = new Set(xLabels)
+        const shownColorLabelSet = new Set(colorLabels)
+        const lociWithoutY = leafRows.filter(r => shownXLabelSet.has(r.x_label) && shownColorLabelSet.has(settings.color ? r.c_label : ''))
+            .reduce((sum, r) => sum + r.n - r.n_y, 0)
+        if (lociWithoutY > 0) {
+            captionSentences.push(`${pluralizeLoci(lociWithoutY)} with no ${yName} value${settings.yScale === 'log' ? ', or a value ≤ 0 that a log scale can\'t show,' : ''} are not included.`)
+        }
+        captionSentences.push(...describeHiddenCategories(settings, xTotalRows, leafRows))
+
+        return {
+            chartConfig: {
+                type: 'bar',
+                data: {labels: xLabels.map(plotCategoryDisplayLabel), datasets},
+                options: {
+                    scales: {
+                        x: {title: {display: true, text: columns[settings.x].displayName, font: {size: 13}}},
+                        // Bar charts start the value axis at 0 by default, which would squash boxes of values far from 0
+                        y: buildNumericAxisOptions(settings.yScale, yName, {beginAtZero: false, ...yAxisRange}),
+                    },
+                    plugins: {
+                        legend: {display: !!settings.color, title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''}},
+                        tooltip: {callbacks: {label: (context) => {
+                            const row = context.dataset.boxRows[context.dataIndex]
+                            if (!row) return ''
+                            return [
+                                settings.color ? `${context.dataset.label}:` : `${pluralizeLoci(row.n_y)}`,
+                                ...(settings.color ? [`${pluralizeLoci(row.n_y)}`] : []),
+                                `upper whisker: ${formatPlotNumber(row.upper_whisker)}`,
+                                `75th percentile: ${formatPlotNumber(row.q3)}`,
+                                `median: ${formatPlotNumber(row.median)}`,
+                                `25th percentile: ${formatPlotNumber(row.q1)}`,
+                                `lower whisker: ${formatPlotNumber(row.lower_whisker)}`,
+                            ]
+                        }}},
+                    },
+                },
+                plugins: [BOX_PLOT_MEDIANS_AND_WHISKERS_PLUGIN],
+            },
+            captionSentences,
+            clickTargets: {xCategories: xLabels.map(xLabel => ({xLabel})), colorLabels},
+        }
+    }
+
+    /**
+     * Returns the scatter plot caption sentences about how many loci the search returned and which of them can't be
+     * shown, from the counts that every row of the scatter plot query holds (firstRow is undefined if it returned none).
+     */
+    const describeScatterPlotLociNotShown = (settings, firstRow) => {
+        const xName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x].displayName
+        const yName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.y].displayName
+        if (!firstRow) return [`None of the loci in the search results have both a ${xName} and a ${yName} value that can be shown.`]
+        const sentences = [`Based on ${pluralizeLoci(firstRow.n_rows)} in the search results.`]
+        if (firstRow.n_rows > firstRow.n_with_x_and_y) {
+            sentences.push(`${pluralizeLoci(firstRow.n_rows - firstRow.n_with_x_and_y)} with no ${xName} or no ${yName} value are not shown.`)
+        }
+        if (firstRow.n_with_x_and_y > firstRow.n_plotable) {
+            sentences.push(`${pluralizeLoci(firstRow.n_with_x_and_y - firstRow.n_plotable)} with a value ≤ 0 can't be shown on a log scale.`)
+        }
+        return sentences
+    }
+
+    // Uncolored scatter plots of more loci than a sample holds (MAX_SCATTER_PLOT_POINTS) are drawn as a grid of this
+    // many cells, colored by how many loci fall in each, so that every locus counts (a colored scatter plot shows a
+    // sample instead, since a cell can't show the colors of its loci)
+    const SCATTER_PLOT_HEATMAP_NUM_COLUMNS = 60
+    const SCATTER_PLOT_HEATMAP_NUM_ROWS = 40
+
+    // The scatter plot counts that describeScatterPlotLociNotShown needs, from the rows of a heatmap query (whose
+    // cells hold all the loci that can be shown), or undefined if no locus can be shown
+    const getScatterPlotCountsFromHeatmapRows = (heatmapRows) => heatmapRows.length === 0 ? undefined : {
+        n_rows: heatmapRows[0].n_rows,
+        n_with_x_and_y: heatmapRows[0].n_with_x_and_y,
+        n_plotable: heatmapRows.reduce((sum, r) => sum + r.n, 0),
+    }
+
+    const shouldDrawScatterPlotAsHeatmap = (heatmapRows) => heatmapRows.length > 0 &&
+        getScatterPlotCountsFromHeatmapRows(heatmapRows).n_plotable > MAX_SCATTER_PLOT_POINTS
+
+    /**
+     * Returns the SQL query that counts the loci in each cell of a scatter plot heatmap. The cells divide the range of
+     * the plotted (scaled) x and y values into equal parts. Every row also holds the ranges, the number of loci in the
+     * search results (n_rows), and how many of them have both an x and a y value (n_with_x_and_y).
+     */
+    const buildScatterPlotHeatmapQuery = (settings, completeTableId, whereClause) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const cellIndexSql = (value, lo, hi, numCells) =>
+            `LEAST(${numCells - 1}, CAST(IFNULL(FLOOR(SAFE_DIVIDE(${value} - ${lo}, (${hi} - ${lo}) / ${numCells})), 0) AS INT64))`
+        return `WITH base AS (SELECT ${plotNumberExpression(columns[settings.x])} AS x, ${plotNumberExpression(columns[settings.y])} AS y ` +
+            `${`FROM ${completeTableId} ${whereClause}`.trim()}), ` +
+            `transformed AS (SELECT ${plotScaleTransformSql('x', settings.xScale)} AS tx, ${plotScaleTransformSql('y', settings.yScale)} AS ty FROM base), ` +
+            'plotable AS (SELECT tx, ty FROM transformed WHERE tx IS NOT NULL AND ty IS NOT NULL), ' +
+            'ranges AS (SELECT MIN(tx) AS x_lo, MAX(tx) AS x_hi, MIN(ty) AS y_lo, MAX(ty) AS y_hi FROM plotable), ' +
+            'counts AS (SELECT COUNT(*) AS n_rows, COUNTIF(x IS NOT NULL AND y IS NOT NULL) AS n_with_x_and_y FROM base) ' +
+            `SELECT ${cellIndexSql('tx', 'x_lo', 'x_hi', SCATTER_PLOT_HEATMAP_NUM_COLUMNS)} AS x_cell, ` +
+            `${cellIndexSql('ty', 'y_lo', 'y_hi', SCATTER_PLOT_HEATMAP_NUM_ROWS)} AS y_cell, COUNT(*) AS n, ` +
+            'ANY_VALUE(x_lo) AS x_lo, ANY_VALUE(x_hi) AS x_hi, ANY_VALUE(y_lo) AS y_lo, ANY_VALUE(y_hi) AS y_hi, ' +
+            'ANY_VALUE(n_rows) AS n_rows, ANY_VALUE(n_with_x_and_y) AS n_with_x_and_y ' +
+            'FROM plotable CROSS JOIN ranges CROSS JOIN counts GROUP BY x_cell, y_cell ORDER BY x_cell, y_cell'
+    }
+
+    const buildScatterPlotHeatmapChart = (settings, heatmapRows) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const xName = columns[settings.x].displayName
+        const yName = columns[settings.y].displayName
+        const {x_lo: xLo, x_hi: xHi, y_lo: yLo, y_hi: yHi} = heatmapRows[0]
+        // A range of one value still gets cells of nonzero size
+        const [xSpan, ySpan] = [(xHi - xLo) || 1, (yHi - yLo) || 1]
+        const [cellWidth, cellHeight] = [xSpan / SCATTER_PLOT_HEATMAP_NUM_COLUMNS, ySpan / SCATTER_PLOT_HEATMAP_NUM_ROWS]
+        const maxCount = Math.max(...heatmapRows.map(r => r.n))
+        const [xInverse, yInverse] = [PLOT_SCALE_TRANSFORMS[settings.xScale].inverse, PLOT_SCALE_TRANSFORMS[settings.yScale].inverse]
+
+        const data = heatmapRows.map(r => ({
+            x: xLo + (r.x_cell + 0.5) * cellWidth,
+            y: yLo + (r.y_cell + 0.5) * cellHeight,
+            v: r.n,
+            xRange: [xInverse(xLo + r.x_cell * cellWidth), xInverse(xLo + (r.x_cell + 1) * cellWidth)],
+            yRange: [yInverse(yLo + r.y_cell * cellHeight), yInverse(yLo + (r.y_cell + 1) * cellHeight)],
+        }))
+        // The values are already scaled, so log and symmetric log axes are linear axes labeled with the original values.
+        // The axes span exactly the cells (so each cell is 1/60 or 1/40 of the axis), without labeling those ends,
+        // and the matrix chart's default of drawing y downward is turned off.
+        const axisOptions = (scale, title, min, max) => scale === 'linear'
+            ? buildNumericAxisOptions('linear', title, {min, max, reverse: false, offset: false, ticks: {includeBounds: false}})
+            : buildTransformedValueAxisOptions(scale, title, {min, max, reverse: false, offset: false})
+
+        const counts = getScatterPlotCountsFromHeatmapRows(heatmapRows)
+        const captionSentences = describeScatterPlotLociNotShown(settings, counts)
+        captionSentences.push(`Each cell's color shows how many of the ${pluralizeLoci(counts.n_plotable)} that can be shown have values in its ranges (darker means more, on a log scale of the counts).`)
+
+        return {
+            chartConfig: {
+                type: 'matrix',
+                data: {datasets: [{
+                    label: 'Loci',
+                    data,
+                    backgroundColor: (context) => {
+                        const count = context.dataset.data[context.dataIndex].v
+                        return `rgba(33, 133, 208, ${0.08 + 0.92 * Math.log1p(count) / Math.log1p(maxCount)})`
+                    },
+                    borderWidth: 0,
+                    width: ({chart}) => (chart.chartArea || {width: 0}).width / SCATTER_PLOT_HEATMAP_NUM_COLUMNS,
+                    height: ({chart}) => (chart.chartArea || {height: 0}).height / SCATTER_PLOT_HEATMAP_NUM_ROWS,
+                }]},
+                options: {
+                    scales: {
+                        x: axisOptions(settings.xScale, xName, xLo, xLo + xSpan),
+                        y: axisOptions(settings.yScale, yName, yLo, yLo + ySpan),
+                    },
+                    plugins: {
+                        legend: {display: false},
+                        tooltip: {callbacks: {
+                            title: () => '',
+                            label: (context) => {
+                                const cell = context.raw
+                                return `${pluralizeLoci(cell.v)} with ${xName} ${formatPlotNumber(cell.xRange[0])} to ${formatPlotNumber(cell.xRange[1])} and ${yName} ${formatPlotNumber(cell.yRange[0])} to ${formatPlotNumber(cell.yRange[1])}`
+                            },
+                        }},
+                    },
+                },
+            },
+            captionSentences,
+        }
+    }
+
+    /**
+     * Returns the custom filters that keep only the loci of a clicked bar, bar segment or box, or null when that's
+     * not possible: the "Other" category (loci outside the top N), and the "Missing" category of a text column
+     * (which covers both missing and empty values), have no single custom filter.
+     *
+     * Args:
+     *   settings: the plot's settings
+     *   xCategory: the clicked x position, as in buildBarPlotChart's xCategories (histogram bins have rawStart,
+     *     rawEnd, isFirstBin, isLastBin and isIntegerBins)
+     *   colorLabel: the clicked dataset's color category, or '' for plots with no color column
+     */
+    const getCustomFiltersForClickedPlotElement = (settings, xCategory, colorLabel) => {
+        // Bin edges are written in full (String gives the exact floating point value), since rounding them would move
+        // loci near an edge into the neighboring bin
+        const filter = (column, operator, value) => ({column, operator, value: String(value), enabled: true})
+        // The filter for one category of a column, or null if no single filter selects it
+        const categoryFilter = (column, label) => {
+            if (label === PLOT_OTHER_CATEGORY || label === PLOT_EXCLUDED_BIN) return null
+            if (label === PLOT_MISSING_CATEGORY) {
+                return SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[column].type === 'STRING' ? null : filter(column, 'IS NULL', '')
+            }
+            return filter(column, '=', label)
+        }
+        const filters = []
+        if (xCategory.rawStart === undefined) {
+            filters.push(categoryFilter(settings.x, xCategory.xLabel))
+        } else {
+            // The first and last bins are left open, so that rounding of their edges can't leave out the extreme values
+            if (!xCategory.isFirstBin) filters.push(filter(settings.x, '>=', xCategory.rawStart))
+            else if (settings.xScale === 'log') filters.push(filter(settings.x, '>', 0))
+            if (!xCategory.isLastBin) filters.push(filter(settings.x, xCategory.isIntegerBins ? '<=' : '<', xCategory.rawEnd))
+            if (filters.length === 0) filters.push(filter(settings.x, 'IS NOT NULL', ''))
+        }
+        if (settings.color) filters.push(categoryFilter(settings.color, colorLabel))
+        if (filters.includes(null)) return null
+        // A box only summarizes the loci whose y value its axis can show
+        if (settings.type === 'box') {
+            filters.push(settings.yScale === 'log' ? filter(settings.y, '>', 0) : filter(settings.y, 'IS NOT NULL', ''))
+        }
+        return filters
+    }
+
+    const buildScatterPlotChart = (settings, rows) => {
+        const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
+        const colorLabels = getShownColorCategories(settings, rows)
+        const datasets = colorLabels.map((colorLabel, colorIndex) => {
+            const color = settings.color ? colorForCategory(colorLabel, colorIndex) : PLOT_SINGLE_SERIES_COLOR
+            return {
+                label: settings.color ? plotCategoryDisplayLabel(colorLabel) : 'Loci',
+                data: rows.filter(r => !settings.color || r.c_label === colorLabel).map(r => ({
+                    x: toPlottedValue(r.x, settings.xScale),
+                    y: toPlottedValue(r.y, settings.yScale),
+                    rawX: r.x,
+                    rawY: r.y,
+                    locusId: r.LocusId,
+                })),
+                backgroundColor: hexColorWithAlpha(color, 0.6),
+                borderColor: hexColorWithAlpha(color, 0.9),
+                pointRadius: 2.5,
+                pointHoverRadius: 5,
+            }
+        })
+
+        const xName = columns[settings.x].displayName
+        const yName = columns[settings.y].displayName
+        const firstRow = rows[0]
+        const captionSentences = describeScatterPlotLociNotShown(settings, firstRow)
+        if (firstRow) {
+            if (firstRow.n_plotable > rows.length) {
+                captionSentences.push(`To keep the plot fast, it shows a random sample of ${formatPlotNumber(rows.length)} of the ${pluralizeLoci(firstRow.n_plotable)} that can be shown (the same sample every time).`)
+            }
+            if (settings.color) {
+                const hiddenColorLoci = rows.filter(r => !isCategoryShown(r.c_label, settings)).length
+                if (hiddenColorLoci > 0) {
+                    captionSentences.push(`${formatPlotNumber(hiddenColorLoci)} of these loci are hidden because their ${columns[settings.color].displayName} is missing or not among the ${getNumColorCategories(settings)} most frequent values.`)
+                }
+            }
+        }
+
+        return {
+            chartConfig: {
+                type: 'scatter',
+                data: {datasets},
+                options: {
+                    scales: {
+                        x: buildNumericAxisOptions(settings.xScale, xName),
+                        y: buildNumericAxisOptions(settings.yScale, yName),
+                    },
+                    plugins: {
+                        legend: {display: !!settings.color, title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''}},
+                        tooltip: {callbacks: {label: (context) => {
+                            const point = context.raw
+                            return `${point.locusId}: ${xName} = ${formatPlotNumber(point.rawX)}, ${yName} = ${formatPlotNumber(point.rawY)}`
+                        }}},
+                    },
+                },
+            },
+            captionSentences,
+        }
+    }
+
+    // Fills the background white, so that downloaded PNGs aren't transparent
+    const WHITE_BACKGROUND_PLUGIN = {
+        id: 'whiteBackground',
+        beforeDraw: (chart) => {
+            const ctx = chart.ctx
+            ctx.save()
+            ctx.globalCompositeOperation = 'destination-over'
+            ctx.fillStyle = 'white'
+            ctx.fillRect(0, 0, chart.width, chart.height)
+            ctx.restore()
+        },
+    }
+
+    /**
+     * Returns {chartConfig, captionSentences, title, clickTargets} for a plot, given the rows that its query
+     * returned, or for a scatter plot drawn as a heatmap, the rows of its heatmap query (rows is then unused).
+     * clickTargets is undefined for scatter plots, and otherwise holds the xCategories and colorLabels that
+     * getCustomFiltersForClickedPlotElement needs for each bar or box.
+     */
+    const buildSearchResultsPlotChart = (settings, rows, heatmapRows = null) => {
+        const builders = {bar: buildBarPlotChart, box: buildBoxPlotChart, scatter: buildScatterPlotChart}
+        const {chartConfig, captionSentences, clickTargets} = heatmapRows
+            ? buildScatterPlotHeatmapChart(settings, heatmapRows)
+            : builders[settings.type](settings, rows)
+        chartConfig.options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            ...chartConfig.options,
+        }
+        chartConfig.plugins = [...(chartConfig.plugins || []), WHITE_BACKGROUND_PLUGIN]
+        return {chartConfig, captionSentences, title: getPlotTitle(settings), clickTargets}
+    }
+
+    // --- Page wiring ---
+
+    // The Chart.js charts currently on the page, so they can be destroyed before being redrawn
+    let searchResultsPlotCharts = []
+    // Promises of query result rows by SQL, so that redrawing the plots (e.g. after changing the results page) doesn't
+    // rerun queries
+    const searchResultsPlotQueryResultsCache = new Map()
+    // What the plots were last drawn for, and a counter that lets a newer redraw discard an older one's results
+    let searchResultsPlotsDrawnFor = null
+    let searchResultsPlotsDrawSeq = 0
+
+    const getSearchResultsPlotSettingsList = () => parseSearchResultsPlotSettingsList(GLOBAL_PAGE_STATE['plots'])
+
+    const saveSearchResultsPlotSettingsList = (settingsList) => {
+        GLOBAL_PAGE_STATE['plots'] = serializeSearchResultsPlotSettingsList(settingsList)
+        writePersistentPageStateToUrl()
+    }
+
+    const getSearchResultsWhereClause = () => {
+        const conditions = window.lastSearchConditions || []
+        return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    }
+
+    const fetchAllPagesOfPlotQuery = async (sql) => {
+        // The settings' limits (at most 200 bins and 20 color categories) keep bar, box and histogram results under
+        // one page, about 4,650 rows at most. This keeps fetching anyway, in case those limits or the proxy's page
+        // size change.
+        let result = await queryBigQuery(sql, 0, QUERY_PROXY_MAX_PAGE_SIZE, null, null)
+        const rows = [...(result.rows || [])]
+        while (result.next_page_start_index !== null && result.next_page_start_index !== undefined) {
+            result = await queryBigQuery(sql, result.next_page_start_index, QUERY_PROXY_MAX_PAGE_SIZE, null, null)
+            rows.push(...(result.rows || []))
+        }
+        return rows
+    }
+
+    const fetchSearchResultsPlotRows = (sql) => {
+        // The cache holds the pending request too, so redrawing the plots while a query is still running (e.g. after
+        // adding another plot) waits for it instead of sending the query again
+        if (!searchResultsPlotQueryResultsCache.has(sql)) {
+            searchResultsPlotQueryResultsCache.set(sql, fetchAllPagesOfPlotQuery(sql).catch((error) => {
+                searchResultsPlotQueryResultsCache.delete(sql)  // so that a later redraw retries
+                throw error
+            }))
+        }
+        return searchResultsPlotQueryResultsCache.get(sql)
+    }
+
+    const drawSearchResultsPlot = async ($plot, settings, drawSeq) => {
+        const whereClause = getSearchResultsWhereClause()
+        try {
+            // An uncolored scatter plot runs its heatmap query first, since that also counts the loci that can be
+            // shown: the sample of loci is only needed (and fetched) when they're few enough for it to hold them all
+            let heatmapRows = null
+            if (settings.type === 'scatter' && !settings.color) {
+                heatmapRows = await fetchSearchResultsPlotRows(buildScatterPlotHeatmapQuery(settings, COMPLETE_TABLE_ID, whereClause))
+                if (!shouldDrawScatterPlotAsHeatmap(heatmapRows)) heatmapRows = null
+            }
+            const rows = heatmapRows ? [] : await fetchSearchResultsPlotRows(buildSearchResultsPlotQuery(settings, COMPLETE_TABLE_ID, whereClause))
+            if (drawSeq !== searchResultsPlotsDrawSeq) return
+            const {chartConfig, captionSentences, title, clickTargets} = buildSearchResultsPlotChart(settings, rows, heatmapRows)
+            if (clickTargets) {
+                // Clicking a bar or box adds custom filters that keep only its loci
+                const getClickedElementFilters = (event, chart) => {
+                    // A box whose 25th and 75th percentiles are equal has no height, so box plots take a click
+                    // anywhere above or below a box (within its width) as a click on it
+                    const isBoxPlot = settings.type === 'box'
+                    const [element] = chart.getElementsAtEventForMode(event, 'nearest', {intersect: !isBoxPlot, axis: 'x'}, false)
+                    // Chart.js lays out an empty slot (e.g. a color category with no loci in this x category) too
+                    if (element && chart.data.datasets[element.datasetIndex].data[element.index] === null) return null
+                    if (element && isBoxPlot) {
+                        const {x, width} = element.element.getProps(['x', 'width'], true)
+                        if (Math.abs(event.x - x) > width / 2) return null
+                    }
+                    return element ? getCustomFiltersForClickedPlotElement(
+                        settings, clickTargets.xCategories[element.index], clickTargets.colorLabels[element.datasetIndex]) : null
+                }
+                chartConfig.options.onClick = (event, elements, chart) => {
+                    const filters = getClickedElementFilters(event, chart)
+                    if (filters) addCustomFilterGroupAndSearch(filters)
+                }
+                chartConfig.options.onHover = (event, elements, chart) => {
+                    event.native.target.style.cursor = getClickedElementFilters(event, chart) ? 'pointer' : 'default'
+                }
+                const shape = settings.type === 'box' ? 'box' : 'bar'
+                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter)` +
+                    (settings.other === 1 || settings.missing === 1
+                        ? `, except for Other ${shape}s and the Missing ${shape}s of text columns (which also include empty values), since no single filter selects their loci.`
+                        : '.'))
+            }
+            $plot.find('.search-results-plot-title').text(title)
+            $plot.find('.search-results-plot-caption').text(captionSentences.join(' '))
+            $plot.find('.search-results-plot-loading').hide()
+            $plot.find('.search-results-plot-canvas-container').show()
+            searchResultsPlotCharts.push(new Chart($plot.find('canvas')[0], chartConfig))
+        } catch (error) {
+            if (drawSeq !== searchResultsPlotsDrawSeq) return
+            console.error('Error drawing plot:', error)
+            // Let the next refresh (e.g. clicking Search again) retry instead of keeping this error
+            searchResultsPlotsDrawnFor = null
+            $plot.find('.search-results-plot-loading').hide()
+            $plot.find('.search-results-plot-error').text(`Unable to draw this plot: ${error.message}`).show()
+        }
+    }
+
+    /**
+     * Draws the plots in the page state for the current search results, and shows the "Add plot..." link. Does
+     * nothing if the plots were already drawn for the same search and settings.
+     */
+    const refreshSearchResultsPlots = () => {
+        const totalResults = window.searchResults ? window.searchResults.total_results : 0
+        if (totalResults < MIN_SEARCH_RESULTS_TO_SHOW_PLOTS) {
+            $('#search-results-plots-area').hide()
+            return
+        }
+        $('#search-results-plots-area').show()
+
+        const whereClause = getSearchResultsWhereClause()
+        const drawFor = `${whereClause}\n${GLOBAL_PAGE_STATE['plots']}`
+        if (drawFor === searchResultsPlotsDrawnFor) return
+        // Only the current search's results are worth keeping, so a new search drops the earlier searches' rows
+        if (searchResultsPlotsDrawnFor !== null && !searchResultsPlotsDrawnFor.startsWith(`${whereClause}\n`)) {
+            searchResultsPlotQueryResultsCache.clear()
+        }
+        searchResultsPlotsDrawnFor = drawFor
+        const drawSeq = ++searchResultsPlotsDrawSeq
+
+        searchResultsPlotCharts.forEach(chart => chart.destroy())
+        searchResultsPlotCharts = []
+        const $plots = $('#search-results-plots').empty()
+        getSearchResultsPlotSettingsList().forEach((settings, plotIndex) => {
+            const $plot = $(`
+                <div class="search-results-plot" data-plot-index="${plotIndex}">
+                    <div class="search-results-plot-title" style="font-weight: bold; text-align: center; margin-bottom: 8px"></div>
+                    <div class="search-results-plot-loading loading-indicator">
+                        <div class="ui small active inline loader"></div>
+                        <span>Loading plot...</span>
+                    </div>
+                    <div class="search-results-plot-error ui negative message" style="display: none"></div>
+                    <div class="search-results-plot-canvas-container" style="display: none"><canvas></canvas></div>
+                    <div class="search-results-plot-caption"></div>
+                    <div class="search-results-plot-links">
+                        <a class="edit-search-results-plot-link">Edit plot...</a>
+                        <a class="download-search-results-plot-link">Download PNG</a>
+                        <a class="remove-search-results-plot-link">Remove plot</a>
+                    </div>
+                </div>`)
+            $plots.append($plot)
+            drawSearchResultsPlot($plot, settings, drawSeq)
+        })
+    }
+
+    // --- Plot settings dialog ---
+
+    // The plot that the dialog edits, or null when it adds a new plot
+    let searchResultsPlotDialogPlotIndex = null
+    // Set while the dialog's dropdowns are being filled in, so their onChange handlers don't respond
+    let isFillingSearchResultsPlotDialog = false
+
+    // Dropdown values that stand for "no column"
+    const PLOT_DIALOG_NUMBER_OF_LOCI_VALUE = '__number_of_loci__'
+    const PLOT_DIALOG_NO_COLOR_VALUE = '__none__'
+
+    const buildPlotColumnDropdownMenu = (columnFilter) => buildColumnDropdownMenu(SEARCH_RESULTS_PLOT_COLUMNS.filter(columnFilter))
+
+    const setPlotDialogDropdownMenu = ($dropdown, menuHtml) => {
+        const value = $dropdown.dropdown('get value')
+        $dropdown.find('.menu').html(menuHtml)
+        $dropdown.dropdown('refresh')
+        // Keep the selection if the new menu still offers it
+        if (value && $dropdown.find(`.menu .item[data-value="${value}"]`).length > 0) {
+            $dropdown.dropdown('set selected', value)
+        } else {
+            $dropdown.dropdown('clear')
+        }
+    }
+
+    const readSearchResultsPlotSettingsFromDialog = () => {
+        const yValue = $('#plot-y-column-dropdown').dropdown('get value')
+        const colorValue = $('#plot-color-column-dropdown').dropdown('get value')
+        // A number left in a field that the current plot doesn't use (and so hides) mustn't block OK
+        const readNumberField = (fieldSelector, inputSelector, defaultValue) =>
+            $(fieldSelector).css('display') === 'none' ? defaultValue : Number($(inputSelector).val())
+        return {
+            type: $('input[name="searchResultsPlotType"]:checked').val() || 'bar',
+            x: $('#plot-x-column-dropdown').dropdown('get value') || '',
+            xMode: $('input[name="searchResultsPlotXMode"]:checked').val() || 'categories',
+            bins: readNumberField('#plot-bins-field', '#plot-bins-input', DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS.bins),
+            y: yValue === PLOT_DIALOG_NUMBER_OF_LOCI_VALUE ? '' : (yValue || ''),
+            agg: $('#plot-y-aggregate-dropdown').dropdown('get value') || 'mean',
+            color: colorValue === PLOT_DIALOG_NO_COLOR_VALUE ? '' : (colorValue || ''),
+            xScale: $('#plot-x-scale-dropdown').dropdown('get value') || 'linear',
+            yScale: $('#plot-y-scale-dropdown').dropdown('get value') || 'linear',
+            topN: readNumberField('#plot-top-n-field', '#plot-top-n-input', DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS.topN),
+            other: $('#plot-show-other-checkbox').prop('checked') ? 1 : 0,
+            missing: $('#plot-show-missing-checkbox').prop('checked') ? 1 : 0,
+            sort: $('#plot-sort-dropdown').dropdown('get value') || 'height',
+            dir: $('#plot-sort-direction-dropdown').dropdown('get value') || 'desc',
+            pct: $('#plot-percent-checkbox').prop('checked') ? 1 : 0,
+        }
+    }
+
+    // Shows the dialog fields that apply to the selected plot type and columns, and rebuilds the column menus so
+    // that they offer only the columns that fit each axis
+    const updateSearchResultsPlotDialogFields = () => {
+        // An error message from an earlier click on OK may no longer apply
+        $('#search-results-plot-dialog-error').hide()
+        isFillingSearchResultsPlotDialog = true
+        try {
+            const type = $('input[name="searchResultsPlotType"]:checked').val() || 'bar'
+            setPlotDialogDropdownMenu($('#plot-x-column-dropdown'), buildPlotColumnDropdownMenu(
+                type === 'scatter' ? canColumnBeNumericalPlotAxis : (type === 'box' ? canColumnBeCategoricalPlotAxis : () => true)))
+            const numberOfLociItem = type === 'bar' ? `<div class="item" data-value="${PLOT_DIALOG_NUMBER_OF_LOCI_VALUE}">Number of loci</div><div class="divider"></div>` : ''
+            setPlotDialogDropdownMenu($('#plot-y-column-dropdown'), numberOfLociItem + buildPlotColumnDropdownMenu(
+                type === 'scatter' ? canColumnBeNumericalPlotAxis : canColumnBeBarOrBoxPlotYAxis))
+            if (type === 'bar' && !$('#plot-y-column-dropdown').dropdown('get value')) {
+                $('#plot-y-column-dropdown').dropdown('set selected', PLOT_DIALOG_NUMBER_OF_LOCI_VALUE)
+            }
+
+            const settings = readSearchResultsPlotSettingsFromDialog()
+            const xColumn = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x]
+            const histogram = isHistogramPlot(settings)
+            const categoricalX = doesPlotHaveCategoricalXAxis(settings)
+            const showField = (selector, show) => $(selector).toggle(!!show)
+            showField('#plot-x-mode-field', type === 'bar' && xColumn && xColumn.plotAxisType === 'categorical_or_numerical')
+            showField('#plot-bins-field', histogram)
+            showField('#plot-y-aggregate-field', type === 'bar' && settings.y)
+            showField('#plot-x-scale-field', type === 'scatter' || histogram)
+            showField('#plot-y-scale-field', !(isStackedBarPlot(settings) && settings.pct === 1))
+            showField('#plot-top-n-field', categoricalX || settings.color)
+            showField('#plot-sort-fields', categoricalX)
+            showField('#plot-show-other-field', categoricalX || settings.color || histogram)
+            showField('#plot-percent-field', isStackedBarPlot(settings))
+            const heightSortLabel = type === 'box' ? 'Median' : 'Bar height'
+            $('#plot-sort-dropdown .item[data-value="height"]').text(heightSortLabel)
+            if (settings.sort === 'height') $('#plot-sort-dropdown').dropdown('set text', heightSortLabel)
+        } finally {
+            isFillingSearchResultsPlotDialog = false
+        }
+    }
+
+    const fillSearchResultsPlotDialog = (settings) => {
+        isFillingSearchResultsPlotDialog = true
+        try {
+            $(`input[name="searchResultsPlotType"][value="${settings.type}"]`).prop('checked', true)
+            $(`input[name="searchResultsPlotXMode"][value="${settings.xMode}"]`).prop('checked', true)
+            $('#plot-bins-input').val(settings.bins)
+            $('#plot-top-n-input').val(settings.topN)
+            $('#plot-show-other-checkbox').prop('checked', settings.other === 1)
+            $('#plot-show-missing-checkbox').prop('checked', settings.missing === 1)
+            $('#plot-percent-checkbox').prop('checked', settings.pct === 1)
+            $('#plot-y-aggregate-dropdown').dropdown('set selected', settings.agg)
+            $('#plot-x-scale-dropdown').dropdown('set selected', settings.xScale)
+            $('#plot-y-scale-dropdown').dropdown('set selected', settings.yScale)
+            $('#plot-sort-direction-dropdown').dropdown('set selected', settings.dir)
+            $('#plot-sort-dropdown').dropdown('set selected', settings.sort)
+            $('#plot-color-column-dropdown').dropdown('set selected', settings.color || PLOT_DIALOG_NO_COLOR_VALUE)
+            // The x and y menus depend on the plot type, so they're rebuilt before their values are set
+            $('#plot-x-column-dropdown, #plot-y-column-dropdown').dropdown('clear')
+        } finally {
+            isFillingSearchResultsPlotDialog = false
+        }
+        updateSearchResultsPlotDialogFields()
+        isFillingSearchResultsPlotDialog = true
+        try {
+            if (settings.x) $('#plot-x-column-dropdown').dropdown('set selected', settings.x)
+            $('#plot-y-column-dropdown').dropdown('set selected', settings.y || PLOT_DIALOG_NUMBER_OF_LOCI_VALUE)
+        } finally {
+            isFillingSearchResultsPlotDialog = false
+        }
+        updateSearchResultsPlotDialogFields()
+    }
+
+    // Opens the plot settings dialog for the plot at plotIndex, or for a new plot when plotIndex is null
+    const showSearchResultsPlotDialog = (plotIndex) => {
+        searchResultsPlotDialogPlotIndex = plotIndex
+        const settingsList = getSearchResultsPlotSettingsList()
+        const settings = plotIndex === null ? {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS} : settingsList[plotIndex]
+        $('#search-results-plot-dialog-title').text(plotIndex === null ? 'Add Plot' : 'Edit Plot')
+        $('#search-results-plot-dialog-error').hide()
+        fillSearchResultsPlotDialog(settings)
+        $('#search-results-plot-dialog').modal({
+            onApprove: () => {
+                const newSettings = readSearchResultsPlotSettingsFromDialog()
+                const problem = findProblemWithSearchResultsPlotSettings(newSettings)
+                if (problem) {
+                    $('#search-results-plot-dialog-error').text(problem).show()
+                    return false  // keep the dialog open
+                }
+                const newSettingsList = getSearchResultsPlotSettingsList()
+                if (searchResultsPlotDialogPlotIndex === null) {
+                    newSettingsList.push(newSettings)
+                } else {
+                    newSettingsList[searchResultsPlotDialogPlotIndex] = newSettings
+                }
+                saveSearchResultsPlotSettingsList(newSettingsList)
+                refreshSearchResultsPlots()
+                return true
+            },
+        }).modal('show')
+    }
+
+    const initializeSearchResultsPlots = () => {
+        $('#plot-x-column-dropdown, #plot-y-column-dropdown, #plot-color-column-dropdown, #plot-sort-dropdown').dropdown({
+            fullTextSearch: true,
+            onChange: () => { if (!isFillingSearchResultsPlotDialog) updateSearchResultsPlotDialogFields() },
+        })
+        // The aggregate decides whether colored bars are stacked, which decides whether the percent option shows
+        $('#plot-y-aggregate-dropdown').dropdown({
+            onChange: () => { if (!isFillingSearchResultsPlotDialog) updateSearchResultsPlotDialogFields() },
+        })
+        $('#plot-x-scale-dropdown, #plot-y-scale-dropdown, #plot-sort-direction-dropdown').dropdown()
+        $('#plot-color-column-dropdown .menu').html(
+            `<div class="item" data-value="${PLOT_DIALOG_NO_COLOR_VALUE}">None</div><div class="divider"></div>` +
+            buildPlotColumnDropdownMenu(canColumnBeCategoricalPlotAxis))
+        $('#plot-sort-dropdown .menu').append(
+            '<div class="divider"></div><div class="header">Mean of a column</div>' +
+            buildPlotColumnDropdownMenu(canColumnBeNumericalPlotAxis))
+        $('#plot-color-column-dropdown, #plot-sort-dropdown').dropdown('refresh')
+        $('#search-results-plot-dialog .ui.checkbox').checkbox()
+        $('#search-results-plot-dialog input[type="radio"], #search-results-plot-dialog input[type="checkbox"]').on('change', () => {
+            if (!isFillingSearchResultsPlotDialog) updateSearchResultsPlotDialogFields()
+        })
+
+        $('#add-search-results-plot-link').click((e) => {
+            e.preventDefault()
+            showSearchResultsPlotDialog(null)
+        })
+        $('#search-results-plots').on('click', '.edit-search-results-plot-link', (e) => {
+            showSearchResultsPlotDialog(Number($(e.target).closest('.search-results-plot').data('plot-index')))
+        })
+        $('#search-results-plots').on('click', '.remove-search-results-plot-link', (e) => {
+            const plotIndex = Number($(e.target).closest('.search-results-plot').data('plot-index'))
+            saveSearchResultsPlotSettingsList(getSearchResultsPlotSettingsList().filter((_, i) => i !== plotIndex))
+            refreshSearchResultsPlots()
+        })
+        $('#search-results-plots').on('click', '.download-search-results-plot-link', (e) => {
+            const $plot = $(e.target).closest('.search-results-plot')
+            const chart = Chart.getChart($plot.find('canvas')[0])
+            if (!chart) return
+            const link = document.createElement('a')
+            link.href = chart.toBase64Image('image/png', 1)
+            link.download = `${$plot.find('.search-results-plot-title').text().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '')}.png`
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+        })
+    }
+
+</script>
 
 <script>
 
@@ -6949,7 +8601,7 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
     // Columns that can be used for filtering in the UI, with their display names and group
-    const CUSTOM_FILTER_COLUMNS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "description": "Chromosome name without 'chr' prefix (e.g., '1', '2', 'X', 'Y', 'MT').", "type": "STRING"}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "description": "0-based start coordinate of the TR locus in hg38.", "type": "INTEGER"}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "description": "1-based end coordinate of the TR locus in hg38 (half-open interval).", "type": "INTEGER"}, {"name": "ReferenceRegion", "displayName": "Reference Region", "group": "Core", "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442", "type": "STRING"}, {"name": "LocusId", "displayName": "Locus ID", "group": "Core", "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.", "type": "STRING"}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "description": "Size of the TR locus in base pairs (end_1based - start_0based).", "type": "INTEGER"}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "description": "Length of the repeat motif in base pairs.", "type": "INTEGER"}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "description": "The repeat motif sequence as it appears in hg38.", "type": "STRING"}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "description": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC.", "type": "STRING"}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "description": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer.", "type": "INTEGER"}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "description": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1.", "type": "FLOAT"}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "description": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don't support Ns in flanks.", "type": "INTEGER"}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "description": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence.", "type": "INTEGER"}, {"name": "Source", "displayName": "Source", "group": "Core", "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.", "type": "STRING"}, {"name": "OverlapGroupId", "displayName": "Overlap Group ID", "group": "Additional Layers #2", "description": "Group ID shared by each set of overlapping TR loci. NULL for TR loci that don't overlap another TR locus.", "type": "INTEGER"}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "description": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1.", "type": "FLOAT"}, {"name": "VariationCluster", "displayName": "Variation Cluster Interval", "group": "Additional Layers", "description": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms.", "type": "STRING"}, {"name": "VariationClusterId", "displayName": "Variation Cluster ID", "group": "Additional Layers", "description": "Comma-separated list of locus IDs of all TR loci in the variation cluster.", "type": "STRING"}, {"name": "VariationClusterMotifs", "displayName": "Variation Cluster Motifs", "group": "Additional Layers", "description": "Comma-separated list of unique motifs of TR loci in the variation cluster.", "type": "STRING"}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "description": "Size difference in bp between the variation cluster interval and the reference repeat interval.", "type": "INTEGER"}, {"name": "VariationClusterFilterReason", "displayName": "VC Filter Reason", "group": "Additional Layers", "description": "Reason why this locus was excluded from the variation cluster analysis.", "type": "STRING"}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "description": "The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive), with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) gene name", "type": "STRING"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) gene ID (ENSG)", "type": "STRING"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) transcript ID (ENST)", "type": "STRING"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "description": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "description": "RefSeq gene name", "type": "STRING"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "description": "RefSeq gene ID", "type": "STRING"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "description": "RefSeq transcript ID", "type": "STRING"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "description": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "description": "MANE v1.4 gene name", "type": "STRING"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "description": "MANE v1.4 gene ID", "type": "STRING"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "description": "MANE v1.4 transcript ID", "type": "STRING"}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "description": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "type": "FLOAT"}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "description": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "type": "FLOAT"}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "description": "Minimum allele size observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "description": "Mode (most common) allele size in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "description": "Standard deviation of allele sizes in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "description": "Median allele size in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "description": "99th percentile allele size in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "description": "Maximum allele size observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_ShortAllele99thPercentile", "displayName": "TenK10K Short Allele 99th Percentile", "group": "Polymorphism (TenK10K)", "description": "99th percentile of the shorter-of-paired allele size per sample in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_ShortAlleleMax", "displayName": "TenK10K Short Allele Max", "group": "Polymorphism (TenK10K)", "description": "Maximum shorter-of-paired allele size per sample in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_UniqueAlleleLengths", "displayName": "TenK10K Unique Allele Lengths", "group": "Polymorphism (TenK10K)", "description": "Number of unique allele lengths observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "description": "Total number of alleles called in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "TenK10K_StdevRankPercentile", "displayName": "TenK10K Stdev Rank Percentile", "group": "Polymorphism (TenK10K)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256:LPS Min Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Minimum allele size (LPS) observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256:LPS Mode Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Mode (most common) allele size (LPS) in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_Stdev", "displayName": "HPRC256:LPS Stdev", "group": "Polymorphism (HPRC256:LPS)", "description": "Standard deviation of allele sizes (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_Median", "displayName": "HPRC256:LPS Median", "group": "Polymorphism (HPRC256:LPS)", "description": "Median allele size (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256:LPS 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile allele size (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256:LPS Max Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum allele size (LPS) observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_ShortAllele99thPercentile", "displayName": "HPRC256:LPS Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile of the shorter-of-paired allele size (LPS) per sample in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_ShortAlleleMax", "displayName": "HPRC256:LPS Short Allele Max", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum shorter-of-paired allele size (LPS) per sample in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_HemiAllele99thPercentile", "displayName": "HPRC256:LPS Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci.", "type": "FLOAT"}, {"name": "HPRC256_HemiAlleleMax", "displayName": "HPRC256:LPS Hemi Allele Max", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci.", "type": "INTEGER"}, {"name": "HPRC256_UniqueAlleleLengths", "displayName": "HPRC256:LPS Unique Allele Lengths", "group": "Polymorphism (HPRC256:LPS)", "description": "Number of unique LPS allele lengths observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256:LPS Num Called", "group": "Polymorphism (HPRC256:LPS)", "description": "Total number of alleles called in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256:LPS Stdev Rank", "group": "Polymorphism (HPRC256:LPS)", "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "HPRC256_StdevRankPercentile", "displayName": "HPRC256:LPS Stdev Rank Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "HPRC256_NumIntervalsThatIncludeThisLocusId", "displayName": "HPRC256:LPS # Intervals", "group": "Polymorphism (HPRC256:LPS)", "description": "Number of distinct TRGT catalog intervals (rows in the HPRC256 stratified LPS table) that contain this LocusId. 1 = locus only genotyped as a standalone TR. >1 = also genotyped as part of one or more variation clusters.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_MinAllele", "displayName": "HPRC256:Length Min Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Minimum allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_ModeAllele", "displayName": "HPRC256:Length Mode Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Mode (most common) allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_Stdev", "displayName": "HPRC256:Length Stdev", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Standard deviation of allele sizes.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_Median", "displayName": "HPRC256:Length Median", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Median allele size.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_99thPercentile", "displayName": "HPRC256:Length 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_MaxAllele", "displayName": "HPRC256:Length Max Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_ShortAllele99thPercentile", "displayName": "HPRC256:Length Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile of the shorter allele size per sample.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_ShortAlleleMax", "displayName": "HPRC256:Length Short Allele Max", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum shorter allele size per sample.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_HemiAllele99thPercentile", "displayName": "HPRC256:Length Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_HemiAlleleMax", "displayName": "HPRC256:Length Hemi Allele Max", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_UniqueAlleleLengths", "displayName": "HPRC256:Length Unique Allele Lengths", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Number of distinct allele sizes.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_NumCalledAlleles", "displayName": "HPRC256:Length Num Called", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Total number of called alleles.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_StdevRankByMotif", "displayName": "HPRC256:Length Stdev Rank", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Rank of this locus by standard deviation among all loci with the same motif. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "HPRC256TotalLength_StdevRankPercentile", "displayName": "HPRC256:Length Stdev Rank Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027:LPS Min Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us).", "type": "INTEGER"}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027:LPS Mode Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Mode (most common) allele size (LPS) in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_Stdev", "displayName": "AoU1027:LPS Stdev", "group": "Polymorphism (AoU1027:LPS)", "description": "Standard deviation of allele sizes (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_Median", "displayName": "AoU1027:LPS Median", "group": "Polymorphism (AoU1027:LPS)", "description": "Median allele size (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027:LPS 99th Percentile", "group": "Polymorphism (AoU1027:LPS)", "description": "99th percentile allele size (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027:LPS Max Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Maximum allele size (LPS) observed in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027:LPS Num Called", "group": "Polymorphism (AoU1027:LPS)", "description": "Total number of alleles called in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027:LPS Stdev Rank", "group": "Polymorphism (AoU1027:LPS)", "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "AoU1027_StdevRankPercentile", "displayName": "AoU1027:LPS Stdev Rank Percentile", "group": "Polymorphism (AoU1027:LPS)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "description": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025).", "type": "FLOAT"}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "description": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog.", "type": "FLOAT"}, {"name": "RepeatMaskerIntervals", "displayName": "RepeatMasker Intervals", "group": "Additional Layers", "description": "UCSC Repeat Masker intervals that overlap the TR locus", "type": "STRING"}, {"name": "NonCodingAnnotations", "displayName": "Non-coding Annotations", "group": "Additional Layers", "description": "Non-coding annotations from various sources collected by the Talkowski Lab", "type": "STRING"}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Additional Layers #2", "description": "Number of unique motifs detected by Vamos at this locus.", "type": "INTEGER"}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Additional Layers #2", "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them.", "type": "INTEGER"}, {"name": "Tanudisastro2024_SignificantCellTypes", "displayName": "sc-eTRs: Cell Types", "group": "Additional Layers #2", "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.", "type": "STRING"}, {"name": "Tanudisastro2024_MinPvalue", "displayName": "sc-eTRs: Min P-value", "group": "Additional Layers #2", "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.", "type": "FLOAT"}, {"name": "Manigbas2024_AssociatedTraits", "displayName": "PheWAS: Traits", "group": "Additional Layers #2", "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.", "type": "STRING"}, {"name": "Manigbas2024_MinPvalue", "displayName": "PheWAS: Min P-value", "group": "Additional Layers #2", "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations.", "type": "FLOAT"}, {"name": "CentromereAndSatelliteRegion", "displayName": "Centromere and Satellite Regions", "group": "New Columns (10/2026)", "description": "The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from the Miga lab's centromeric satellite annotation (hg38.cenSatv1.0, chm13v2.0.cenSatv2.1). Possible values include:<ul><li><b>HSat3</b>: a human satellite 3 array</li><li><b>active_hor</b>: the alpha satellite array where the centromere forms</li><li><b>ct</b>: a centromeric transition region between satellite arrays</li><li><b>hor</b>: an inactive alpha satellite higher-order repeat array</li><li><b>dhor</b>: a diverged alpha satellite higher-order repeat array</li><li><b>mon</b>: monomeric alpha satellite, which is not organized into higher-order repeats</li><li><b>mixedAlpha</b>: alpha satellite that does not fit into one of the other alpha satellite classes</li><li><b>HSat1A</b>: a human satellite 1A array</li><li><b>HSat1B</b>: a human satellite 1B array</li><li><b>HSat2</b>: a human satellite 2 array</li><li><b>HSat2_3</b>: a human satellite array that could not be resolved as either HSat2 or HSat3</li><li><b>GAP,HSat2</b> and <b>GAP,HSat3</b>: an HSat2 or HSat3 array that ends at a gap in the reference genome</li><li><b>bSat</b>: a beta satellite array</li><li><b>gSat</b>: a gamma satellite array</li><li><b>cenSat</b>: another centromeric satellite, such as CER, SATR, SST1, ACRO, HSAT4, HSAT5 or TAF11</li><li><b>rDNA</b>: a ribosomal DNA array</li></ul>If the TR locus doesn't overlap any of these regions, its value is NULL or empty.", "type": "STRING"}, {"name": "Zhang2025_LengthEffectTestResult", "displayName": "STR MPRA: Length Effect", "group": "New Columns (10/2026)", "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. The result is from the paper's main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Zhang2025_Details says which. Possible values include:<ul><li><b>\u201csignificant\u201d</b>: FDR < 0.1</li><li><b>\u201cnot significant\u201d</b>: FDR \u2265 0.1</li><li><b>\u201cnot enough data\u201d</b>: in the library, but too few barcodes to test in either hSTR1 or hSTR2</li><li><b>NULL</b>: the locus was not tested</li></ul>", "type": "STRING"}, {"name": "Zhang2025_LengthEffectSlope", "displayName": "STR MPRA: Length Effect Slope", "group": "New Columns (10/2026)", "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. Positive means longer alleles increase expression. The two libraries' slopes are on different scales: for loci significant in both, hSTR2 slopes are about half of hSTR1's. NULL if not tested or not enough data.", "type": "FLOAT"}, {"name": "Zhang2025_LengthEffectFDR", "displayName": "STR MPRA: Length Effect FDR", "group": "New Columns (10/2026)", "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. NULL if not tested or not enough data.", "type": "FLOAT"}, {"name": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements", "displayName": "ENCODE4/IGVF: Validated Elements", "group": "New Columns (10/2026)", "description": "Comma-separated data source:assay:biosample type triples (e.g. ENCODE:MPRA:HepG2,IGVF:CRISPR:HCT116) in which an element that overlaps the locus was called functional: ENCODE CRISPR screen elements marked significant, ENCODE MPRA elements with log2 fold change > 0 and FDR < 0.05, and IGVF CRISPR screen elements called by each lab's published rule. Empty does not mean the locus was tested; most loci were not.", "type": "STRING"}, {"name": "ReferenceRepeatSequence", "displayName": "Reference Sequence", "group": "Core", "description": "The repeat sequence within the TR interval in hg38", "type": "STRING"}, {"name": "ReferenceLeftFlank", "displayName": "Left Flank Sequence", "group": "Core", "description": "The sequence immediately to the left of the TR locus in hg38", "type": "STRING"}, {"name": "ReferenceRightFlank", "displayName": "Right Flank Sequence", "group": "Core", "description": "The sequence immediately to the right of the TR locus in hg38", "type": "STRING"}, {"name": "SpliceAI_MaxDeltaScore", "displayName": "SpliceAI Max Delta Score", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The largest SpliceAI delta score (acceptor or donor, gain or loss) of any simulated allele at this locus; 0 if none reached 0.01.", "type": "FLOAT"}, {"name": "SpliceAI_MaxDeltaScoreAlleleSize", "displayName": "SpliceAI Max Delta Score Allele Size", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The simulated allele size that gave the largest delta score (the smallest such size if several tie); empty if no allele reached 0.01.", "type": "STRING"}, {"name": "SpliceAI_MinAlleleSizeThatAffectsSplicing", "displayName": "SpliceAI Min Allele Size That Affects Splicing", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The smallest simulated allele size with a SpliceAI delta score of at least 0.2; empty if none.", "type": "STRING"}]
+    const CUSTOM_FILTER_COLUMNS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "description": "Chromosome name without 'chr' prefix (e.g., '1', '2', 'X', 'Y', 'MT').", "type": "STRING"}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "description": "0-based start coordinate of the TR locus in hg38.", "type": "INTEGER"}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "description": "1-based end coordinate of the TR locus in hg38 (half-open interval).", "type": "INTEGER"}, {"name": "ReferenceRegion", "displayName": "Reference Region", "group": "Core", "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442", "type": "STRING"}, {"name": "LocusId", "displayName": "Locus ID", "group": "Core", "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.", "type": "STRING"}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "description": "Size of the TR locus in base pairs (end_1based - start_0based).", "type": "INTEGER"}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "description": "Length of the repeat motif in base pairs.", "type": "INTEGER"}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "description": "The repeat motif sequence as it appears in hg38.", "type": "STRING"}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "description": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC.", "type": "STRING"}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "description": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer.", "type": "INTEGER"}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "description": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1.", "type": "FLOAT"}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "description": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don't support Ns in flanks.", "type": "INTEGER"}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "description": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence.", "type": "INTEGER"}, {"name": "Source", "displayName": "Source", "group": "Core", "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog.", "type": "STRING"}, {"name": "OverlapGroupId", "displayName": "Overlap Group ID", "group": "Additional Layers #2", "description": "Group ID shared by each set of overlapping TR loci. NULL for TR loci that don't overlap another TR locus.", "type": "INTEGER"}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "description": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1.", "type": "FLOAT"}, {"name": "VariationCluster", "displayName": "Variation Cluster Interval", "group": "Additional Layers", "description": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms.", "type": "STRING"}, {"name": "VariationClusterId", "displayName": "Variation Cluster ID", "group": "Additional Layers", "description": "Comma-separated list of locus IDs of all TR loci in the variation cluster.", "type": "STRING"}, {"name": "VariationClusterMotifs", "displayName": "Variation Cluster Motifs", "group": "Additional Layers", "description": "Comma-separated list of unique motifs of TR loci in the variation cluster.", "type": "STRING"}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "description": "Size difference in bp between the variation cluster interval and the reference repeat interval.", "type": "INTEGER"}, {"name": "VariationClusterFilterReason", "displayName": "VC Filter Reason", "group": "Additional Layers", "description": "Reason why this locus was excluded from the variation cluster analysis.", "type": "STRING"}, {"name": "KnownDiseaseAssociatedLocus", "displayName": "Known Disease Locus", "group": "Additional Layers", "description": "Name of the known disease-associated locus if this TR overlaps one.", "type": "STRING"}, {"name": "KnownDiseaseAssociatedMotif", "displayName": "Known Disease Motif", "group": "Additional Layers", "description": "The pathogenic repeat motif at the known disease-associated locus.", "type": "STRING"}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "description": "The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive), with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) gene name", "type": "STRING"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) gene ID (ENSG)", "type": "STRING"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "description": "Gencode v50 (comprehensive) transcript ID (ENST)", "type": "STRING"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "description": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "description": "RefSeq gene name", "type": "STRING"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "description": "RefSeq gene ID", "type": "STRING"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "description": "RefSeq transcript ID", "type": "STRING"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "description": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR.", "type": "STRING"}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "description": "MANE v1.4 gene name", "type": "STRING"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "description": "MANE v1.4 gene ID", "type": "STRING"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "description": "MANE v1.4 transcript ID", "type": "STRING"}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "description": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP.", "type": "FLOAT"}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "description": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies.", "type": "FLOAT"}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "description": "Minimum allele size observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "description": "Mode (most common) allele size in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "description": "Standard deviation of allele sizes in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "description": "Median allele size in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "description": "99th percentile allele size in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "description": "Maximum allele size observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_ShortAllele99thPercentile", "displayName": "TenK10K Short Allele 99th Percentile", "group": "Polymorphism (TenK10K)", "description": "99th percentile of the shorter-of-paired allele size per sample in TenK10K Phase 1.", "type": "FLOAT"}, {"name": "TenK10K_ShortAlleleMax", "displayName": "TenK10K Short Allele Max", "group": "Polymorphism (TenK10K)", "description": "Maximum shorter-of-paired allele size per sample in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_UniqueAlleleLengths", "displayName": "TenK10K Unique Allele Lengths", "group": "Polymorphism (TenK10K)", "description": "Number of unique allele lengths observed in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "description": "Total number of alleles called in TenK10K Phase 1.", "type": "INTEGER"}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "TenK10K_StdevRankPercentile", "displayName": "TenK10K Stdev Rank Percentile", "group": "Polymorphism (TenK10K)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256:LPS Min Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Minimum allele size (LPS) observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256:LPS Mode Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Mode (most common) allele size (LPS) in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_Stdev", "displayName": "HPRC256:LPS Stdev", "group": "Polymorphism (HPRC256:LPS)", "description": "Standard deviation of allele sizes (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_Median", "displayName": "HPRC256:LPS Median", "group": "Polymorphism (HPRC256:LPS)", "description": "Median allele size (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256:LPS 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile allele size (LPS) in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256:LPS Max Allele", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum allele size (LPS) observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_ShortAllele99thPercentile", "displayName": "HPRC256:LPS Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile of the shorter-of-paired allele size (LPS) per sample in HPRC256.", "type": "FLOAT"}, {"name": "HPRC256_ShortAlleleMax", "displayName": "HPRC256:LPS Short Allele Max", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum shorter-of-paired allele size (LPS) per sample in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_HemiAllele99thPercentile", "displayName": "HPRC256:LPS Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "99th percentile allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci.", "type": "FLOAT"}, {"name": "HPRC256_HemiAlleleMax", "displayName": "HPRC256:LPS Hemi Allele Max", "group": "Polymorphism (HPRC256:LPS)", "description": "Maximum allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci.", "type": "INTEGER"}, {"name": "HPRC256_UniqueAlleleLengths", "displayName": "HPRC256:LPS Unique Allele Lengths", "group": "Polymorphism (HPRC256:LPS)", "description": "Number of unique LPS allele lengths observed in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256:LPS Num Called", "group": "Polymorphism (HPRC256:LPS)", "description": "Total number of alleles called in HPRC256.", "type": "INTEGER"}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256:LPS Stdev Rank", "group": "Polymorphism (HPRC256:LPS)", "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "HPRC256_StdevRankPercentile", "displayName": "HPRC256:LPS Stdev Rank Percentile", "group": "Polymorphism (HPRC256:LPS)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "HPRC256_NumIntervalsThatIncludeThisLocusId", "displayName": "HPRC256:LPS # Intervals", "group": "Polymorphism (HPRC256:LPS)", "description": "Number of distinct TRGT catalog intervals (rows in the HPRC256 stratified LPS table) that contain this LocusId. 1 = locus only genotyped as a standalone TR. >1 = also genotyped as part of one or more variation clusters.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_MinAllele", "displayName": "HPRC256:Length Min Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Minimum allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_ModeAllele", "displayName": "HPRC256:Length Mode Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Mode (most common) allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_Stdev", "displayName": "HPRC256:Length Stdev", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Standard deviation of allele sizes.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_Median", "displayName": "HPRC256:Length Median", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Median allele size.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_99thPercentile", "displayName": "HPRC256:Length 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_MaxAllele", "displayName": "HPRC256:Length Max Allele", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_ShortAllele99thPercentile", "displayName": "HPRC256:Length Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile of the shorter allele size per sample.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_ShortAlleleMax", "displayName": "HPRC256:Length Short Allele Max", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum shorter allele size per sample.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_HemiAllele99thPercentile", "displayName": "HPRC256:Length Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci.", "type": "FLOAT"}, {"name": "HPRC256TotalLength_HemiAlleleMax", "displayName": "HPRC256:Length Hemi Allele Max", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_UniqueAlleleLengths", "displayName": "HPRC256:Length Unique Allele Lengths", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Number of distinct allele sizes.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_NumCalledAlleles", "displayName": "HPRC256:Length Num Called", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Total number of called alleles.", "type": "INTEGER"}, {"name": "HPRC256TotalLength_StdevRankByMotif", "displayName": "HPRC256:Length Stdev Rank", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Rank of this locus by standard deviation among all loci with the same motif. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "HPRC256TotalLength_StdevRankPercentile", "displayName": "HPRC256:Length Stdev Rank Percentile", "group": "Polymorphism (HPRC256:Length)", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027:LPS Min Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us).", "type": "INTEGER"}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027:LPS Mode Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Mode (most common) allele size (LPS) in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_Stdev", "displayName": "AoU1027:LPS Stdev", "group": "Polymorphism (AoU1027:LPS)", "description": "Standard deviation of allele sizes (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_Median", "displayName": "AoU1027:LPS Median", "group": "Polymorphism (AoU1027:LPS)", "description": "Median allele size (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027:LPS 99th Percentile", "group": "Polymorphism (AoU1027:LPS)", "description": "99th percentile allele size (LPS) in AoU1027.", "type": "FLOAT"}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027:LPS Max Allele", "group": "Polymorphism (AoU1027:LPS)", "description": "Maximum allele size (LPS) observed in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027:LPS Num Called", "group": "Polymorphism (AoU1027:LPS)", "description": "Total number of alleles called in AoU1027.", "type": "INTEGER"}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027:LPS Stdev Rank", "group": "Polymorphism (AoU1027:LPS)", "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027. Lower = more variable (rank 1 = highest stdev).", "type": "INTEGER"}, {"name": "AoU1027_StdevRankPercentile", "displayName": "AoU1027:LPS Stdev Rank Percentile", "group": "Polymorphism (AoU1027:LPS)", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic).", "type": "FLOAT"}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "description": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025).", "type": "FLOAT"}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "description": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog.", "type": "FLOAT"}, {"name": "RepeatMaskerIntervals", "displayName": "RepeatMasker Intervals", "group": "Additional Layers", "description": "UCSC Repeat Masker intervals that overlap the TR locus", "type": "STRING"}, {"name": "NonCodingAnnotations", "displayName": "Non-coding Annotations", "group": "Additional Layers", "description": "Non-coding annotations from various sources collected by the Talkowski Lab", "type": "STRING"}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Additional Layers #2", "description": "Number of unique motifs detected by Vamos at this locus.", "type": "INTEGER"}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Additional Layers #2", "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them.", "type": "INTEGER"}, {"name": "Tanudisastro2024_SignificantCellTypes", "displayName": "sc-eTRs: Cell Types", "group": "Additional Layers #2", "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.", "type": "STRING"}, {"name": "Tanudisastro2024_MinPvalue", "displayName": "sc-eTRs: Min P-value", "group": "Additional Layers #2", "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.", "type": "FLOAT"}, {"name": "Manigbas2024_AssociatedTraits", "displayName": "PheWAS: Traits", "group": "Additional Layers #2", "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.", "type": "STRING"}, {"name": "Manigbas2024_MinPvalue", "displayName": "PheWAS: Min P-value", "group": "Additional Layers #2", "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations.", "type": "FLOAT"}, {"name": "CentromereAndSatelliteRegion", "displayName": "Centromere and Satellite Regions", "group": "New Columns (10/2026)", "description": "The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from the Miga lab's centromeric satellite annotation (hg38.cenSatv1.0, chm13v2.0.cenSatv2.1). Possible values include:<ul><li><b>HSat3</b>: a human satellite 3 array</li><li><b>active_hor</b>: the alpha satellite array where the centromere forms</li><li><b>ct</b>: a centromeric transition region between satellite arrays</li><li><b>hor</b>: an inactive alpha satellite higher-order repeat array</li><li><b>dhor</b>: a diverged alpha satellite higher-order repeat array</li><li><b>mon</b>: monomeric alpha satellite, which is not organized into higher-order repeats</li><li><b>mixedAlpha</b>: alpha satellite that does not fit into one of the other alpha satellite classes</li><li><b>HSat1A</b>: a human satellite 1A array</li><li><b>HSat1B</b>: a human satellite 1B array</li><li><b>HSat2</b>: a human satellite 2 array</li><li><b>HSat2_3</b>: a human satellite array that could not be resolved as either HSat2 or HSat3</li><li><b>GAP,HSat2</b> and <b>GAP,HSat3</b>: an HSat2 or HSat3 array that ends at a gap in the reference genome</li><li><b>bSat</b>: a beta satellite array</li><li><b>gSat</b>: a gamma satellite array</li><li><b>cenSat</b>: another centromeric satellite, such as CER, SATR, SST1, ACRO, HSAT4, HSAT5 or TAF11</li><li><b>rDNA</b>: a ribosomal DNA array</li></ul>If the TR locus doesn't overlap any of these regions, its value is NULL or empty.", "type": "STRING"}, {"name": "Zhang2025_LengthEffectTestResult", "displayName": "STR MPRA: Length Effect", "group": "New Columns (10/2026)", "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. The result is from the paper's main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Zhang2025_Details says which. Possible values include:<ul><li><b>\u201csignificant\u201d</b>: FDR < 0.1</li><li><b>\u201cnot significant\u201d</b>: FDR \u2265 0.1</li><li><b>\u201cnot enough data\u201d</b>: in the library, but too few barcodes to test in either hSTR1 or hSTR2</li><li><b>NULL</b>: the locus was not tested</li></ul>", "type": "STRING"}, {"name": "Zhang2025_LengthEffectSlope", "displayName": "STR MPRA: Length Effect Slope", "group": "New Columns (10/2026)", "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. Positive means longer alleles increase expression. The two libraries' slopes are on different scales: for loci significant in both, hSTR2 slopes are about half of hSTR1's. NULL if not tested or not enough data.", "type": "FLOAT"}, {"name": "Zhang2025_LengthEffectFDR", "displayName": "STR MPRA: Length Effect FDR", "group": "New Columns (10/2026)", "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. NULL if not tested or not enough data.", "type": "FLOAT"}, {"name": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements", "displayName": "ENCODE4/IGVF: Validated Elements", "group": "New Columns (10/2026)", "description": "Comma-separated data source:assay:biosample type triples (e.g. ENCODE:MPRA:HepG2,IGVF:CRISPR:HCT116) in which an element that overlaps the locus was called functional: ENCODE CRISPR screen elements marked significant, ENCODE MPRA elements with log2 fold change > 0 and FDR < 0.05, and IGVF CRISPR screen elements called by each lab's published rule. Empty does not mean the locus was tested; most loci were not.", "type": "STRING"}, {"name": "ReferenceRepeatSequence", "displayName": "Reference Sequence", "group": "Core", "description": "The repeat sequence within the TR interval in hg38", "type": "STRING"}, {"name": "ReferenceLeftFlank", "displayName": "Left Flank Sequence", "group": "Core", "description": "The sequence immediately to the left of the TR locus in hg38", "type": "STRING"}, {"name": "ReferenceRightFlank", "displayName": "Right Flank Sequence", "group": "Core", "description": "The sequence immediately to the right of the TR locus in hg38", "type": "STRING"}, {"name": "SpliceAI_MaxDeltaScore", "displayName": "SpliceAI Max Delta Score", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The largest SpliceAI delta score (acceptor or donor, gain or loss) of any simulated allele at this locus; 0 if none reached 0.01.", "type": "FLOAT"}, {"name": "SpliceAI_MaxDeltaScoreAlleleSize", "displayName": "SpliceAI Max Delta Score Allele Size", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The simulated allele size that gave the largest delta score (the smallest such size if several tie); empty if no allele reached 0.01.", "type": "STRING"}, {"name": "SpliceAI_MinAlleleSizeThatAffectsSplicing", "displayName": "SpliceAI Min Allele Size That Affects Splicing", "group": "New Columns (10/2026)", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The smallest simulated allele size with a SpliceAI delta score of at least 0.2; empty if none.", "type": "STRING"}]
 
     // Columns available for TSV/JSON export with their display names and group
     // Generated from MAIN_BIGQUERY_TABLE_COLUMNS in global_constants.py
@@ -7043,7 +8695,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     GLOBAL_PAGE_STATE[key] = names.length > 0
                         ? names.join(SHOW_COLUMNS_VALUE_DELIMITER)
                         : DEFAULT_GLOBAL_PAGE_STATE[key]
-                } else if (key === 'customFilters' || key === 'extraPolymorphismFilters') {
+                } else if (key === 'customFilters' || key === 'extraPolymorphismFilters' || key === 'plots') {
                     GLOBAL_PAGE_STATE[key] = `${value}` // convert to string
                 }
             }
@@ -7063,6 +8715,10 @@ gtag('config', 'G-6R8FPBQRFH');
         if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
             $('#advanced-search-form').show()
             $('#filter-button .filter.icon').removeClass('rotated')
+        } else {
+            // e.g. after Back from a state with the panel open
+            $('#advanced-search-form').hide()
+            $('#filter-button .filter.icon').addClass('rotated')
         }
 
         // search
@@ -7604,10 +9260,10 @@ gtag('config', 'G-6R8FPBQRFH');
         return 'e.g., CAG'
     }
 
-    const buildColumnDropdownMenu = () => {
+    const buildColumnDropdownMenu = (columns = CUSTOM_FILTER_COLUMNS) => {
         // Group columns (merge "Additional Layers #2" into "Additional Layers")
         const grouped = {}
-        CUSTOM_FILTER_COLUMNS.forEach(col => {
+        columns.forEach(col => {
             const group = col.group === 'Additional Layers #2' ? 'Additional Layers' : col.group
             if (!grouped[group]) grouped[group] = []
             grouped[group].push(col)
@@ -7802,6 +9458,12 @@ gtag('config', 'G-6R8FPBQRFH');
     let suppressFormStatePersistence = true
     const persistAllAdvancedFormStateToUrl = () => {
         if (suppressFormStatePersistence) return
+        copySearchFormStateToPageState()
+        writePersistentPageStateToUrl()
+    }
+
+    // Copies the search box and the advanced search form's settings into GLOBAL_PAGE_STATE
+    const copySearchFormStateToPageState = () => {
         GLOBAL_PAGE_STATE['searchQuery'] = $('#search-query').val()
         GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
         GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
@@ -7823,7 +9485,6 @@ gtag('config', 'G-6R8FPBQRFH');
         GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
         GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(customFilterGroups)
         GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
-        writePersistentPageStateToUrl()
     }
 
     // Opens the column dialog, which adds a filter for each column checked in it, either to targetGroup or, when
@@ -7926,6 +9587,41 @@ gtag('config', 'G-6R8FPBQRFH');
     // starts the next group. Links from before filter groups existed have no 'AND' entries, so they load as one group.
     const CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL = 'AND'
 
+    // The GLOBAL_PAGE_STATE keys of the settings in the advanced search panel
+    const ADVANCED_SEARCH_PAGE_STATE_KEYS = [
+        'sourceCatalog', 'keepMotifSize', 'keepMotif', 'keepCodingLoci', 'keepFiveUTRLoci', 'keepThreeUTRLoci',
+        'keepPromoterLoci', 'keepIntronLoci', 'keepIntergenicLoci', 'keepNonCodingExonLoci',
+        'keepLociThatOverlapDiseaseAssociatedLoci', 'keepLociThatOverlapLocusSet', 'keepLociThatOverlapLocusSetSelection',
+        'polymorphismFilter', 'polymorphismFilterType', 'polymorphismThreshold', 'vcFilter', 'vcFilterType',
+        'customFilters', 'extraPolymorphismFilters',
+    ]
+
+    // The GLOBAL_PAGE_STATE keys that decide which loci a search returns
+    const SEARCH_PAGE_STATE_KEYS = ['searchQuery', 'showAdvFilters', ...ADVANCED_SEARCH_PAGE_STATE_KEYS]
+
+    // Adds a group of custom filters, whose filters are ANDed together (and with the other filters), to the search
+    // that produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new
+    // results are the current results that pass the new filters, even if the form was edited since the last search.
+    const addCustomFilterGroupAndSearch = async (filters) => {
+        Object.assign(GLOBAL_PAGE_STATE, window.lastSearchPageState)
+        // The current history entry may hold form edits made since the last search, so it's rewritten to that
+        // search, which is where the browser's Back button should return to
+        writePersistentPageStateToUrl(true)
+        // Custom filters only apply while the advanced search panel is open. Its other settings don't apply while
+        // it's hidden either, so they're reset to their defaults before it opens: otherwise settings left in the
+        // hidden panel would start applying too. The browser's Back button brings them back.
+        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+            ADVANCED_SEARCH_PAGE_STATE_KEYS.forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
+        }
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(
+            [...parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters']), {conjunction: 'AND', filters}])
+        GLOBAL_PAGE_STATE['showAdvFilters'] = 1
+        GLOBAL_PAGE_STATE['currentPage'] = 1
+        writePersistentPageStateToUrl()
+        // Fills in the form from the new page state, opens the panel, validates the form and reruns the search
+        await readAndApplyPersistentPageStateFromUrl()
+    }
+
     const serializeCustomFilterGroups = (groups) => groups
         .map(group => group.filters
             .map(filter => `${filter.enabled ? '' : '!'}${filter.column}|${filter.operator}|${encodeURIComponent(filter.value)}|${group.conjunction}`)
@@ -7975,7 +9671,8 @@ gtag('config', 'G-6R8FPBQRFH');
         if (!colInfo || !ALLOWED_CUSTOM_FILTER_OPERATORS.has(filter.operator)) return null
         if (isNullCheckOperator(filter.operator)) return `${filter.column} ${filter.operator}`
         if (filter.operator === 'LIKE' || filter.operator === 'NOT LIKE' || colInfo.type === 'STRING') {
-            return `${filter.column} ${filter.operator} '${filter.value.replace(/'/g, "''")}'`
+            // GoogleSQL escapes quotes and backslashes in string literals with a backslash (e.g. '3\' UTR')
+            return `${filter.column} ${filter.operator} '${filter.value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
         }
         return `${filter.column} ${filter.operator} ${Number(filter.value)}`
     }
@@ -9486,6 +11183,10 @@ gtag('config', 'G-6R8FPBQRFH');
 
             window.lastSearchConditions = conditions
             window.lastSearchSortClause = sortClause
+            // The settings that produce these results, read from the form now since it can be edited while the query
+            // runs. Clicking a plot's bar or box narrows them down.
+            if (!suppressFormStatePersistence) copySearchFormStateToPageState()
+            const searchPageState = Object.fromEntries(SEARCH_PAGE_STATE_KEYS.map(key => [key, GLOBAL_PAGE_STATE[key]]))
 
             const results = await queryBigQuery(query, startIndex, pageSize, null, null)
             // A newer search started while this query was in flight -> discard this stale result so it
@@ -9501,15 +11202,18 @@ gtag('config', 'G-6R8FPBQRFH');
             $('#loading-container').hide()
 
             persistAllAdvancedFormStateToUrl()
+            window.lastSearchPageState = searchPageState
 
             displaySearchResults()
 
             updatePaginationControls()
             updateIgvNavButtons()
-            
+            refreshSearchResultsPlots()
+
         } catch (error) {
             console.error('Error performing search:', error)
             $('#loading-container').hide()
+            $('#search-results-plots-area').hide()
             displayError('Error performing search: ' + error.message)
         } finally {
             $('body').css('cursor', 'default')
@@ -9990,6 +11694,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     $(document).ready(async () => {
 
+        initializeSearchResultsPlots()
         await readAndApplyPersistentPageStateFromUrl()
 
         console.log("Done initializing page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)

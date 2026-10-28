@@ -32,6 +32,19 @@ GROUP_ROWS_IN_COLUMN_DIALOGS = [
     [GROUP_POLYMORPHISM_HPRC256, GROUP_POLYMORPHISM_HPRC256_TOTAL_LENGTH, GROUP_POLYMORPHISM_TENK10K],
 ]
 
+# How the search results plots can use a column: as a categorical axis (one bar, box or color per value, keeping the
+# most frequent values) or as a numerical axis (scatter plot axes, histogram bins, and the values that bar heights and
+# boxes summarize). A column's "plotAxisType" key overrides the default for its type, and None keeps the column out of
+# the plot dialog (identifiers, sequences, and comma-separated lists of values).
+PLOT_AXIS_TYPE_CATEGORICAL = "categorical"
+PLOT_AXIS_TYPE_NUMERICAL = "numerical"
+PLOT_AXIS_TYPE_CATEGORICAL_OR_NUMERICAL = "categorical_or_numerical"
+DEFAULT_PLOT_AXIS_TYPE_BY_COLUMN_TYPE = {
+    "STRING": PLOT_AXIS_TYPE_CATEGORICAL,
+    "INTEGER": PLOT_AXIS_TYPE_CATEGORICAL_OR_NUMERICAL,
+    "FLOAT": PLOT_AXIS_TYPE_NUMERICAL,
+}
+
 HPRC256_TOTAL_LENGTH_DESCRIPTION = (
     "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using "
     "each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its "
@@ -74,6 +87,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "start_0based",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "mode": "REQUIRED",
         "description": "0-based start coordinate of the TR locus in hg38.",
         "displayName": "Start (0-based)",
@@ -84,6 +98,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "end_1based",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "mode": "REQUIRED",
         "description": "1-based end coordinate of the TR locus in hg38 (half-open interval).",
         "displayName": "End (1-based)",
@@ -94,6 +109,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "ReferenceRegion",
+        "plotAxisType": None,
         "mode": "REQUIRED",
         "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442",
         "displayName": "Reference Region",
@@ -104,6 +120,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "LocusId",
+        "plotAxisType": None,
         "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif.",
         "displayName": "Locus ID",
         "allowCustomFilter": True,
@@ -226,6 +243,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "OverlapGroupId",
+        "plotAxisType": None,
         "description": "Group ID shared by each set of overlapping TR loci. NULL for TR loci that don't overlap another TR locus.",
         "displayName": "Overlap Group ID",
         "allowCustomFilter": True,
@@ -285,6 +303,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "VariationCluster",
+        "plotAxisType": None,
         "description": (
             "Genomic interval of the variation cluster containing this locus, if any. "
             "Variation Clusters (VCs) are genomic intervals that contain one or more TRs "
@@ -298,6 +317,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "VariationClusterId",
+        "plotAxisType": None,
         "description": "Comma-separated list of locus IDs of all TR loci in the variation cluster.",
         "displayName": "Variation Cluster ID",
         "allowCustomFilter": True,
@@ -307,6 +327,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "VariationClusterMotifs",
+        "plotAxisType": None,
         "description": "Comma-separated list of unique motifs of TR loci in the variation cluster.",
         "displayName": "Variation Cluster Motifs",
         "allowCustomFilter": True,
@@ -338,6 +359,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "name": "KnownDiseaseAssociatedLocus",
         "description": "Name of the known disease-associated locus if this TR overlaps one.",
         "displayName": "Known Disease Locus",
+        "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,
     },
@@ -346,6 +368,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "name": "KnownDiseaseAssociatedMotif",
         "description": "The pathogenic repeat motif at the known disease-associated locus.",
         "displayName": "Known Disease Motif",
+        "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_ADDITIONAL_LAYERS,
     },
@@ -617,6 +640,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "TenK10K_StdevRankByMotif",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "TenK10K Stdev Rank",
         "allowCustomFilter": True,
@@ -769,6 +793,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "HPRC256_StdevRankByMotif",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "HPRC256:LPS Stdev Rank",
         "allowCustomFilter": True,
@@ -951,6 +976,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "HPRC256TotalLength_StdevRankByMotif",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "description": HPRC256_TOTAL_LENGTH_DESCRIPTION + " Rank of this locus by standard deviation among all loci with the same motif. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "HPRC256:Length Stdev Rank",
         "allowCustomFilter": True,
@@ -1050,6 +1076,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "INTEGER",
         "name": "AoU1027_StdevRankByMotif",
+        "plotAxisType": PLOT_AXIS_TYPE_NUMERICAL,
         "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027. Lower = more variable (rank 1 = highest stdev).",
         "displayName": "AoU1027:LPS Stdev Rank",
         "allowCustomFilter": True,
@@ -1096,6 +1123,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "RepeatMaskerIntervals",
+        "plotAxisType": None,
         "description": "UCSC Repeat Masker intervals that overlap the TR locus",
         "displayName": "RepeatMasker Intervals",
         "allowCustomFilter": True,
@@ -1105,6 +1133,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "NonCodingAnnotations",
+        "plotAxisType": None,
         "description": "Non-coding annotations from various sources collected by the Talkowski Lab",
         "displayName": "Non-coding Annotations",
         "allowCustomFilter": True,
@@ -1160,6 +1189,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Tanudisastro2024_SignificantCellTypes",
+        "plotAxisType": None,
         "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.",
         "displayName": "sc-eTRs: Cell Types",
         "allowCustomFilter": True,
@@ -1185,6 +1215,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Manigbas2024_AssociatedTraits",
+        "plotAxisType": None,
         "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations.",
         "displayName": "PheWAS: Traits",
         "allowCustomFilter": True,
@@ -1288,6 +1319,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements",
+        "plotAxisType": None,
         "description": "Comma-separated data source:assay:biosample type triples (e.g. ENCODE:MPRA:HepG2,IGVF:CRISPR:HCT116) in which an element that overlaps the locus was called functional: ENCODE CRISPR screen elements marked significant, ENCODE MPRA elements with log2 fold change > 0 and FDR < 0.05, and IGVF CRISPR screen elements called by each lab's published rule. Empty does not mean the locus was tested; most loci were not.",
         "displayName": "ENCODE4/IGVF: Validated Elements",
         "allowCustomFilter": True,
@@ -1299,6 +1331,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "ReferenceRepeatSequence",
+        "plotAxisType": None,
         "description": "The repeat sequence within the TR interval in hg38",
         "displayName": "Reference Sequence",
         "allowCustomFilter": True,
@@ -1307,6 +1340,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "ReferenceLeftFlank",
+        "plotAxisType": None,
         "description": "The sequence immediately to the left of the TR locus in hg38",
         "displayName": "Left Flank Sequence",
         "allowCustomFilter": True,
@@ -1315,6 +1349,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "ReferenceRightFlank",
+        "plotAxisType": None,
         "description": "The sequence immediately to the right of the TR locus in hg38",
         "displayName": "Right Flank Sequence",
         "allowCustomFilter": True,
@@ -1544,6 +1579,35 @@ def get_exportable_columns():
                 "description": col.get("description", ""),
             })
     return exportable
+
+
+def get_plot_columns(columns=None):
+    """Return the columns that the search results plots can use, with how each can be used.
+
+    A column qualifies if it can be used in custom filters, and its "plotAxisType" key (or the default for its type in
+    DEFAULT_PLOT_AXIS_TYPE_BY_COLUMN_TYPE, when the key is absent) is not None.
+
+    Args:
+        columns (list): column dicts to choose from. Defaults to MAIN_BIGQUERY_TABLE_COLUMNS.
+
+    Returns:
+        list: List of dicts with keys: name, displayName, group, type, plotAxisType
+    """
+    plot_columns = []
+    for col in MAIN_BIGQUERY_TABLE_COLUMNS if columns is None else columns:
+        if not col.get("allowCustomFilter", False):
+            continue
+        plot_axis_type = col.get("plotAxisType", DEFAULT_PLOT_AXIS_TYPE_BY_COLUMN_TYPE.get(col["type"]))
+        if plot_axis_type is None:
+            continue
+        plot_columns.append({
+            "name": col["name"],
+            "displayName": col.get("displayName", col["name"]),
+            "group": col.get("group", ""),
+            "type": col["type"],
+            "plotAxisType": plot_axis_type,
+        })
+    return plot_columns
 
 
 # The HTML tags that the column descriptions shown on the website may use

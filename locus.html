@@ -2745,6 +2745,9 @@ gtag('config', 'G-6R8FPBQRFH');
         // Extra polymorphism filter rows (in addition to the single primary one)
         extraPolymorphismFilters: '',
 
+        // Search results plots, as serialized by serializeSearchResultsPlotSettingsList
+        plots: '',
+
         // Custom track URLs
         igv_custom_track_url_1: '',
         igv_custom_track_url_2: '',
@@ -2850,7 +2853,8 @@ gtag('config', 'G-6R8FPBQRFH');
         Object.entries(URL_PARAM_ALIASES).map(([k, v]) => [v, k])
     )
 
-    const writePersistentPageStateToUrl = () => {
+    // replaceCurrentHistoryEntry = true changes the current browser history entry instead of adding one
+    const writePersistentPageStateToUrl = (replaceCurrentHistoryEntry = false) => {
         // Create object with only non-default values
         const nonDefaultParams = {}
         for (const [key, value] of Object.entries(GLOBAL_PAGE_STATE)) {
@@ -2868,7 +2872,11 @@ gtag('config', 'G-6R8FPBQRFH');
         const currentHash = window.location.hash
         if (currentHash !== hash) {
             // Update URL and add to browser history
-            window.history.pushState(null, '', hash)
+            if (replaceCurrentHistoryEntry) {
+                window.history.replaceState(null, '', hash)
+            } else {
+                window.history.pushState(null, '', hash)
+            }
         }
     }
 
@@ -6258,7 +6266,7 @@ gtag('config', 'G-6R8FPBQRFH');
         </a>
     </div>
     <div class="seven wide column" id="header-nav" style="min-width: 700px">
-        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(10/20/2026)</span></a>
+        <a href="#" id="whats-new-link" style="white-space: nowrap">What's New<span style="font-size: calc(1em - 2px); padding-left: 10px">(10/24/2026)</span></a>
         <a href="#" id="about-link" style="padding-left: 40px">About</a>
         <a href="#" id="faq-link">FAQ</a>
         <a href="#" id="downloads-link">Downloads</a>

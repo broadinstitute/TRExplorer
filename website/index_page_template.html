@@ -50,6 +50,150 @@
     </div>
 </div>
 
+<!-- modal dialog for adding or editing a search results plot -->
+<div class="ui small modal" id="search-results-plot-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="search-results-plot-dialog-title">Add Plot</div>
+    <div class="content">
+        <div class="ui form">
+            <div class="inline fields">
+                <label>Plot type:</label>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="bar" checked><label>Bar Plot</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="scatter"><label>Scatter Plot</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotType" value="box"><label>Box Plot</label></div></div>
+            </div>
+            <div class="fields">
+                <div class="field">
+                    <label>X-axis</label>
+                    <div class="ui search selection dropdown" id="plot-x-column-dropdown">
+                        <input type="hidden">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">Select column</div>
+                        <div class="menu"></div>
+                    </div>
+                </div>
+                <div class="field" id="plot-x-scale-field">
+                    <label>X-axis scale</label>
+                    <div class="ui selection dropdown" id="plot-x-scale-dropdown">
+                        <input type="hidden" value="linear">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Linear</div>
+                        <div class="menu">
+                            <div class="item" data-value="linear">Linear</div>
+                            <div class="item" data-value="log">Log</div>
+                            <div class="item" data-value="symlog">Symmetric log</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="inline fields" id="plot-x-mode-field">
+                <label>Treat X-axis values as:</label>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotXMode" value="categories" checked><label>Categories (one bar per value)</label></div></div>
+                <div class="field"><div class="ui radio checkbox"><input type="radio" name="searchResultsPlotXMode" value="bins"><label>Numbers (histogram)</label></div></div>
+            </div>
+            <div class="inline field" id="plot-bins-field">
+                <label>Number of bins:</label>
+                <input type="number" id="plot-bins-input" min="2" max="200" style="width: 90px">
+            </div>
+            <div class="fields">
+                <div class="field">
+                    <label>Y-axis</label>
+                    <div class="ui search selection dropdown" id="plot-y-column-dropdown">
+                        <input type="hidden">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">Select column</div>
+                        <div class="menu"></div>
+                    </div>
+                </div>
+                <div class="field" id="plot-y-scale-field">
+                    <label>Y-axis scale</label>
+                    <div class="ui selection dropdown" id="plot-y-scale-dropdown">
+                        <input type="hidden" value="linear">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Linear</div>
+                        <div class="menu">
+                            <div class="item" data-value="linear">Linear</div>
+                            <div class="item" data-value="log">Log</div>
+                            <div class="item" data-value="symlog">Symmetric log</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="field" id="plot-y-aggregate-field">
+                <label>Bar height</label>
+                <div class="ui selection dropdown" id="plot-y-aggregate-dropdown">
+                    <input type="hidden" value="mean">
+                    <i class="dropdown icon"></i>
+                    <div class="text">Mean</div>
+                    <div class="menu">
+                        <div class="item" data-value="mean">Mean</div>
+                        <div class="item" data-value="median">Median</div>
+                        <div class="item" data-value="min">Min</div>
+                        <div class="item" data-value="max">Max</div>
+                        <div class="item" data-value="sum">Sum</div>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label>Color by (optional)</label>
+                <div class="ui search selection dropdown" id="plot-color-column-dropdown">
+                    <input type="hidden">
+                    <i class="dropdown icon"></i>
+                    <div class="default text">None</div>
+                    <div class="menu"></div>
+                </div>
+            </div>
+            <div class="fields" id="plot-sort-fields">
+                <div class="field">
+                    <label>Sort categories by</label>
+                    <div class="ui search selection dropdown" id="plot-sort-dropdown">
+                        <input type="hidden" value="height">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Bar height</div>
+                        <div class="menu">
+                            <div class="item" data-value="height">Bar height</div>
+                            <div class="item" data-value="count">Number of loci</div>
+                            <div class="item" data-value="value">Category value</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Order</label>
+                    <div class="ui selection dropdown" id="plot-sort-direction-dropdown">
+                        <input type="hidden" value="desc">
+                        <i class="dropdown icon"></i>
+                        <div class="text">Descending</div>
+                        <div class="menu">
+                            <div class="item" data-value="desc">Descending</div>
+                            <div class="item" data-value="asc">Ascending</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="inline field" id="plot-top-n-field">
+                <label>Show the</label>
+                <input type="number" id="plot-top-n-input" min="1" max="100" style="width: 80px">
+                <label style="margin-left: 0.5em">most frequent categories (at most 20 for colors)</label>
+            </div>
+            <div class="inline fields" id="plot-show-other-field">
+                <div class="field"><div class="ui checkbox"><input type="checkbox" id="plot-show-other-checkbox"><label>Show the less frequent categories as "Other"</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" id="plot-show-missing-checkbox"><label>Show loci with no value as "Missing"</label></div></div>
+            </div>
+            <div class="field" id="plot-percent-field">
+                <div class="ui checkbox"><input type="checkbox" id="plot-percent-checkbox"><label>Show each stacked bar as percentages</label></div>
+            </div>
+            <div id="search-results-plot-dialog-error" class="ui negative message" style="display: none"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">Cancel</div>
+        <div class="ui positive right labeled icon button" id="search-results-plot-dialog-ok-button">
+            OK
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
 <!-- modal dialog for selecting columns to export -->
 <div class="ui modal" id="export-column-dialog">
     <i class="close icon"></i>
@@ -532,6 +676,12 @@
                 <div class="pagination-container top-pagination"></div>
                 <div id="results-table"></div>
                 <div class="pagination-container bottom-pagination"></div>
+                <div id="search-results-plots-area" style="display: none">
+                    <div id="search-results-plots"></div>
+                    <div id="add-search-results-plot-link-container">
+                        <a href="#" id="add-search-results-plot-link">Add plot...</a>
+                    </div>
+                </div>
                 <div id="error-message" class="ui negative message" style="display: none">
                     <i class="close icon"></i>
                     <div class="header">Error</div>
@@ -542,6 +692,8 @@
         <div class="one wide column"></div>
     </div>
 </div>
+
+{% include "utils_for_search_results_plots.html" %}
 
 <script>
 
@@ -788,7 +940,7 @@
                     GLOBAL_PAGE_STATE[key] = names.length > 0
                         ? names.join(SHOW_COLUMNS_VALUE_DELIMITER)
                         : DEFAULT_GLOBAL_PAGE_STATE[key]
-                } else if (key === 'customFilters' || key === 'extraPolymorphismFilters') {
+                } else if (key === 'customFilters' || key === 'extraPolymorphismFilters' || key === 'plots') {
                     GLOBAL_PAGE_STATE[key] = `${value}` // convert to string
                 }
             }
@@ -808,6 +960,10 @@
         if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
             $('#advanced-search-form').show()
             $('#filter-button .filter.icon').removeClass('rotated')
+        } else {
+            // e.g. after Back from a state with the panel open
+            $('#advanced-search-form').hide()
+            $('#filter-button .filter.icon').addClass('rotated')
         }
 
         // search
@@ -1349,10 +1505,10 @@
         return 'e.g., CAG'
     }
 
-    const buildColumnDropdownMenu = () => {
+    const buildColumnDropdownMenu = (columns = CUSTOM_FILTER_COLUMNS) => {
         // Group columns (merge "Additional Layers #2" into "Additional Layers")
         const grouped = {}
-        CUSTOM_FILTER_COLUMNS.forEach(col => {
+        columns.forEach(col => {
             const group = col.group === 'Additional Layers #2' ? 'Additional Layers' : col.group
             if (!grouped[group]) grouped[group] = []
             grouped[group].push(col)
@@ -1547,6 +1703,12 @@
     let suppressFormStatePersistence = true
     const persistAllAdvancedFormStateToUrl = () => {
         if (suppressFormStatePersistence) return
+        copySearchFormStateToPageState()
+        writePersistentPageStateToUrl()
+    }
+
+    // Copies the search box and the advanced search form's settings into GLOBAL_PAGE_STATE
+    const copySearchFormStateToPageState = () => {
         GLOBAL_PAGE_STATE['searchQuery'] = $('#search-query').val()
         GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
         GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
@@ -1568,7 +1730,6 @@
         GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
         GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(customFilterGroups)
         GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
-        writePersistentPageStateToUrl()
     }
 
     // Opens the column dialog, which adds a filter for each column checked in it, either to targetGroup or, when
@@ -1671,6 +1832,41 @@
     // starts the next group. Links from before filter groups existed have no 'AND' entries, so they load as one group.
     const CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL = 'AND'
 
+    // The GLOBAL_PAGE_STATE keys of the settings in the advanced search panel
+    const ADVANCED_SEARCH_PAGE_STATE_KEYS = [
+        'sourceCatalog', 'keepMotifSize', 'keepMotif', 'keepCodingLoci', 'keepFiveUTRLoci', 'keepThreeUTRLoci',
+        'keepPromoterLoci', 'keepIntronLoci', 'keepIntergenicLoci', 'keepNonCodingExonLoci',
+        'keepLociThatOverlapDiseaseAssociatedLoci', 'keepLociThatOverlapLocusSet', 'keepLociThatOverlapLocusSetSelection',
+        'polymorphismFilter', 'polymorphismFilterType', 'polymorphismThreshold', 'vcFilter', 'vcFilterType',
+        'customFilters', 'extraPolymorphismFilters',
+    ]
+
+    // The GLOBAL_PAGE_STATE keys that decide which loci a search returns
+    const SEARCH_PAGE_STATE_KEYS = ['searchQuery', 'showAdvFilters', ...ADVANCED_SEARCH_PAGE_STATE_KEYS]
+
+    // Adds a group of custom filters, whose filters are ANDed together (and with the other filters), to the search
+    // that produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new
+    // results are the current results that pass the new filters, even if the form was edited since the last search.
+    const addCustomFilterGroupAndSearch = async (filters) => {
+        Object.assign(GLOBAL_PAGE_STATE, window.lastSearchPageState)
+        // The current history entry may hold form edits made since the last search, so it's rewritten to that
+        // search, which is where the browser's Back button should return to
+        writePersistentPageStateToUrl(true)
+        // Custom filters only apply while the advanced search panel is open. Its other settings don't apply while
+        // it's hidden either, so they're reset to their defaults before it opens: otherwise settings left in the
+        // hidden panel would start applying too. The browser's Back button brings them back.
+        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+            ADVANCED_SEARCH_PAGE_STATE_KEYS.forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
+        }
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(
+            [...parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters']), {conjunction: 'AND', filters}])
+        GLOBAL_PAGE_STATE['showAdvFilters'] = 1
+        GLOBAL_PAGE_STATE['currentPage'] = 1
+        writePersistentPageStateToUrl()
+        // Fills in the form from the new page state, opens the panel, validates the form and reruns the search
+        await readAndApplyPersistentPageStateFromUrl()
+    }
+
     const serializeCustomFilterGroups = (groups) => groups
         .map(group => group.filters
             .map(filter => `${filter.enabled ? '' : '!'}${filter.column}|${filter.operator}|${encodeURIComponent(filter.value)}|${group.conjunction}`)
@@ -1720,7 +1916,8 @@
         if (!colInfo || !ALLOWED_CUSTOM_FILTER_OPERATORS.has(filter.operator)) return null
         if (isNullCheckOperator(filter.operator)) return `${filter.column} ${filter.operator}`
         if (filter.operator === 'LIKE' || filter.operator === 'NOT LIKE' || colInfo.type === 'STRING') {
-            return `${filter.column} ${filter.operator} '${filter.value.replace(/'/g, "''")}'`
+            // GoogleSQL escapes quotes and backslashes in string literals with a backslash (e.g. '3\' UTR')
+            return `${filter.column} ${filter.operator} '${filter.value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
         }
         return `${filter.column} ${filter.operator} ${Number(filter.value)}`
     }
@@ -3231,6 +3428,10 @@
 
             window.lastSearchConditions = conditions
             window.lastSearchSortClause = sortClause
+            // The settings that produce these results, read from the form now since it can be edited while the query
+            // runs. Clicking a plot's bar or box narrows them down.
+            if (!suppressFormStatePersistence) copySearchFormStateToPageState()
+            const searchPageState = Object.fromEntries(SEARCH_PAGE_STATE_KEYS.map(key => [key, GLOBAL_PAGE_STATE[key]]))
 
             const results = await queryBigQuery(query, startIndex, pageSize, null, null)
             // A newer search started while this query was in flight -> discard this stale result so it
@@ -3246,15 +3447,18 @@
             $('#loading-container').hide()
 
             persistAllAdvancedFormStateToUrl()
+            window.lastSearchPageState = searchPageState
 
             displaySearchResults()
 
             updatePaginationControls()
             updateIgvNavButtons()
-            
+            refreshSearchResultsPlots()
+
         } catch (error) {
             console.error('Error performing search:', error)
             $('#loading-container').hide()
+            $('#search-results-plots-area').hide()
             displayError('Error performing search: ' + error.message)
         } finally {
             $('body').css('cursor', 'default')
@@ -3735,6 +3939,7 @@
 
     $(document).ready(async () => {
 
+        initializeSearchResultsPlots()
         await readAndApplyPersistentPageStateFromUrl()
 
         console.log("Done initializing page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)

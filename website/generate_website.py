@@ -13,7 +13,7 @@ import sys
 
 # Add bigquery-proxy directory to path to import global_constants
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bigquery-proxy'))
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ROWS_IN_COLUMN_DIALOGS, GENE_REGION_PRIORITY, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, find_problems_in_column_descriptions_shown_on_website
+from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ROWS_IN_COLUMN_DIALOGS, GENE_REGION_PRIORITY, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, get_plot_columns, find_problems_in_column_descriptions_shown_on_website
 
 # Each What's New entry starts with its date in a bold table cell, e.g. <td style="..."><b>10/15/2026</b></td>
 WHATS_NEW_ENTRY_DATE_CELL_REGEX = re.compile(r"<td[^>]*><b>((\d{1,2})/(\d{1,2})/(\d{4}))</b></td>")
@@ -59,6 +59,9 @@ def main():
     exportable_columns = get_exportable_columns()
     exportable_columns_json = json.dumps(exportable_columns)
 
+    # Get the columns that the search results plots can use
+    plot_columns_json = json.dumps(get_plot_columns())
+
     # The header's "What's New (date)" link shows the newest What's New entry date
     with open("../whats_new.html", "r") as f:
         latest_whats_new_date = find_latest_entry_date_in_whats_new(f.read())
@@ -74,6 +77,7 @@ def main():
             gene_region_priority=GENE_REGION_PRIORITY,
             custom_filter_columns_json=custom_filter_columns_json,
             exportable_columns_json=exportable_columns_json,
+            plot_columns_json=plot_columns_json,
             latest_whats_new_date=latest_whats_new_date,
         )
 
