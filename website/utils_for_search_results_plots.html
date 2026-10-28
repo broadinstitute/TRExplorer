@@ -104,12 +104,13 @@
         sort: 'height',      // categorical x-axes: 'height' (bar height or box median), 'count', 'value', or a column name to sort by its mean
         dir: 'desc',
         pct: 0,              // stacked bar plots: 1 = show each stack as percentages that add up to 100
+        filters: '',         // the plot's own custom filter groups, as written by serializeCustomFilterGroups. The plot shows the search results that pass them.
     }
 
     // Short names for the settings in the URL
     const SEARCH_RESULTS_PLOT_SETTING_URL_KEYS = {
         type: 't', x: 'x', xMode: 'xm', bins: 'b', y: 'y', agg: 'a', color: 'c', xScale: 'xs', yScale: 'ys',
-        topN: 'n', other: 'o', missing: 'm', sort: 's', dir: 'd', pct: 'p',
+        topN: 'n', other: 'o', missing: 'm', sort: 's', dir: 'd', pct: 'p', filters: 'f',
     }
     const SEARCH_RESULTS_PLOT_SETTING_NAMES_BY_URL_KEY = Object.fromEntries(
         Object.entries(SEARCH_RESULTS_PLOT_SETTING_URL_KEYS).map(([name, urlKey]) => [urlKey, name]))
@@ -177,7 +178,37 @@
         if (!PLOT_SORT_ORDERS.includes(settings.sort) && !canColumnBeNumericalPlotAxis(SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.sort])) return `Unknown sort order: ${settings.sort}`
         if (!Number.isInteger(settings.topN) || settings.topN < 1 || settings.topN > 100) return 'The number of categories must be a whole number between 1 and 100.'
         if (!Number.isInteger(settings.bins) || settings.bins < 2 || settings.bins > 200) return 'The number of bins must be a whole number between 2 and 200.'
+        // The plot's filters are checked like the search's custom filters, which skips disabled ones since they don't
+        // apply. getCustomFilterErrorMessage returns HTML (with the column name in italics), so it's turned into text.
+        const filterProblem = getEnabledSearchResultsPlotFilterGroups(settings)
+            .flatMap(group => group.filters).map(getCustomFilterErrorMessage).find(Boolean)
+        if (filterProblem) return new DOMParser().parseFromString(filterProblem, 'text/html').body.textContent
         return ''
+    }
+
+    /**
+     * Returns the plot's filter groups without their disabled filters, leaving out groups with no enabled filters.
+     */
+    const getEnabledSearchResultsPlotFilterGroups = (settings) => parseCustomFilterGroups(settings.filters)
+        .map(group => ({...group, filters: group.filters.filter(filter => filter.enabled)}))
+        .filter(group => group.filters.length > 0)
+
+    /**
+     * Returns how plot captions refer to the loci that the plot is based on: "the search results", or for a plot with
+     * filters, e.g. "the search results where Motif Size ≥ 3 AND Gencode Gene Region = CDS".
+     */
+    const describeSearchResultsPlotLoci = (settings) => {
+        const groups = getEnabledSearchResultsPlotFilterGroups(settings)
+        if (groups.length === 0) return 'the search results'
+        const describeFilter = (filter) => {
+            const column = getCustomFilterColumnInfo(filter.column)
+            const operatorLabel = getOperatorsForType(column.type).find(op => op.value === filter.operator).label
+            return isNullCheckOperator(filter.operator) ? `${column.displayName} ${operatorLabel}` : `${column.displayName} ${operatorLabel} ${filter.value}`
+        }
+        return `the search results where ${groups.map(group => {
+            const groupDescription = group.filters.map(describeFilter).join(` ${group.conjunction} `)
+            return groups.length > 1 && group.filters.length > 1 ? `(${groupDescription})` : groupDescription
+        }).join(' AND ')}`
     }
 
     /**
@@ -707,7 +738,7 @@
             : yScale === 'linear' ? {beginAtZero: true}
             : (yScale === 'log' && Number.isFinite(smallestPositiveBarValue) ? {min: Math.pow(10, Math.floor(Math.log10(smallestPositiveBarValue * 0.999)))} : {})
 
-        const captionSentences = [`Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results.`]
+        const captionSentences = [`Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in ${describeSearchResultsPlotLoci(settings)}.`]
         if (settings.y) {
             const aggregateDescription = {mean: 'mean', median: 'approximate median', min: 'minimum', max: 'maximum', sum: 'sum'}[settings.agg]
             captionSentences.push(`Bar heights show the ${aggregateDescription} of ${columns[settings.y].displayName} over the loci in each ${histogram ? 'bin' : 'category'}.`)
@@ -840,7 +871,7 @@
 
         const yName = columns[settings.y].displayName
         const captionSentences = [
-            `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
+            `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in ${describeSearchResultsPlotLoci(settings)}. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
         ]
         const shownXLabelSet = new Set(xLabels)
         const shownColorLabelSet = new Set(colorLabels)
@@ -892,8 +923,8 @@
     const describeScatterPlotLociNotShown = (settings, firstRow) => {
         const xName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x].displayName
         const yName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.y].displayName
-        if (!firstRow) return [`None of the loci in the search results have both a ${xName} and a ${yName} value that can be shown.`]
-        const sentences = [`Based on ${pluralizeLoci(firstRow.n_rows)} in the search results.`]
+        if (!firstRow) return [`None of the loci in ${describeSearchResultsPlotLoci(settings)} have both a ${xName} and a ${yName} value that can be shown.`]
+        const sentences = [`Based on ${pluralizeLoci(firstRow.n_rows)} in ${describeSearchResultsPlotLoci(settings)}.`]
         if (firstRow.n_rows > firstRow.n_with_x_and_y) {
             sentences.push(`${pluralizeLoci(firstRow.n_rows - firstRow.n_with_x_and_y)} with no ${xName} or no ${yName} value are not shown.`)
         }
@@ -1159,10 +1190,15 @@
         writePersistentPageStateToUrl()
     }
 
-    const getSearchResultsWhereClause = () => {
-        const conditions = window.lastSearchConditions || []
-        return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    }
+    const buildWhereClause = (conditions) => conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+    const getSearchResultsWhereClause = () => buildWhereClause(window.lastSearchConditions || [])
+
+    // The WHERE clause of a plot's queries: the search's conditions, and the plot's own filters
+    const getSearchResultsPlotWhereClause = (settings) => buildWhereClause([
+        ...(window.lastSearchConditions || []),
+        ...buildSqlConditionsFromCustomFilterGroups(parseCustomFilterGroups(settings.filters)),
+    ])
 
     const fetchAllPagesOfPlotQuery = async (sql) => {
         // The settings' limits (at most 200 bins and 20 color categories) keep bar, box and histogram results under
@@ -1190,7 +1226,7 @@
     }
 
     const drawSearchResultsPlot = async ($plot, settings, drawSeq) => {
-        const whereClause = getSearchResultsWhereClause()
+        const whereClause = getSearchResultsPlotWhereClause(settings)
         try {
             // An uncolored scatter plot runs its heatmap query first, since that also counts the loci that can be
             // shown: the sample of loci is only needed (and fetched) when they're few enough for it to hold them all
@@ -1218,15 +1254,17 @@
                     return element ? getCustomFiltersForClickedPlotElement(
                         settings, clickTargets.xCategories[element.index], clickTargets.colorLabels[element.datasetIndex]) : null
                 }
+                // The plot's own filters are added too, since the bar's loci are the ones that pass them
+                const plotFilterGroups = getEnabledSearchResultsPlotFilterGroups(settings)
                 chartConfig.options.onClick = (event, elements, chart) => {
                     const filters = getClickedElementFilters(event, chart)
-                    if (filters) addCustomFilterGroupAndSearch(filters)
+                    if (filters) addCustomFilterGroupsAndSearch([...plotFilterGroups, {conjunction: 'AND', filters}])
                 }
                 chartConfig.options.onHover = (event, elements, chart) => {
                     event.native.target.style.cursor = getClickedElementFilters(event, chart) ? 'pointer' : 'default'
                 }
                 const shape = settings.type === 'box' ? 'box' : 'bar'
-                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter)` +
+                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter${plotFilterGroups.length > 0 ? ", along with this plot's filters" : ''})` +
                     (settings.other === 1 || settings.missing === 1
                         ? `, except for Other ${shape}s and the Missing ${shape}s of text columns (which also include empty values), since no single filter selects their loci.`
                         : '.'))
@@ -1299,6 +1337,28 @@
     let searchResultsPlotDialogPlotIndex = null
     // Set while the dialog's dropdowns are being filled in, so their onChange handlers don't respond
     let isFillingSearchResultsPlotDialog = false
+    // The filters of the plot that the dialog edits, as custom filter groups (see customFilterGroups)
+    let searchResultsPlotDialogFilterGroups = []
+
+    // An error message from an earlier click on OK may no longer apply after a filter changes
+    const onSearchResultsPlotDialogFiltersChanged = () => $('#search-results-plot-dialog-error').hide()
+
+    // Draws the dialog's filter rows the way renderCustomFilterGroups draws the search's custom filters: an "Add another
+    // filter..." link at the bottom of each group, followed in the last group by the help icon and the "Add filter
+    // group with AND..." link. With no filters, only the "Add filter..." link and the help icon are shown.
+    const renderSearchResultsPlotDialogFilterGroups = () => {
+        // Take out the links before the rows are cleared, since the last group holds them (see renderCustomFilterGroups)
+        const $linkContainer = $('#add-plot-filter-link-container').detach()
+        drawCustomFilterGroups($('#plot-filter-rows'), searchResultsPlotDialogFilterGroups, 'Add another filter...',
+            onSearchResultsPlotDialogFiltersChanged, renderSearchResultsPlotDialogFilterGroups)
+        const hasFilters = searchResultsPlotDialogFilterGroups.length > 0
+        $linkContainer.appendTo(hasFilters ? $('#plot-filter-rows .custom-filter-group-links').last() : $('#plot-filters-field'))
+        $('#add-plot-filter-link').toggle(!hasFilters)
+        $('#add-plot-filter-group-link').toggle(hasFilters)
+        $('#add-plot-filter-link-container .question').popup({on: 'click'})
+        // The dialog's height changed, so it's centered again
+        if ($('#search-results-plot-dialog').is(':visible')) $('#search-results-plot-dialog').modal('refresh')
+    }
 
     // Dropdown values that stand for "no column"
     const PLOT_DIALOG_NUMBER_OF_LOCI_VALUE = '__number_of_loci__'
@@ -1340,6 +1400,7 @@
             sort: $('#plot-sort-dropdown').dropdown('get value') || 'height',
             dir: $('#plot-sort-direction-dropdown').dropdown('get value') || 'desc',
             pct: $('#plot-percent-checkbox').prop('checked') ? 1 : 0,
+            filters: serializeCustomFilterGroups(searchResultsPlotDialogFilterGroups),
         }
     }
 
@@ -1403,6 +1464,8 @@
         } finally {
             isFillingSearchResultsPlotDialog = false
         }
+        searchResultsPlotDialogFilterGroups = parseCustomFilterGroups(settings.filters)
+        renderSearchResultsPlotDialogFilterGroups()
         updateSearchResultsPlotDialogFields()
         isFillingSearchResultsPlotDialog = true
         try {
@@ -1421,7 +1484,8 @@
         const settings = plotIndex === null ? {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS} : settingsList[plotIndex]
         $('#search-results-plot-dialog-title').text(plotIndex === null ? 'Add Plot' : 'Edit Plot')
         $('#search-results-plot-dialog-error').hide()
-        fillSearchResultsPlotDialog(settings)
+        // The modal is set up before the dialog is filled in, since setting it up the first time moves the dialog into
+        // the page dimmer, which clears the help popups that the filter rows set up
         $('#search-results-plot-dialog').modal({
             onApprove: () => {
                 const newSettings = readSearchResultsPlotSettingsFromDialog()
@@ -1440,7 +1504,9 @@
                 refreshSearchResultsPlots()
                 return true
             },
-        }).modal('show')
+        })
+        fillSearchResultsPlotDialog(settings)
+        $('#search-results-plot-dialog').modal('show')
     }
 
     const initializeSearchResultsPlots = () => {
@@ -1463,6 +1529,13 @@
         $('#search-results-plot-dialog .ui.checkbox').checkbox()
         $('#search-results-plot-dialog input[type="radio"], #search-results-plot-dialog input[type="checkbox"]').on('change', () => {
             if (!isFillingSearchResultsPlotDialog) updateSearchResultsPlotDialogFields()
+        })
+
+        // Like the "Add custom filter..." links, these open the column dialog to start a new filter group
+        $('#add-plot-filter-link, #add-plot-filter-group-link').click((e) => {
+            e.preventDefault()
+            showCustomFilterColumnDialog(addNewCustomFiltersToGroups(searchResultsPlotDialogFilterGroups, null,
+                onSearchResultsPlotDialogFiltersChanged, renderSearchResultsPlotDialogFilterGroups))
         })
 
         $('#add-search-results-plot-link').click((e) => {

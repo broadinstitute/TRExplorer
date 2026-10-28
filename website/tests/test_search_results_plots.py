@@ -48,6 +48,33 @@ def test_problems_with_plot_settings(index_page):
     assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source"}) == ""
 
 
+# Two filter groups: Motif Size >= 3 (with a disabled Source filter), and chromosome 1 or 2
+PLOT_FILTERS = "MotifSize|>=|3|AND;!Source|LIKE|%25Illumina%25|AND;AND;chrom|=|chr1|OR;chrom|=|chr2|OR"
+
+
+def test_plot_filters_survive_the_url_round_trip(index_page):
+    assert evaluate_with_settings(
+        index_page, "JSON.stringify(parseSearchResultsPlotSettingsList(serializeSearchResultsPlotSettingsList([s]))[0]) === JSON.stringify(s)",
+        {"type": "bar", "x": "GencodeGeneRegion", "filters": PLOT_FILTERS})
+
+
+def test_plot_filters_narrow_the_plot_queries_and_are_named_in_the_caption(index_page):
+    settings = {"type": "bar", "x": "GencodeGeneRegion", "filters": PLOT_FILTERS}
+    where_clause = evaluate_with_settings(
+        index_page, "(window.lastSearchConditions = [\"(UPPER(GencodeGeneName) = 'ATXN1')\"], getSearchResultsPlotWhereClause(s))", settings)
+    # The disabled Source filter doesn't apply
+    assert where_clause == "WHERE (UPPER(GencodeGeneName) = 'ATXN1') AND MotifSize >= 3 AND (chrom = 'chr1' OR chrom = 'chr2')"
+    assert evaluate_with_settings(index_page, "describeSearchResultsPlotLoci(s)", settings) == (
+        "the search results where Motif Size ≥ 3 AND (Chromosome = chr1 OR Chromosome = chr2)")
+
+
+def test_problems_with_plot_filters(index_page):
+    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source", "filters": "MotifSize|>=||AND"}) == (
+        "Please enter a value for the Motif Size custom filter")
+    # Disabled filters don't apply, so they aren't checked
+    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source", "filters": "!MotifSize|>=||AND"}) == ""
+
+
 def test_coordinates_can_only_be_scatter_plot_y_axes(index_page):
     for plot_type in ["bar", "box"]:
         assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": plot_type, "x": "Source", "y": "start_0based"}) == (
@@ -207,6 +234,75 @@ def test_clicking_a_bar_ignores_unsubmitted_edits_and_back_hides_the_panel_again
     index_page.wait_for_function("GLOBAL_PAGE_STATE.showAdvFilters === 0")
     index_page.wait_for_selector("#advanced-search-form", state="hidden")
     assert index_page.input_value("#search-query") == "ATXN1"
+
+
+def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
+    do_search(index_page, "ATXN1")
+    total_results = index_page.evaluate("window.searchResults.total_results")
+    index_page.click("#add-search-results-plot-link")
+    index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
+    select_dropdown_item(index_page, "plot-x-column-dropdown", "GencodeGeneRegion")
+
+    # "Add filter..." opens the column dialog over the plot dialog, and Escape closes only the column dialog. The
+    # column dialog responds to Escape once it's done opening, which is when it gets the active class.
+    index_page.click("#add-plot-filter-link")
+    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+    index_page.keyboard.press("Escape")
+    index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
+    assert index_page.is_visible("#search-results-plot-dialog")
+
+    index_page.click("#add-plot-filter-link")
+    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+    index_page.click("#custom-filter-column-checkboxes .ui.checkbox:has(input[data-column-name='MotifSize'])")
+    index_page.click("#custom-filter-dialog-add-button")
+    index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
+    assert index_page.is_visible("#search-results-plot-dialog")
+
+    # OK with an incomplete filter keeps the dialog open and says why
+    index_page.click("#search-results-plot-dialog-ok-button")
+    assert index_page.inner_text("#search-results-plot-dialog-error") == "Please select an operator for the Motif Size custom filter"
+    row = index_page.locator("#plot-filter-rows .custom-filter-row").first
+    row.locator(".custom-filter-op").click()
+    row.locator(".custom-filter-op .item[data-value='>=']").click()
+    row.locator(".custom-filter-value").fill("3")
+    index_page.click("#search-results-plot-dialog-ok-button")
+    wait_for_plots_to_finish_loading(index_page, 1)
+    caption_match = re.match(r"Based on ([\d,]+) loci in the search results where Motif Size ≥ 3\.", index_page.inner_text(".search-results-plot-caption"))
+    assert caption_match
+    assert 0 < int(caption_match.group(1).replace(",", "")) < total_results
+    # The filter applies only to the plot
+    assert index_page.evaluate("window.searchResults.total_results") == total_results
+    assert "f%3AMotifSize" in index_page.url
+
+    # After a reload, the edit dialog starts out with the plot's filter
+    url = index_page.url
+    index_page.goto("about:blank")
+    index_page.goto(url)
+    wait_for_plots_to_finish_loading(index_page, 1)
+    index_page.click(".edit-search-results-plot-link")
+    index_page.wait_for_selector("#search-results-plot-dialog.active", state="visible")
+    assert index_page.eval_on_selector("#plot-filter-rows .custom-filter-row", """row => [
+        $(row).find('.custom-filter-field').dropdown('get value'), $(row).find('.custom-filter-op').dropdown('get value'),
+        $(row).find('.custom-filter-value').val()]""") == ["MotifSize", ">=", "3"]
+    # The help popups work in the first opening of the dialog after the page loads
+    assert index_page.evaluate("""[...document.querySelectorAll('#plot-filter-rows .custom-filter-help-icon, #add-plot-filter-link-container .question')]
+        .every(icon => $(icon).data('module-popup'))""")
+    # After the column dialog closes, Escape still closes the plot dialog
+    index_page.click("#add-plot-filter-group-link")
+    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+    index_page.keyboard.press("Escape")
+    index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
+    index_page.keyboard.press("Escape")
+    index_page.wait_for_selector("#search-results-plot-dialog", state="hidden")
+
+    # Clicking a bar keeps the loci that pass both the plot's filter and the bar's filter
+    num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
+    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
+    assert get_custom_filters(index_page) == [["MotifSize", ">=", "3"], ["GencodeGeneRegion", "=", "intron"]]
+    # Another click on the plot adds the plot's filter again, but the search already has it, so it isn't duplicated
+    index_page.evaluate("addCustomFilterGroupsAndSearch([{conjunction: 'AND', filters: [{column: 'MotifSize', operator: '>=', value: '3', enabled: true}]}])")
+    assert get_custom_filters(index_page) == [["MotifSize", ">=", "3"], ["GencodeGeneRegion", "=", "intron"]]
+    assert real_errors(console_errors) == []
 
 
 def test_clicking_a_fractional_histogram_bin_filters_to_exactly_its_loci(index_page):

@@ -143,6 +143,14 @@
                     <div class="menu"></div>
                 </div>
             </div>
+            <div class="field" id="plot-filters-field">
+                <div id="plot-filter-rows"></div>
+                <div id="add-plot-filter-link-container">
+                    <a href="#" id="add-plot-filter-link">Add filter...</a>
+                    <i class="question circle icon link" style="margin-left: 5px;" data-html="Filters for this plot only: the plot shows the loci in the search results that also pass them, while the search results table stays the same.<br><br>Like the custom filters of the search, the filters in a group are combined using either &quot;AND&quot; or &quot;OR&quot; logic based on your selection, and &quot;Add filter group with AND...&quot; starts a new group that the loci must also match."></i>
+                    <a href="#" id="add-plot-filter-group-link" style="display: none; margin-left: 30px;">Add filter group with AND...</a>
+                </div>
+            </div>
             <div class="fields" id="plot-sort-fields">
                 <div class="field">
                     <label>Sort categories by</label>
@@ -1440,10 +1448,11 @@
     // with at least one filter, and each filter is {column, operator, value, enabled}. A locus passes when it matches
     // every group, and it matches a group when it matches the group's enabled filters joined by the group's
     // conjunction. renderCustomFilterGroups draws the custom filter rows on the page (the view) from this list.
+    // The plot dialog keeps a list like this one for the filters of the plot it edits.
     let customFilterGroups = []
 
-    // The group that the column dialog adds filters to, or null when the dialog starts a new group
-    let customFilterColumnDialogTargetGroup = null
+    // What the column dialog does with the filters it adds (see addNewCustomFiltersToGroups)
+    let customFilterColumnDialogOnAddFilters = null
 
     // The custom filter dialog and menus list the 'Additional Layers #2' columns under 'Additional Layers'
     const CUSTOM_FILTER_GROUP_ROWS = BIGQUERY_COLUMN_GROUP_ROWS.map(groupRow => groupRow.filter(g => g !== 'Additional Layers #2'))
@@ -1532,8 +1541,9 @@
     const isNullCheckOperator = (operator) => operator === 'IS NULL' || operator === 'IS NOT NULL'
 
     // Draws a filter of the given group as a new row at the end of $group, and wires the row's controls to update the
-    // filter (and, for the AND/OR selector, the group)
-    const addCustomFilterRowToView = ($group, group, filter) => {
+    // filter (and, for the AND/OR selector, the group). onChange is called after each change. Deleting the row's filter
+    // also deletes its group from groups if no filters are left in it, and then calls render to redraw the groups.
+    const addCustomFilterRowToView = ($group, groups, group, filter, onChange, render) => {
         const colInfo = getCustomFilterColumnInfo(filter.column)
         const colType = colInfo ? colInfo.type : 'STRING'
 
@@ -1584,7 +1594,7 @@
                 group.conjunction = value
                 // The AND/OR selectors of a group are linked, so show the new value in the group's other rows too
                 $row.siblings('.custom-filter-row').find('.custom-filter-conjunction').dropdown('set selected', value)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         }).dropdown('set selected', group.conjunction)
 
@@ -1602,7 +1612,7 @@
                 $opDropdown.dropdown('refresh')
                 $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(newColType))
                 updateCustomFilterHelpIcon($row, filter)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         }).dropdown('set selected', filter.column)
 
@@ -1613,7 +1623,7 @@
                 filter.operator = value
                 $row.find('.custom-filter-value').toggle(!isNullCheckOperator(value))
                 updateCustomFilterHelpIcon($row, filter)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         })
         if (filter.operator) $row.find('.custom-filter-op').dropdown('set selected', filter.operator)
@@ -1627,16 +1637,16 @@
         $row.find('.custom-filter-enable-checkbox').checkbox({
             onChange: function() {
                 filter.enabled = this.checked
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         })
 
         $row.find('.custom-filter-delete').click(() => {
             group.filters.splice(group.filters.indexOf(filter), 1)
             // A group can't be empty, so delete the group along with its last filter
-            if (group.filters.length === 0) customFilterGroups.splice(customFilterGroups.indexOf(group), 1)
-            renderCustomFilterGroups()
-            persistAllAdvancedFormStateToUrl()
+            if (group.filters.length === 0) groups.splice(groups.indexOf(group), 1)
+            render()
+            onChange()
         })
 
         updateCustomFilterHelpIcon($row, filter)
@@ -1662,6 +1672,37 @@
             ${CUSTOM_FILTER_GROUP_SEPARATOR_VINE_SVG}
         </div>`
 
+    // Draws the rows of the given custom filter groups into $container, replacing what it held, with an "AND"
+    // ornament between groups and a link with the given text (e.g. "Add another custom filter...") at the bottom of
+    // each group, which opens the column dialog to add filters to that group. onChange and render are as in
+    // addCustomFilterRowToView.
+    const drawCustomFilterGroups = ($container, groups, addAnotherFilterLinkText, onChange, render) => {
+        $container.empty()
+        groups.forEach((group, groupIndex) => {
+            if (groupIndex > 0) $container.append(CUSTOM_FILTER_GROUP_SEPARATOR_HTML)
+            const $group = $('<div class="custom-filter-group"></div>').appendTo($container)
+            group.filters.forEach(filter => addCustomFilterRowToView($group, groups, group, filter, onChange, render))
+            $('<div class="custom-filter-group-links"><a href="#"></a></div>')
+                .appendTo($group)
+                .find('a').text(addAnotherFilterLinkText).click((e) => {
+                    e.preventDefault()
+                    showCustomFilterColumnDialog(addNewCustomFiltersToGroups(groups, group, onChange, render))
+                })
+        })
+    }
+
+    // Returns what the column dialog does with the filters it adds: put them in targetGroup, or when targetGroup is
+    // null, in a new group at the end of groups, then call render and onChange (as in addCustomFilterRowToView)
+    const addNewCustomFiltersToGroups = (groups, targetGroup, onChange, render) => (newFilters) => {
+        if (targetGroup) {
+            targetGroup.filters.push(...newFilters)
+        } else {
+            groups.push({conjunction: 'AND', filters: newFilters})
+        }
+        render()
+        onChange()
+    }
+
     // Draws the custom filter rows (the view) from customFilterGroups (the model), with an "AND" ornament between
     // groups and an "Add another custom filter..." link at the bottom of each group. When there are no filters, the
     // "Add custom filter..." link sits to the right of the catalog selector. Otherwise the help icon and the "Add
@@ -1670,18 +1711,9 @@
         // Take out the links before clearing the rows, since the last group holds them. detach() keeps their click
         // handlers, which empty() would remove.
         const $linkContainer = $('#add-custom-filter-link-container').detach()
-        const $container = $('#custom-filter-rows').empty()
-        customFilterGroups.forEach((group, groupIndex) => {
-            if (groupIndex > 0) $container.append(CUSTOM_FILTER_GROUP_SEPARATOR_HTML)
-            const $group = $('<div class="custom-filter-group"></div>').appendTo($container)
-            group.filters.forEach(filter => addCustomFilterRowToView($group, group, filter))
-            $('<div class="custom-filter-group-links"><a href="#">Add another custom filter...</a></div>')
-                .appendTo($group)
-                .find('a').click((e) => {
-                    e.preventDefault()
-                    showCustomFilterColumnDialog(group)
-                })
-        })
+        const $container = $('#custom-filter-rows')
+        drawCustomFilterGroups($container, customFilterGroups, 'Add another custom filter...',
+            persistAllAdvancedFormStateToUrl, renderCustomFilterGroups)
 
         const hasFilters = customFilterGroups.length > 0
         if (hasFilters) {
@@ -1732,10 +1764,10 @@
         GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
     }
 
-    // Opens the column dialog, which adds a filter for each column checked in it, either to targetGroup or, when
-    // targetGroup is null, to a new group
-    const showCustomFilterColumnDialog = (targetGroup) => {
-        customFilterColumnDialogTargetGroup = targetGroup
+    // Opens the column dialog, which makes a filter for each column checked in it and passes them to onAddFilters
+    // (see addNewCustomFiltersToGroups)
+    const showCustomFilterColumnDialog = (onAddFilters) => {
+        customFilterColumnDialogOnAddFilters = onAddFilters
 
         // Build grouped checkboxes
         const checkboxesContainer = $('#custom-filter-column-checkboxes')
@@ -1784,8 +1816,14 @@
         $('#custom-filter-column-checkboxes .ui.checkbox').checkbox()
 
         // The help text popups are set up after the dialog opens, because opening a modal the first time clears
-        // popups set up on its contents.
-        $('#custom-filter-column-dialog').modal('show')
+        // popups set up on its contents. allowMultiple keeps the plot dialog open when its filters open this dialog,
+        // and the plot dialog can't be closed meanwhile, so that Escape or a click outside closes only this dialog.
+        // Closing a modal removes the Escape key handlers of all modals, so the plot dialog's is added back.
+        const $modalsUnderThisDialog = $('.ui.modal.active').not('#custom-filter-column-dialog').modal('setting', 'closable', false)
+        $('#custom-filter-column-dialog').modal({
+            allowMultiple: true,
+            onHidden: () => $modalsUnderThisDialog.modal('setting', 'closable', true).modal('add keyboardShortcuts'),
+        }).modal('show')
         initializeHelpTextPopups($('#custom-filter-column-checkboxes .export-column-help-icon'))
     }
 
@@ -1793,7 +1831,8 @@
     // AND..." link, which both start a new group
     $('#add-custom-filter-link, #add-custom-filter-group-link').click(function(e) {
         e.preventDefault()
-        showCustomFilterColumnDialog(null)
+        showCustomFilterColumnDialog(addNewCustomFiltersToGroups(
+            customFilterGroups, null, persistAllAdvancedFormStateToUrl, renderCustomFilterGroups))
     })
 
     $('#custom-filter-columns-clear-all').click((e) => {
@@ -1808,15 +1847,7 @@
         }).get()
 
         // Nothing checked adds nothing, so a new group is only created with at least one filter
-        if (newFilters.length > 0) {
-            if (customFilterColumnDialogTargetGroup) {
-                customFilterColumnDialogTargetGroup.filters.push(...newFilters)
-            } else {
-                customFilterGroups.push({conjunction: 'AND', filters: newFilters})
-            }
-            renderCustomFilterGroups()
-            persistAllAdvancedFormStateToUrl()
-        }
+        if (newFilters.length > 0) customFilterColumnDialogOnAddFilters(newFilters)
 
         $('#custom-filter-column-dialog').modal('hide')
     })
@@ -1844,10 +1875,11 @@
     // The GLOBAL_PAGE_STATE keys that decide which loci a search returns
     const SEARCH_PAGE_STATE_KEYS = ['searchQuery', 'showAdvFilters', ...ADVANCED_SEARCH_PAGE_STATE_KEYS]
 
-    // Adds a group of custom filters, whose filters are ANDed together (and with the other filters), to the search
-    // that produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new
-    // results are the current results that pass the new filters, even if the form was edited since the last search.
-    const addCustomFilterGroupAndSearch = async (filters) => {
+    // Adds custom filter groups (which are ANDed with each other and with the other filters) to the search that
+    // produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new results
+    // are the current results that pass the new filters, even if the form was edited since the last search. Groups
+    // that the search already has (such as a plot's own filters, after an earlier click on the plot) aren't added again.
+    const addCustomFilterGroupsAndSearch = async (groups) => {
         Object.assign(GLOBAL_PAGE_STATE, window.lastSearchPageState)
         // The current history entry may hold form edits made since the last search, so it's rewritten to that
         // search, which is where the browser's Back button should return to
@@ -1858,8 +1890,10 @@
         if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
             ADVANCED_SEARCH_PAGE_STATE_KEYS.forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
         }
-        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(
-            [...parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters']), {conjunction: 'AND', filters}])
+        const existingGroups = parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters'])
+        const serializedExistingGroups = new Set(existingGroups.map(group => serializeCustomFilterGroups([group])))
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups([...existingGroups,
+            ...groups.filter(group => !serializedExistingGroups.has(serializeCustomFilterGroups([group])))])
         GLOBAL_PAGE_STATE['showAdvFilters'] = 1
         GLOBAL_PAGE_STATE['currentPage'] = 1
         writePersistentPageStateToUrl()

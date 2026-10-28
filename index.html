@@ -6373,6 +6373,14 @@ gtag('config', 'G-6R8FPBQRFH');
                     <div class="menu"></div>
                 </div>
             </div>
+            <div class="field" id="plot-filters-field">
+                <div id="plot-filter-rows"></div>
+                <div id="add-plot-filter-link-container">
+                    <a href="#" id="add-plot-filter-link">Add filter...</a>
+                    <i class="question circle icon link" style="margin-left: 5px;" data-html="Filters for this plot only: the plot shows the loci in the search results that also pass them, while the search results table stays the same.<br><br>Like the custom filters of the search, the filters in a group are combined using either &quot;AND&quot; or &quot;OR&quot; logic based on your selection, and &quot;Add filter group with AND...&quot; starts a new group that the loci must also match."></i>
+                    <a href="#" id="add-plot-filter-group-link" style="display: none; margin-left: 30px;">Add filter group with AND...</a>
+                </div>
+            </div>
             <div class="fields" id="plot-sort-fields">
                 <div class="field">
                     <label>Sort categories by</label>
@@ -7062,12 +7070,13 @@ gtag('config', 'G-6R8FPBQRFH');
         sort: 'height',      // categorical x-axes: 'height' (bar height or box median), 'count', 'value', or a column name to sort by its mean
         dir: 'desc',
         pct: 0,              // stacked bar plots: 1 = show each stack as percentages that add up to 100
+        filters: '',         // the plot's own custom filter groups, as written by serializeCustomFilterGroups. The plot shows the search results that pass them.
     }
 
     // Short names for the settings in the URL
     const SEARCH_RESULTS_PLOT_SETTING_URL_KEYS = {
         type: 't', x: 'x', xMode: 'xm', bins: 'b', y: 'y', agg: 'a', color: 'c', xScale: 'xs', yScale: 'ys',
-        topN: 'n', other: 'o', missing: 'm', sort: 's', dir: 'd', pct: 'p',
+        topN: 'n', other: 'o', missing: 'm', sort: 's', dir: 'd', pct: 'p', filters: 'f',
     }
     const SEARCH_RESULTS_PLOT_SETTING_NAMES_BY_URL_KEY = Object.fromEntries(
         Object.entries(SEARCH_RESULTS_PLOT_SETTING_URL_KEYS).map(([name, urlKey]) => [urlKey, name]))
@@ -7135,7 +7144,37 @@ gtag('config', 'G-6R8FPBQRFH');
         if (!PLOT_SORT_ORDERS.includes(settings.sort) && !canColumnBeNumericalPlotAxis(SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.sort])) return `Unknown sort order: ${settings.sort}`
         if (!Number.isInteger(settings.topN) || settings.topN < 1 || settings.topN > 100) return 'The number of categories must be a whole number between 1 and 100.'
         if (!Number.isInteger(settings.bins) || settings.bins < 2 || settings.bins > 200) return 'The number of bins must be a whole number between 2 and 200.'
+        // The plot's filters are checked like the search's custom filters, which skips disabled ones since they don't
+        // apply. getCustomFilterErrorMessage returns HTML (with the column name in italics), so it's turned into text.
+        const filterProblem = getEnabledSearchResultsPlotFilterGroups(settings)
+            .flatMap(group => group.filters).map(getCustomFilterErrorMessage).find(Boolean)
+        if (filterProblem) return new DOMParser().parseFromString(filterProblem, 'text/html').body.textContent
         return ''
+    }
+
+    /**
+     * Returns the plot's filter groups without their disabled filters, leaving out groups with no enabled filters.
+     */
+    const getEnabledSearchResultsPlotFilterGroups = (settings) => parseCustomFilterGroups(settings.filters)
+        .map(group => ({...group, filters: group.filters.filter(filter => filter.enabled)}))
+        .filter(group => group.filters.length > 0)
+
+    /**
+     * Returns how plot captions refer to the loci that the plot is based on: "the search results", or for a plot with
+     * filters, e.g. "the search results where Motif Size ≥ 3 AND Gencode Gene Region = CDS".
+     */
+    const describeSearchResultsPlotLoci = (settings) => {
+        const groups = getEnabledSearchResultsPlotFilterGroups(settings)
+        if (groups.length === 0) return 'the search results'
+        const describeFilter = (filter) => {
+            const column = getCustomFilterColumnInfo(filter.column)
+            const operatorLabel = getOperatorsForType(column.type).find(op => op.value === filter.operator).label
+            return isNullCheckOperator(filter.operator) ? `${column.displayName} ${operatorLabel}` : `${column.displayName} ${operatorLabel} ${filter.value}`
+        }
+        return `the search results where ${groups.map(group => {
+            const groupDescription = group.filters.map(describeFilter).join(` ${group.conjunction} `)
+            return groups.length > 1 && group.filters.length > 1 ? `(${groupDescription})` : groupDescription
+        }).join(' AND ')}`
     }
 
     /**
@@ -7665,7 +7704,7 @@ gtag('config', 'G-6R8FPBQRFH');
             : yScale === 'linear' ? {beginAtZero: true}
             : (yScale === 'log' && Number.isFinite(smallestPositiveBarValue) ? {min: Math.pow(10, Math.floor(Math.log10(smallestPositiveBarValue * 0.999)))} : {})
 
-        const captionSentences = [`Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results.`]
+        const captionSentences = [`Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in ${describeSearchResultsPlotLoci(settings)}.`]
         if (settings.y) {
             const aggregateDescription = {mean: 'mean', median: 'approximate median', min: 'minimum', max: 'maximum', sum: 'sum'}[settings.agg]
             captionSentences.push(`Bar heights show the ${aggregateDescription} of ${columns[settings.y].displayName} over the loci in each ${histogram ? 'bin' : 'category'}.`)
@@ -7798,7 +7837,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const yName = columns[settings.y].displayName
         const captionSentences = [
-            `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in the search results. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
+            `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in ${describeSearchResultsPlotLoci(settings)}. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
         ]
         const shownXLabelSet = new Set(xLabels)
         const shownColorLabelSet = new Set(colorLabels)
@@ -7850,8 +7889,8 @@ gtag('config', 'G-6R8FPBQRFH');
     const describeScatterPlotLociNotShown = (settings, firstRow) => {
         const xName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.x].displayName
         const yName = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.y].displayName
-        if (!firstRow) return [`None of the loci in the search results have both a ${xName} and a ${yName} value that can be shown.`]
-        const sentences = [`Based on ${pluralizeLoci(firstRow.n_rows)} in the search results.`]
+        if (!firstRow) return [`None of the loci in ${describeSearchResultsPlotLoci(settings)} have both a ${xName} and a ${yName} value that can be shown.`]
+        const sentences = [`Based on ${pluralizeLoci(firstRow.n_rows)} in ${describeSearchResultsPlotLoci(settings)}.`]
         if (firstRow.n_rows > firstRow.n_with_x_and_y) {
             sentences.push(`${pluralizeLoci(firstRow.n_rows - firstRow.n_with_x_and_y)} with no ${xName} or no ${yName} value are not shown.`)
         }
@@ -8117,10 +8156,15 @@ gtag('config', 'G-6R8FPBQRFH');
         writePersistentPageStateToUrl()
     }
 
-    const getSearchResultsWhereClause = () => {
-        const conditions = window.lastSearchConditions || []
-        return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    }
+    const buildWhereClause = (conditions) => conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+    const getSearchResultsWhereClause = () => buildWhereClause(window.lastSearchConditions || [])
+
+    // The WHERE clause of a plot's queries: the search's conditions, and the plot's own filters
+    const getSearchResultsPlotWhereClause = (settings) => buildWhereClause([
+        ...(window.lastSearchConditions || []),
+        ...buildSqlConditionsFromCustomFilterGroups(parseCustomFilterGroups(settings.filters)),
+    ])
 
     const fetchAllPagesOfPlotQuery = async (sql) => {
         // The settings' limits (at most 200 bins and 20 color categories) keep bar, box and histogram results under
@@ -8148,7 +8192,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const drawSearchResultsPlot = async ($plot, settings, drawSeq) => {
-        const whereClause = getSearchResultsWhereClause()
+        const whereClause = getSearchResultsPlotWhereClause(settings)
         try {
             // An uncolored scatter plot runs its heatmap query first, since that also counts the loci that can be
             // shown: the sample of loci is only needed (and fetched) when they're few enough for it to hold them all
@@ -8176,15 +8220,17 @@ gtag('config', 'G-6R8FPBQRFH');
                     return element ? getCustomFiltersForClickedPlotElement(
                         settings, clickTargets.xCategories[element.index], clickTargets.colorLabels[element.datasetIndex]) : null
                 }
+                // The plot's own filters are added too, since the bar's loci are the ones that pass them
+                const plotFilterGroups = getEnabledSearchResultsPlotFilterGroups(settings)
                 chartConfig.options.onClick = (event, elements, chart) => {
                     const filters = getClickedElementFilters(event, chart)
-                    if (filters) addCustomFilterGroupAndSearch(filters)
+                    if (filters) addCustomFilterGroupsAndSearch([...plotFilterGroups, {conjunction: 'AND', filters}])
                 }
                 chartConfig.options.onHover = (event, elements, chart) => {
                     event.native.target.style.cursor = getClickedElementFilters(event, chart) ? 'pointer' : 'default'
                 }
                 const shape = settings.type === 'box' ? 'box' : 'bar'
-                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter)` +
+                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter${plotFilterGroups.length > 0 ? ", along with this plot's filters" : ''})` +
                     (settings.other === 1 || settings.missing === 1
                         ? `, except for Other ${shape}s and the Missing ${shape}s of text columns (which also include empty values), since no single filter selects their loci.`
                         : '.'))
@@ -8257,6 +8303,28 @@ gtag('config', 'G-6R8FPBQRFH');
     let searchResultsPlotDialogPlotIndex = null
     // Set while the dialog's dropdowns are being filled in, so their onChange handlers don't respond
     let isFillingSearchResultsPlotDialog = false
+    // The filters of the plot that the dialog edits, as custom filter groups (see customFilterGroups)
+    let searchResultsPlotDialogFilterGroups = []
+
+    // An error message from an earlier click on OK may no longer apply after a filter changes
+    const onSearchResultsPlotDialogFiltersChanged = () => $('#search-results-plot-dialog-error').hide()
+
+    // Draws the dialog's filter rows the way renderCustomFilterGroups draws the search's custom filters: an "Add another
+    // filter..." link at the bottom of each group, followed in the last group by the help icon and the "Add filter
+    // group with AND..." link. With no filters, only the "Add filter..." link and the help icon are shown.
+    const renderSearchResultsPlotDialogFilterGroups = () => {
+        // Take out the links before the rows are cleared, since the last group holds them (see renderCustomFilterGroups)
+        const $linkContainer = $('#add-plot-filter-link-container').detach()
+        drawCustomFilterGroups($('#plot-filter-rows'), searchResultsPlotDialogFilterGroups, 'Add another filter...',
+            onSearchResultsPlotDialogFiltersChanged, renderSearchResultsPlotDialogFilterGroups)
+        const hasFilters = searchResultsPlotDialogFilterGroups.length > 0
+        $linkContainer.appendTo(hasFilters ? $('#plot-filter-rows .custom-filter-group-links').last() : $('#plot-filters-field'))
+        $('#add-plot-filter-link').toggle(!hasFilters)
+        $('#add-plot-filter-group-link').toggle(hasFilters)
+        $('#add-plot-filter-link-container .question').popup({on: 'click'})
+        // The dialog's height changed, so it's centered again
+        if ($('#search-results-plot-dialog').is(':visible')) $('#search-results-plot-dialog').modal('refresh')
+    }
 
     // Dropdown values that stand for "no column"
     const PLOT_DIALOG_NUMBER_OF_LOCI_VALUE = '__number_of_loci__'
@@ -8298,6 +8366,7 @@ gtag('config', 'G-6R8FPBQRFH');
             sort: $('#plot-sort-dropdown').dropdown('get value') || 'height',
             dir: $('#plot-sort-direction-dropdown').dropdown('get value') || 'desc',
             pct: $('#plot-percent-checkbox').prop('checked') ? 1 : 0,
+            filters: serializeCustomFilterGroups(searchResultsPlotDialogFilterGroups),
         }
     }
 
@@ -8361,6 +8430,8 @@ gtag('config', 'G-6R8FPBQRFH');
         } finally {
             isFillingSearchResultsPlotDialog = false
         }
+        searchResultsPlotDialogFilterGroups = parseCustomFilterGroups(settings.filters)
+        renderSearchResultsPlotDialogFilterGroups()
         updateSearchResultsPlotDialogFields()
         isFillingSearchResultsPlotDialog = true
         try {
@@ -8379,7 +8450,8 @@ gtag('config', 'G-6R8FPBQRFH');
         const settings = plotIndex === null ? {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS} : settingsList[plotIndex]
         $('#search-results-plot-dialog-title').text(plotIndex === null ? 'Add Plot' : 'Edit Plot')
         $('#search-results-plot-dialog-error').hide()
-        fillSearchResultsPlotDialog(settings)
+        // The modal is set up before the dialog is filled in, since setting it up the first time moves the dialog into
+        // the page dimmer, which clears the help popups that the filter rows set up
         $('#search-results-plot-dialog').modal({
             onApprove: () => {
                 const newSettings = readSearchResultsPlotSettingsFromDialog()
@@ -8398,7 +8470,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 refreshSearchResultsPlots()
                 return true
             },
-        }).modal('show')
+        })
+        fillSearchResultsPlotDialog(settings)
+        $('#search-results-plot-dialog').modal('show')
     }
 
     const initializeSearchResultsPlots = () => {
@@ -8421,6 +8495,13 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#search-results-plot-dialog .ui.checkbox').checkbox()
         $('#search-results-plot-dialog input[type="radio"], #search-results-plot-dialog input[type="checkbox"]').on('change', () => {
             if (!isFillingSearchResultsPlotDialog) updateSearchResultsPlotDialogFields()
+        })
+
+        // Like the "Add custom filter..." links, these open the column dialog to start a new filter group
+        $('#add-plot-filter-link, #add-plot-filter-group-link').click((e) => {
+            e.preventDefault()
+            showCustomFilterColumnDialog(addNewCustomFiltersToGroups(searchResultsPlotDialogFilterGroups, null,
+                onSearchResultsPlotDialogFiltersChanged, renderSearchResultsPlotDialogFilterGroups))
         })
 
         $('#add-search-results-plot-link').click((e) => {
@@ -9195,10 +9276,11 @@ gtag('config', 'G-6R8FPBQRFH');
     // with at least one filter, and each filter is {column, operator, value, enabled}. A locus passes when it matches
     // every group, and it matches a group when it matches the group's enabled filters joined by the group's
     // conjunction. renderCustomFilterGroups draws the custom filter rows on the page (the view) from this list.
+    // The plot dialog keeps a list like this one for the filters of the plot it edits.
     let customFilterGroups = []
 
-    // The group that the column dialog adds filters to, or null when the dialog starts a new group
-    let customFilterColumnDialogTargetGroup = null
+    // What the column dialog does with the filters it adds (see addNewCustomFiltersToGroups)
+    let customFilterColumnDialogOnAddFilters = null
 
     // The custom filter dialog and menus list the 'Additional Layers #2' columns under 'Additional Layers'
     const CUSTOM_FILTER_GROUP_ROWS = BIGQUERY_COLUMN_GROUP_ROWS.map(groupRow => groupRow.filter(g => g !== 'Additional Layers #2'))
@@ -9287,8 +9369,9 @@ gtag('config', 'G-6R8FPBQRFH');
     const isNullCheckOperator = (operator) => operator === 'IS NULL' || operator === 'IS NOT NULL'
 
     // Draws a filter of the given group as a new row at the end of $group, and wires the row's controls to update the
-    // filter (and, for the AND/OR selector, the group)
-    const addCustomFilterRowToView = ($group, group, filter) => {
+    // filter (and, for the AND/OR selector, the group). onChange is called after each change. Deleting the row's filter
+    // also deletes its group from groups if no filters are left in it, and then calls render to redraw the groups.
+    const addCustomFilterRowToView = ($group, groups, group, filter, onChange, render) => {
         const colInfo = getCustomFilterColumnInfo(filter.column)
         const colType = colInfo ? colInfo.type : 'STRING'
 
@@ -9339,7 +9422,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 group.conjunction = value
                 // The AND/OR selectors of a group are linked, so show the new value in the group's other rows too
                 $row.siblings('.custom-filter-row').find('.custom-filter-conjunction').dropdown('set selected', value)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         }).dropdown('set selected', group.conjunction)
 
@@ -9357,7 +9440,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 $opDropdown.dropdown('refresh')
                 $row.find('.custom-filter-value').attr('placeholder', getPlaceholderForType(newColType))
                 updateCustomFilterHelpIcon($row, filter)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         }).dropdown('set selected', filter.column)
 
@@ -9368,7 +9451,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 filter.operator = value
                 $row.find('.custom-filter-value').toggle(!isNullCheckOperator(value))
                 updateCustomFilterHelpIcon($row, filter)
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         })
         if (filter.operator) $row.find('.custom-filter-op').dropdown('set selected', filter.operator)
@@ -9382,16 +9465,16 @@ gtag('config', 'G-6R8FPBQRFH');
         $row.find('.custom-filter-enable-checkbox').checkbox({
             onChange: function() {
                 filter.enabled = this.checked
-                persistAllAdvancedFormStateToUrl()
+                onChange()
             },
         })
 
         $row.find('.custom-filter-delete').click(() => {
             group.filters.splice(group.filters.indexOf(filter), 1)
             // A group can't be empty, so delete the group along with its last filter
-            if (group.filters.length === 0) customFilterGroups.splice(customFilterGroups.indexOf(group), 1)
-            renderCustomFilterGroups()
-            persistAllAdvancedFormStateToUrl()
+            if (group.filters.length === 0) groups.splice(groups.indexOf(group), 1)
+            render()
+            onChange()
         })
 
         updateCustomFilterHelpIcon($row, filter)
@@ -9417,6 +9500,37 @@ gtag('config', 'G-6R8FPBQRFH');
             ${CUSTOM_FILTER_GROUP_SEPARATOR_VINE_SVG}
         </div>`
 
+    // Draws the rows of the given custom filter groups into $container, replacing what it held, with an "AND"
+    // ornament between groups and a link with the given text (e.g. "Add another custom filter...") at the bottom of
+    // each group, which opens the column dialog to add filters to that group. onChange and render are as in
+    // addCustomFilterRowToView.
+    const drawCustomFilterGroups = ($container, groups, addAnotherFilterLinkText, onChange, render) => {
+        $container.empty()
+        groups.forEach((group, groupIndex) => {
+            if (groupIndex > 0) $container.append(CUSTOM_FILTER_GROUP_SEPARATOR_HTML)
+            const $group = $('<div class="custom-filter-group"></div>').appendTo($container)
+            group.filters.forEach(filter => addCustomFilterRowToView($group, groups, group, filter, onChange, render))
+            $('<div class="custom-filter-group-links"><a href="#"></a></div>')
+                .appendTo($group)
+                .find('a').text(addAnotherFilterLinkText).click((e) => {
+                    e.preventDefault()
+                    showCustomFilterColumnDialog(addNewCustomFiltersToGroups(groups, group, onChange, render))
+                })
+        })
+    }
+
+    // Returns what the column dialog does with the filters it adds: put them in targetGroup, or when targetGroup is
+    // null, in a new group at the end of groups, then call render and onChange (as in addCustomFilterRowToView)
+    const addNewCustomFiltersToGroups = (groups, targetGroup, onChange, render) => (newFilters) => {
+        if (targetGroup) {
+            targetGroup.filters.push(...newFilters)
+        } else {
+            groups.push({conjunction: 'AND', filters: newFilters})
+        }
+        render()
+        onChange()
+    }
+
     // Draws the custom filter rows (the view) from customFilterGroups (the model), with an "AND" ornament between
     // groups and an "Add another custom filter..." link at the bottom of each group. When there are no filters, the
     // "Add custom filter..." link sits to the right of the catalog selector. Otherwise the help icon and the "Add
@@ -9425,18 +9539,9 @@ gtag('config', 'G-6R8FPBQRFH');
         // Take out the links before clearing the rows, since the last group holds them. detach() keeps their click
         // handlers, which empty() would remove.
         const $linkContainer = $('#add-custom-filter-link-container').detach()
-        const $container = $('#custom-filter-rows').empty()
-        customFilterGroups.forEach((group, groupIndex) => {
-            if (groupIndex > 0) $container.append(CUSTOM_FILTER_GROUP_SEPARATOR_HTML)
-            const $group = $('<div class="custom-filter-group"></div>').appendTo($container)
-            group.filters.forEach(filter => addCustomFilterRowToView($group, group, filter))
-            $('<div class="custom-filter-group-links"><a href="#">Add another custom filter...</a></div>')
-                .appendTo($group)
-                .find('a').click((e) => {
-                    e.preventDefault()
-                    showCustomFilterColumnDialog(group)
-                })
-        })
+        const $container = $('#custom-filter-rows')
+        drawCustomFilterGroups($container, customFilterGroups, 'Add another custom filter...',
+            persistAllAdvancedFormStateToUrl, renderCustomFilterGroups)
 
         const hasFilters = customFilterGroups.length > 0
         if (hasFilters) {
@@ -9487,10 +9592,10 @@ gtag('config', 'G-6R8FPBQRFH');
         GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
     }
 
-    // Opens the column dialog, which adds a filter for each column checked in it, either to targetGroup or, when
-    // targetGroup is null, to a new group
-    const showCustomFilterColumnDialog = (targetGroup) => {
-        customFilterColumnDialogTargetGroup = targetGroup
+    // Opens the column dialog, which makes a filter for each column checked in it and passes them to onAddFilters
+    // (see addNewCustomFiltersToGroups)
+    const showCustomFilterColumnDialog = (onAddFilters) => {
+        customFilterColumnDialogOnAddFilters = onAddFilters
 
         // Build grouped checkboxes
         const checkboxesContainer = $('#custom-filter-column-checkboxes')
@@ -9539,8 +9644,14 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#custom-filter-column-checkboxes .ui.checkbox').checkbox()
 
         // The help text popups are set up after the dialog opens, because opening a modal the first time clears
-        // popups set up on its contents.
-        $('#custom-filter-column-dialog').modal('show')
+        // popups set up on its contents. allowMultiple keeps the plot dialog open when its filters open this dialog,
+        // and the plot dialog can't be closed meanwhile, so that Escape or a click outside closes only this dialog.
+        // Closing a modal removes the Escape key handlers of all modals, so the plot dialog's is added back.
+        const $modalsUnderThisDialog = $('.ui.modal.active').not('#custom-filter-column-dialog').modal('setting', 'closable', false)
+        $('#custom-filter-column-dialog').modal({
+            allowMultiple: true,
+            onHidden: () => $modalsUnderThisDialog.modal('setting', 'closable', true).modal('add keyboardShortcuts'),
+        }).modal('show')
         initializeHelpTextPopups($('#custom-filter-column-checkboxes .export-column-help-icon'))
     }
 
@@ -9548,7 +9659,8 @@ gtag('config', 'G-6R8FPBQRFH');
     // AND..." link, which both start a new group
     $('#add-custom-filter-link, #add-custom-filter-group-link').click(function(e) {
         e.preventDefault()
-        showCustomFilterColumnDialog(null)
+        showCustomFilterColumnDialog(addNewCustomFiltersToGroups(
+            customFilterGroups, null, persistAllAdvancedFormStateToUrl, renderCustomFilterGroups))
     })
 
     $('#custom-filter-columns-clear-all').click((e) => {
@@ -9563,15 +9675,7 @@ gtag('config', 'G-6R8FPBQRFH');
         }).get()
 
         // Nothing checked adds nothing, so a new group is only created with at least one filter
-        if (newFilters.length > 0) {
-            if (customFilterColumnDialogTargetGroup) {
-                customFilterColumnDialogTargetGroup.filters.push(...newFilters)
-            } else {
-                customFilterGroups.push({conjunction: 'AND', filters: newFilters})
-            }
-            renderCustomFilterGroups()
-            persistAllAdvancedFormStateToUrl()
-        }
+        if (newFilters.length > 0) customFilterColumnDialogOnAddFilters(newFilters)
 
         $('#custom-filter-column-dialog').modal('hide')
     })
@@ -9599,10 +9703,11 @@ gtag('config', 'G-6R8FPBQRFH');
     // The GLOBAL_PAGE_STATE keys that decide which loci a search returns
     const SEARCH_PAGE_STATE_KEYS = ['searchQuery', 'showAdvFilters', ...ADVANCED_SEARCH_PAGE_STATE_KEYS]
 
-    // Adds a group of custom filters, whose filters are ANDed together (and with the other filters), to the search
-    // that produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new
-    // results are the current results that pass the new filters, even if the form was edited since the last search.
-    const addCustomFilterGroupAndSearch = async (filters) => {
+    // Adds custom filter groups (which are ANDed with each other and with the other filters) to the search that
+    // produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new results
+    // are the current results that pass the new filters, even if the form was edited since the last search. Groups
+    // that the search already has (such as a plot's own filters, after an earlier click on the plot) aren't added again.
+    const addCustomFilterGroupsAndSearch = async (groups) => {
         Object.assign(GLOBAL_PAGE_STATE, window.lastSearchPageState)
         // The current history entry may hold form edits made since the last search, so it's rewritten to that
         // search, which is where the browser's Back button should return to
@@ -9613,8 +9718,10 @@ gtag('config', 'G-6R8FPBQRFH');
         if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
             ADVANCED_SEARCH_PAGE_STATE_KEYS.forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
         }
-        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(
-            [...parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters']), {conjunction: 'AND', filters}])
+        const existingGroups = parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters'])
+        const serializedExistingGroups = new Set(existingGroups.map(group => serializeCustomFilterGroups([group])))
+        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups([...existingGroups,
+            ...groups.filter(group => !serializedExistingGroups.has(serializeCustomFilterGroups([group])))])
         GLOBAL_PAGE_STATE['showAdvFilters'] = 1
         GLOBAL_PAGE_STATE['currentPage'] = 1
         writePersistentPageStateToUrl()
