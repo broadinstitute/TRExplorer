@@ -1037,10 +1037,14 @@
         }
     }
 
+    // Whether one custom filter selects the loci of a category of a column. It doesn't for the "Other" category (loci
+    // outside the top N), nor for the "Missing" category of a text column (which covers both missing and empty values).
+    const canOneFilterSelectPlotCategory = (column, label) => label !== PLOT_OTHER_CATEGORY && label !== PLOT_EXCLUDED_BIN
+        && !(label === PLOT_MISSING_CATEGORY && SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[column].type === 'STRING')
+
     /**
      * Returns the custom filters that keep only the loci of a clicked bar, bar segment or box, or null when that's
-     * not possible: the "Other" category (loci outside the top N), and the "Missing" category of a text column
-     * (which covers both missing and empty values), have no single custom filter.
+     * not possible (see canOneFilterSelectPlotCategory).
      *
      * Args:
      *   settings: the plot's settings
@@ -1054,10 +1058,8 @@
         const filter = (column, operator, value) => ({column, operator, value: String(value), enabled: true})
         // The filter for one category of a column, or null if no single filter selects it
         const categoryFilter = (column, label) => {
-            if (label === PLOT_OTHER_CATEGORY || label === PLOT_EXCLUDED_BIN) return null
-            if (label === PLOT_MISSING_CATEGORY) {
-                return SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[column].type === 'STRING' ? null : filter(column, 'IS NULL', '')
-            }
+            if (!canOneFilterSelectPlotCategory(column, label)) return null
+            if (label === PLOT_MISSING_CATEGORY) return filter(column, 'IS NULL', '')
             return filter(column, '=', label)
         }
         const filters = []
@@ -1263,11 +1265,19 @@
                 chartConfig.options.onHover = (event, elements, chart) => {
                     event.native.target.style.cursor = getClickedElementFilters(event, chart) ? 'pointer' : 'default'
                 }
-                const shape = settings.type === 'box' ? 'box' : 'bar'
-                captionSentences.push(`Click a ${shape} to keep only its loci in the search results (this adds a custom filter${plotFilterGroups.length > 0 ? ", along with this plot's filters" : ''})` +
-                    (settings.other === 1 || settings.missing === 1
-                        ? `, except for Other ${shape}s and the Missing ${shape}s of text columns (which also include empty values), since no single filter selects their loci.`
-                        : '.'))
+                const [shape, shapes] = settings.type === 'box' ? ['box', 'boxes'] : ['bar', 'bars']
+                captionSentences.push(`Click a ${shape} to filter the main search results table to only the loci in this ${shape} (this adds a custom filter${plotFilterGroups.length > 0 ? ", along with this plot's filters" : ''}).`)
+                // Names the categories drawn in this plot whose bars can't be clicked
+                const drawnCategories = [
+                    ...clickTargets.xCategories.map(xCategory => [settings.x, xCategory.xLabel]),
+                    ...(settings.color ? clickTargets.colorLabels.map(colorLabel => [settings.color, colorLabel]) : []),
+                ]
+                const unclickableLabels = new Set(drawnCategories.filter(([column, label]) => !canOneFilterSelectPlotCategory(column, label)).map(([, label]) => label))
+                const unclickableNames = [PLOT_OTHER_CATEGORY, PLOT_MISSING_CATEGORY].filter(label => unclickableLabels.has(label)).map(label => `"${plotCategoryDisplayLabel(label)}"`)
+                if (unclickableNames.length > 0) {
+                    captionSentences.push(`This works for any ${shape} except for the ${unclickableNames.join(' and ')} ${shapes}` +
+                        `${unclickableLabels.has(PLOT_MISSING_CATEGORY) ? ' (which also include empty values)' : ''}, since no single filter selects their loci.`)
+                }
             }
             $plot.find('.search-results-plot-title').text(title)
             $plot.find('.search-results-plot-caption').text(captionSentences.join(' '))
@@ -1322,6 +1332,7 @@
                     <div class="search-results-plot-caption"></div>
                     <div class="search-results-plot-links">
                         <a class="edit-search-results-plot-link">Edit plot...</a>
+                        <a class="duplicate-search-results-plot-link">Duplicate plot...</a>
                         <a class="download-search-results-plot-link">Download PNG</a>
                         <a class="remove-search-results-plot-link">Remove plot</a>
                     </div>
@@ -1333,7 +1344,7 @@
 
     // --- Plot settings dialog ---
 
-    // The plot that the dialog edits, or null when it adds a new plot
+    // The plot that the dialog edits, or null when it adds a new plot (including a duplicate of an existing plot)
     let searchResultsPlotDialogPlotIndex = null
     // Set while the dialog's dropdowns are being filled in, so their onChange handlers don't respond
     let isFillingSearchResultsPlotDialog = false
@@ -1477,12 +1488,11 @@
         updateSearchResultsPlotDialogFields()
     }
 
-    // Opens the plot settings dialog for the plot at plotIndex, or for a new plot when plotIndex is null
-    const showSearchResultsPlotDialog = (plotIndex) => {
-        searchResultsPlotDialogPlotIndex = plotIndex
-        const settingsList = getSearchResultsPlotSettingsList()
-        const settings = plotIndex === null ? {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS} : settingsList[plotIndex]
-        $('#search-results-plot-dialog-title').text(plotIndex === null ? 'Add Plot' : 'Edit Plot')
+    // Opens the plot settings dialog with the given title, filled in with the given settings. On OK, the dialog's
+    // settings replace the plot at plotIndexToReplace, or are added as a new plot when plotIndexToReplace is null.
+    const showSearchResultsPlotDialog = (title, settings, plotIndexToReplace) => {
+        searchResultsPlotDialogPlotIndex = plotIndexToReplace
+        $('#search-results-plot-dialog-title').text(title)
         $('#search-results-plot-dialog-error').hide()
         // The modal is set up before the dialog is filled in, since setting it up the first time moves the dialog into
         // the page dimmer, which clears the help popups that the filter rows set up
@@ -1540,10 +1550,15 @@
 
         $('#add-search-results-plot-link').click((e) => {
             e.preventDefault()
-            showSearchResultsPlotDialog(null)
+            showSearchResultsPlotDialog('Add Plot', {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS}, null)
         })
         $('#search-results-plots').on('click', '.edit-search-results-plot-link', (e) => {
-            showSearchResultsPlotDialog(Number($(e.target).closest('.search-results-plot').data('plot-index')))
+            const plotIndex = Number($(e.target).closest('.search-results-plot').data('plot-index'))
+            showSearchResultsPlotDialog('Edit Plot', getSearchResultsPlotSettingsList()[plotIndex], plotIndex)
+        })
+        $('#search-results-plots').on('click', '.duplicate-search-results-plot-link', (e) => {
+            const plotIndex = Number($(e.target).closest('.search-results-plot').data('plot-index'))
+            showSearchResultsPlotDialog('Duplicate Plot', getSearchResultsPlotSettingsList()[plotIndex], null)
         })
         $('#search-results-plots').on('click', '.remove-search-results-plot-link', (e) => {
             const plotIndex = Number($(e.target).closest('.search-results-plot').data('plot-index'))

@@ -81,7 +81,7 @@ def test_coordinates_can_only_be_scatter_plot_y_axes(index_page):
             "Start (0-based) can only be a scatter plot Y-axis.")
     assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "scatter", "x": "MotifSize", "y": "start_0based"}) == ""
 
-    index_page.evaluate("showSearchResultsPlotDialog(null)")
+    index_page.evaluate("showSearchResultsPlotDialog('Add Plot', {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS}, null)")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
     y_menu_offers_start_and_end = """() => ['start_0based', 'end_1based'].map(
         name => !!document.querySelector(`#plot-y-column-dropdown .menu .item[data-value="${name}"]`))"""
@@ -206,6 +206,29 @@ def test_clicking_a_bar_whose_label_has_a_quote_filters_to_its_loci(index_page, 
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "3' UTR"]]
     assert real_errors(console_errors) == []
+
+
+def test_captions_name_only_the_drawn_bars_that_cant_be_clicked(index_page):
+    plots_and_unclickable_bars_sentences = [
+        ("t:bar,x:GencodeGeneRegion", None),
+        # The Missing bars of numeric columns can be clicked
+        ("t:bar,x:HPRC256_Stdev,xm:bins,m:1", None),
+        ("t:bar,x:GencodeGeneRegion,c:MotifSize,n:4,o:1", 'This works for any bar except for the "Other" bars, since no single filter selects their loci.'),
+        ("t:bar,x:KnownDiseaseAssociatedLocus,m:1",
+         'This works for any bar except for the "Missing" bars (which also include empty values), since no single filter selects their loci.'),
+        ("t:bar,x:KnownDiseaseAssociatedLocus,c:MotifSize,n:4,o:1,m:1",
+         'This works for any bar except for the "Other" and "Missing" bars (which also include empty values), since no single filter selects their loci.'),
+        ("t:box,x:GencodeGeneRegion,y:MotifSize,n:2,o:1", 'This works for any box except for the "Other" boxes, since no single filter selects their loci.'),
+    ]
+    open_search_with_plots(index_page, "ATXN1", ";".join(plot for plot, _ in plots_and_unclickable_bars_sentences))
+    captions = index_page.locator(".search-results-plot-caption").all_inner_texts()
+    for (plot, unclickable_bars_sentence), caption in zip(plots_and_unclickable_bars_sentences, captions):
+        shape = "box" if plot.startswith("t:box") else "bar"
+        assert f"Click a {shape} to filter the main search results table to only the loci in this {shape} (this adds a custom filter)." in caption, plot
+        if unclickable_bars_sentence:
+            assert caption.endswith(f"(this adds a custom filter). {unclickable_bars_sentence}"), plot
+        else:
+            assert "This works for any" not in caption, plot
 
 
 def test_clicking_a_bar_resets_settings_left_in_the_hidden_advanced_search_panel(index_page):
@@ -429,6 +452,19 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     index_page.click("#search-results-plot-dialog-ok-button")
     wait_for_plots_to_finish_loading(index_page, 1)
     assert "p%3A1" in index_page.url
+
+    # The duplicate dialog starts out with the plot's settings, and adds a new plot without changing the first one
+    index_page.click(".duplicate-search-results-plot-link")
+    index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
+    assert index_page.inner_text("#search-results-plot-dialog-title") == "Duplicate Plot"
+    assert index_page.eval_on_selector("#plot-color-column-dropdown", "e => $(e).dropdown('get value')") == "MotifSize"
+    assert index_page.input_value("#plot-top-n-input") == "5"
+    index_page.fill("#plot-top-n-input", "3")
+    index_page.click("#search-results-plot-dialog-ok-button")
+    wait_for_plots_to_finish_loading(index_page, 2)
+    assert [settings["topN"] for settings in index_page.evaluate("getSearchResultsPlotSettingsList()")] == [5, 3]
+    index_page.locator(".remove-search-results-plot-link").nth(1).click()
+    assert index_page.locator(".search-results-plot").count() == 1
 
     # Going to the next results page doesn't rerun the plot query
     num_cached_queries = index_page.evaluate("searchResultsPlotQueryResultsCache.size")
