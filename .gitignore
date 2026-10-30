@@ -203,7 +203,6 @@ data/
 
 # Local tooling output
 .code_review/
-.code_review_local/
 .playwright-mcp/
 .prompts/
 .stfolder/
