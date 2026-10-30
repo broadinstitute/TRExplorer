@@ -1,4 +1,4 @@
 {
-    "data_last_updated_date": "10/16/2026",
-    "data_last_updated_details": "Added HPRC256TotalLength columns, the AoU1027 majority-rule fix and SpliceAI allele sizes"
+    "data_last_updated_date": "10/30/2026",
+    "data_last_updated_details": "Rebuilt the v2.1 catalog with a fix to the merge step that adds 3,185 loci"
 }
