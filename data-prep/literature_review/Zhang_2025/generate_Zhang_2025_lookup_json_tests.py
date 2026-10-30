@@ -58,6 +58,8 @@ class Zhang2025LookupTests(unittest.TestCase):
         ]}
         locus_ids = {c["locus_id"] for c in candidates["1"]}
         self.assertEqual(find_trexplorer_match("1", 100, 130, "CAG", locus_ids, candidates), ("1-100-130-CAG", "exact"))
+        # Same interval with the motif starting at a different base: the same locus, so an exact match.
+        self.assertEqual(find_trexplorer_match("1", 100, 130, "AGC", locus_ids, candidates), ("1-100-130-CAG", "exact"))
         # Rotated motif and slightly different interval: fuzzy match (Jaccard 27/30 = 0.9).
         self.assertEqual(find_trexplorer_match("1", 103, 130, "GCA", locus_ids, candidates), ("1-100-130-CAG", "fuzzy"))
         # Jaccard 10/30 = 0.33 is above the 0.2 cutoff; 5/30 = 0.17 is below it.

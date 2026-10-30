@@ -34,7 +34,8 @@ unmatched STRs are printed when the script runs.
     library, but too few barcodes or variants to fit the regression in either hSTR1 or hSTR2)
   - LengthEffectSlope: change in RNA/DNA expression ratio per added repeat copy (null if not enough data)
   - LengthEffectFDR: Benjamini-Hochberg adjusted p-value of the slope (null if not enough data)
-  - Details: zhangLocusId, zhangInterval (0-based start), zhangMotif, matchType ("exact" or "fuzzy"),
+  - Details: zhangLocusId, zhangInterval (0-based start), zhangMotif, matchType ("exact" for the same interval and
+    canonical motif, or "fuzzy"),
     lengthEffectSourceLibrary ("hSTR1", "hSTR2", or null if not enough data), and an hSTR1 and/or hSTR2
     object (lengthEffectSlope, lengthEffectFDR, pearsonR) for each library that had enough data
 """
@@ -241,7 +242,9 @@ def find_trexplorer_match(chrom, start_0based, end_1based, motif, catalog_locus_
 
     Uses the same rules as the Manigbas 2024 script, apart from the Jaccard cutoff: an exact locus ID match, or else the overlapping
     locus with the same canonical motif (or the same motif length for motifs over 6 bp) and the highest
-    Jaccard similarity, if that similarity is at least MIN_JACCARD_SIMILARITY.
+    Jaccard similarity, if that similarity is at least MIN_JACCARD_SIMILARITY. Unlike the Manigbas 2024 script, a
+    match with the same interval and the same canonical motif is "exact" too, since it's the same locus with its
+    motif written starting at a different base.
 
     Args:
         chrom: chromosome without "chr".
@@ -275,9 +278,15 @@ def find_trexplorer_match(chrom, start_0based, end_1based, motif, catalog_locus_
         jaccard = intersection / union
         if jaccard >= MIN_JACCARD_SIMILARITY and jaccard > best_jaccard:
             best_jaccard = jaccard
-            best_match = candidate["locus_id"]
+            best_match = candidate
 
-    return (best_match, "fuzzy") if best_match else (None, None)
+    if best_match is None:
+        return None, None
+    # Zhang et al. write each motif starting at its alphabetically first base, so the same locus can have a motif that
+    # starts at a different base than in its TRExplorer locus ID
+    is_same_locus = (best_match["start_0based"], best_match["end_1based"], best_match["canonical_motif"]) == (
+        start_0based, end_1based, canonical_motif)
+    return best_match["locus_id"], "exact" if is_same_locus else "fuzzy"
 
 
 def pick_best_entry(entries):
