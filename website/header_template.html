@@ -1789,6 +1789,148 @@ gtag('config', 'G-6R8FPBQRFH');
         return html
     }
 
+    // The Garg et al. 2019 and Garg et al. 2020 DMR (differentially methylated region) columns. Each *Details column
+    // holds a JSON list of the DMRs (for Garg 2020, the TRs next to them) that overlap the locus, usually one, written by
+    // data-prep/literature_review/Garg_2019_and_2020/generate_Garg_2019_and_2020_DMR_lookup_json.py
+    const GARG_2019_PAPER_URL = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6801017/'
+    const GARG_2020_PAPER_URL = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC7536611/'
+    // The Garg 2019 columns of each cohort ('autism' or 'schizophrenia')
+    const GARG_2019_COLUMNS_BY_COHORT = {
+        autism: {methylationChange: 'Garg2019_AutismDMRMethylationChange', details: 'Garg2019_AutismDMRDetails'},
+        schizophrenia: {methylationChange: 'Garg2019_SchizophreniaDMRMethylationChange', details: 'Garg2019_SchizophreniaDMRDetails'},
+    }
+    const GARG_DMR_DEFINITION = `A DMR is a region where one person's DNA methylation in blood is far outside the range
+        seen in controls: at least 3 Illumina 450k array probes within 1 kb, each above the 99.9th percentile
+        (hypermethylated) or below the 0.1th percentile (hypomethylated) of the controls.`
+
+    function parseGargDmrDetails(row, columnName) {
+        try {
+            return JSON.parse(row[columnName] || '[]')
+        } catch (e) {
+            console.error(`Failed to parse ${columnName}:`, e)
+            return []
+        }
+    }
+
+    // eg. formatCount(1, 'proband', 'probands') returns '1 proband'
+    const formatCount = (count, singular, plural) => `${count.toLocaleString()} ${count === 1 ? singular : plural}`
+
+    // eg. 'chr1:100-250' returns 'chr1:100-250 (hg38), 150 bp'
+    function describeHg38Interval(interval) {
+        const [, start0Based, end] = interval.match(/:(\d+)-(\d+)$/)
+        return `${interval} (hg38), ${(parseInt(end) - parseInt(start0Based)).toLocaleString()} bp`
+    }
+
+    // The genes whose promoter (+/-2 kb of the TSS) or gene body overlaps a DMR
+    function describeGargDmrGenes(dmr) {
+        const descriptions = []
+        if (dmr.promoterGenes.length > 0) descriptions.push(`${dmr.promoterGenes.join(', ')} (promoter)`)
+        if (dmr.geneBodyGenes.length > 0) descriptions.push(`${dmr.geneBodyGenes.join(', ')} (gene body)`)
+        return descriptions.length > 0 ? descriptions.join('; ') : 'none'
+    }
+
+    // The Garg 2019 DMR details shown in the Garg 2019 Autism DMRs and Garg 2019 Schizophrenia DMRs columns' popups and
+    // on the locus page. cohort is 'autism' or 'schizophrenia'.
+    function buildGarg2019DmrDetailsHtml(row, cohort) {
+        const isAutism = cohort === 'autism'
+        let html = ''
+        for (const dmr of parseGargDmrDetails(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details)) {
+            const carriers = isAutism
+                ? [formatCount(dmr.numProbandsWithDMR, 'autism proband', 'autism probands')]
+                    .concat(dmr.numSiblingsWithDMR > 0 ? [formatCount(dmr.numSiblingsWithDMR, 'unaffected sibling', 'unaffected siblings')] : [])
+                    .join(' and ')
+                : formatCount(dmr.numIndividualsWithDMR, 'individual with schizophrenia', 'individuals with schizophrenia')
+            const alsoSeenIn = [
+                dmr.numPopulationControlsWithDMR > 0 ? `${dmr.numPopulationControlsWithDMR} of 2,711 population controls` : '',
+                dmr.numFamilialControlsWithDMR > 0 ? formatCount(dmr.numFamilialControlsWithDMR, 'familial control', 'familial controls') : '',
+                dmr.numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR > 0
+                    ? `${dmr.numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR} of 489 patients with intellectual disability or congenital anomalies` : '',
+            ].filter(Boolean)
+            html += `This TR overlaps a rare DMR (differentially methylated region) that was <b>${dmr.methylationChange}</b>
+                in <b>${carriers}</b>.<br /><br />
+                <b>DMR:</b> ${describeHg38Interval(dmr.dmrHg38)}, ${dmr.numProbes} array probes<br />
+                <b>Genes:</b> ${describeGargDmrGenes(dmr)}<br />
+                <b>Also seen in:</b> ${alsoSeenIn.length > 0 ? alsoSeenIn.join(', ') : 'none of the controls, or of 489 patients with intellectual disability or congenital anomalies'}<br />`
+            if (dmr.numCarriersWithFailedProbeDetection > 0) {
+                const numCarriers = isAutism ? dmr.numProbandsWithDMR + dmr.numSiblingsWithDMR : dmr.numIndividualsWithDMR
+                const flaggedCarriers = dmr.numCarriersWithFailedProbeDetection < numCarriers
+                    ? `${dmr.numCarriersWithFailedProbeDetection} of the ${numCarriers} people`
+                    : (numCarriers === 1 ? 'the one person' : `all ${numCarriers} people`)
+                html += `<b>Note:</b> in ${flaggedCarriers} with this DMR, a cluster of its array probes failed detection
+                    (their signal was not above background), so the DMR may come from a technical problem or a deletion
+                    rather than a change in methylation.<br />`
+            }
+            html += '<br />'
+        }
+        html += `<span style="color: #666;">${GARG_DMR_DEFINITION} This TRExplorer locus was assigned this result because
+            it overlaps the reported DMR and contains CpG sites ("CG" in the motif). Garg et al. studied 297 autism
+            probands and 286 of their unaffected siblings, and 767 individuals with schizophrenia.</span><br /><br />
+            <b>LIMITATIONS:</b> A DMR is usually several hundred bp long, so its methylation change may not involve this TR.
+            It may instead come from a nearby sequence variant, or arise by chance. Expansions of CG-rich TRs are one known
+            cause of hypermethylation, as at FMR1.`
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: <a href="${GARG_2019_PAPER_URL}" target="_blank">Garg et al. 2019</a> (Human Mutation), Supplementary
+            Table ${isAutism ? 1 : 2}
+        </div>`
+
+        return html
+    }
+
+    // The Garg 2020 details shown in the Garg 2020 DMRs column's popup and on the locus page
+    function buildGarg2020DmrDetailsHtml(row) {
+        let html = ''
+        for (const dmr of parseGargDmrDetails(row, 'Garg2020_DMRDetails')) {
+            html += `Of the 23,116 people whose DNA methylation in blood was surveyed by Garg et al. 2020,
+                <b>${formatCount(dmr.numIndividualsWithDMR, 'person', 'people')}</b> had a rare <b>${dmr.methylationChange}</b>
+                DMR (differentially methylated region), a frequency of ${dmr.frequencyPer10000} per 10,000 (95% confidence interval). The authors predicted the
+                TR in the paper to be unstable, since it is CG-rich and highly polymorphic
+                (${dmr.numTRAllelesIn600Genomes} different alleles in 600 genomes), so the hypermethylation is likely
+                caused by an expansion.<br /><br />
+                <b>TR in the paper:</b> ${describeHg38Interval(dmr.trHg38)}<br />
+                <b>DMR:</b> ${describeHg38Interval(dmr.dmrHg38)}<br />
+                <b>Genes:</b> ${describeGargDmrGenes(dmr)}<br />
+                <b>Gene region:</b> ${dmr.geneRegion}<br />
+                ${dmr.fragileSite ? `<b>Fragile site:</b> ${dmr.fragileSite} (${dmr.fragileSiteStatus === 'previously defined'
+                    ? 'previously defined: already known to be caused by an expansion of the TR in the paper'
+                    : 'putative novel: the authors propose that an expansion of the TR in the paper causes it'})<br />` : ''}
+                ${dmr.validation ? `<b>Validation or reference:</b> ${dmr.validation}<br />` : ''}
+                <br />`
+        }
+        html += `<span style="color: #666;">${GARG_DMR_DEFINITION} Only TRs whose repeat contains CpG sites (CG in the motif)
+            are matched.</span>`
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
+            Source: <a href="${GARG_2020_PAPER_URL}" target="_blank">Garg et al. 2020</a> (American Journal of Human
+            Genetics), Table S15
+        </div>`
+
+        return html
+    }
+
+    // A Garg DMR column's value, which opens a popup with the DMR details when clicked
+    function buildGargDmrCellValue(displayText, popupTitle, detailsHtml) {
+        const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>${popupTitle}</b></div>${detailsHtml}`
+            .replace(/'/g, '&#39;').replace(/"/g, '&quot;')
+        return `<span class="action-cell show-popup" data-variation="dmr-details-popup" data-html="${escapedPopupContent}">
+            <span class="action-link">${displayText}</span>
+        </span>`
+    }
+
+    // The Garg 2019 Autism DMRs or Garg 2019 Schizophrenia DMRs column's value, eg. 'Hypermethylated (1 proband)'.
+    // cohort is 'autism' or 'schizophrenia'.
+    function buildGarg2019DmrColumnValue(row, cohort) {
+        const methylationChange = row[GARG_2019_COLUMNS_BY_COHORT[cohort].methylationChange]
+        if (!methylationChange) return ''
+        const dmrs = parseGargDmrDetails(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details)
+        const carriers = cohort === 'autism'
+            ? formatCount(dmrs.reduce((total, dmr) => total + dmr.numProbandsWithDMR, 0), 'proband', 'probands')
+            : formatCount(dmrs.reduce((total, dmr) => total + dmr.numIndividualsWithDMR, 0), 'individual', 'individuals')
+        const methylationChangeText = methylationChange.split(',').join(', ')
+        return buildGargDmrCellValue(
+            `${methylationChangeText.charAt(0).toUpperCase()}${methylationChangeText.slice(1)} (${carriers})`,
+            `Rare DMR in ${cohort} (Garg et al. 2019)`,
+            buildGarg2019DmrDetailsHtml(row, cohort))
+    }
+
     // How the Miga lab's CenSat annotation workflow (https://github.com/kmiga/alphaAnnotation) found each kind of region
     const ALPHA_SATELLITE_ANNOTATION_METHOD = `Alpha satellite was annotated with <a href="https://github.com/fedorrik/HumAS-HMMER_for_AnVIL" target="_blank">HumAS-HMMER</a>
         (Fedor Ryabov), and the results were sorted into active HOR, inactive HOR, diverged HOR, monomeric and mixed alpha satellite.`
@@ -2889,6 +3031,51 @@ gtag('config', 'G-6R8FPBQRFH');
                 'Zhang2025_LengthEffectFDR',
                 'Zhang2025_Details',
             ]
+        },
+        garg2019AutismDMRs: {
+            displayName: 'Garg 2019 Autism DMRs',
+            defaultSortDirection: 'DESC',
+            helpText: `Whether the TR overlaps a rare DMR (differentially methylated region) that
+                [<a href="${GARG_2019_PAPER_URL}" target="_blank">Garg 2019</a>] found in blood from at least one of 297
+                autism probands, whether the region was hypermethylated or hypomethylated, and how many probands had it.
+                A DMR is a region where one person's methylation is far outside the range seen in controls. Only TRs whose
+                repeat contains CpG sites are shown. Click the value for the DMR's location and genes, and whether
+                unaffected siblings or controls also had it.`,
+            getValue: (row) => buildGarg2019DmrColumnValue(row, 'autism'),
+            getSortColumns: () => [GARG_2019_COLUMNS_BY_COHORT.autism.methylationChange],
+            getRequiredColumns: () => Object.values(GARG_2019_COLUMNS_BY_COHORT.autism),
+        },
+        garg2019SchizophreniaDMRs: {
+            displayName: 'Garg 2019 Schizophrenia DMRs',
+            defaultSortDirection: 'DESC',
+            helpText: `Whether the TR overlaps a rare DMR (differentially methylated region) that
+                [<a href="${GARG_2019_PAPER_URL}" target="_blank">Garg 2019</a>] found in blood from at least one of 767
+                individuals with schizophrenia, whether the region was hypermethylated or hypomethylated, and how many
+                individuals had it. A DMR is a region where one person's methylation is far outside the range seen in
+                controls. Only TRs whose repeat contains CpG sites are shown. Click the value for the DMR's location and
+                genes, and whether controls also had it.`,
+            getValue: (row) => buildGarg2019DmrColumnValue(row, 'schizophrenia'),
+            getSortColumns: () => [GARG_2019_COLUMNS_BY_COHORT.schizophrenia.methylationChange],
+            getRequiredColumns: () => Object.values(GARG_2019_COLUMNS_BY_COHORT.schizophrenia),
+        },
+        garg2020DMRs: {
+            displayName: 'Garg 2020 DMRs',
+            defaultSortDirection: 'DESC',
+            helpText: `The number of people, out of 23,116 whose methylation in blood was surveyed by
+                [<a href="${GARG_2020_PAPER_URL}" target="_blank">Garg 2020</a>], who had a rare hypermethylated DMR
+                (differentially methylated region) next to a TR that overlaps this one. Shown only for TRs that overlap
+                one of the 26 CG-rich TRs that the authors found next to such a DMR and predicted to be unstable. Their
+                hypermethylation is likely caused by an expansion, which is known or was confirmed for 11 of the 26.
+                Click the value for the TR in the paper, the DMR, genes, fragile site and validation.`,
+            getValue: (row) => {
+                if (row['Garg2020_NumIndividualsWithDMR'] == null) return ''
+                return buildGargDmrCellValue(
+                    `Hypermethylated (${formatCount(row['Garg2020_NumIndividualsWithDMR'], 'individual', 'individuals')})`,
+                    'Rare hypermethylation next to a CG-rich TR (Garg et al. 2020)',
+                    buildGarg2020DmrDetailsHtml(row))
+            },
+            getSortColumns: () => ['Garg2020_NumIndividualsWithDMR'],
+            getRequiredColumns: () => ['Garg2020_NumIndividualsWithDMR', 'Garg2020_DMRDetails'],
         },
         spliceAI: {
             displayName: 'SpliceAI',

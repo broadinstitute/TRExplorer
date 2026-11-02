@@ -21,9 +21,9 @@ GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256:LPS)"
 GROUP_POLYMORPHISM_HPRC256_TOTAL_LENGTH = "Polymorphism (HPRC256:Length)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027:LPS)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
-# The columns added in October 2026 (CentromereAndSatelliteRegion and the Zhang 2025 STR MPRA, ENCODE4/IGVF and
-# SpliceAI columns), grouped together so they're easy to find
-GROUP_COLUMNS_ADDED_2026_10 = "New Columns (10/2026)"
+# The columns added in October and November 2026 (CentromereAndSatelliteRegion, the Zhang 2025 STR MPRA, ENCODE4/IGVF
+# and SpliceAI columns, and the Garg 2019 and Garg 2020 DMR columns), grouped together so they're easy to find
+GROUP_COLUMNS_ADDED_2026_10 = "New Columns (10-11/2026)"
 
 # The export and custom filter dialogs show the column groups as boxes; each inner list is one row of boxes
 GROUP_ROWS_IN_COLUMN_DIALOGS = [
@@ -1314,6 +1314,61 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "group": GROUP_COLUMNS_ADDED_2026_10,
     },
 
+    # Rare DMRs (differentially methylated regions) from Garg et al. 2019 and Garg et al. 2020, from
+    # ../data-prep/literature_review/Garg_2019_and_2020/. Only loci whose repeat contains CpG sites were matched to a
+    # DMR. NULL for every other locus.
+    {
+        "type": "STRING",
+        "name": "Garg2019_AutismDMRMethylationChange",
+        "description": "Whether the TR overlaps a rare DMR (differentially methylated region) that Garg et al. 2019 found in at least one of 297 autism probands, and whether that region had more or less methylation than usual. A DMR is a region where one person's DNA methylation in blood (Illumina 450k array, at least 3 probes) is far outside the range seen in controls. Only TRs whose repeat contains CpG sites (CG in the motif) were matched. Possible values include:<ul><li><b>hypermethylated</b></li><li><b>hypomethylated</b></li><li><b>NULL</b>: the TR doesn't overlap one of these DMRs, or its repeat has no CpG sites</li></ul>",
+        "displayName": "Garg 2019 Autism DMR: Methylation Change",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "STRING",
+        "name": "Garg2019_AutismDMRDetails",
+        "description": "JSON list of the Garg et al. 2019 autism DMRs that overlap the TR (usually one), each with dmrHg38 (0-based start), dmrHg19 (as listed in the paper), methylationChange, numProbandsWithDMR, numSiblingsWithDMR (unaffected siblings), numProbes, numCarriersWithFailedProbeDetection (people with the DMR in whom a cluster of its probes failed detection, which can mean a technical problem or a deletion), promoterGenes, geneBodyGenes, numPopulationControlsWithDMR (of 2,711), numFamilialControlsWithDMR and numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR (of 489).",
+        "displayName": "Garg 2019 Autism DMR: Details",
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "STRING",
+        "name": "Garg2019_SchizophreniaDMRMethylationChange",
+        "description": "Whether the TR overlaps a rare DMR (differentially methylated region) that Garg et al. 2019 found in at least one of 767 individuals with schizophrenia, and whether that region had more or less methylation than usual. A DMR is a region where one person's DNA methylation in blood (Illumina 450k array, at least 3 probes) is far outside the range seen in controls. Only TRs whose repeat contains CpG sites (CG in the motif) were matched. Possible values include:<ul><li><b>hypermethylated</b></li><li><b>hypomethylated</b></li><li><b>NULL</b>: the TR doesn't overlap one of these DMRs, or its repeat has no CpG sites</li></ul>",
+        "displayName": "Garg 2019 Schizophrenia DMR: Methylation Change",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "STRING",
+        "name": "Garg2019_SchizophreniaDMRDetails",
+        "description": "JSON list of the Garg et al. 2019 schizophrenia DMRs that overlap the TR (usually one), each with dmrHg38 (0-based start), dmrHg19 (as listed in the paper), methylationChange, numIndividualsWithDMR, numProbes, numCarriersWithFailedProbeDetection (people with the DMR in whom a cluster of its probes failed detection, which can mean a technical problem or a deletion), promoterGenes, geneBodyGenes, numPopulationControlsWithDMR (of 2,711), numFamilialControlsWithDMR and numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR (of 489).",
+        "displayName": "Garg 2019 Schizophrenia DMR: Details",
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "INTEGER",
+        "name": "Garg2020_NumIndividualsWithDMR",
+        "description": "Garg et al. 2020 surveyed DNA methylation in blood (Illumina 450k array) from 23,116 people, and found 25 rare hypermethylated DMRs (differentially methylated regions) within 500 bp of a CG-rich TR that they predicted to be unstable. Several of these TRs are known or were confirmed to expand, so the hypermethylation is likely caused by an expansion. For TRExplorer loci that overlap one of these 26 TRs and have a motif that includes “CG”, this field contains the number of individuals that had a DMR in this paper. NULL for every other TR.",
+        "displayName": "Garg 2020 DMR: Num Individuals",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "STRING",
+        "name": "Garg2020_DMRDetails",
+        "description": "JSON list of the Garg et al. 2020 TRs that overlap this TR (usually one), each with trHg38 (0-based start), trHg19 (1-based start, as listed in the paper), its DMR's dmrHg38 and dmrHg19, methylationChange, numIndividualsWithDMR (of 23,116), frequencyPer10000 (95% confidence interval), numTRAllelesIn600Genomes, promoterGenes, geneBodyGenes, geneRegion, cohorts, fragileSite, fragileSiteStatus ('previously defined' if already known to be caused by an expansion of the TR, or 'putative novel' if the authors propose it), and validation (the paper's notes on how the expansion was confirmed, or the reference that first described it).",
+        "displayName": "Garg 2020 DMR: Details",
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+
     # Functional elements from ENCODE4 and IGVF, from ../data-prep/columns_from_EncodeV4/. NULL means no element
     # called functional overlaps the locus, which usually means it was never tested.
     {
@@ -1429,6 +1484,11 @@ SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["na
 # The names of the Zhang2025_* columns, which add_or_update_zhang_2025_columns_in_catalog_table.py fills in an
 # existing table
 ZHANG_2025_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("Zhang2025_")]
+
+# The names of the Garg2019_* and Garg2020_* columns, which add_or_update_garg_2019_and_2020_columns_in_catalog_table.py
+# fills in an existing table
+GARG_2019_AND_2020_COLUMN_NAMES = [
+    c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith(("Garg2019_", "Garg2020_"))]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when

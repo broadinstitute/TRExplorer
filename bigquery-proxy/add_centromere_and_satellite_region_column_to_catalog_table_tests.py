@@ -4,8 +4,7 @@ import os
 import tempfile
 import unittest
 
-from add_centromere_and_satellite_region_column_to_catalog_table import (
-    build_fill_sql, column_schema_field, read_locus_ids_and_values)
+from add_centromere_and_satellite_region_column_to_catalog_table import read_locus_ids_and_values
 
 
 class ReadLocusIdsAndValuesTests(unittest.TestCase):
@@ -44,22 +43,6 @@ class ReadLocusIdsAndValuesTests(unittest.TestCase):
         ])
         with self.assertRaises(SystemExit):
             read_locus_ids_and_values(self.catalog_path)
-
-
-class BuildFillSqlTests(unittest.TestCase):
-    def test_copies_matching_rows_and_clears_the_other_rows_that_have_a_value(self):
-        self.assertEqual(
-            build_fill_sql("project.dataset.catalog_1", "project.dataset.staging_1"),
-            "MERGE `project.dataset.catalog_1` T USING `project.dataset.staging_1` S ON T.LocusId = S.LocusId "
-            "WHEN MATCHED THEN UPDATE SET T.CentromereAndSatelliteRegion = S.CentromereAndSatelliteRegion "
-            "WHEN NOT MATCHED BY SOURCE AND T.CentromereAndSatelliteRegion IS NOT NULL "
-            "THEN UPDATE SET T.CentromereAndSatelliteRegion = NULL")
-
-
-class ColumnSchemaFieldTests(unittest.TestCase):
-    def test_uses_the_type_declared_in_global_constants(self):
-        field = column_schema_field()
-        self.assertEqual((field.name, field.field_type), ("CentromereAndSatelliteRegion", "STRING"))
 
 
 if __name__ == "__main__":

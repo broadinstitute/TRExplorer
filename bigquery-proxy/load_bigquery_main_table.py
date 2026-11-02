@@ -24,7 +24,8 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from bigquery_loader_utils import create_or_replace_keep_best_non_overlapping_loci_function, get_zhang_2025_column_values
+from bigquery_loader_utils import create_or_replace_keep_best_non_overlapping_loci_function, \
+    get_garg_2019_and_2020_column_values, get_zhang_2025_column_values
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -77,6 +78,10 @@ parser.add_argument("--manigbas-2024-lookup-json",
 parser.add_argument("--zhang-2025-lookup-json",
                     default="../data-prep/literature_review/Zhang_2025/Zhang_2025_lookup.json.gz",
                     help="JSON lookup with STR MPRA length effects from Zhang et al. 2025")
+parser.add_argument("--garg-2019-and-2020-dmr-lookup-json",
+                    default="../data-prep/literature_review/Garg_2019_and_2020/Garg_2019_and_2020_DMR_lookup.json.gz",
+                    help="JSON lookup with the rare DMRs from Garg et al. 2019 (autism and schizophrenia) and Garg et "
+                         "al. 2020 (near CGG-rich TRs)")
 parser.add_argument("--encode4-and-igvf-validated-elements-tsv",
                     default="../data-prep/columns_from_EncodeV4/TRExplorer_v2.1_ENCODE4_columns.tsv.gz",
                     help="Per-locus TSV (LocusId, ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements) from "
@@ -764,6 +769,15 @@ if args.zhang_2025_lookup_json:
         zhang_2025_lookup = json.load(f)
     print(f"Parsed {len(zhang_2025_lookup):,d} records from Zhang 2025 lookup")
 
+## Parse Garg 2019 and Garg 2020 DMR lookup
+garg_2019_and_2020_dmr_lookup = {}
+if args.garg_2019_and_2020_dmr_lookup_json:
+    print(f"Parsing Garg 2019 and Garg 2020 DMR lookup from {args.garg_2019_and_2020_dmr_lookup_json}")
+    fopen = gzip.open if args.garg_2019_and_2020_dmr_lookup_json.endswith('gz') else open
+    with fopen(args.garg_2019_and_2020_dmr_lookup_json, 'rt') as f:
+        garg_2019_and_2020_dmr_lookup = json.load(f)
+    print(f"Parsed {len(garg_2019_and_2020_dmr_lookup):,d} records from Garg 2019 and Garg 2020 DMR lookup")
+
 ## Parse ENCODE4 and IGVF validated elements
 encode4_and_igvf_validated_elements_lookup = {}
 if args.encode4_and_igvf_validated_elements_tsv:
@@ -1200,6 +1214,12 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         z2025_data = zhang_2025_lookup[record["LocusId"]]
         counters[f"rows_with_zhang_2025_{z2025_data['LengthEffectTestResult'].replace(' ', '_')}"] += 1
         record.update(get_zhang_2025_column_values(z2025_data))
+
+    if record["LocusId"] in garg_2019_and_2020_dmr_lookup:
+        garg_data = garg_2019_and_2020_dmr_lookup[record["LocusId"]]
+        for dataset in garg_data:
+            counters[f"rows_with_{dataset}"] += 1
+        record.update(get_garg_2019_and_2020_column_values(garg_data))
 
     if record["LocusId"] in encode4_and_igvf_validated_elements_lookup:
         counters["rows_with_encode4_and_igvf_validated_elements"] += 1

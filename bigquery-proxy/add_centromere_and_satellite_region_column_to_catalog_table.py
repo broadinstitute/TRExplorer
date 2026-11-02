@@ -1,7 +1,8 @@
 """Add the CentromereAndSatelliteRegion column to an existing catalog table and fill it from an annotated catalog.
 
 The regular way to get this column is to rebuild the catalog table with `load_bigquery_main_table.py` from an
-annotated catalog that has the field. This script fills it in the live table instead, without a rebuild:
+annotated catalog that has the field. This script fills it in the live table instead, without a rebuild
+(bigquery_loader_utils.fill_catalog_table_columns):
 
   1. adds the CentromereAndSatelliteRegion column if the table does not have it yet
   2. loads the LocusId and CentromereAndSatelliteRegion of every annotated catalog locus that has a value into a
@@ -27,26 +28,18 @@ Usage:
 
 import argparse
 import collections
-import datetime
 import gzip
 import os
 
 import ijson
 from google.cloud import bigquery
 
-from bigquery_loader_utils import read_website_table_id
-from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS
+from bigquery_loader_utils import count_locus_ids_in_catalog_table, fill_catalog_table_columns, read_website_table_id
 
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
 CHECK_ONLY_MAX_LOCI = 10000
 COLUMN_NAME = "CentromereAndSatelliteRegion"
-
-
-def column_schema_field():
-    """The SchemaField of the CentromereAndSatelliteRegion column, as declared in MAIN_BIGQUERY_TABLE_COLUMNS."""
-    column_type = [c["type"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"] == COLUMN_NAME][0]
-    return bigquery.SchemaField(COLUMN_NAME, column_type)
 
 
 def read_locus_ids_and_values(catalog_json_path):
@@ -84,15 +77,6 @@ def read_locus_ids_and_values(catalog_json_path):
     return rows
 
 
-def build_fill_sql(catalog_table, staging_table):
-    """Returns one MERGE statement that copies the staging table's values into the rows with the same LocusId and
-    sets the column to NULL in every other row that has a value. A single statement either applies fully or not at
-    all, so a failure never leaves the live table with its column cleared but not refilled."""
-    return (f"MERGE `{catalog_table}` T USING `{staging_table}` S ON T.LocusId = S.LocusId "
-            f"WHEN MATCHED THEN UPDATE SET T.{COLUMN_NAME} = S.{COLUMN_NAME} "
-            f"WHEN NOT MATCHED BY SOURCE AND T.{COLUMN_NAME} IS NOT NULL THEN UPDATE SET T.{COLUMN_NAME} = NULL")
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("catalog_json", help="Annotated catalog JSON file that has the CentromereAndSatelliteRegion field")
@@ -106,47 +90,27 @@ def main():
     print(f"Read {len(rows):,} loci that have a {COLUMN_NAME} value from {args.catalog_json}")
 
     client = bigquery.Client(project=PROJECT_ID)
-    dataset_ref = f"{PROJECT_ID}.{DATASET_ID}"
     table_id = args.table_id or read_website_table_id()
-    catalog_table = f"{dataset_ref}.{table_id}"
+    catalog_table = f"{PROJECT_ID}.{DATASET_ID}.{table_id}"
     print(f"Catalog table: {catalog_table}")
 
     if args.check_only:
         locus_ids = [locus_id for locus_id, _ in rows[:CHECK_ONLY_MAX_LOCI]]
-        job = client.query(f"SELECT COUNT(*) AS n FROM `{catalog_table}` WHERE LocusId IN UNNEST(@locus_ids)",
-                           job_config=bigquery.QueryJobConfig(query_parameters=[
-                               bigquery.ArrayQueryParameter("locus_ids", "STRING", locus_ids)]))
-        n_found = list(job.result())[0]["n"]
+        n_found, gb_scanned = count_locus_ids_in_catalog_table(client, catalog_table, locus_ids)
         print(f"{n_found:,} of the first {len(locus_ids):,} LocusIds that have a value are in {table_id} "
-              f"({job.total_bytes_processed / 1e9:.2f} GB scanned); nothing was changed")
+              f"({gb_scanned:.2f} GB scanned); nothing was changed")
         return
 
-    table = client.get_table(catalog_table)
-    if COLUMN_NAME not in {field.name for field in table.schema}:
-        table.schema = list(table.schema) + [column_schema_field()]
-        client.update_table(table, ["schema"])
-        print(f"Added column: {COLUMN_NAME}")
-
-    staging_table = f"{dataset_ref}.centromere_and_satellite_region_staging_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    try:
-        client.load_table_from_json(
-            [{"LocusId": locus_id, COLUMN_NAME: value} for locus_id, value in rows], staging_table,
-            job_config=bigquery.LoadJobConfig(
-                schema=[bigquery.SchemaField("LocusId", "STRING", mode="REQUIRED"), column_schema_field()]),
-        ).result()
-        print(f"Loaded {client.get_table(staging_table).num_rows:,} of {len(rows):,} rows into {staging_table}")
-
-        client.query(build_fill_sql(catalog_table, staging_table)).result()
-        counts = client.query(f"SELECT {COLUMN_NAME} AS value, COUNT(*) AS n FROM `{catalog_table}` "
-                              f"WHERE {COLUMN_NAME} IS NOT NULL GROUP BY 1 ORDER BY 2 DESC").result()
-        counts = [(row["value"], row["n"]) for row in counts]
-        print(f"Filled {COLUMN_NAME} in {sum(n for _, n in counts):,} rows of {table_id} and set it to NULL in the "
-              f"rest (the catalog has {len(rows):,} loci with a value; a difference means some LocusIds are not in "
-              f"the table):")
-        for value, n in counts:
-            print(f"  {n:10,d}  {value}")
-    finally:
-        client.delete_table(staging_table, not_found_ok=True)
+    fill_catalog_table_columns(client, catalog_table, [{"LocusId": locus_id, COLUMN_NAME: value} for locus_id, value in rows],
+                               [COLUMN_NAME], "centromere_and_satellite_region_staging")
+    counts = client.query(f"SELECT {COLUMN_NAME} AS value, COUNT(*) AS n FROM `{catalog_table}` "
+                          f"WHERE {COLUMN_NAME} IS NOT NULL GROUP BY 1 ORDER BY 2 DESC").result()
+    counts = [(row["value"], row["n"]) for row in counts]
+    print(f"Filled {COLUMN_NAME} in {sum(n for _, n in counts):,} rows of {table_id} and set it to NULL in the "
+          f"rest (the catalog has {len(rows):,} loci with a value; a difference means some LocusIds are not in "
+          f"the table):")
+    for value, n in counts:
+        print(f"  {n:10,d}  {value}")
     print("Next: add allowCustomFilter, allowExport and a group to the column's entry in global_constants.py, then "
           "regenerate the website so its filters and export dialog list it: cd ../website && python3 generate_website.py")
 

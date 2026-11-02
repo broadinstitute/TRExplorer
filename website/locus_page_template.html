@@ -261,6 +261,13 @@
         "Zhang2025_LengthEffectSlope",
         "Zhang2025_LengthEffectFDR",
         "Zhang2025_Details",
+
+        "Garg2019_AutismDMRMethylationChange",
+        "Garg2019_AutismDMRDetails",
+        "Garg2019_SchizophreniaDMRMethylationChange",
+        "Garg2019_SchizophreniaDMRDetails",
+        "Garg2020_NumIndividualsWithDMR",
+        "Garg2020_DMRDetails",
     ]
 
     //locus page-specific settings of the DEFAULT_GLOBAL_PAGE_STATE
@@ -455,29 +462,26 @@
         return html
     }
 
+    // cohort is 'autism' or 'schizophrenia'
+    function generateGarg2019DmrSection(row, cohort) {
+        if (!row[GARG_2019_COLUMNS_BY_COHORT[cohort].methylationChange]) return ''
+        return `<h4>Rare DMRs in ${cohort} (Garg et al. 2019)</h4><div>${buildGarg2019DmrDetailsHtml(row, cohort)}</div>`
+    }
+
+    function generateGarg2020DmrSection(row) {
+        if (row['Garg2020_NumIndividualsWithDMR'] == null) return ''
+        return `<h4>Rare hypermethylation next to a CG-rich TR (Garg et al. 2020)</h4><div>${buildGarg2020DmrDetailsHtml(row)}</div>`
+    }
+
+    // The sc-eTR, PheWAS and DMR results from the literature for this locus, leaving out those with no data
     function generateLiteratureReviewSection(row) {
-        // Generate both sections
-        const tanudisastroHtml = generateTanudisastroSection(row)
-        const pheWASHtml = generatePheWASSection(row)
-
-        // If neither section has content, return empty
-        if (!tanudisastroHtml && !pheWASHtml) {
-            return ''
-        }
-
-        // Combine sections with spacing
-        let combinedHtml = ''
-        if (tanudisastroHtml) {
-            combinedHtml += tanudisastroHtml
-        }
-        if (pheWASHtml) {
-            if (combinedHtml) {
-                combinedHtml += '<div style="margin-top: 30px;"></div>'  // Spacing between sections
-            }
-            combinedHtml += pheWASHtml
-        }
-
-        return combinedHtml
+        return [
+            generateTanudisastroSection(row),
+            generatePheWASSection(row),
+            generateGarg2019DmrSection(row, 'autism'),
+            generateGarg2019DmrSection(row, 'schizophrenia'),
+            generateGarg2020DmrSection(row),
+        ].filter(Boolean).join('<div style="margin-top: 30px;"></div>')  // Spacing between sections
     }
 
     function generateSpliceAISection(row) {
