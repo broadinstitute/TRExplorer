@@ -40,6 +40,10 @@ FORMATS_WITH_EXACT_ROW_COUNT = {"bed", "tsv", "json"}
 # A query with a small number of results to keep exports fast
 EXPORT_QUERY = "chr4:3074000-3075000"
 
+# A region whose TR loci (OverlapGroupId 383854 in the 10/30/2026 catalog) form a chain: each overlaps the next, but
+# the first and last don't touch, so the 'longest' and 'purest' export options have to keep more than one of them
+OVERLAP_HANDLING_EXPORT_QUERY = "chr5:180560940-180560980"
+
 
 def do_search(page, query):
     """Fill the search box, click Search, and wait for results."""
@@ -80,11 +84,15 @@ def select_export_format(page, fmt):
     )
 
 
-def do_export(page, fmt):
+def do_export(page, fmt, overlap_handling=None):
     """Trigger an export and return the list of download URLs.
 
     Monkey-patches anchor click to capture URLs instead of navigating away.
     Handles alert/confirm dialogs and the export options dialog as needed.
+
+    Args:
+        overlap_handling: which "overlapHandling" option of the export options dialog to select ('all', 'longest' or
+            'purest'), or None to leave the dialog's default
     """
     page.evaluate("""() => {
         window.__capturedDownloadUrls = [];
@@ -98,7 +106,9 @@ def do_export(page, fmt):
         };
     }""")
 
-    page.on("dialog", lambda dialog: dialog.accept())
+    # Removed once this export is done, so exporting twice from one page doesn't accept each dialog twice
+    accept_dialog = lambda dialog: dialog.accept()
+    page.on("dialog", accept_dialog)
 
     select_export_format(page, fmt)
 
@@ -106,6 +116,8 @@ def do_export(page, fmt):
         page.wait_for_selector(
             "#export-column-dialog", state="visible", timeout=10000
         )
+        if overlap_handling is not None:
+            page.check(f"input[name='overlapHandling'][value='{overlap_handling}']", force=True)
         page.click("#export-dialog-download-button")
 
     page.wait_for_function(
@@ -113,6 +125,11 @@ def do_export(page, fmt):
         timeout=60000,
     )
 
+    # The page keeps working for 2 s after each download link (performExport), then resets the cursor and clears its
+    # pending export. Wait for that, so a second export from this page isn't cleared before its Download click.
+    page.wait_for_function("() => document.body.style.cursor !== 'wait'", timeout=60000)
+
+    page.remove_listener("dialog", accept_dialog)
     return page.evaluate("() => window.__capturedDownloadUrls")
 
 
@@ -166,4 +183,52 @@ def test_export_format(index_page, console_errors, fmt):
 
     assert real_errors(console_errors) == [], (
         f"JavaScript errors during export '{fmt}': {real_errors(console_errors)}"
+    )
+
+
+def export_bed_intervals(page, overlap_handling):
+    """Exports the current search results as BED and returns each row's (chrom, start, end, motif).
+
+    The motif tells apart loci that have the same coordinates.
+    """
+    intervals = []
+    for url in do_export(page, "bed", overlap_handling=overlap_handling):
+        for line in fetch_export_content(url).strip().split("\n"):
+            if line.strip():
+                fields = line.split("\t")
+                intervals.append((fields[0], int(fields[1]), int(fields[2]), fields[3]))
+    return intervals
+
+
+def intervals_overlap(a, b):
+    return a[0] == b[0] and a[1] < b[2] and b[1] < a[2]
+
+
+@pytest.mark.parametrize("overlap_handling", ["longest", "purest"])
+def test_export_overlap_handling(index_page, console_errors, overlap_handling):
+    """Export with the 'longest' or 'purest' option and check that no two exported loci overlap, and that each
+    locus left out overlaps an exported one (for 'longest', one at least as long)."""
+    page = index_page
+    do_search(page, OVERLAP_HANDLING_EXPORT_QUERY)
+
+    all_loci = export_bed_intervals(page, "all")
+    kept_loci = export_bed_intervals(page, overlap_handling)
+
+    assert len(kept_loci) > 1, f"Expected the '{overlap_handling}' export of {OVERLAP_HANDLING_EXPORT_QUERY} to keep several loci"
+    assert set(kept_loci) <= set(all_loci)
+    for i, a in enumerate(kept_loci):
+        for b in kept_loci[i + 1:]:
+            assert not intervals_overlap(a, b), f"The '{overlap_handling}' export kept overlapping loci {a} and {b}"
+
+    left_out_loci = [locus for locus in all_loci if locus not in kept_loci]
+    assert len(left_out_loci) > 0, f"Expected {OVERLAP_HANDLING_EXPORT_QUERY} to have overlapping loci to leave out"
+    for locus in left_out_loci:
+        overlapping_kept_loci = [k for k in kept_loci if intervals_overlap(locus, k)]
+        assert overlapping_kept_loci, f"The '{overlap_handling}' export left out {locus}, which overlaps no exported locus"
+        if overlap_handling == "longest":
+            assert max(k[2] - k[1] for k in overlapping_kept_loci) >= locus[2] - locus[1], (
+                f"The 'longest' export left out {locus}, which is longer than every exported locus it overlaps")
+
+    assert real_errors(console_errors) == [], (
+        f"JavaScript errors during '{overlap_handling}' export: {real_errors(console_errors)}"
     )

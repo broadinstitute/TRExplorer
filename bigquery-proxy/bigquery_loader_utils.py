@@ -18,6 +18,38 @@ def read_website_table_id():
     return match.group(1)
 
 
+def create_or_replace_keep_best_non_overlapping_loci_function(client, project_id, dataset_id):
+    """Creates the stored BigQuery function that the website's "longest" and "purest" export options call.
+
+    The function gets the loci of one overlap group (one OverlapGroupId), ordered best first, and returns the ids of
+    the loci to export: each locus that doesn't overlap a locus it already kept. An overlap group is a chain of loci
+    (A overlaps B and B overlaps C, even when A and C don't touch), so keeping just the best locus of each group would
+    also leave out loci that overlap nothing that was kept. The export query can't define this function itself,
+    because the proxy (main.py) wraps that query in EXPORT DATA ... AS <query>, which accepts only a single query.
+
+    Args:
+        client (google.cloud.bigquery.Client): the BigQuery client
+        project_id (str): the BigQuery project
+        dataset_id (str): the dataset that holds the catalog tables
+    """
+    # BigQuery passes INT64 values to JavaScript as strings, hence Number(), which is exact for integers up to 2^53
+    client.query(f'''
+        CREATE OR REPLACE FUNCTION `{project_id}.{dataset_id}.keep_best_non_overlapping_loci`(
+            loci ARRAY<STRUCT<id INT64, start_0based INT64, end_1based INT64>>)
+        RETURNS ARRAY<INT64>
+        LANGUAGE js AS r"""
+            const kept = [];
+            for (const locus of loci) {{
+                const start = Number(locus.start_0based), end = Number(locus.end_1based);
+                if (kept.every(k => start >= k.end || end <= k.start)) {{
+                    kept.push({{id: Number(locus.id), start: start, end: end}});
+                }}
+            }}
+            return kept.map(k => k.id);
+        """
+    ''').result()
+
+
 def get_zhang_2025_column_values(zhang_2025_lookup_entry):
     """Returns the Zhang2025_* column values for one locus of the Zhang 2025 lookup JSON.
 

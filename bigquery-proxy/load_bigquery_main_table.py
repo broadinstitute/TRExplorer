@@ -24,7 +24,7 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from bigquery_loader_utils import get_zhang_2025_column_values
+from bigquery_loader_utils import create_or_replace_keep_best_non_overlapping_loci_function, get_zhang_2025_column_values
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -821,6 +821,10 @@ except:
     client.create_dataset(dataset)
     print(f"Created dataset {DATASET_ID}")
 
+# The website's "longest" and "purest" export options call this stored function
+create_or_replace_keep_best_non_overlapping_loci_function(client, PROJECT_ID, DATASET_ID)
+print(f"Created or replaced the keep_best_non_overlapping_loci function in {DATASET_ID}")
+
 ## Create BigQuery table
 new_table_id = f"{TABLE_ID}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
 new_table_ref = dataset_ref.table(new_table_id)
@@ -1239,8 +1243,8 @@ print(f"Loaded {load_job.output_rows:,d} rows into {new_table_id}")
 if counters["rows_with_overlap_group_id"] == 0:
     print("WARNING: No rows had a non-NULL OverlapGroupId. The upstream catalog was likely not run through "
           "annotate_overlapping_loci_and_output_merged_tandem_repeat_regions.py from the tandem-repeat-catalogs repo. "
-          "Without OverlapGroupId, the 'longest' and 'purest' export options in the UI degenerate to a no-op since each "
-          "row partitions to itself by id.")
+          "Without OverlapGroupId, the 'longest' and 'purest' export options in the UI export every row, since they "
+          "only choose among loci that share an OverlapGroupId.")
 
 missing_locus_ids_with_disease_info = known_disease_associated_locus_ids - locus_ids_with_added_disease_info
 if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_ids):

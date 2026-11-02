@@ -9186,7 +9186,7 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#export-overlap-fields').toggleClass('inline', showColumns).toggleClass('grouped', !showColumns)
 
         // Update beta tag tooltip based on export type
-        const betaTooltipLines = ['<b>NOTE:</b> Feedback is welcome on this first-attempt implementation of overlap filtering. There is ambiguity in how to handle transitive overlaps and the current implementation may not be optimal - eg. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, only one of them will be exported.']
+        const betaTooltipLines = ['<b>NOTE:</b> Feedback is welcome on this first-attempt implementation of overlap filtering. Overlapping loci are considered from best to worst (longest, or highest purity), and each one is exported unless it overlaps a locus that was already exported - eg. if locus A overlaps B and locus B overlaps locus C, but A and C don\'t overlap, then both A and C are exported unless B is the best of the three.']
         if (showTrgtOptions) {
             betaTooltipLines.push('Also, overlap between isolated TRs and variation clusters (VCs) or between VCs and VCs is not currently taken into account when applying overlap filters - only overlap between TRs and TRs is considered.')
         }
@@ -9992,6 +9992,25 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // --- End Extra Polymorphism Filter Logic ---
 
+    // Returns a query for the loci that match whereClause. When overlapHandling is 'longest' or 'purest', it keeps only
+    // the best of each set of overlapping loci. Loci that share an OverlapGroupId form a chain (A overlaps B and B
+    // overlaps C, even when A and C don't touch), so rather than keeping one locus per group, the stored
+    // keep_best_non_overlapping_loci function (see bigquery-proxy/bigquery_loader_utils.py) goes through each group's
+    // loci from best to worst and keeps every locus that doesn't overlap one it already kept. Loci without an
+    // OverlapGroupId overlap no other locus, so they are always kept.
+    const buildQueryForLociToExport = (whereClause, overlapHandling) => {
+        if (overlapHandling === 'all') {
+            return `SELECT * FROM ${COMPLETE_TABLE_ID} ${whereClause}`
+        }
+        const orderByRank = overlapHandling === 'longest'
+            ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
+            : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
+        return `WITH filtered AS (SELECT * FROM ${COMPLETE_TABLE_ID} ${whereClause}) ` +
+            `SELECT * FROM filtered WHERE OverlapGroupId IS NULL OR id IN (SELECT kept_id FROM (` +
+            `SELECT \`${PROJECT_ID}.${DATASET_ID}.keep_best_non_overlapping_loci\`(ARRAY_AGG(STRUCT(id, start_0based, end_1based) ORDER BY ${orderByRank})) AS kept_ids ` +
+            `FROM filtered WHERE OverlapGroupId IS NOT NULL GROUP BY OverlapGroupId), UNNEST(kept_ids) AS kept_id)`
+    }
+
     const performExport = async (value, selectedColumns = null, overlapHandling = 'all', trgtCatalogType = 'simple') => {
         // Format data based on export type
         let fileFormat
@@ -10093,15 +10112,7 @@ gtag('config', 'G-6R8FPBQRFH');
             // For TRGT VC modes, build a custom query
             if (value === 'trgt' && (trgtCatalogType === 'vc_and_isolated' || trgtCatalogType === 'vc_only' || trgtCatalogType === 'all_and_vc')) {
                 // Build the base table (with overlap filtering if needed)
-                let baseTable
-                if (overlapHandling !== 'all') {
-                    const orderByRank = overlapHandling === 'longest'
-                        ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
-                        : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
-                    baseTable = `(SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY IFNULL(OverlapGroupId, id) ORDER BY ${orderByRank}) AS _overlap_rank FROM ${COMPLETE_TABLE_ID} ${whereClause}) WHERE _overlap_rank = 1)`
-                } else {
-                    baseTable = `(SELECT * FROM ${COMPLETE_TABLE_ID} ${whereClause})`
-                }
+                const baseTable = `(${buildQueryForLociToExport(whereClause, overlapHandling)})`
 
                 // VC rows: one row per unique VariationCluster
                 const vcQuery = `SELECT vc_chrom, vc_start, vc_end, InfoField FROM (SELECT SPLIT(VariationCluster, ':')[OFFSET(0)] AS vc_chrom, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(0)] AS INT64) AS vc_start, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(1)] AS INT64) AS vc_end, CONCAT('ID=', VariationClusterId, ';MOTIFS=', VariationClusterMotifs, ';STRUC=<VC:', REPLACE(VariationCluster, 'chr', ''), '>') AS InfoField, ROW_NUMBER() OVER (PARTITION BY VariationCluster ORDER BY id) AS _vc_rank FROM ${baseTable} WHERE VariationCluster IS NOT NULL AND VariationCluster != '' AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')) WHERE _vc_rank = 1`
@@ -10117,13 +10128,8 @@ gtag('config', 'G-6R8FPBQRFH');
                     const isolatedQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM ${baseTable} WHERE (VariationCluster IS NULL OR VariationCluster = '') AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')`
                     query = `${vcQuery} UNION ALL ${isolatedQuery} ORDER BY vc_chrom, vc_start, vc_end`
                 }
-            } else if (overlapHandling !== 'all') {
-                const orderByRank = overlapHandling === 'longest'
-                    ? 'ReferenceRegionSize DESC, ReferenceRepeatPurity DESC, id'
-                    : 'ReferenceRepeatPurity DESC, ReferenceRegionSize DESC, id'
-                query = `WITH filtered AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY IFNULL(OverlapGroupId, id) ORDER BY ${orderByRank}) AS _overlap_rank FROM ${COMPLETE_TABLE_ID} ${whereClause}) SELECT ${selectClause} FROM filtered WHERE _overlap_rank = 1 ORDER BY ${sortClause}`
             } else {
-                query = `SELECT ${selectClause} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
+                query = `SELECT ${selectClause} FROM (${buildQueryForLociToExport(whereClause, overlapHandling)}) ORDER BY ${sortClause}`
             }
             const results = await queryBigQuery(query, null, null, fileFormat, toolName, overlapHandling, value === 'trgt' ? trgtCatalogType : null)
 
