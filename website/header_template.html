@@ -56,49 +56,34 @@ gtag('config', 'G-6R8FPBQRFH');
         tr_explorer_catalog_v2_1: 5657793,
     }
 
-    // The number of loci from each TRExplorer v2 source catalog, by its name in the Source column, shown in both the IGV
-    // track list and the "Search TR Catalog" dropdown
-    const TR_EXPLORER_V2_SOURCE_CATALOG_SIZES = {
-        KnownDiseaseAssociatedLociV2: 7,
-        PolymorphicTRsInT2TAssembliesV2: 280262,
-        KnownFunctionalVNTRs: 13,
-        HipSTRCatalog: 129523,
-        AdottoTRsFromDanzi2025: 263108,
-        ClinvarIndelsThatAreTRs2025: 815,
-        Tanudisastro2025: 1209,
-        Manigbas2024: 2347,
-        Sulovari2019: 388,
-        Garg2021: 1300,
-        Mukamel2021: 39,
-        Annear2021: 156,
-        Hause2016: 604,
-        VamosV3: 56846,
-    }
+    // The TRExplorer v2 source catalogs, from which both the IGV track list (TR_EXPLORER_SOURCE_CATALOGS) and the Source
+    // column's list (SOURCE_CATALOGS_IN_SOURCE_COLUMN) are built: each one's name in the Source column, IGV track id and
+    // label, where its loci originally came from, label in the "Search TR Catalog" dropdown, and number of loci
+    const TR_EXPLORER_V2_SOURCE_CATALOGS = [
+        ['KnownDiseaseAssociatedLociV2', 'igv_kd_loci_v2', 'Known disease-associated TR loci v2', 'Known disease-associated loci (v2)', 'Known disease-associated loci (v2)', 7],
+        ['PolymorphicTRsInT2TAssembliesV2', 'igv_polymorphic_trs_in_t2t_v2', 'Polymorphic TRs in T2T assemblies v2', 'Polymorphic TRs in 321 T2T assemblies', 'Polymorphic TRs in 321 T2T assemblies', 280262],
+        ['KnownFunctionalVNTRs', 'igv_known_functional_vntrs', 'Known functional VNTRs', 'Curated list of known VNTRs that were missing from the TRExplorer catalog', 'Known functional VNTRs', 13],
+        ['HipSTRCatalog', 'igv_hipstr_catalog', 'HipSTR catalog', 'HipSTR catalog TRs that were missing from the TRExplorer catalog', 'HipSTR catalog', 129523],
+        ['AdottoTRsFromDanzi2025', 'igv_adotto_danzi_2025', 'Adotto TRs from Danzi 2025', 'Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog', 'Danzi et al. 2025 (Adotto)', 263108],
+        ['ClinvarIndelsThatAreTRs2025', 'igv_clinvar_indels_trs_2025', 'ClinVar indels that are TRs (2025)', 'Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog', 'ClinVar indels that are TRs', 815],
+        ['Tanudisastro2025', 'igv_tanudisastro_2025', 'Tanudisastro 2024', 'TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog', 'Tanudisastro et al. 2024', 1209],
+        ['Manigbas2024', 'igv_manigbas_2024', 'Manigbas 2024', 'TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog', 'Manigbas et al. 2024', 2347],
+        ['Sulovari2019', 'igv_sulovari_2019', 'Sulovari 2019', 'TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog', 'Sulovari et al. 2019', 388],
+        ['Garg2021', 'igv_garg_2021', 'Garg 2021', 'TRs from Garg et al. 2021 that were missing from the TRExplorer catalog', 'Garg et al. 2021', 1300],
+        ['Mukamel2021', 'igv_mukamel_2021', 'Mukamel 2021', 'TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog', 'Mukamel et al. 2021', 39],
+        ['Annear2021', 'igv_annear_2021', 'Annear 2021', 'TRs from Annear et al. 2021 that were missing from the TRExplorer catalog', 'Annear et al. 2021', 156],
+        ['Hause2016', 'igv_hause_2016', 'Hause 2016', 'TRs from Hause et al. 2016 that were missing from the TRExplorer catalog', 'Hause et al. 2016', 604],
+        ['VamosV3', 'igv_vamos_v3', 'Vamos v3', 'Vamos v3 catalog TRs that were missing from the TRExplorer catalog', 'Vamos v3 catalog', 56846],
+    ]
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
         ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
         ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
         ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
         ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
-        // The v2 source catalogs: each one's IGV track id, track label and name in the Source column
-        ...[
-            ["igv_kd_loci_v2", "Known disease-associated TR loci v2", "KnownDiseaseAssociatedLociV2"],
-            ["igv_polymorphic_trs_in_t2t_v2", "Polymorphic TRs in T2T assemblies v2", "PolymorphicTRsInT2TAssembliesV2"],
-            ["igv_known_functional_vntrs", "Known functional VNTRs", "KnownFunctionalVNTRs"],
-            ["igv_hipstr_catalog", "HipSTR catalog", "HipSTRCatalog"],
-            ["igv_adotto_danzi_2025", "Adotto TRs from Danzi 2025", "AdottoTRsFromDanzi2025"],
-            ["igv_clinvar_indels_trs_2025", "ClinVar indels that are TRs (2025)", "ClinvarIndelsThatAreTRs2025"],
-            ["igv_tanudisastro_2025", "Tanudisastro 2024", "Tanudisastro2025"],
-            ["igv_manigbas_2024", "Manigbas 2024", "Manigbas2024"],
-            ["igv_sulovari_2019", "Sulovari 2019", "Sulovari2019"],
-            ["igv_garg_2021", "Garg 2021", "Garg2021"],
-            ["igv_mukamel_2021", "Mukamel 2021", "Mukamel2021"],
-            ["igv_annear_2021", "Annear 2021", "Annear2021"],
-            ["igv_hause_2016", "Hause 2016", "Hause2016"],
-            ["igv_vamos_v3", "Vamos v3", "VamosV3"],
-        ].map(([trackId, label, sourceCatalogName]) => [trackId, label,
-            `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:${sourceCatalogName}.bed.gz`,
-            TR_EXPLORER_V2_SOURCE_CATALOG_SIZES[sourceCatalogName]]),
+        ...TR_EXPLORER_V2_SOURCE_CATALOGS.map(([sourceCatalogName, igvTrackId, igvTrackLabel, , , numLoci]) => [
+            igvTrackId, igvTrackLabel,
+            `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:${sourceCatalogName}.bed.gz`, numLoci]),
     ]
 
     const TR_EXPLORER_CATALOG  = [
@@ -1090,7 +1075,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const getPolymorphismSummaryColumnValue = (row) => {
-        return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
+        return `<span class="cell-in-polymorphism-column">
             <span class="action-link">
                 <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC256_Stdev']}</sub></b>
             </span>
@@ -1603,7 +1588,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const getAlleleHistogramColumnValue = (row, columnName) => {
         if (row[columnName] ) {
-            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" style="width: 100%; height: 100px"></canvas>`
+            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" data-frequencies="${row[columnName]}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" style="width: 100%; height: 100px"></canvas>`
         } else {
             let otherHistograms = ''
             for ( const c of ALL_STDEV_COLUMNS ) {
@@ -1612,7 +1597,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 }
             }
 
-            let result = `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}><span style="color: #888888; text-align: center; display: block; width: 100%;">`
+            let result = `<span class="cell-in-polymorphism-column"><span style="color: #888888; text-align: center; display: block; width: 100%;">`
             if (otherHistograms) {
                 result += `not available (but has ${otherHistograms})`
             } else {
@@ -2644,20 +2629,8 @@ gtag('config', 'G-6R8FPBQRFH');
         ['Illumina174kPolymorphicTRs', 'v1', 'Illumina 174k polymorphic TR catalog', 'Illumina 174k polymorphic TRs', 174244],
         ['PerfectRepeatsInReference', 'v1', 'Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats', 'Perfect repeats in hg38', 4391197],
         ['PolymorphicTRsInT2TAssemblies', 'v1', 'Polymorphic TRs in 78 T2T assemblies', 'Polymorphic TRs in 78 T2T assemblies', 297517],
-        ['KnownDiseaseAssociatedLociV2', 'v2', 'Known disease-associated loci (v2)', 'Known disease-associated loci (v2)', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['KnownDiseaseAssociatedLociV2']],
-        ['PolymorphicTRsInT2TAssembliesV2', 'v2', 'Polymorphic TRs in 321 T2T assemblies', 'Polymorphic TRs in 321 T2T assemblies', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['PolymorphicTRsInT2TAssembliesV2']],
-        ['KnownFunctionalVNTRs', 'v2', 'Curated list of known VNTRs that were missing from the TRExplorer catalog', 'Known functional VNTRs', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['KnownFunctionalVNTRs']],
-        ['HipSTRCatalog', 'v2', 'HipSTR catalog TRs that were missing from the TRExplorer catalog', 'HipSTR catalog', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['HipSTRCatalog']],
-        ['AdottoTRsFromDanzi2025', 'v2', 'Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog', 'Danzi et al. 2025 (Adotto)', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['AdottoTRsFromDanzi2025']],
-        ['ClinvarIndelsThatAreTRs2025', 'v2', 'Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog', 'ClinVar indels that are TRs', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['ClinvarIndelsThatAreTRs2025']],
-        ['Tanudisastro2025', 'v2', 'TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog', 'Tanudisastro et al. 2024', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Tanudisastro2025']],
-        ['Manigbas2024', 'v2', 'TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog', 'Manigbas et al. 2024', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Manigbas2024']],
-        ['Sulovari2019', 'v2', 'TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog', 'Sulovari et al. 2019', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Sulovari2019']],
-        ['Garg2021', 'v2', 'TRs from Garg et al. 2021 that were missing from the TRExplorer catalog', 'Garg et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Garg2021']],
-        ['Mukamel2021', 'v2', 'TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog', 'Mukamel et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Mukamel2021']],
-        ['Annear2021', 'v2', 'TRs from Annear et al. 2021 that were missing from the TRExplorer catalog', 'Annear et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Annear2021']],
-        ['Hause2016', 'v2', 'TRs from Hause et al. 2016 that were missing from the TRExplorer catalog', 'Hause et al. 2016', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Hause2016']],
-        ['VamosV3', 'v2', 'Vamos v3 catalog TRs that were missing from the TRExplorer catalog', 'Vamos v3 catalog', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['VamosV3']],
+        ...TR_EXPLORER_V2_SOURCE_CATALOGS.map(([sourceCatalogName, , , originalSource, dropdownLabel, numLoci]) => [
+            sourceCatalogName, 'v2', originalSource, dropdownLabel, numLoci]),
         ['ExtendedLocusBoundaries', 'v2.1', 'TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions', null, null],
     ]
 
@@ -3804,8 +3777,9 @@ gtag('config', 'G-6R8FPBQRFH');
         const vcfEnd = parseInt(queryRow.vcf_end_1based, 10)
         let trgtRegionHtml = ''
         if (vcfChrom && Number.isFinite(vcfStart) && Number.isFinite(vcfEnd)) {
+            // Shown with its 0-based start, like the catalog's intervals, but IGV reads a locus's start as 1-based
             const locus = `${vcfChrom}:${vcfStart}-${vcfEnd}`
-            trgtRegionHtml = `<div style="color:#666; font-size:0.95em; margin-top:4px;">TRGT genotyped interval: <a href="#" class="decomposed-alleles-igv-link" data-locus="${locus}">${locus}</a></div>`
+            trgtRegionHtml = `<div style="color:#666; font-size:0.95em; margin-top:4px;">TRGT genotyped interval: <a href="#" class="decomposed-alleles-igv-link" data-locus="${vcfChrom}:${vcfStart + 1}-${vcfEnd}">${locus}</a></div>`
         }
 
         return `

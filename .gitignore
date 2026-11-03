@@ -10,6 +10,8 @@ catalogs/data
 *.bed.gz
 *.bed
 *.txt
+# The Cloud Functions' Python dependencies
+!requirements.txt
 *.tbi
 *.tsv
 

@@ -18,6 +18,7 @@ import pyfaidx
 import tempfile
 import tqdm
 import scipy.stats
+import subprocess
 import sys
 
 from str_analysis.utils.misc_utils import parse_interval
@@ -1272,11 +1273,28 @@ if len(locus_ids_with_added_disease_info) != len(known_disease_associated_locus_
            "Missing locus ids:", ", ".join(missing_locus_ids_with_disease_info))
     print(f"Added known disease-associated locus ids: ", ", ".join(locus_ids_with_added_disease_info))
 
+# The website can only search for a gene or transcript name in a catalog table that has a name lookup file, so it's
+# written before TABLE_ID points to the new table
+did_writing_lookup_file_fail = False
+if args.n is None:
+    lookup_file_command = [
+        sys.executable,
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data-prep", "locus_intervals_by_name",
+                     "write_locus_intervals_by_name_lookup_file.py"),
+        "--catalog-table-id", new_table_id,
+    ]
+    print("Writing the name lookup file:", " ".join(lookup_file_command), flush=True)
+    did_writing_lookup_file_fail = subprocess.run(lookup_file_command).returncode != 0
+
 if args.n is not None:
     print(f"Skipping TABLE_ID update since -n {args.n} was passed (this table only has a partial "
           f"subset of records, not a full reload) — {new_table_id} was left un-pointed-to.")
 elif args.skip_html_update:
     print(f"Skipping TABLE_ID update since --skip-html-update was passed — {new_table_id} was left un-pointed-to.")
+elif did_writing_lookup_file_fail:
+    print(f"Skipping TABLE_ID update since writing the name lookup file failed — {new_table_id} was left "
+          f"un-pointed-to. Rerun the command above, then update TABLE_ID in ../website/header_template.html, "
+          f"../index.html and ../locus.html.")
 else:
     for html_path in "../website/header_template.html", "../index.html", "../locus.html":
         print(f"Update TABLE_ID to '{new_table_id}' in {html_path}")
@@ -1313,6 +1331,8 @@ for key, count in sorted(counters.items(), key=lambda x: x[1], reverse=True):
 
 if args.n is not None or args.skip_html_update:
     print("\nSkipping data_last_updated_date.json update (partial/test run).")
+elif did_writing_lookup_file_fail:
+    print("\nSkipping data_last_updated_date.json update, since TABLE_ID wasn't updated.")
 else:
     # Update the data_last_updated_date.json file
     data_last_updated_path = "../website/data_last_updated_date.json"
@@ -1324,3 +1344,7 @@ else:
         json.dump(data_last_updated, f, indent=4)
         f.write("\n")
     print(f"\nUpdated {data_last_updated_path}")
+
+if did_writing_lookup_file_fail:
+    print(f"ERROR: Writing the name lookup file for {new_table_id} failed (see above)")
+    sys.exit(1)

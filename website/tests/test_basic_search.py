@@ -13,9 +13,10 @@ import pytest
 
 
 # The tests query the live site's BigQuery table through its public proxy, so every query counts toward the site's
-# daily query quota. A region search scans only the table partition and blocks its region falls in (tens of MB), while a
-# gene or transcript name search scans whole columns of the table (about 0.5 GiB). So the tests search names only where
-# name search itself is tested, and search a region everywhere else.
+# daily query quota. A region search scans only the table partition and blocks its region falls in (tens of MB), and so
+# does a gene or transcript name search, which first looks up the intervals of the name's loci through the
+# lookup_locus_intervals_by_name Cloud Function. Name searches also depend on that function, so the tests search names
+# only where name search itself is tested, and search a region everywhere else.
 
 # A region search with a few results (around the HTT locus)
 REGION_QUERY = "chr4:3074000-3075000"
@@ -30,6 +31,9 @@ SEARCH_QUERIES = [
 
 # A region search with several pages of results: the span of the ATXN1 gene
 MULTI_PAGE_REGION_QUERY = "chr6:16299112-16761490"
+
+# A name that no locus in the catalog has
+UNRECOGNIZED_NAME = "NOT_A_GENE_NAME_12345"
 
 # Columns whose sorting the tests check, one of each kind of sort: by position, by a text column, by a column with
 # its own sort columns (the allele histogram sorts by its stdev), and by a number
@@ -132,6 +136,22 @@ def test_search_returns_results(index_page, console_errors, query, min_results):
         f"Expected at least {min_results} result(s) for '{query}', got {len(rows)}"
     )
     assert_no_errors(index_page, console_errors, f"search '{query}'")
+
+
+def test_search_for_only_an_unrecognized_name_shows_an_error(index_page):
+    """A search for only names that no locus has shows an error instead of searching."""
+    index_page.fill("#search-query", UNRECOGNIZED_NAME)
+    index_page.click("#search-button")
+    index_page.wait_for_selector("#error-message", state="visible", timeout=30000)
+    assert f"Name not recognized: {UNRECOGNIZED_NAME}" in index_page.inner_text("#error-text")
+
+
+def test_search_with_an_unrecognized_name_searches_the_other_terms_and_lists_it(index_page, console_errors):
+    """A search for a region and a name that no locus has finds the region's loci and lists the name above them."""
+    do_search(index_page, f"{REGION_QUERY} {UNRECOGNIZED_NAME}")
+    assert_no_errors(index_page, console_errors, "region and unrecognized name")
+    assert index_page.is_visible("#search-warning-message")
+    assert f"Name not recognized: {UNRECOGNIZED_NAME}" in index_page.inner_text("#search-warning-text")
 
 
 def test_search_chr4_region_has_htt_disease_locus(index_page, console_errors):

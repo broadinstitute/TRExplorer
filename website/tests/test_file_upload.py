@@ -12,7 +12,7 @@ import zlib
 
 import pytest
 
-from test_basic_search import MULTI_PAGE_REGION_QUERY, real_errors, do_search, click_next_page, get_total_pages
+from test_basic_search import MULTI_PAGE_REGION_QUERY, assert_no_errors, do_search, click_next_page, get_total_pages
 
 
 def wait_for_results(page):
@@ -47,7 +47,7 @@ def test_upload_txt_regions_and_genes(index_page, console_errors, tmp_path):
     assert "2 items" in chip
     rows = page.query_selector_all("#results-table tbody tr")
     assert len(rows) > 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload")
 
 
 def test_upload_txt_with_header_row(index_page, tmp_path):
@@ -86,10 +86,10 @@ def test_upload_locus_id(index_page, console_errors, tmp_path, locus_id_prefix):
         for el in page.query_selector_all(".row-locus-page-link")
     ]
     assert locus_id in locus_ids
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload")
 
 
-def test_drop_file_on_main_search_box(index_page, console_errors, tmp_path):
+def test_drop_file_on_main_search_box(index_page, console_errors):
     """Dropping a file directly on the main search box (not just in the upload modal) behaves the
     same as dropping it into the modal's dropzone."""
     page = index_page
@@ -107,7 +107,7 @@ def test_drop_file_on_main_search_box(index_page, console_errors, tmp_path):
     assert "dropped_on_search_box.txt" in chip
     assert "1 item" in chip
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload")
 
 
 def test_upload_unknown_contig_does_not_break_panel(index_page, console_errors, tmp_path):
@@ -118,9 +118,8 @@ def test_upload_unknown_contig_does_not_break_panel(index_page, console_errors, 
     f.write_text("chr23:100-200\nchr4:3074000-3075000\n")  # chr23 unknown; HTT region valid
     upload_files(page, [f])
     wait_for_results(page)
-    assert not page.is_visible("#error-message")
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload with an unknown contig")
 
 
 def test_upload_bed(index_page, console_errors, tmp_path):
@@ -133,7 +132,7 @@ def test_upload_bed(index_page, console_errors, tmp_path):
     wait_for_results(page)
     assert "1 region" in page.inner_text("#tr-file-chip-container")
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload")
 
 
 def test_upload_gzip(index_page, tmp_path):
@@ -170,7 +169,7 @@ def test_upload_bgzip(index_page, console_errors, tmp_path):
     wait_for_results(page)
     assert "2 regions" in page.inner_text("#tr-file-chip-container")
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload")
 
 
 def test_upload_after_paging_shows_results(index_page, tmp_path):
@@ -204,10 +203,9 @@ def test_upload_token_is_sql_injection_safe(index_page, console_errors, tmp_path
     # The search sets the cursor back to default when it finishes
     page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
 
-    assert not page.is_visible("#error-message")
     # Injection would return unfiltered rows; a safely-escaped token matches nothing.
     assert page.evaluate("window.searchResults.total_results") == 0
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
+    assert_no_errors(page, console_errors, "upload of an SQL injection token")
 
 
 def test_upload_bed_empty_interval_ignored(index_page, tmp_path):

@@ -2284,49 +2284,34 @@ gtag('config', 'G-6R8FPBQRFH');
         tr_explorer_catalog_v2_1: 5657793,
     }
 
-    // The number of loci from each TRExplorer v2 source catalog, by its name in the Source column, shown in both the IGV
-    // track list and the "Search TR Catalog" dropdown
-    const TR_EXPLORER_V2_SOURCE_CATALOG_SIZES = {
-        KnownDiseaseAssociatedLociV2: 7,
-        PolymorphicTRsInT2TAssembliesV2: 280262,
-        KnownFunctionalVNTRs: 13,
-        HipSTRCatalog: 129523,
-        AdottoTRsFromDanzi2025: 263108,
-        ClinvarIndelsThatAreTRs2025: 815,
-        Tanudisastro2025: 1209,
-        Manigbas2024: 2347,
-        Sulovari2019: 388,
-        Garg2021: 1300,
-        Mukamel2021: 39,
-        Annear2021: 156,
-        Hause2016: 604,
-        VamosV3: 56846,
-    }
+    // The TRExplorer v2 source catalogs, from which both the IGV track list (TR_EXPLORER_SOURCE_CATALOGS) and the Source
+    // column's list (SOURCE_CATALOGS_IN_SOURCE_COLUMN) are built: each one's name in the Source column, IGV track id and
+    // label, where its loci originally came from, label in the "Search TR Catalog" dropdown, and number of loci
+    const TR_EXPLORER_V2_SOURCE_CATALOGS = [
+        ['KnownDiseaseAssociatedLociV2', 'igv_kd_loci_v2', 'Known disease-associated TR loci v2', 'Known disease-associated loci (v2)', 'Known disease-associated loci (v2)', 7],
+        ['PolymorphicTRsInT2TAssembliesV2', 'igv_polymorphic_trs_in_t2t_v2', 'Polymorphic TRs in T2T assemblies v2', 'Polymorphic TRs in 321 T2T assemblies', 'Polymorphic TRs in 321 T2T assemblies', 280262],
+        ['KnownFunctionalVNTRs', 'igv_known_functional_vntrs', 'Known functional VNTRs', 'Curated list of known VNTRs that were missing from the TRExplorer catalog', 'Known functional VNTRs', 13],
+        ['HipSTRCatalog', 'igv_hipstr_catalog', 'HipSTR catalog', 'HipSTR catalog TRs that were missing from the TRExplorer catalog', 'HipSTR catalog', 129523],
+        ['AdottoTRsFromDanzi2025', 'igv_adotto_danzi_2025', 'Adotto TRs from Danzi 2025', 'Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog', 'Danzi et al. 2025 (Adotto)', 263108],
+        ['ClinvarIndelsThatAreTRs2025', 'igv_clinvar_indels_trs_2025', 'ClinVar indels that are TRs (2025)', 'Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog', 'ClinVar indels that are TRs', 815],
+        ['Tanudisastro2025', 'igv_tanudisastro_2025', 'Tanudisastro 2024', 'TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog', 'Tanudisastro et al. 2024', 1209],
+        ['Manigbas2024', 'igv_manigbas_2024', 'Manigbas 2024', 'TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog', 'Manigbas et al. 2024', 2347],
+        ['Sulovari2019', 'igv_sulovari_2019', 'Sulovari 2019', 'TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog', 'Sulovari et al. 2019', 388],
+        ['Garg2021', 'igv_garg_2021', 'Garg 2021', 'TRs from Garg et al. 2021 that were missing from the TRExplorer catalog', 'Garg et al. 2021', 1300],
+        ['Mukamel2021', 'igv_mukamel_2021', 'Mukamel 2021', 'TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog', 'Mukamel et al. 2021', 39],
+        ['Annear2021', 'igv_annear_2021', 'Annear 2021', 'TRs from Annear et al. 2021 that were missing from the TRExplorer catalog', 'Annear et al. 2021', 156],
+        ['Hause2016', 'igv_hause_2016', 'Hause 2016', 'TRs from Hause et al. 2016 that were missing from the TRExplorer catalog', 'Hause et al. 2016', 604],
+        ['VamosV3', 'igv_vamos_v3', 'Vamos v3', 'Vamos v3 catalog TRs that were missing from the TRExplorer catalog', 'Vamos v3 catalog', 56846],
+    ]
 
     const TR_EXPLORER_SOURCE_CATALOGS = [
         ["igv_kd_loci_july_2024", "Known disease-associated TR loci (July 2024)", `${TR_CATALOG_BASE_URL}/other_catalogs/KnownDiseaseAssociatedLoci_July2024.bed.gz`, SHARED_TR_CATALOG_SIZES['known_disease_loci']],
         ["igv_illumina_174k_source", "Illumina 174k", `${TR_CATALOG_BASE_URL}/other_catalogs/Illumina174kPolymorphicTRs.bed.gz`, SHARED_TR_CATALOG_SIZES['illumina_174k_catalog']],
         ["igv_perfect_repeats_hg38", "Perfect repeats in hg38", `${TR_CATALOG_BASE_URL}/other_catalogs/PerfectRepeatsInGRCh38.bed.gz`, 4558281],
         ["igv_polymorphic_trs_in_t2t", "Polymorphic TRs in T2T assemblies", `${TR_CATALOG_BASE_URL}/other_catalogs/PolymorphicTRsInT2TAssemblies.bed.gz`, 1937805],
-        // The v2 source catalogs: each one's IGV track id, track label and name in the Source column
-        ...[
-            ["igv_kd_loci_v2", "Known disease-associated TR loci v2", "KnownDiseaseAssociatedLociV2"],
-            ["igv_polymorphic_trs_in_t2t_v2", "Polymorphic TRs in T2T assemblies v2", "PolymorphicTRsInT2TAssembliesV2"],
-            ["igv_known_functional_vntrs", "Known functional VNTRs", "KnownFunctionalVNTRs"],
-            ["igv_hipstr_catalog", "HipSTR catalog", "HipSTRCatalog"],
-            ["igv_adotto_danzi_2025", "Adotto TRs from Danzi 2025", "AdottoTRsFromDanzi2025"],
-            ["igv_clinvar_indels_trs_2025", "ClinVar indels that are TRs (2025)", "ClinvarIndelsThatAreTRs2025"],
-            ["igv_tanudisastro_2025", "Tanudisastro 2024", "Tanudisastro2025"],
-            ["igv_manigbas_2024", "Manigbas 2024", "Manigbas2024"],
-            ["igv_sulovari_2019", "Sulovari 2019", "Sulovari2019"],
-            ["igv_garg_2021", "Garg 2021", "Garg2021"],
-            ["igv_mukamel_2021", "Mukamel 2021", "Mukamel2021"],
-            ["igv_annear_2021", "Annear 2021", "Annear2021"],
-            ["igv_hause_2016", "Hause 2016", "Hause2016"],
-            ["igv_vamos_v3", "Vamos v3", "VamosV3"],
-        ].map(([trackId, label, sourceCatalogName]) => [trackId, label,
-            `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:${sourceCatalogName}.bed.gz`,
-            TR_EXPLORER_V2_SOURCE_CATALOG_SIZES[sourceCatalogName]]),
+        ...TR_EXPLORER_V2_SOURCE_CATALOGS.map(([sourceCatalogName, igvTrackId, igvTrackLabel, , , numLoci]) => [
+            igvTrackId, igvTrackLabel,
+            `${TR_CATALOG_BASE_URL}/v2.0/bed_file_per_source_catalog/TRExplorerV2:${sourceCatalogName}.bed.gz`, numLoci]),
     ]
 
     const TR_EXPLORER_CATALOG  = [
@@ -3318,7 +3303,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const getPolymorphismSummaryColumnValue = (row) => {
-        return `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}>
+        return `<span class="cell-in-polymorphism-column">
             <span class="action-link">
                 <b>σ<sub>${STDEV_SIGMA_SUBSCRIPTS['HPRC256_Stdev']}</sub></b>
             </span>
@@ -3831,7 +3816,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const getAlleleHistogramColumnValue = (row, columnName) => {
         if (row[columnName] ) {
-            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)} data-frequencies="${row[columnName]}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" style="width: 100%; height: 100px"></canvas>`
+            return `<canvas class="allele-frequency-inline-chart cell-in-polymorphism-column" data-frequencies="${row[columnName]}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" style="width: 100%; height: 100px"></canvas>`
         } else {
             let otherHistograms = ''
             for ( const c of ALL_STDEV_COLUMNS ) {
@@ -3840,7 +3825,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 }
             }
 
-            let result = `<span class="cell-in-polymorphism-column" ${getHtmlAttributesForPolymorphism(row)}><span style="color: #888888; text-align: center; display: block; width: 100%;">`
+            let result = `<span class="cell-in-polymorphism-column"><span style="color: #888888; text-align: center; display: block; width: 100%;">`
             if (otherHistograms) {
                 result += `not available (but has ${otherHistograms})`
             } else {
@@ -4872,20 +4857,8 @@ gtag('config', 'G-6R8FPBQRFH');
         ['Illumina174kPolymorphicTRs', 'v1', 'Illumina 174k polymorphic TR catalog', 'Illumina 174k polymorphic TRs', 174244],
         ['PerfectRepeatsInReference', 'v1', 'Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats', 'Perfect repeats in hg38', 4391197],
         ['PolymorphicTRsInT2TAssemblies', 'v1', 'Polymorphic TRs in 78 T2T assemblies', 'Polymorphic TRs in 78 T2T assemblies', 297517],
-        ['KnownDiseaseAssociatedLociV2', 'v2', 'Known disease-associated loci (v2)', 'Known disease-associated loci (v2)', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['KnownDiseaseAssociatedLociV2']],
-        ['PolymorphicTRsInT2TAssembliesV2', 'v2', 'Polymorphic TRs in 321 T2T assemblies', 'Polymorphic TRs in 321 T2T assemblies', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['PolymorphicTRsInT2TAssembliesV2']],
-        ['KnownFunctionalVNTRs', 'v2', 'Curated list of known VNTRs that were missing from the TRExplorer catalog', 'Known functional VNTRs', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['KnownFunctionalVNTRs']],
-        ['HipSTRCatalog', 'v2', 'HipSTR catalog TRs that were missing from the TRExplorer catalog', 'HipSTR catalog', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['HipSTRCatalog']],
-        ['AdottoTRsFromDanzi2025', 'v2', 'Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog', 'Danzi et al. 2025 (Adotto)', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['AdottoTRsFromDanzi2025']],
-        ['ClinvarIndelsThatAreTRs2025', 'v2', 'Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog', 'ClinVar indels that are TRs', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['ClinvarIndelsThatAreTRs2025']],
-        ['Tanudisastro2025', 'v2', 'TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog', 'Tanudisastro et al. 2024', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Tanudisastro2025']],
-        ['Manigbas2024', 'v2', 'TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog', 'Manigbas et al. 2024', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Manigbas2024']],
-        ['Sulovari2019', 'v2', 'TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog', 'Sulovari et al. 2019', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Sulovari2019']],
-        ['Garg2021', 'v2', 'TRs from Garg et al. 2021 that were missing from the TRExplorer catalog', 'Garg et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Garg2021']],
-        ['Mukamel2021', 'v2', 'TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog', 'Mukamel et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Mukamel2021']],
-        ['Annear2021', 'v2', 'TRs from Annear et al. 2021 that were missing from the TRExplorer catalog', 'Annear et al. 2021', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Annear2021']],
-        ['Hause2016', 'v2', 'TRs from Hause et al. 2016 that were missing from the TRExplorer catalog', 'Hause et al. 2016', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['Hause2016']],
-        ['VamosV3', 'v2', 'Vamos v3 catalog TRs that were missing from the TRExplorer catalog', 'Vamos v3 catalog', TR_EXPLORER_V2_SOURCE_CATALOG_SIZES['VamosV3']],
+        ...TR_EXPLORER_V2_SOURCE_CATALOGS.map(([sourceCatalogName, , , originalSource, dropdownLabel, numLoci]) => [
+            sourceCatalogName, 'v2', originalSource, dropdownLabel, numLoci]),
         ['ExtendedLocusBoundaries', 'v2.1', 'TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions', null, null],
     ]
 
@@ -6032,8 +6005,9 @@ gtag('config', 'G-6R8FPBQRFH');
         const vcfEnd = parseInt(queryRow.vcf_end_1based, 10)
         let trgtRegionHtml = ''
         if (vcfChrom && Number.isFinite(vcfStart) && Number.isFinite(vcfEnd)) {
+            // Shown with its 0-based start, like the catalog's intervals, but IGV reads a locus's start as 1-based
             const locus = `${vcfChrom}:${vcfStart}-${vcfEnd}`
-            trgtRegionHtml = `<div style="color:#666; font-size:0.95em; margin-top:4px;">TRGT genotyped interval: <a href="#" class="decomposed-alleles-igv-link" data-locus="${locus}">${locus}</a></div>`
+            trgtRegionHtml = `<div style="color:#666; font-size:0.95em; margin-top:4px;">TRGT genotyped interval: <a href="#" class="decomposed-alleles-igv-link" data-locus="${vcfChrom}:${vcfStart + 1}-${vcfEnd}">${locus}</a></div>`
         }
 
         return `
@@ -6909,6 +6883,11 @@ gtag('config', 'G-6R8FPBQRFH');
                         <div class="ui small active inline loader"></div>
                         <span>Loading...</span>
                     </div>
+                </div>
+                <!-- Lists the search's gene and transcript names that no locus has, which were left out of the search -->
+                <div id="search-warning-message" class="ui warning message" style="display: none">
+                    <i class="close icon"></i>
+                    <p id="search-warning-text"></p>
                 </div>
                 <div class="pagination-container top-pagination"></div>
                 <div id="results-table"></div>
@@ -8710,9 +8689,6 @@ gtag('config', 'G-6R8FPBQRFH');
     // Generated from MAIN_BIGQUERY_TABLE_COLUMNS in global_constants.py
     const EXPORT_COLUMN_OPTIONS = [{"name": "chrom", "displayName": "Chromosome", "group": "Core", "column": "CONCAT('chr', chrom) AS chrom", "description": "Chromosome name without 'chr' prefix (e.g., '1', '2', 'X', 'Y', 'MT')."}, {"name": "start_0based", "displayName": "Start (0-based)", "group": "Core", "column": "start_0based", "description": "0-based start coordinate of the TR locus in hg38."}, {"name": "end_1based", "displayName": "End (1-based)", "group": "Core", "column": "end_1based", "description": "1-based end coordinate of the TR locus in hg38 (half-open interval)."}, {"name": "ReferenceRegion", "displayName": "Reference Region", "group": "Core", "column": "ReferenceRegion", "description": "Genomic coordinates of the TR locus in the hg38 reference genome. Example: chr1:94418421-94418442"}, {"name": "LocusId", "displayName": "Locus ID", "group": "Core", "column": "LocusId", "description": "A unique identifier for this TR locus in hg38, formatted as chrom-start-end-motif."}, {"name": "ReferenceRegionSize", "displayName": "Locus Size (bp)", "group": "Core", "column": "ReferenceRegionSize", "description": "Size of the TR locus in base pairs (end_1based - start_0based)."}, {"name": "MotifSize", "displayName": "Motif Size", "group": "Core", "column": "MotifSize", "description": "Length of the repeat motif in base pairs."}, {"name": "ReferenceMotif", "displayName": "Motif", "group": "Core", "column": "ReferenceMotif", "description": "The repeat motif sequence as it appears in hg38."}, {"name": "CanonicalMotif", "displayName": "Canonical Motif", "group": "Core", "column": "CanonicalMotif", "description": "The repeat motif in hg38, normalized by computing all cyclic rotations of the motif and its reverse complement, and then selecting the one that is alphabetically first. For example, the canonical version of CTG is AGC."}, {"name": "NumRepeatsInReference", "displayName": "# Repeats in Reference", "group": "Core", "column": "NumRepeatsInReference", "description": "Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer."}, {"name": "ReferenceRepeatPurity", "displayName": "Repeat Purity", "group": "Core", "column": "ReferenceRepeatPurity", "description": "The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89. Range: 0 to 1."}, {"name": "NsInFlanks", "displayName": "Ns in Flanks", "group": "Core", "column": "NsInFlanks", "description": "Number of N bases within the flanking regions of this locus. Used to filter loci for tools like ExpansionHunter that don't support Ns in flanks."}, {"name": "TRsInRegion", "displayName": "Nearby TRs", "group": "Core", "column": "TRsInRegion", "description": "Number of TR loci in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence."}, {"name": "Source", "displayName": "Source", "group": "Core", "column": "Source", "description": "TRExplorer catalog version and the source catalog that contributed this TR locus to the TRExplorer catalog."}, {"name": "OverlapGroupId", "displayName": "Overlap Group ID", "group": "Additional Layers #2", "column": "OverlapGroupId", "description": "Group ID shared by each set of overlapping TR loci. NULL for TR loci that don't overlap another TR locus."}, {"name": "FlanksAndLocusMappability", "displayName": "Mappability", "group": "Core", "column": "FlanksAndLocusMappability", "description": "UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences. Range: 0 to 1."}, {"name": "VariationCluster", "displayName": "Variation Cluster Interval", "group": "Additional Layers", "column": "VariationCluster", "description": "Genomic interval of the variation cluster containing this locus, if any. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms."}, {"name": "VariationClusterId", "displayName": "Variation Cluster ID", "group": "Additional Layers", "column": "VariationClusterId", "description": "Comma-separated list of locus IDs of all TR loci in the variation cluster."}, {"name": "VariationClusterMotifs", "displayName": "Variation Cluster Motifs", "group": "Additional Layers", "column": "VariationClusterMotifs", "description": "Comma-separated list of unique motifs of TR loci in the variation cluster."}, {"name": "VariationClusterSizeDiff", "displayName": "VC Size Diff", "group": "Additional Layers", "column": "VariationClusterSizeDiff", "description": "Size difference in bp between the variation cluster interval and the reference repeat interval."}, {"name": "VariationClusterFilterReason", "displayName": "VC Filter Reason", "group": "Additional Layers", "column": "VariationClusterFilterReason", "description": "Reason why this locus was excluded from the variation cluster analysis."}, {"name": "KnownDiseaseAssociatedLocus", "displayName": "Known Disease Locus", "group": "Additional Layers", "column": "KnownDiseaseAssociatedLocus", "description": "Name of the known disease-associated locus if this TR overlaps one."}, {"name": "KnownDiseaseAssociatedMotif", "displayName": "Known Disease Motif", "group": "Additional Layers", "column": "KnownDiseaseAssociatedMotif", "description": "The pathogenic repeat motif at the known disease-associated locus."}, {"name": "GencodeGeneRegion", "displayName": "Gencode Gene Region", "group": "Gene Annotations", "column": "GencodeGeneRegion", "description": "The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive), with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "GencodeGeneName", "displayName": "Gencode Gene Name", "group": "Gene Annotations", "column": "GencodeGeneName", "description": "Gencode v50 (comprehensive) gene name"}, {"name": "GencodeGeneId", "displayName": "Gencode Gene ID", "group": "Gene Annotations", "column": "GencodeGeneId", "description": "Gencode v50 (comprehensive) gene ID (ENSG)"}, {"name": "GencodeTranscriptId", "displayName": "Gencode Transcript ID", "group": "Gene Annotations", "column": "GencodeTranscriptId", "description": "Gencode v50 (comprehensive) transcript ID (ENST)"}, {"name": "RefseqGeneRegion", "displayName": "RefSeq Gene Region", "group": "Gene Annotations", "column": "RefseqGeneRegion", "description": "The most significant RefSeq gene region that overlaps the TR locus, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "RefseqGeneName", "displayName": "RefSeq Gene Name", "group": "Gene Annotations", "column": "RefseqGeneName", "description": "RefSeq gene name"}, {"name": "RefseqGeneId", "displayName": "RefSeq Gene ID", "group": "Gene Annotations", "column": "RefseqGeneId", "description": "RefSeq gene ID"}, {"name": "RefseqTranscriptId", "displayName": "RefSeq Transcript ID", "group": "Gene Annotations", "column": "RefseqTranscriptId", "description": "RefSeq transcript ID"}, {"name": "ManeGeneRegion", "displayName": "MANE Gene Region", "group": "Gene Annotations", "column": "ManeGeneRegion", "description": "The most significant gene region that overlaps the TR locus in MANE v1.4, with significance defined as coding > 5' UTR > 3' UTR > exon in non-coding gene > intron > promoter region spanning 1,000bp upstream of the 5' UTR."}, {"name": "ManeGeneName", "displayName": "MANE Gene Name", "group": "Gene Annotations", "column": "ManeGeneName", "description": "MANE v1.4 gene name"}, {"name": "ManeGeneId", "displayName": "MANE Gene ID", "group": "Gene Annotations", "column": "ManeGeneId", "description": "MANE v1.4 gene ID"}, {"name": "ManeTranscriptId", "displayName": "MANE Transcript ID", "group": "Gene Annotations", "column": "ManeTranscriptId", "description": "MANE v1.4 transcript ID"}, {"name": "AlleleFrequenciesFromIllumina174k", "displayName": "1kGP Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromIllumina174k", "description": "Allele frequencies based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP."}, {"name": "StdevFromIllumina174k", "displayName": "1kGP Stdev", "group": "Additional Layers", "column": "StdevFromIllumina174k", "description": "Standard deviation of the allele frequency distribution based on ExpansionHunter calls in 2,504 short-read genomes from 1kGP."}, {"name": "AlleleFrequenciesFromT2TAssemblies", "displayName": "T2T Allele Frequencies", "group": "Additional Layers", "column": "AlleleFrequenciesFromT2TAssemblies", "description": "Allele frequencies based on assembly-to-hg38 alignments of 78 diploid T2T assemblies."}, {"name": "StdevFromT2TAssemblies", "displayName": "T2T Stdev", "group": "Additional Layers", "column": "StdevFromT2TAssemblies", "description": "Standard deviation of the allele frequency distribution based on assembly-to-hg38 alignments of 78 diploid T2T assemblies."}, {"name": "TenK10K_AlleleHistogram", "displayName": "TenK10K Allele Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_AlleleHistogram", "description": "Allele frequencies based on ExpansionHunter calls in 1,925 short-read genomes from the TenK10K Phase 1 dataset."}, {"name": "TenK10K_BiallelicHistogram", "displayName": "TenK10K Biallelic Histogram", "group": "Polymorphism (TenK10K)", "column": "TenK10K_BiallelicHistogram", "description": "Biallelic genotype histogram from TenK10K Phase 1 short-read genomes."}, {"name": "TenK10K_MinAllele", "displayName": "TenK10K Min Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MinAllele", "description": "Minimum allele size observed in TenK10K Phase 1."}, {"name": "TenK10K_ModeAllele", "displayName": "TenK10K Mode Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_ModeAllele", "description": "Mode (most common) allele size in TenK10K Phase 1."}, {"name": "TenK10K_Stdev", "displayName": "TenK10K Stdev", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Stdev", "description": "Standard deviation of allele sizes in TenK10K Phase 1."}, {"name": "TenK10K_Median", "displayName": "TenK10K Median", "group": "Polymorphism (TenK10K)", "column": "TenK10K_Median", "description": "Median allele size in TenK10K Phase 1."}, {"name": "TenK10K_99thPercentile", "displayName": "TenK10K 99th Percentile", "group": "Polymorphism (TenK10K)", "column": "TenK10K_99thPercentile", "description": "99th percentile allele size in TenK10K Phase 1."}, {"name": "TenK10K_MaxAllele", "displayName": "TenK10K Max Allele", "group": "Polymorphism (TenK10K)", "column": "TenK10K_MaxAllele", "description": "Maximum allele size observed in TenK10K Phase 1."}, {"name": "TenK10K_ShortAllele99thPercentile", "displayName": "TenK10K Short Allele 99th Percentile", "group": "Polymorphism (TenK10K)", "column": "TenK10K_ShortAllele99thPercentile", "description": "99th percentile of the shorter-of-paired allele size per sample in TenK10K Phase 1."}, {"name": "TenK10K_ShortAlleleMax", "displayName": "TenK10K Short Allele Max", "group": "Polymorphism (TenK10K)", "column": "TenK10K_ShortAlleleMax", "description": "Maximum shorter-of-paired allele size per sample in TenK10K Phase 1."}, {"name": "TenK10K_UniqueAlleleLengths", "displayName": "TenK10K Unique Allele Lengths", "group": "Polymorphism (TenK10K)", "column": "TenK10K_UniqueAlleleLengths", "description": "Number of unique allele lengths observed in TenK10K Phase 1."}, {"name": "TenK10K_NumCalledAlleles", "displayName": "TenK10K Num Called", "group": "Polymorphism (TenK10K)", "column": "TenK10K_NumCalledAlleles", "description": "Total number of alleles called in TenK10K Phase 1."}, {"name": "TenK10K_StdevRankByMotif", "displayName": "TenK10K Stdev Rank", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in TenK10K Phase 1. Lower = more variable (rank 1 = highest stdev)."}, {"name": "TenK10K_StdevRankTotalNumberByMotif", "displayName": "TenK10K Stdev Rank Total", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in TenK10K Phase 1."}, {"name": "TenK10K_StdevRankPercentile", "displayName": "TenK10K Stdev Rank Percentile", "group": "Polymorphism (TenK10K)", "column": "TenK10K_StdevRankPercentile", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic)."}, {"name": "HPRC256_AlleleHistogram", "displayName": "HPRC256:LPS Allele Histogram", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_AlleleHistogram", "description": "Allele frequencies based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC). Allele sizes computed using the longest pure segment (LPS)."}, {"name": "HPRC256_BiallelicHistogram", "displayName": "HPRC256:LPS Biallelic Histogram", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_BiallelicHistogram", "description": "Biallelic genotype histogram from HPRC 256 PacBio samples."}, {"name": "HPRC256_MinAllele", "displayName": "HPRC256:LPS Min Allele", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_MinAllele", "description": "Minimum allele size (LPS) observed in HPRC256."}, {"name": "HPRC256_ModeAllele", "displayName": "HPRC256:LPS Mode Allele", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_ModeAllele", "description": "Mode (most common) allele size (LPS) in HPRC256."}, {"name": "HPRC256_Stdev", "displayName": "HPRC256:LPS Stdev", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_Stdev", "description": "Standard deviation of allele sizes (LPS) in HPRC256."}, {"name": "HPRC256_Median", "displayName": "HPRC256:LPS Median", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_Median", "description": "Median allele size (LPS) in HPRC256."}, {"name": "HPRC256_99thPercentile", "displayName": "HPRC256:LPS 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_99thPercentile", "description": "99th percentile allele size (LPS) in HPRC256."}, {"name": "HPRC256_MaxAllele", "displayName": "HPRC256:LPS Max Allele", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_MaxAllele", "description": "Maximum allele size (LPS) observed in HPRC256."}, {"name": "HPRC256_ShortAllele99thPercentile", "displayName": "HPRC256:LPS Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_ShortAllele99thPercentile", "description": "99th percentile of the shorter-of-paired allele size (LPS) per sample in HPRC256."}, {"name": "HPRC256_ShortAlleleMax", "displayName": "HPRC256:LPS Short Allele Max", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_ShortAlleleMax", "description": "Maximum shorter-of-paired allele size (LPS) per sample in HPRC256."}, {"name": "HPRC256_HemiAllele99thPercentile", "displayName": "HPRC256:LPS Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_HemiAllele99thPercentile", "description": "99th percentile allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci."}, {"name": "HPRC256_HemiAlleleMax", "displayName": "HPRC256:LPS Hemi Allele Max", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_HemiAlleleMax", "description": "Maximum allele size (LPS) among male samples only, for loci on chrX or chrY (hemizygous calls) in HPRC256. Null for autosomal loci."}, {"name": "HPRC256_UniqueAlleleLengths", "displayName": "HPRC256:LPS Unique Allele Lengths", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_UniqueAlleleLengths", "description": "Number of unique LPS allele lengths observed in HPRC256."}, {"name": "HPRC256_NumCalledAlleles", "displayName": "HPRC256:LPS Num Called", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_NumCalledAlleles", "description": "Total number of alleles called in HPRC256."}, {"name": "HPRC256_StdevRankByMotif", "displayName": "HPRC256:LPS Stdev Rank", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in HPRC256. Lower = more variable (rank 1 = highest stdev)."}, {"name": "HPRC256_StdevRankTotalNumberByMotif", "displayName": "HPRC256:LPS Stdev Rank Total", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in HPRC256."}, {"name": "HPRC256_StdevRankPercentile", "displayName": "HPRC256:LPS Stdev Rank Percentile", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_StdevRankPercentile", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic)."}, {"name": "HPRC256_NumIntervalsThatIncludeThisLocusId", "displayName": "HPRC256:LPS # Intervals", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_NumIntervalsThatIncludeThisLocusId", "description": "Number of distinct TRGT catalog intervals (rows in the HPRC256 stratified LPS table) that contain this LocusId. 1 = locus only genotyped as a standalone TR. >1 = also genotyped as part of one or more variation clusters."}, {"name": "HPRC256_NarrowestInterval", "displayName": "HPRC256:LPS Narrowest Interval", "group": "Polymorphism (HPRC256:LPS)", "column": "HPRC256_NarrowestInterval", "description": "The TRGT catalog interval (chrom:vcf_start_0based-vcf_end_1based) whose HPRC256 stats are embedded in the catalog row's HPRC256_* summary columns. This is the narrowest interval containing this LocusId."}, {"name": "HPRC256TotalLength_AlleleHistogram", "displayName": "HPRC256:Length Allele Histogram", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_AlleleHistogram", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Allele size histogram."}, {"name": "HPRC256TotalLength_BiallelicHistogram", "displayName": "HPRC256:Length Biallelic Histogram", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_BiallelicHistogram", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Biallelic genotype histogram."}, {"name": "HPRC256TotalLength_MinAllele", "displayName": "HPRC256:Length Min Allele", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_MinAllele", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Minimum allele size."}, {"name": "HPRC256TotalLength_ModeAllele", "displayName": "HPRC256:Length Mode Allele", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_ModeAllele", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Mode (most common) allele size."}, {"name": "HPRC256TotalLength_Stdev", "displayName": "HPRC256:Length Stdev", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_Stdev", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Standard deviation of allele sizes."}, {"name": "HPRC256TotalLength_Median", "displayName": "HPRC256:Length Median", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_Median", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Median allele size."}, {"name": "HPRC256TotalLength_99thPercentile", "displayName": "HPRC256:Length 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_99thPercentile", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size."}, {"name": "HPRC256TotalLength_MaxAllele", "displayName": "HPRC256:Length Max Allele", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_MaxAllele", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size."}, {"name": "HPRC256TotalLength_ShortAllele99thPercentile", "displayName": "HPRC256:Length Short Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_ShortAllele99thPercentile", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile of the shorter allele size per sample."}, {"name": "HPRC256TotalLength_ShortAlleleMax", "displayName": "HPRC256:Length Short Allele Max", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_ShortAlleleMax", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum shorter allele size per sample."}, {"name": "HPRC256TotalLength_HemiAllele99thPercentile", "displayName": "HPRC256:Length Hemi Allele 99th Percentile", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_HemiAllele99thPercentile", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. 99th percentile allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci."}, {"name": "HPRC256TotalLength_HemiAlleleMax", "displayName": "HPRC256:Length Hemi Allele Max", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_HemiAlleleMax", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Maximum allele size among male samples only, for loci on chrX or chrY (hemizygous calls). Null for autosomal loci."}, {"name": "HPRC256TotalLength_UniqueAlleleLengths", "displayName": "HPRC256:Length Unique Allele Lengths", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_UniqueAlleleLengths", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Number of distinct allele sizes."}, {"name": "HPRC256TotalLength_NumCalledAlleles", "displayName": "HPRC256:Length Num Called", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_NumCalledAlleles", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Total number of called alleles."}, {"name": "HPRC256TotalLength_StdevRankByMotif", "displayName": "HPRC256:Length Stdev Rank", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_StdevRankByMotif", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Rank of this locus by standard deviation among all loci with the same motif. Lower = more variable (rank 1 = highest stdev)."}, {"name": "HPRC256TotalLength_StdevRankTotalNumberByMotif", "displayName": "HPRC256:Length Stdev Rank Total", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_StdevRankTotalNumberByMotif", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Total number of loci with the same motif used for ranking."}, {"name": "HPRC256TotalLength_StdevRankPercentile", "displayName": "HPRC256:Length Stdev Rank Percentile", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_StdevRankPercentile", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic)."}, {"name": "HPRC256TotalLength_Interval", "displayName": "HPRC256:Length Interval", "group": "Polymorphism (HPRC256:Length)", "column": "HPRC256TotalLength_Interval", "description": "Based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using each allele's total length (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment (LPS). For a locus in a variation cluster, the total length of the whole cluster is used. The TRGT interval (chrom:vcf_start_0based-vcf_end_1based) the allele lengths were measured over: the variation cluster's span for a locus in a variation cluster, otherwise the locus itself."}, {"name": "AoU1027_MinAllele", "displayName": "AoU1027:LPS Min Allele", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_MinAllele", "description": "Minimum allele size (LPS) observed in AoU1027 (1,027 African American participants from All of Us)."}, {"name": "AoU1027_ModeAllele", "displayName": "AoU1027:LPS Mode Allele", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_ModeAllele", "description": "Mode (most common) allele size (LPS) in AoU1027."}, {"name": "AoU1027_Stdev", "displayName": "AoU1027:LPS Stdev", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_Stdev", "description": "Standard deviation of allele sizes (LPS) in AoU1027."}, {"name": "AoU1027_Median", "displayName": "AoU1027:LPS Median", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_Median", "description": "Median allele size (LPS) in AoU1027."}, {"name": "AoU1027_99thPercentile", "displayName": "AoU1027:LPS 99th Percentile", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_99thPercentile", "description": "99th percentile allele size (LPS) in AoU1027."}, {"name": "AoU1027_MaxAllele", "displayName": "AoU1027:LPS Max Allele", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_MaxAllele", "description": "Maximum allele size (LPS) observed in AoU1027."}, {"name": "AoU1027_NumCalledAlleles", "displayName": "AoU1027:LPS Num Called", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_NumCalledAlleles", "description": "Total number of alleles called in AoU1027."}, {"name": "AoU1027_StdevRankByMotif", "displayName": "AoU1027:LPS Stdev Rank", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_StdevRankByMotif", "description": "Rank of this locus by standard deviation among all loci with the same motif in AoU1027. Lower = more variable (rank 1 = highest stdev)."}, {"name": "AoU1027_StdevRankTotalNumberByMotif", "displayName": "AoU1027:LPS Stdev Rank Total", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_StdevRankTotalNumberByMotif", "description": "Total number of loci with the same motif used for ranking in AoU1027."}, {"name": "AoU1027_StdevRankPercentile", "displayName": "AoU1027:LPS Stdev Rank Percentile", "group": "Polymorphism (AoU1027:LPS)", "column": "AoU1027_StdevRankPercentile", "description": "Fraction of loci with the same motif that have equal or lower stdev. Higher = more variable (99th percentile = most polymorphic)."}, {"name": "AoU1027_OE_Length", "displayName": "Constraint: O/E Length", "group": "Additional Layers", "column": "AoU1027_OE_Length", "description": "Observed / Expected TR length metric from the TR constraint model (Danzi et al. 2025)."}, {"name": "AoU1027_OE_LengthPercentile", "displayName": "Constraint: O/E Length Percentile", "group": "Additional Layers", "column": "AoU1027_OE_LengthPercentile", "description": "Observed / Expected TR length metric displayed as a percentile rank relative to all other TR loci in the catalog."}, {"name": "RepeatMaskerIntervals", "displayName": "RepeatMasker Intervals", "group": "Additional Layers", "column": "RepeatMaskerIntervals", "description": "UCSC Repeat Masker intervals that overlap the TR locus"}, {"name": "NonCodingAnnotations", "displayName": "Non-coding Annotations", "group": "Additional Layers", "column": "NonCodingAnnotations", "description": "Non-coding annotations from various sources collected by the Talkowski Lab"}, {"name": "VamosUniqueMotifs", "displayName": "Vamos Unique Motifs", "group": "Additional Layers #2", "column": "VamosUniqueMotifs", "description": "Unique motifs detected at this locus by the Vamos v2.1 pipeline when applied to HPRC assemblies."}, {"name": "VamosEfficientMotifs", "displayName": "Vamos Efficient Motifs", "group": "Additional Layers #2", "column": "VamosEfficientMotifs", "description": "Efficient motif representation for Vamos genotyping."}, {"name": "VamosMotifFrequencies", "displayName": "Vamos Motif Frequencies", "group": "Additional Layers #2", "column": "VamosMotifFrequencies", "description": "Different motifs and their frequencies detected at this locus by Vamos v2.1 in 94 HPRC assemblies."}, {"name": "VamosNumUniqueMotifs", "displayName": "Vamos Num Unique Motifs", "group": "Additional Layers #2", "column": "VamosNumUniqueMotifs", "description": "Number of unique motifs detected by Vamos at this locus."}, {"name": "IncludeInVamosCatalog", "displayName": "Include In Vamos Catalog", "group": "Additional Layers #2", "column": "IncludeInVamosCatalog", "description": "Whether this locus should be included in Vamos catalog exports (1 = yes). Excludes overlapping loci since Vamos doesn't support them."}, {"name": "Tanudisastro2024_SignificantCellTypes", "displayName": "sc-eTRs: Cell Types", "group": "Additional Layers #2", "column": "Tanudisastro2024_SignificantCellTypes", "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024."}, {"name": "Tanudisastro2024_MinPvalue", "displayName": "sc-eTRs: Min P-value", "group": "Additional Layers #2", "column": "Tanudisastro2024_MinPvalue", "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024."}, {"name": "Manigbas2024_AssociatedTraits", "displayName": "PheWAS: Traits", "group": "Additional Layers #2", "column": "Manigbas2024_AssociatedTraits", "description": "Comma-separated list of human traits with fine-mapped causal associations from Manigbas et al. 2024 UK Biobank PheWAS. Empty string indicates locus was tested but had no significant associations."}, {"name": "Manigbas2024_MinPvalue", "displayName": "PheWAS: Min P-value", "group": "Additional Layers #2", "column": "Manigbas2024_MinPvalue", "description": "Minimum (most significant) p-value across all associated traits from Manigbas et al. 2024. NULL for loci with no associations."}, {"name": "Manigbas2024_Details", "displayName": "PheWAS: Details", "group": "Additional Layers #2", "column": "Manigbas2024_Details", "description": "JSON with per-trait PheWAS statistics from Manigbas et al. 2024. Keys are trait names, values contain pvalue, log10Pvalue, traitType, sampleSize, caviarRank, caviarProbability, replicatedInAoU, manigbasLocusId."}, {"name": "CentromereAndSatelliteRegion", "displayName": "Centromere and Satellite Regions", "group": "New Columns (10-11/2026)", "column": "CentromereAndSatelliteRegion", "description": "The class of the centromeric or pericentromeric satellite region that overlaps the TR locus, from the Miga lab's centromeric satellite annotation (hg38.cenSatv1.0, chm13v2.0.cenSatv2.1). Possible values include:<ul><li><b>HSat3</b>: a human satellite 3 array</li><li><b>active_hor</b>: the alpha satellite array where the centromere forms</li><li><b>ct</b>: a centromeric transition region between satellite arrays</li><li><b>hor</b>: an inactive alpha satellite higher-order repeat array</li><li><b>dhor</b>: a diverged alpha satellite higher-order repeat array</li><li><b>mon</b>: monomeric alpha satellite, which is not organized into higher-order repeats</li><li><b>mixedAlpha</b>: alpha satellite that does not fit into one of the other alpha satellite classes</li><li><b>HSat1A</b>: a human satellite 1A array</li><li><b>HSat1B</b>: a human satellite 1B array</li><li><b>HSat2</b>: a human satellite 2 array</li><li><b>HSat2_3</b>: a human satellite array that could not be resolved as either HSat2 or HSat3</li><li><b>GAP,HSat2</b> and <b>GAP,HSat3</b>: an HSat2 or HSat3 array that ends at a gap in the reference genome</li><li><b>bSat</b>: a beta satellite array</li><li><b>gSat</b>: a gamma satellite array</li><li><b>cenSat</b>: another centromeric satellite, such as CER, SATR, SST1, ACRO, HSAT4, HSAT5 or TAF11</li><li><b>rDNA</b>: a ribosomal DNA array</li></ul>If the TR locus doesn't overlap any of these regions, its value is NULL or empty."}, {"name": "Zhang2025_LengthEffectTestResult", "displayName": "Zhang 2025 MPRA: Length Effect", "group": "New Columns (10-11/2026)", "column": "Zhang2025_LengthEffectTestResult", "description": "Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number (-5, +3, +5 copies relative to hg38) changes reporter expression in HEK293T cells. The result is from the paper's main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Zhang2025_Details says which. Possible values include:<ul><li><b>\u201csignificant\u201d</b>: FDR < 0.1</li><li><b>\u201cnot significant\u201d</b>: FDR \u2265 0.1</li><li><b>\u201cnot enough data\u201d</b>: in the library, but too few barcodes to test in either hSTR1 or hSTR2</li><li><b>NULL</b>: the locus was not tested</li></ul>"}, {"name": "Zhang2025_LengthEffectSlope", "displayName": "Zhang 2025 MPRA: Length Effect Slope", "group": "New Columns (10-11/2026)", "column": "Zhang2025_LengthEffectSlope", "description": "Change in reporter expression (RNA/DNA ratio) per added repeat copy, from the linear regression in Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. Positive means longer alleles increase expression. The two libraries' slopes are on different scales: for loci significant in both, hSTR2 slopes are about half of hSTR1's. NULL if not tested or not enough data."}, {"name": "Zhang2025_LengthEffectFDR", "displayName": "Zhang 2025 MPRA: Length Effect FDR", "group": "New Columns (10-11/2026)", "column": "Zhang2025_LengthEffectFDR", "description": "Benjamini-Hochberg adjusted p-value of the length effect slope from Zhang et al. 2025, in the same library (hSTR1 or hSTR2) as Zhang2025_LengthEffectTestResult. NULL if not tested or not enough data."}, {"name": "Zhang2025_Details", "displayName": "Zhang 2025 MPRA: Details", "group": "New Columns (10-11/2026)", "column": "Zhang2025_Details", "description": "JSON with the Zhang et al. 2025 STR this locus was matched to: zhangLocusId, zhangInterval (0-based start), zhangMotif, and matchType ('exact' for the same interval and motif, even if zhangMotif starts at a different base, or 'fuzzy' overlap with the same motif). Also lengthEffectSourceLibrary, the library the LengthEffect columns come from ('hSTR1', 'hSTR2', or null if not enough data), and an hSTR1 and/or hSTR2 object (lengthEffectSlope, lengthEffectFDR, pearsonR) for each library that tested the locus."}, {"name": "Garg2019_AutismDMRMethylationChange", "displayName": "Garg 2019 Autism DMR: Methylation Change", "group": "New Columns (10-11/2026)", "column": "Garg2019_AutismDMRMethylationChange", "description": "Whether the TR overlaps a rare DMR (differentially methylated region) that Garg et al. 2019 found in at least one of 297 autism probands, and whether that region had more or less methylation than usual. A DMR is a region where one person's DNA methylation in blood (Illumina 450k array, at least 3 probes) is far outside the range seen in controls. Only TRs whose repeat contains CpG sites (CG in the motif) were matched. Possible values include:<ul><li><b>hypermethylated</b></li><li><b>hypomethylated</b></li><li><b>NULL</b>: the TR doesn't overlap one of these DMRs, or its repeat has no CpG sites</li></ul>"}, {"name": "Garg2019_AutismDMRDetails", "displayName": "Garg 2019 Autism DMR: Details", "group": "New Columns (10-11/2026)", "column": "Garg2019_AutismDMRDetails", "description": "JSON list of the Garg et al. 2019 autism DMRs that overlap the TR (usually one), each with dmrHg38 (0-based start), dmrHg19 (as listed in the paper), methylationChange, numProbandsWithDMR, numSiblingsWithDMR (unaffected siblings), numProbes, numCarriersWithFailedProbeDetection (people with the DMR in whom a cluster of its probes failed detection, which can mean a technical problem or a deletion), promoterGenes, geneBodyGenes, numPopulationControlsWithDMR (of 2,711), numFamilialControlsWithDMR and numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR (of 489)."}, {"name": "Garg2019_SchizophreniaDMRMethylationChange", "displayName": "Garg 2019 Schizophrenia DMR: Methylation Change", "group": "New Columns (10-11/2026)", "column": "Garg2019_SchizophreniaDMRMethylationChange", "description": "Whether the TR overlaps a rare DMR (differentially methylated region) that Garg et al. 2019 found in at least one of 767 individuals with schizophrenia, and whether that region had more or less methylation than usual. A DMR is a region where one person's DNA methylation in blood (Illumina 450k array, at least 3 probes) is far outside the range seen in controls. Only TRs whose repeat contains CpG sites (CG in the motif) were matched. Possible values include:<ul><li><b>hypermethylated</b></li><li><b>hypomethylated</b></li><li><b>NULL</b>: the TR doesn't overlap one of these DMRs, or its repeat has no CpG sites</li></ul>"}, {"name": "Garg2019_SchizophreniaDMRDetails", "displayName": "Garg 2019 Schizophrenia DMR: Details", "group": "New Columns (10-11/2026)", "column": "Garg2019_SchizophreniaDMRDetails", "description": "JSON list of the Garg et al. 2019 schizophrenia DMRs that overlap the TR (usually one), each with dmrHg38 (0-based start), dmrHg19 (as listed in the paper), methylationChange, numIndividualsWithDMR, numProbes, numCarriersWithFailedProbeDetection (people with the DMR in whom a cluster of its probes failed detection, which can mean a technical problem or a deletion), promoterGenes, geneBodyGenes, numPopulationControlsWithDMR (of 2,711), numFamilialControlsWithDMR and numIntellectualDisabilityOrCongenitalAnomalyPatientsWithDMR (of 489)."}, {"name": "Garg2020_NumIndividualsWithDMR", "displayName": "Garg 2020 DMR: Num Individuals", "group": "New Columns (10-11/2026)", "column": "Garg2020_NumIndividualsWithDMR", "description": "Garg et al. 2020 surveyed DNA methylation in blood (Illumina 450k array) from 23,116 people, and found 25 rare hypermethylated DMRs (differentially methylated regions) within 500 bp of a CG-rich TR that they predicted to be unstable. Several of these TRs are known or were confirmed to expand, so the hypermethylation is likely caused by an expansion. For TRExplorer loci that overlap one of these 26 TRs and have a motif that includes \u201cCG\u201d, this field contains the number of individuals that had a DMR in this paper. NULL for every other TR."}, {"name": "Garg2020_DMRDetails", "displayName": "Garg 2020 DMR: Details", "group": "New Columns (10-11/2026)", "column": "Garg2020_DMRDetails", "description": "JSON list of the Garg et al. 2020 TRs that overlap this TR (usually one), each with trHg38 (0-based start), trHg19 (1-based start, as listed in the paper), its DMR's dmrHg38 and dmrHg19, methylationChange, numIndividualsWithDMR (of 23,116), frequencyPer10000 (95% confidence interval), numTRAllelesIn600Genomes, promoterGenes, geneBodyGenes, geneRegion, cohorts, fragileSite, fragileSiteStatus ('previously defined' if already known to be caused by an expansion of the TR, or 'putative novel' if the authors propose it), and validation (the paper's notes on how the expansion was confirmed, or the reference that first described it)."}, {"name": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements", "displayName": "ENCODE4/IGVF: Validated Elements", "group": "New Columns (10-11/2026)", "column": "ENCODE4_and_IGVF_CRISPR_or_MPRA_validated_elements", "description": "Comma-separated data source:assay:biosample type triples (e.g. ENCODE:MPRA:HepG2,IGVF:CRISPR:HCT116) in which an element that overlaps the locus was called functional: ENCODE CRISPR screen elements marked significant, ENCODE MPRA elements with log2 fold change > 0 and FDR < 0.05, and IGVF CRISPR screen elements called by each lab's published rule. Empty does not mean the locus was tested; most loci were not."}, {"name": "SpliceAI_MaxDeltaScore", "displayName": "SpliceAI Max Delta Score", "group": "New Columns (10-11/2026)", "column": "SpliceAI_MaxDeltaScore", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The largest SpliceAI delta score (acceptor or donor, gain or loss) of any simulated allele at this locus; 0 if none reached 0.01."}, {"name": "SpliceAI_MaxDeltaScoreAlleleSize", "displayName": "SpliceAI Max Delta Score Allele Size", "group": "New Columns (10-11/2026)", "column": "SpliceAI_MaxDeltaScoreAlleleSize", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The simulated allele size that gave the largest delta score (the smallest such size if several tie); empty if no allele reached 0.01."}, {"name": "SpliceAI_MinAlleleSizeThatAffectsSplicing", "displayName": "SpliceAI Min Allele Size That Affects Splicing", "group": "New Columns (10-11/2026)", "column": "SpliceAI_MinAlleleSizeThatAffectsSplicing", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The smallest simulated allele size with a SpliceAI delta score of at least 0.2; empty if none."}, {"name": "SpliceAI_DeltaScoreByRepeatCount", "displayName": "SpliceAI Delta Score By Repeat Count", "group": "New Columns (10-11/2026)", "column": "SpliceAI_DeltaScoreByRepeatCount", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. Every simulated allele, sorted by repeat count, as repeat_count:max_delta_score followed by the type of the largest change (AG acceptor gain, AL acceptor loss, DG donor gain, DL donor loss) when it is at least 0.01, e.g. 18:0.000,25:0.030AG,40:0.310AG,95:0.880AL."}, {"name": "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing", "displayName": "SpliceAI Delta Score By Repeat Count That Affects Splicing", "group": "New Columns (10-11/2026)", "column": "SpliceAI_DeltaScoreByRepeatCountThatAffectsSplicing", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The simulated alleles in SpliceAI_DeltaScoreByRepeatCount whose delta score is at least 0.2, in the same form, e.g. 40:0.310AG,95:0.880AL; empty if none."}, {"name": "SpliceAI_AlleleSizesByRepeatCount", "displayName": "SpliceAI Allele Sizes By Repeat Count", "group": "New Columns (10-11/2026)", "column": "SpliceAI_AlleleSizesByRepeatCount", "description": "SpliceAI (via the SpliceAI-lookup code, GENCODE v50 basic, max distance 10,000 bp, on the transcript the server selects) scores of simulated alleles at loci with at least 2 distinct HPRC256 allele sizes. Allele sizes: 2.5pct, 97.5pct and 99.5pct are those percentiles of the HPRC256 total allele lengths; 99.5pct+1xMotifRange, 99.5pct+2xMotifRange and 99.5pct+3xMotifRange are the 99.5th percentile plus 1, 2 or 3 times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, 99.5pct+2xMotifRange, 99.5pct+3xMotifRange. The simulated alleles in SpliceAI_DeltaScoreByRepeatCount, in the same order, as repeat_count:allele_sizes, where allele_sizes lists every simulated size that rounds to that repeat count, smallest first, joined by /, e.g. 18:2.5pct,25:97.5pct/99.5pct,40:99.5pct+1xMotifRange."}]
 
-    // Store pending export type when showing the dialog
-    let pendingExportType = null
-
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
             return ''
@@ -8752,15 +8728,6 @@ gtag('config', 'G-6R8FPBQRFH');
         return diseaseAssociatedIconHtml
     }
 
-    const getHtmlAttributesForPolymorphism = (row) => {
-        let polymorphismDetails = ``
-        for (const dataColumn of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-            if (row[dataColumn] != null) {
-                polymorphismDetails += `data-${dataColumn}='${row[dataColumn]}' `
-            }
-        }
-        return polymorphismDetails
-    }
 
 
     const readAndApplyPersistentPageStateFromUrl = async () => {
@@ -8805,7 +8772,13 @@ gtag('config', 'G-6R8FPBQRFH');
         renderUploadedFileChip()
         console.log("Starting to initialize page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)
 
-        await applyIgvPageState()
+        // An IGV that fails to start (e.g. its genome or script didn't load) mustn't stop the form being filled in and
+        // the search running
+        try {
+            await applyIgvPageState()
+        } catch (error) {
+            console.error('Failed to load IGV:', error)
+        }
 
         // advanced search wrapper
         isAdvancedSearchPanelOpen = GLOBAL_PAGE_STATE['showAdvFilters'] === 1
@@ -8865,7 +8838,7 @@ gtag('config', 'G-6R8FPBQRFH');
             // e.g. after Back to the page as it was before the first search: clear the previous results
             destroyResultsTableCharts()
             $('#results-table').empty()
-            $('.pagination-container, #loading-container, #search-results-plots-area, #error-message, #igv-nav-container').hide()
+            $('.pagination-container, #loading-container, #search-results-plots-area, #error-message, #search-warning-message, #igv-nav-container').hide()
             $('body').css('cursor', 'default')
             // So the IGV result navigation (updateIgvNavButtons) stays hidden
             window.searchResults = null
@@ -9170,8 +9143,6 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     const showExportOptionsDialog = (exportType, {showColumns = false, showTrgtOptions = false} = {}) => {
-        pendingExportType = exportType
-
         // Set dialog title
         $('#export-dialog-title').text(`${EXPORT_TOOL_NAME_BY_FORMAT[exportType] || exportType.toUpperCase()} export options`)
 
@@ -9215,7 +9186,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Show the dialog. The help text popups are set up after it opens, because opening a modal the first time
         // clears popups set up on its contents.
-        $('#export-column-dialog').modal({onApprove: startExportFromExportDialog}).modal('show')
+        $('#export-column-dialog').modal({onApprove: () => startExportFromExportDialog(exportType)}).modal('show')
         initializeHelpTextPopups($('#export-column-checkboxes .export-column-help-icon'))
     }
 
@@ -9227,9 +9198,6 @@ gtag('config', 'G-6R8FPBQRFH');
     // conjunction. renderCustomFilterGroups draws the custom filter rows on the page (the view) from this list.
     // The plot dialog keeps a list like this one for the filters of the plot it edits.
     let customFilterGroups = []
-
-    // What the column dialog does with the filters it adds (see addNewCustomFiltersToGroups)
-    let customFilterColumnDialogOnAddFilters = null
 
     // The custom filter dialog and menus list the 'Additional Layers #2' columns under 'Additional Layers'
     const CUSTOM_FILTER_GROUP_ROWS = BIGQUERY_COLUMN_GROUP_ROWS.map(groupRow => groupRow.filter(g => g !== 'Additional Layers #2'))
@@ -9526,8 +9494,6 @@ gtag('config', 'G-6R8FPBQRFH');
     // Opens the column dialog, which makes a filter for each column checked in it and passes them to onAddFilters
     // (see addNewCustomFiltersToGroups)
     const showCustomFilterColumnDialog = (onAddFilters) => {
-        customFilterColumnDialogOnAddFilters = onAddFilters
-
         buildGroupedColumnCheckboxes($('#custom-filter-column-checkboxes'), groupCustomFilterColumnsByGroup(CUSTOM_FILTER_COLUMNS),
             CUSTOM_FILTER_GROUP_ROWS, 'cf_col_', () => false)
 
@@ -9539,6 +9505,14 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#custom-filter-column-dialog').modal({
             allowMultiple: true,
             onHidden: () => $modalsUnderThisDialog.modal('setting', 'closable', true).modal('add keyboardShortcuts'),
+            // The Add Filters button. Nothing checked adds nothing, so a new group is only created with at least one
+            // filter.
+            onApprove: () => {
+                const newFilters = $('#custom-filter-column-checkboxes input[type="checkbox"]:checked').map(function() {
+                    return {column: $(this).data('column-name'), operator: '', value: '', enabled: true}
+                }).get()
+                if (newFilters.length > 0) onAddFilters(newFilters)
+            },
         }).modal('show')
         initializeHelpTextPopups($('#custom-filter-column-checkboxes .export-column-help-icon'))
     }
@@ -9549,17 +9523,6 @@ gtag('config', 'G-6R8FPBQRFH');
         e.preventDefault()
         showCustomFilterColumnDialog(addNewCustomFiltersToGroups(
             customFilterGroups, null, () => {}, renderCustomFilterGroups))
-    })
-
-    // "Add Filters" button handler in modal
-    $('#custom-filter-dialog-add-button').click(function() {
-        const newFilters = $('#custom-filter-column-checkboxes input[type="checkbox"]:checked').map(function() {
-            return {column: $(this).data('column-name'), operator: '', value: '', enabled: true}
-        }).get()
-
-        // Nothing checked adds nothing, so a new group is only created with at least one filter. The dialog closes by
-        // itself, as on any click of its positive (Add) or deny (Cancel) button.
-        if (newFilters.length > 0) customFilterColumnDialogOnAddFilters(newFilters)
     })
 
     // In the URL, each filter is written as [!]col|op|encoded_val|conj, where '!' marks a disabled filter and conj is
@@ -9895,7 +9858,8 @@ gtag('config', 'G-6R8FPBQRFH');
         let fileFormat
         let selectClause
         let conditions = [...window.lastSearchConditions]
-        let sortClause = ['chrom', 'start_0based', 'end_1based'].join(', ')
+        // id, which is unique, puts loci with the same interval in the same order in every export
+        let sortClause = ['chrom', 'start_0based', 'end_1based', 'id'].join(', ')
         if (value === 'expansion_hunter') {
             fileFormat = 'JSON'
             selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
@@ -10018,9 +9982,9 @@ gtag('config', 'G-6R8FPBQRFH');
     // Handle export dialog download button
     // The export dialog's Download button: starts the export and returns true, which closes the dialog, or returns false
     // to keep the dialog open when no column is checked for a TSV or JSON export
-    const startExportFromExportDialog = () => {
+    const startExportFromExportDialog = (exportType) => {
         let selectedColumns = null
-        if (pendingExportType === 'tsv' || pendingExportType === 'json') {
+        if (exportType === 'tsv' || exportType === 'json') {
             // Collect selected columns
             selectedColumns = []
             $('#export-column-checkboxes input[type="checkbox"]:checked').each(function() {
@@ -10045,9 +10009,6 @@ gtag('config', 'G-6R8FPBQRFH');
         // Read TRGT catalog type
         const trgtCatalogType = $('input[name="trgtCatalogType"]:checked').val() || 'simple'
 
-        // Clear the pending type before the export starts, since another export dialog can be opened while it runs
-        const exportType = pendingExportType
-        pendingExportType = null
         performExport(exportType, selectedColumns, overlapHandling, trgtCatalogType)
         return true
     }
@@ -10198,7 +10159,9 @@ gtag('config', 'G-6R8FPBQRFH');
         window.igvNavIndex = index
         window.igvNavActive = true
         GLOBAL_PAGE_STATE['igvLoc'] = paddedReferenceRegion
-        writePersistentPageStateToUrl()
+        // Changes the current history entry, as panning IGV does, so Back goes to the previous search rather than
+        // stepping through the results IGV showed
+        writePersistentPageStateToUrl(true)
 
         if (window.igvBrowser) {
             await window.igvBrowser.search(paddedReferenceRegion)
@@ -10463,9 +10426,16 @@ gtag('config', 'G-6R8FPBQRFH');
         if (parsedLocusId) {
             return buildSqlConditionForLocusId(parsedLocusId)
         }
-        // Try other fields. This is written on one line, since an uploaded panel repeats it for each of its items, and
-        // BigQuery limits the length of a query.
-        return `(${GENE_AND_TRANSCRIPT_SEARCH_COLUMNS.map(column => `UPPER(${column}) = UPPER('${sanitizedQueryValue}')`).join(' OR ')})`
+        // Any other search term is a gene or transcript name or id, which is matched against the other fields within
+        // the intervals of the loci that have it (see lookUpLocusIntervalsOfNames). This is written on one line, since
+        // an uploaded panel repeats it for each of its items, and BigQuery limits the length of a query.
+        const locusIntervals = LOCUS_INTERVALS_BY_NAME.get(queryValue)
+        // Without its intervals, the name would have to be searched for across the whole table, which costs about 100
+        // times more, so a search must look up its names first
+        if (!locusIntervals) throw new Error(`The gene or transcript name ${queryValue} wasn't looked up before the search`)
+        if (!locusIntervals.length) return 'FALSE'
+        const intervalsClause = locusIntervals.map(({chromIndex, start0, end1}) => `(chrom_index = ${chromIndex} AND start_0based BETWEEN ${start0} AND ${end1})`).join(' OR ')
+        return `((${intervalsClause}) AND (${GENE_AND_TRANSCRIPT_SEARCH_COLUMNS.map(column => `UPPER(${column}) = UPPER('${sanitizedQueryValue}')`).join(' OR ')}))`
     }
 
     // A search term that isn't a region or a LocusId is matched against these columns, ignoring case
@@ -10475,6 +10445,79 @@ gtag('config', 'G-6R8FPBQRFH');
         'ManeGeneName', 'ManeGeneId', 'ManeTranscriptId',
         'LocusId',
     ]
+
+    // ===== Look up where the loci with a gene or transcript name or id are =====
+    //
+    // A name is searched for only within the intervals of the catalog's loci that have it, which costs about 1% of a
+    // search across the whole table, since the table is partitioned by chromosome and clustered by start position. The
+    // intervals come from a Cloud Function (locus-intervals-by-name-function/main.py), which reads them from a lookup
+    // file made for each catalog table (data-prep/locus_intervals_by_name/write_locus_intervals_by_name_lookup_file.py).
+    // A name is never searched for across the whole table: a name that no locus has isn't recognized, and a search whose
+    // names can't be looked up fails.
+    const LOCUS_INTERVALS_BY_NAME_LOOKUP_URL = 'https://us-central1-cmg-analysis.cloudfunctions.net/lookup_locus_intervals_by_name'
+    // The reference genome of the catalog table, which the lookup needs
+    const CATALOG_GENOME_VERSION = 'hg38'
+    // How long to wait for the lookup, which takes a few seconds when an instance of the Cloud Function has to start
+    const LOCUS_INTERVALS_BY_NAME_LOOKUP_TIMEOUT_MILLISECONDS = 30000
+    // The maximum number of names that a message about names that no locus has lists
+    const MAX_UNRECOGNIZED_NAMES_TO_LIST = 20
+    // The intervals of the loci that have each name looked up since the page was loaded, keyed by the name as searched
+    // for: a list of {chromIndex, start0, end1} (a start_0based and an end_1based), which is empty when no locus has it
+    const LOCUS_INTERVALS_BY_NAME = new Map()
+
+    // Whether buildSearchTokenClause searches for a search term as a gene or transcript name or id, rather than as a
+    // region or a LocusId
+    const isNameSearchTerm = (searchTerm) => !REFERENCE_REGION_REGEXP.test(searchTerm.trim()) && !parseAndNormalizeLocusId(searchTerm.trim())
+
+    // Whether a search term is a name that was looked up and that no locus has
+    const isUnrecognizedName = (searchTerm) => LOCUS_INTERVALS_BY_NAME.get(searchTerm.trim())?.length === 0
+
+    // Looks up the names among the search terms that haven't been looked up since the page was loaded, and adds their
+    // intervals to LOCUS_INTERVALS_BY_NAME. Returns whether it sent a request, which it doesn't when there's nothing to
+    // look up. Throws an Error that says what went wrong if the lookup fails.
+    const lookUpLocusIntervalsOfNames = async (searchTerms) => {
+        const names = [...new Set(searchTerms.map(term => term.trim()).filter(isNameSearchTerm))]
+            .filter(name => !LOCUS_INTERVALS_BY_NAME.has(name))
+        if (!names.length) return false
+        let response
+        try {
+            response = await fetch(LOCUS_INTERVALS_BY_NAME_LOOKUP_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({names, genome_version: CATALOG_GENOME_VERSION, catalog_table_id: TABLE_ID}),
+                signal: AbortSignal.timeout(LOCUS_INTERVALS_BY_NAME_LOOKUP_TIMEOUT_MILLISECONDS),
+            })
+        } catch (error) {
+            throw new Error(`The gene and transcript name lookup didn't respond (${error.message}). Please try again later.`)
+        }
+        const responseJson = await response.json().catch(() => null)
+        if (!response.ok || !responseJson) {
+            // Only a server error can go away by itself; a rejected request (status 4xx) gets the same answer next time
+            throw new Error(`The gene and transcript name lookup failed (${responseJson?.error || `HTTP status ${response.status}`}).`
+                + (response.status >= 500 ? ' Please try again later.' : ''))
+        }
+        for (const name of names) {
+            const intervals = responseJson.intervals_by_name?.[name]
+            if (!Array.isArray(intervals)) throw new Error(`The gene and transcript name lookup gave no answer for ${name}`)
+            LOCUS_INTERVALS_BY_NAME.set(name, intervals.map(({chrom, start_0based, end_1based}) => {
+                const chromIndex = CHROM_TO_CHROM_INDEX[String(chrom).replace(/^chr/i, '').toUpperCase()]
+                if (chromIndex === undefined || !Number.isInteger(start_0based) || !Number.isInteger(end_1based)) {
+                    throw new Error(`The gene and transcript name lookup gave an invalid interval for ${name}: ${chrom}:${start_0based}-${end_1based}`)
+                }
+                return {chromIndex, start0: start_0based, end1: end_1based}
+            }))
+        }
+        return true
+    }
+
+    // Describes the names that no locus has, listing at most MAX_UNRECOGNIZED_NAMES_TO_LIST of them
+    const describeUnrecognizedNames = (names) => {
+        const uniqueNames = [...new Set(names.map(name => name.trim()))]
+        const isOneName = uniqueNames.length === 1
+        const listedNames = uniqueNames.slice(0, MAX_UNRECOGNIZED_NAMES_TO_LIST).join(', ')
+            + (uniqueNames.length > MAX_UNRECOGNIZED_NAMES_TO_LIST ? `, and ${uniqueNames.length - MAX_UNRECOGNIZED_NAMES_TO_LIST} more` : '')
+        return `${isOneName ? 'Name' : 'Names'} not recognized: ${listedNames}. No locus in the catalog has ${isOneName ? 'this gene or transcript name or id' : 'these gene or transcript names or ids'}.`
+    }
 
     // ===== Upload a TXT/TSV/BED panel of loci/regions and search them all at once =====
     //
@@ -10491,6 +10534,10 @@ gtag('config', 'G-6R8FPBQRFH');
     // BigQuery rejects queries longer than 1,024K characters, and the rest of the search query is short, so an uploaded
     // panel whose SQL condition is longer than this is refused with a message instead of failing in BigQuery
     const MAX_UPLOADED_FILE_SQL_CONDITION_LENGTH = 1000000
+    // A panel with more gene or transcript names than this is refused before they're looked up. It's more than a query
+    // can hold unless most of the names are unrecognized (see MAX_UPLOADED_FILE_SQL_CONDITION_LENGTH), and less than the
+    // 10,000 names that the lookup takes per request.
+    const MAX_NAMES_PER_UPLOADED_FILE = 2500
     // Incremented on every upload/clear so a slow file read (e.g. a large .gz) that resolves after a
     // newer upload or a clear is discarded instead of clobbering the current state.
     let uploadSeq = 0
@@ -10695,13 +10742,40 @@ gtag('config', 'G-6R8FPBQRFH');
             return
         }
 
+        const tooManyItemsMessage = `<b>Too many items to search at once</b> (${(searchTokens.length + bedRegions.length).toLocaleString()}). BigQuery limits the length of a query, which allows roughly 2,000 gene or transcript names or 11,000 regions or LocusIds. Please split the file and search the parts separately.`
+        // More names than a query can hold are refused before they're looked up, since the lookup takes at most 10,000
+        // names per request
+        if (searchTokens.filter(isNameSearchTerm).length > MAX_NAMES_PER_UPLOADED_FILE) {
+            $err.html(tooManyItemsMessage).show()
+            $('#tr-file-upload-modal').modal('show')
+            return
+        }
+        // The files' gene and transcript names are looked up now (see lookUpLocusIntervalsOfNames), since the panel's
+        // SQL condition, whose length is checked below, holds their intervals
+        try {
+            await lookUpLocusIntervalsOfNames(searchTokens)
+        } catch (error) {
+            if (mySeq !== uploadSeq) return
+            $err.html(`<b>Could not look up the gene and transcript names in the file:</b> ${escapeHtmlText(error.message)}`).show()
+            $('#tr-file-upload-modal').modal('show')
+            return
+        }
+        if (mySeq !== uploadSeq) return
+        // A panel whose items are all names that no locus has would find nothing. One with only some of them is
+        // searched, and the search lists the others (see performSearch).
+        if (!bedRegions.length && searchTokens.every(isUnrecognizedName)) {
+            $err.html(`<b>Nothing to search.</b> ${escapeHtmlText(describeUnrecognizedNames(searchTokens))}`).show()
+            $('#tr-file-upload-modal').modal('show')
+            return
+        }
+
         const uploadedFile = {
             name: okNames.length === 1 ? okNames[0] : `${okNames.length} files`,
             searchTokens,
             bedRegions,
         }
         if (buildUploadedFileClause(uploadedFile).length > MAX_UPLOADED_FILE_SQL_CONDITION_LENGTH) {
-            $err.html(`<b>Too many items to search at once</b> (${(searchTokens.length + bedRegions.length).toLocaleString()}). BigQuery limits the length of a query, which allows roughly 2,000 gene or transcript names or 11,000 regions or LocusIds. Please split the file and search the parts separately.`).show()
+            $err.html(tooManyItemsMessage).show()
             $('#tr-file-upload-modal').modal('show')
             return
         }
@@ -10903,6 +10977,8 @@ gtag('config', 'G-6R8FPBQRFH');
         // Guard against out-of-order responses: rapid actions (upload, chip-remove, sort, paginate)
         // can leave two queries in flight, and a slower older one must not overwrite the newer results.
         const mySeq = ++searchSeq
+        // Read before the names are looked up below, during which it can change
+        const isCalledWhileFormIsBeingFilledInFromUrl = isFormBeingFilledInFromUrl
         // Remove any error messages and no results message
         $('#error-message').hide()
         $('.no-results').hide()
@@ -10925,6 +11001,39 @@ gtag('config', 'G-6R8FPBQRFH');
             // and settings instead of reading the form, which may hold unvalidated edits made since that search
             const isRerunOfDisplayedSearch = reuseDisplayedSearchConditions
                 && window.lastSearchConditions != null && window.lastSearchPageState != null
+
+            // The message listing the names that no locus has, which a re-run of the displayed search leaves as it is
+            let unrecognizedNamesMessage = null
+            if (!isRerunOfDisplayedSearch) {
+                $('#search-warning-message').hide()
+                // A new search first looks up where the loci with its gene and transcript names are (see
+                // lookUpLocusIntervalsOfNames). The form can be edited while a lookup runs, so names are looked up
+                // until the search box has none left to look up, and the form, which is read right after, is then
+                // validated again. An uploaded panel's names were looked up when it was uploaded.
+                let didLookUpNames = false
+                while (await lookUpLocusIntervalsOfNames(splitSearchQuery($('#search-query').val()))) {
+                    didLookUpNames = true
+                    if (mySeq !== searchSeq) return
+                }
+                if (didLookUpNames && !validateForm()) {
+                    // validateForm shows what's wrong, and the previous results, if any, stay on screen
+                    $('#loading-container').hide()
+                    if (window.searchResults) updatePaginationControls()
+                    return
+                }
+                // A search box with only names that no locus has would find nothing, so nothing is searched. Otherwise
+                // such names, which match nothing, are listed above the results.
+                const searchBoxTerms = splitSearchQuery($('#search-query').val())
+                if (searchBoxTerms.length && searchBoxTerms.every(isUnrecognizedName)) {
+                    throw new Error(describeUnrecognizedNames(searchBoxTerms))
+                }
+                const unrecognizedNames = [...searchBoxTerms, ...(UPLOADED_FILE ? UPLOADED_FILE.searchTokens : [])]
+                    .filter(isUnrecognizedName)
+                if (unrecognizedNames.length) {
+                    unrecognizedNamesMessage = `${describeUnrecognizedNames(unrecognizedNames)} The other search terms were still searched for.`
+                }
+            }
+
             const conditions = isRerunOfDisplayedSearch ? [...window.lastSearchConditions] : buildSearchConditionsFromForm()
 
             //retrieve all required columns for the visible columns
@@ -10960,9 +11069,11 @@ gtag('config', 'G-6R8FPBQRFH');
             // direction (e.g. within-motif rank ASC pairs with σ DESC, and both reverse when toggled);
             // any other column follows the user-selected direction.
             const invertedDirection = sortDirection === 'ASC' ? 'DESC' : 'ASC'
-            const sortClause = sortColumns.map(column => /\s+INVERSE$/i.test(column)
+            // id, which is unique, is the last tie-break, so loci with the same sort values come out in the same order on
+            // every page and in exports, which reuse this sort
+            const sortClause = [...sortColumns.map(column => /\s+INVERSE$/i.test(column)
                 ? `${column.replace(/\s+INVERSE$/i, '')} ${invertedDirection} NULLS LAST`
-                : `${column} ${sortDirection} NULLS LAST`).join(', ')
+                : `${column} ${sortDirection} NULLS LAST`), 'id ASC'].join(', ')
 
             // For large sequences, use CASE to avoid fetching huge strings (10kb limit)
             const selectClauseColumns = selectedColumns.map(col => {
@@ -10982,7 +11093,7 @@ gtag('config', 'G-6R8FPBQRFH');
             window.lastSearchSortClause = sortClause
             // The settings that produce these results: the displayed search's for a re-run of it, or else read from the
             // form now, since it can be edited while the query runs. Clicking a plot's bar or box narrows them down.
-            if (!isRerunOfDisplayedSearch && !isFormBeingFilledInFromUrl) copySearchFormStateToPageState()
+            if (!isRerunOfDisplayedSearch && !isCalledWhileFormIsBeingFilledInFromUrl) copySearchFormStateToPageState()
             const searchPageState = isRerunOfDisplayedSearch
                 ? window.lastSearchPageState
                 : Object.fromEntries(SEARCH_PAGE_STATE_KEYS.map(key => [key, GLOBAL_PAGE_STATE[key]]))
@@ -10994,6 +11105,11 @@ gtag('config', 'G-6R8FPBQRFH');
 
             // Mark the URL as a search, so reopening it reruns the search, even one that found nothing
             GLOBAL_PAGE_STATE['showRs'] = 1
+
+            if (unrecognizedNamesMessage) {
+                $('#search-warning-text').text(unrecognizedNamesMessage)
+                $('#search-warning-message').show()
+            }
 
             // A page past the last page (e.g. in a link made before the catalog changed) has no rows, so the last page
             // is shown instead. The current history entry is changed to it rather than a new one added, so that Back
@@ -11041,6 +11157,8 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     initHeaderDialogLinks()
+    // Semantic UI messages don't close by themselves
+    $('#search-warning-message .close').click(() => $('#search-warning-message').hide())
 
 
     // Opening or closing the panel is a form edit, which goes into the URL when the next search starts. The panel's
@@ -11168,17 +11286,9 @@ gtag('config', 'G-6R8FPBQRFH');
         return true
     }
 
+    // Opens the polymorphism dialog for the results table row of the clicked cell
     function showPolymorphismDialog() {
-        const row = $(this).data()
-
-        for (const key of REQUIRED_DATA_COLUMNS_FOR_POLYMORPHISM_COLUMN) {
-            //because data embedded in html data-.. attributes has lower-case keys
-            const lowerCaseKey = key.toLowerCase()
-            if (row[lowerCaseKey] != null) {
-                row[key] = row[lowerCaseKey]
-            }
-        }
-
+        const row = window.searchResults.rows[$(this).closest('tr').index()]
         const polymorphismDialogContent = generatePolymorphismDialogContent(row)
         // Motifs over 12 bp are truncated like the results table's Motif column, and clicking one shows the full motif
         const motifHtml = row.ReferenceMotif.length > 12 ? showTruncatedSequence(row.ReferenceMotif, 12, true) : row.ReferenceMotif

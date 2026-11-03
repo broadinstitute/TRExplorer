@@ -6,7 +6,7 @@ through the page, so they query BigQuery through the live query proxy like the o
 
 import re
 
-from test_basic_search import MULTI_PAGE_REGION_QUERY, do_search, real_errors
+from test_basic_search import MULTI_PAGE_REGION_QUERY, assert_no_errors, do_search
 
 
 def evaluate_with_settings(page, expression, settings):
@@ -170,11 +170,9 @@ def wait_for_total_search_results(page, num_results):
 
 
 def click_plot_bar_and_wait_for_its_loci(page, dataset_index, bar_index):
-    """Clicks a bar of the first plot (see click_plot_bar), waits for the search it runs to show the bar's loci, and
-    returns their number."""
-    num_loci_in_bar = click_plot_bar(page, dataset_index, bar_index)
-    wait_for_total_search_results(page, num_loci_in_bar)
-    return num_loci_in_bar
+    """Clicks a bar of the first plot (see click_plot_bar), and waits for the search it runs to show exactly the bar's
+    loci."""
+    wait_for_total_search_results(page, click_plot_bar(page, dataset_index, bar_index))
 
 
 def get_custom_filters(page):
@@ -198,16 +196,16 @@ def open_search_with_plots(page, query, serialized_plots):
 def test_clicking_a_stacked_bar_segment_filters_to_its_loci(index_page, console_errors):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion,c:MotifSize,n:5")
     # The tallest bar is intron, and the first color is motif size 1
-    num_loci_in_segment = click_plot_bar_and_wait_for_its_loci(index_page, 0, 0)
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, 0)
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "intron"], ["MotifSize", "=", "1"]]
     assert index_page.evaluate("GLOBAL_PAGE_STATE.showAdvFilters") == 1
     assert "cf=" in index_page.url
-    assert real_errors(console_errors) == []
+    assert_no_errors(index_page, console_errors, "plots")
 
 
 def test_clicking_a_histogram_bin_filters_to_its_range(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:MotifSize,xm:bins,b:10")
-    num_loci_in_second_bin = click_plot_bar_and_wait_for_its_loci(index_page, 0, 1)
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, 1)
     filters = get_custom_filters(index_page)
     assert [f[:2] for f in filters] == [["MotifSize", ">="], ["MotifSize", "<="]]
 
@@ -218,9 +216,9 @@ def get_plot_bar_index(page, display_label):
 
 def test_clicking_a_bar_whose_label_has_a_quote_filters_to_its_loci(index_page, console_errors):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion")
-    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "3' UTR"))
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "3' UTR"))
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "3' UTR"]]
-    assert real_errors(console_errors) == []
+    assert_no_errors(index_page, console_errors, "plots")
 
 
 def test_captions_name_only_the_drawn_bars_that_cant_be_clicked(index_page):
@@ -250,7 +248,7 @@ def test_clicking_a_bar_resets_settings_left_in_the_hidden_advanced_search_panel
     # keepCodingLoci is set but doesn't apply, since the advanced search panel is hidden
     url = f"{index_page.url.split('#')[0]}#showRs=1&q={MULTI_PAGE_REGION_QUERY}&keepCodingLoci=1&plots=t%3Abar%2Cx%3AGencodeGeneRegion"
     load_url_as_fresh_page_and_wait_for_plots(index_page, url, 1)
-    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert index_page.evaluate("[GLOBAL_PAGE_STATE.showAdvFilters, GLOBAL_PAGE_STATE.keepCodingLoci]") == [1, 0]
     assert not index_page.is_checked("input[name='keepCodingLoci']")
 
@@ -260,7 +258,7 @@ def test_clicking_a_bar_ignores_unsubmitted_edits_and_back_hides_the_panel_again
     # An edit to the search box that wasn't searched for doesn't change what the click selects
     index_page.fill("#search-query", "HTT")
     index_page.locator("#search-query").blur()
-    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert index_page.input_value("#search-query") == MULTI_PAGE_REGION_QUERY
     assert index_page.is_visible("#advanced-search-form")
     # Back returns to the search before the click, whose advanced search panel was hidden
@@ -327,17 +325,17 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
     index_page.wait_for_selector("#search-results-plot-dialog", state="hidden")
 
     # Clicking a bar keeps the loci that pass both the plot's filter and the bar's filter
-    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert get_custom_filters(index_page) == [["MotifSize", ">=", "3"], ["GencodeGeneRegion", "=", "intron"]]
     # Another click on the plot adds the plot's filter again, but the search already has it, so it isn't duplicated
     index_page.evaluate("addCustomFilterGroupsAndSearch([{conjunction: 'AND', filters: [{column: 'MotifSize', operator: '>=', value: '3', enabled: true}]}])")
     assert get_custom_filters(index_page) == [["MotifSize", ">=", "3"], ["GencodeGeneRegion", "=", "intron"]]
-    assert real_errors(console_errors) == []
+    assert_no_errors(index_page, console_errors, "plots")
 
 
 def test_clicking_a_fractional_histogram_bin_filters_to_exactly_its_loci(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:ReferenceRepeatPurity")
-    num_loci_in_bin = click_plot_bar_and_wait_for_its_loci(index_page, 0, 9)
+    click_plot_bar_and_wait_for_its_loci(index_page, 0, 9)
 
 
 def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
@@ -487,4 +485,4 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     assert "plots=" not in index_page.url
     assert index_page.is_visible("#add-search-results-plot-link")
 
-    assert real_errors(console_errors) == []
+    assert_no_errors(index_page, console_errors, "plots")

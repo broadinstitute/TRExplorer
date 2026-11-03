@@ -12,7 +12,7 @@ import urllib.request
 
 import pytest
 
-from test_basic_search import do_search, enable_all_columns, real_errors
+from test_basic_search import assert_no_errors, do_search, enable_all_columns
 
 # All export format values from the dropdown
 EXPORT_FORMATS = [
@@ -158,9 +158,7 @@ def test_export_format(index_page, console_errors, fmt):
                 f"Expected {total_results} rows for '{fmt}' export, got {row_count}"
             )
 
-    assert real_errors(console_errors) == [], (
-        f"JavaScript errors during export '{fmt}': {real_errors(console_errors)}"
-    )
+    assert_no_errors(page, console_errors, f"export '{fmt}'")
 
 
 def export_bed_intervals(page, overlap_handling):
@@ -206,6 +204,4 @@ def test_export_overlap_handling(index_page, console_errors, overlap_handling):
             assert max(k[2] - k[1] for k in overlapping_kept_loci) >= locus[2] - locus[1], (
                 f"The 'longest' export left out {locus}, which is longer than every exported locus it overlaps")
 
-    assert real_errors(console_errors) == [], (
-        f"JavaScript errors during '{overlap_handling}' export: {real_errors(console_errors)}"
-    )
+    assert_no_errors(page, console_errors, f"'{overlap_handling}' export")
