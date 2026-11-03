@@ -2443,6 +2443,22 @@ gtag('config', 'G-6R8FPBQRFH');
         return parsedLocusId
     }
 
+    // Returns the {column, direction} that a table is sorted by after a click on a column's header: a new column sorts in
+    // its default direction, a second click on it flips the direction, and a third click goes back to the table's
+    // default order, which is returned as {column: null, direction: null}
+    const getSortAfterColumnHeaderClick = (sortColumn, sortDirection, clickedColumn, clickedColumnDefaultDirection) => {
+        if (clickedColumn !== sortColumn) return {column: clickedColumn, direction: clickedColumnDefaultDirection}
+        if (sortDirection === clickedColumnDefaultDirection) {
+            return {column: clickedColumn, direction: clickedColumnDefaultDirection === 'ASC' ? 'DESC' : 'ASC'}
+        }
+        return {column: null, direction: null}
+    }
+
+    // The IGV locus string of a LocusId from parseAndNormalizeLocusId. IGV reads the start of a locus string as 1-based,
+    // while a LocusId's start is 0-based.
+    const buildIgvLocusStringForLocusId = (parsedLocusId) =>
+        `chr${parsedLocusId.chrom}:${parsedLocusId.start_0based + 1}-${parsedLocusId.end_1based}`
+
     // The SQL condition that selects the catalog row of a LocusId from parseAndNormalizeLocusId, or 'FALSE' (rather than
     // invalid SQL) for a chromosome the catalog doesn't have. The table is partitioned on chrom_index and clustered by
     // start_0based, so these limit the bytes scanned.
@@ -6122,24 +6138,13 @@ gtag('config', 'G-6R8FPBQRFH');
         observeCompositionPlaceholders()
     }
 
-    // Cycle sort state for the clicked column. Click sequence per column:
-    //   default order -> column's default direction
-    //   default direction -> opposite direction
-    //   opposite direction -> back to default order
+    // Cycle sort state for the clicked column (see getSortAfterColumnHeaderClick)
     const cycleSortForColumn = (column) => {
         const state = DECOMPOSED_ALLELES_STATE
-        const col = ALLELE_TABLE_COLUMNS[column]
-        const defaultDir = col?.defaultSortDirection || 'ASC'
-        const oppositeDir = defaultDir === 'ASC' ? 'DESC' : 'ASC'
-        if (state.sortColumn !== column) {
-            state.sortColumn = column
-            state.sortDirection = defaultDir
-        } else if (state.sortDirection === defaultDir) {
-            state.sortDirection = oppositeDir
-        } else {
-            state.sortColumn = null
-            state.sortDirection = null
-        }
+        const nextSort = getSortAfterColumnHeaderClick(
+            state.sortColumn, state.sortDirection, column, ALLELE_TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC')
+        state.sortColumn = nextSort.column
+        state.sortDirection = nextSort.direction
         // Sorting reshuffles rows — reset paging to the first page.
         state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
         // Persist the new sort state in the URL hash.
@@ -6632,7 +6637,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // the default one. This has to happen before IGV starts loading below.
         const parsedLocusId = parseAndNormalizeLocusId(GLOBAL_PAGE_STATE['locusId'])
         if (GLOBAL_PAGE_STATE['igvLoc'] === DEFAULT_GLOBAL_PAGE_STATE['igvLoc'] && parsedLocusId) {
-            GLOBAL_PAGE_STATE['igvLoc'] = `chr${parsedLocusId.chrom}:${parsedLocusId.start_0based}-${parsedLocusId.end_1based}`
+            GLOBAL_PAGE_STATE['igvLoc'] = buildIgvLocusStringForLocusId(parsedLocusId)
         }
         // Rewrite the current history entry in the form this page writes (the search page's links order the parameters
         // differently), so that the writes while the page loads find the same hash and add no history entry. Otherwise
@@ -7017,7 +7022,8 @@ gtag('config', 'G-6R8FPBQRFH');
         initGeneInfoLinks()
 
         // Attach handler to both the (IGV) link and the Reference Region link
-        const showIgvAndNavigate = () => showIgvAt(window.searchResults.rows[0]['ReferenceRegion'])
+        const showIgvAndNavigate = () => showIgvAt(
+            buildIgvLocusStringForLocusId(parseAndNormalizeLocusId(window.searchResults.rows[0]['LocusId'])))
         $('#show-igv-button').click(showIgvAndNavigate)
         $('.row-igv-button').click(showIgvAndNavigate)
     }
@@ -7053,9 +7059,8 @@ gtag('config', 'G-6R8FPBQRFH');
             document.title = `TRExplorer: ${locusId}`
             $('#locus-page-title').text(`Locus Page: ${referenceRegion} ${truncatedMotif}`)
 
-            let selectedColumns = REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE
             const whereClause = `WHERE ${buildSqlConditionForLocusId(parsedLocusId)}`
-            const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause}`
+            const query = `SELECT ${REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause}`
 
             window.searchResults = await queryBigQuery(query, 0, 1, null, null)
 
@@ -7087,9 +7092,6 @@ gtag('config', 'G-6R8FPBQRFH');
     // handle browser forward & back buttons
     window.addEventListener('popstate', readAndApplyPersistentPageStateFromUrl)
 
-    // init ui elements
-    $('.ui.button').popup()
-    $(".ui.checkbox").checkbox()
 
 
     $(document).ready(async () => {

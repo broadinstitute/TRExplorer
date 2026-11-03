@@ -164,6 +164,19 @@ def click_plot_bar(page, dataset_index, bar_index):
     return bar["value"]
 
 
+def wait_for_total_search_results(page, num_results):
+    """Waits for a search to show num_results results in total."""
+    page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_results}", timeout=60000)
+
+
+def click_plot_bar_and_wait_for_its_loci(page, dataset_index, bar_index):
+    """Clicks a bar of the first plot (see click_plot_bar), waits for the search it runs to show the bar's loci, and
+    returns their number."""
+    num_loci_in_bar = click_plot_bar(page, dataset_index, bar_index)
+    wait_for_total_search_results(page, num_loci_in_bar)
+    return num_loci_in_bar
+
+
 def get_custom_filters(page):
     return page.evaluate("customFilterGroups.flatMap(g => g.filters.map(f => [f.column, f.operator, f.value]))")
 
@@ -185,8 +198,7 @@ def open_search_with_plots(page, query, serialized_plots):
 def test_clicking_a_stacked_bar_segment_filters_to_its_loci(index_page, console_errors):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion,c:MotifSize,n:5")
     # The tallest bar is intron, and the first color is motif size 1
-    num_loci_in_segment = click_plot_bar(index_page, 0, 0)
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_segment}", timeout=60000)
+    num_loci_in_segment = click_plot_bar_and_wait_for_its_loci(index_page, 0, 0)
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "intron"], ["MotifSize", "=", "1"]]
     assert index_page.evaluate("GLOBAL_PAGE_STATE.showAdvFilters") == 1
     assert "cf=" in index_page.url
@@ -195,8 +207,7 @@ def test_clicking_a_stacked_bar_segment_filters_to_its_loci(index_page, console_
 
 def test_clicking_a_histogram_bin_filters_to_its_range(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:MotifSize,xm:bins,b:10")
-    num_loci_in_second_bin = click_plot_bar(index_page, 0, 1)
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_second_bin}", timeout=60000)
+    num_loci_in_second_bin = click_plot_bar_and_wait_for_its_loci(index_page, 0, 1)
     filters = get_custom_filters(index_page)
     assert [f[:2] for f in filters] == [["MotifSize", ">="], ["MotifSize", "<="]]
 
@@ -207,8 +218,7 @@ def get_plot_bar_index(page, display_label):
 
 def test_clicking_a_bar_whose_label_has_a_quote_filters_to_its_loci(index_page, console_errors):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion")
-    num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "3' UTR"))
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
+    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "3' UTR"))
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "3' UTR"]]
     assert real_errors(console_errors) == []
 
@@ -240,8 +250,7 @@ def test_clicking_a_bar_resets_settings_left_in_the_hidden_advanced_search_panel
     # keepCodingLoci is set but doesn't apply, since the advanced search panel is hidden
     url = f"{index_page.url.split('#')[0]}#showRs=1&q={MULTI_PAGE_REGION_QUERY}&keepCodingLoci=1&plots=t%3Abar%2Cx%3AGencodeGeneRegion"
     load_url_as_fresh_page_and_wait_for_plots(index_page, url, 1)
-    num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
+    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert index_page.evaluate("[GLOBAL_PAGE_STATE.showAdvFilters, GLOBAL_PAGE_STATE.keepCodingLoci]") == [1, 0]
     assert not index_page.is_checked("input[name='keepCodingLoci']")
 
@@ -251,8 +260,7 @@ def test_clicking_a_bar_ignores_unsubmitted_edits_and_back_hides_the_panel_again
     # An edit to the search box that wasn't searched for doesn't change what the click selects
     index_page.fill("#search-query", "HTT")
     index_page.locator("#search-query").blur()
-    num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
+    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert index_page.input_value("#search-query") == MULTI_PAGE_REGION_QUERY
     assert index_page.is_visible("#advanced-search-form")
     # Back returns to the search before the click, whose advanced search panel was hidden
@@ -319,8 +327,7 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
     index_page.wait_for_selector("#search-results-plot-dialog", state="hidden")
 
     # Clicking a bar keeps the loci that pass both the plot's filter and the bar's filter
-    num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
+    num_loci_in_bar = click_plot_bar_and_wait_for_its_loci(index_page, 0, get_plot_bar_index(index_page, "intron"))
     assert get_custom_filters(index_page) == [["MotifSize", ">=", "3"], ["GencodeGeneRegion", "=", "intron"]]
     # Another click on the plot adds the plot's filter again, but the search already has it, so it isn't duplicated
     index_page.evaluate("addCustomFilterGroupsAndSearch([{conjunction: 'AND', filters: [{column: 'MotifSize', operator: '>=', value: '3', enabled: true}]}])")
@@ -330,8 +337,7 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
 
 def test_clicking_a_fractional_histogram_bin_filters_to_exactly_its_loci(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:ReferenceRepeatPurity")
-    num_loci_in_bin = click_plot_bar(index_page, 0, 9)
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bin}", timeout=60000)
+    num_loci_in_bin = click_plot_bar_and_wait_for_its_loci(index_page, 0, 9)
 
 
 def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
@@ -340,7 +346,7 @@ def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
     num_loci_in_box = index_page.evaluate(
         "Chart.getChart(document.querySelector('.search-results-plot canvas')).data.datasets[0].boxRows[0].n_y")
     click_plot_bar(index_page, 0, 0)
-    index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_box}", timeout=60000)
+    wait_for_total_search_results(index_page, num_loci_in_box)
     assert get_custom_filters(index_page)[-1] == ["HPRC256_Stdev", "IS NOT NULL", ""]
 
 
@@ -470,7 +476,8 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     index_page.locator(".bottom-pagination .next-page").first.click()
     # The search sets the cursor back to default when page 2 has loaded and the plots have been refreshed
     index_page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
-    index_page.wait_for_load_state("networkidle")
+    # A plot that reran its query would still be loading
+    wait_for_plots_to_finish_loading(index_page, 1)
     index_page.remove_listener("request", record_query)
     assert index_page.evaluate("GLOBAL_PAGE_STATE.currentPage") == 2
     assert len(queries_sent) == 1

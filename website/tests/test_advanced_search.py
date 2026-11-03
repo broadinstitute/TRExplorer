@@ -9,6 +9,8 @@ import urllib.parse
 
 import pytest
 
+from test_basic_search import REGION_QUERY
+
 
 @pytest.fixture(autouse=True)
 def fail_on_uncaught_javascript_errors(page):
@@ -248,7 +250,7 @@ def test_form_edits_reach_the_url_only_when_the_search_button_is_pressed(page, b
     value_input = get_custom_filter_row(page, 0, 0).locator(".custom-filter-value")
     value_input.fill("0.5")
     value_input.press("Tab")
-    page.fill("#search-query", "HTT")
+    page.fill("#search-query", REGION_QUERY)
     page.locator("#search-query").press("Tab")
     assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.2|AND"
     assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") is None
@@ -258,7 +260,7 @@ def test_form_edits_reach_the_url_only_when_the_search_button_is_pressed(page, b
     page.click("#search-button")
     page.wait_for_function("() => new URLSearchParams(location.hash.slice(1)).get('showRs') === '1'")
     assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.5|AND"
-    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") == "HTT"
+    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") == REGION_QUERY
     assert page.evaluate("() => history.length") == history_length_before_edits + 1
 
 

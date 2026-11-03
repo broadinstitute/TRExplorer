@@ -2,8 +2,9 @@
 
 Each example query type is tested: genomic region, gene name, Ensembl gene ID,
 and Ensembl transcript ID. Tests confirm that results load without JS errors.
-After basic search validation, all columns are enabled and each is sorted
-ascending and descending. Multi-page queries also test pagination.
+After basic search validation, all columns are enabled and a few columns of
+different kinds (COLUMNS_TO_TEST_SORTING) are sorted in both directions. A
+multi-page region search also tests pagination.
 """
 
 import re
@@ -16,9 +17,12 @@ import pytest
 # gene or transcript name search scans whole columns of the table (about 0.5 GiB). So the tests search names only where
 # name search itself is tested, and search a region everywhere else.
 
+# A region search with a few results (around the HTT locus)
+REGION_QUERY = "chr4:3074000-3075000"
+
 # Queries from the example links on the page, with expected minimum result counts. Each one is searched once.
 SEARCH_QUERIES = [
-    ("chr4:3074000-3075000", 1),
+    (REGION_QUERY, 1),
     ("ATXN1", 1),
     ("ENSG00000165060", 1),
     ("ENST00000370475", 1),
@@ -151,7 +155,7 @@ def test_search_chr4_region_has_htt_disease_locus(index_page, console_errors):
 def test_all_columns_and_sorting(index_page, console_errors):
     """Enable all columns, verify they load, then sort a few columns of different kinds in both directions."""
     page = index_page
-    query = SEARCH_QUERIES[0][0]
+    query = REGION_QUERY
     do_search(page, query)
     enable_all_columns(page)
     assert_no_errors(page, console_errors, f"all columns for '{query}'")

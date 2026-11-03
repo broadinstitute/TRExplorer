@@ -2444,6 +2444,22 @@ gtag('config', 'G-6R8FPBQRFH');
         return parsedLocusId
     }
 
+    // Returns the {column, direction} that a table is sorted by after a click on a column's header: a new column sorts in
+    // its default direction, a second click on it flips the direction, and a third click goes back to the table's
+    // default order, which is returned as {column: null, direction: null}
+    const getSortAfterColumnHeaderClick = (sortColumn, sortDirection, clickedColumn, clickedColumnDefaultDirection) => {
+        if (clickedColumn !== sortColumn) return {column: clickedColumn, direction: clickedColumnDefaultDirection}
+        if (sortDirection === clickedColumnDefaultDirection) {
+            return {column: clickedColumn, direction: clickedColumnDefaultDirection === 'ASC' ? 'DESC' : 'ASC'}
+        }
+        return {column: null, direction: null}
+    }
+
+    // The IGV locus string of a LocusId from parseAndNormalizeLocusId. IGV reads the start of a locus string as 1-based,
+    // while a LocusId's start is 0-based.
+    const buildIgvLocusStringForLocusId = (parsedLocusId) =>
+        `chr${parsedLocusId.chrom}:${parsedLocusId.start_0based + 1}-${parsedLocusId.end_1based}`
+
     // The SQL condition that selects the catalog row of a LocusId from parseAndNormalizeLocusId, or 'FALSE' (rather than
     // invalid SQL) for a chromosome the catalog doesn't have. The table is partitioned on chrom_index and clustered by
     // start_0based, so these limit the bytes scanned.
@@ -6123,24 +6139,13 @@ gtag('config', 'G-6R8FPBQRFH');
         observeCompositionPlaceholders()
     }
 
-    // Cycle sort state for the clicked column. Click sequence per column:
-    //   default order -> column's default direction
-    //   default direction -> opposite direction
-    //   opposite direction -> back to default order
+    // Cycle sort state for the clicked column (see getSortAfterColumnHeaderClick)
     const cycleSortForColumn = (column) => {
         const state = DECOMPOSED_ALLELES_STATE
-        const col = ALLELE_TABLE_COLUMNS[column]
-        const defaultDir = col?.defaultSortDirection || 'ASC'
-        const oppositeDir = defaultDir === 'ASC' ? 'DESC' : 'ASC'
-        if (state.sortColumn !== column) {
-            state.sortColumn = column
-            state.sortDirection = defaultDir
-        } else if (state.sortDirection === defaultDir) {
-            state.sortDirection = oppositeDir
-        } else {
-            state.sortColumn = null
-            state.sortDirection = null
-        }
+        const nextSort = getSortAfterColumnHeaderClick(
+            state.sortColumn, state.sortDirection, column, ALLELE_TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC')
+        state.sortColumn = nextSort.column
+        state.sortDirection = nextSort.direction
         // Sorting reshuffles rows — reset paging to the first page.
         state.visibleCount = Math.min(DECOMPOSED_ALLELES_PAGE_SIZE, state.alleles.length)
         // Persist the new sort state in the URL hash.
@@ -9560,7 +9565,8 @@ gtag('config', 'G-6R8FPBQRFH');
     // In the URL, each filter is written as [!]col|op|encoded_val|conj, where '!' marks a disabled filter and conj is
     // its group's conjunction. The conjunction is always written explicitly so a value literally equal to 'AND' or
     // 'OR' can't be mistaken for the conjunction segment on reload. Filters are joined by ';', and an 'AND' entry
-    // starts the next group. Links from before filter groups existed have no 'AND' entries, so they load as one group.
+    // starts the next group. Links from before filter groups existed have no 'AND' entries, so they load as one group,
+    // and links from March to May 2026 have no conjunction in each filter (see parseCustomFilterGroups).
     const CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL = 'AND'
 
     // The names of the checkboxes in the advanced search panel. GLOBAL_PAGE_STATE stores each one under its name, as 1
@@ -9632,14 +9638,17 @@ gtag('config', 'G-6R8FPBQRFH');
             // The value is URL-encoded so a literal '|' in it is %7C and the last segment is unambiguously the
             // conjunction.
             const segments = entry.split('|')
-            if (segments.length < 4) continue
+            if (segments.length < 3) continue
+            // Links from March to May 2026 wrote each filter as [!]col|op|encoded_val, with no conjunction, which
+            // means AND
+            const hasConjunction = segments.length >= 4
             const enabled = !segments[0].startsWith('!')
             const column = enabled ? segments[0] : segments[0].slice(1)
             if (!column) continue
             // Drop an operator the column's operator dropdown doesn't offer, so the form asks for one
             const columnType = getCustomFilterColumnInfo(column)?.type || 'STRING'
             const operator = getOperatorsForType(columnType).some(op => op.value === segments[1]) ? segments[1] : ''
-            const valueEncoded = segments.slice(2, -1).join('|')
+            const valueEncoded = hasConjunction ? segments.slice(2, -1).join('|') : segments[2]
             let value
             try {
                 value = decodeURIComponent(valueEncoded)
@@ -9648,7 +9657,7 @@ gtag('config', 'G-6R8FPBQRFH');
             }
             // A group's conjunction is read from its first filter, since all filters in a group share it
             if (!group) {
-                group = {conjunction: segments[segments.length - 1] === 'OR' ? 'OR' : 'AND', filters: []}
+                group = {conjunction: hasConjunction && segments[segments.length - 1] === 'OR' ? 'OR' : 'AND', filters: []}
                 groups.push(group)
             }
             group.filters.push({column, operator, value, enabled})
@@ -10259,7 +10268,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
             tableHtml += `<tr ${diseaseAssociatedIconHtml ? 'class="disease-associated-row"' : ''}>`
             tableHtml += `<td style="text-align: center; white-space: nowrap; padding: 3px 5px;">
-                <a class="row-locus-page-link action-link" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" title="Go to locus page" style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</a>
+                <a class="row-locus-page-link action-link" data-locus-id="${row['LocusId']}" title="Go to locus page" style="font-weight: bold;">#${(startIndex + index + 1).toLocaleString()}</a>
             </td>`
 
             shownColumnNames.forEach(columnName => {
@@ -10268,7 +10277,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 const cellStyle = columnObject.getCellStyle ? columnObject.getCellStyle(row) : ''
                 tableHtml += `<td style="padding: 3px 5px 3px 10px;${cellStyle}">${value != null ? value : ''}</td>`
             })
-            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" title="Show in IGV.js" style="margin-right: 12px;">IGV</a><button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" data-reference-region="${row['ReferenceRegion']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
+            tableHtml += `<td style="padding: 8px 10px; white-space: nowrap; text-align: right;">${diseaseAssociatedIconHtml}<a class="row-igv-button action-link" data-reference-region="${row['ReferenceRegion']}" title="Show in IGV.js" style="margin-right: 12px;">IGV</a><button class="ui basic mini button row-locus-page-button" data-locus-id="${row['LocusId']}" style="padding: 5px 10px; color: #2185d0; font-weight: 500; border: 1px solid #2185d0; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">locus &gt;</button></td>`
             tableHtml += '</tr>'
         })
         tableHtml += '</tbody></table>'
@@ -10276,19 +10285,11 @@ gtag('config', 'G-6R8FPBQRFH');
 
         // Add click handlers for sortable headers
         resultsTableElement.find('.results-table-sortable-header').click(function() {
-            // A new column sorts in its default direction, a second click flips the direction, and a third click goes
-            // back to the default sort
             const column = $(this).data('column')
-            const defaultDirection = TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC'
-            if (column !== sortColumn) {
-                GLOBAL_PAGE_STATE['sc'] = column
-                GLOBAL_PAGE_STATE['sd'] = defaultDirection
-            } else if (sortDirection === defaultDirection) {
-                GLOBAL_PAGE_STATE['sd'] = defaultDirection === 'ASC' ? 'DESC' : 'ASC'
-            } else {
-                GLOBAL_PAGE_STATE['sc'] = DEFAULT_SORT_COLUMN
-                GLOBAL_PAGE_STATE['sd'] = DEFAULT_SORT_DIRECTION
-            }
+            const nextSort = getSortAfterColumnHeaderClick(
+                sortColumn, sortDirection, column, TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC')
+            GLOBAL_PAGE_STATE['sc'] = nextSort.column ?? DEFAULT_SORT_COLUMN
+            GLOBAL_PAGE_STATE['sd'] = nextSort.direction ?? DEFAULT_SORT_DIRECTION
             // The new order is shown from its top
             GLOBAL_PAGE_STATE['currentPage'] = 1
 
@@ -10305,14 +10306,13 @@ gtag('config', 'G-6R8FPBQRFH');
         // add click handler for locus page buttons
         $('.row-locus-page-button, .row-locus-page-link').click(function() {
             const locusId = $(this).data('locus-id')
-            const referenceRegion = $(this).data('reference-region')
-            if (!locusId || !referenceRegion) return
+            if (!locusId) return
 
             // Pass along this page's state, so the locus page's links back here restore it. URLSearchParams decodes the
             // values it reads and encodes the values it writes, so each value keeps exactly one level of encoding.
             const locusPageUrlParams = new URLSearchParams(window.location.hash.substring(1))
             locusPageUrlParams.set('locusId', locusId)
-            locusPageUrlParams.set('igvLoc', referenceRegion)
+            locusPageUrlParams.set('igvLoc', buildIgvLocusStringForLocusId(parseAndNormalizeLocusId(locusId)))
 
             const locusPageUrl = `locus.html?#${locusPageUrlParams.toString()}`
             window.open(locusPageUrl, '_blank')
@@ -11217,7 +11217,7 @@ gtag('config', 'G-6R8FPBQRFH');
             } else {
                 const parsedLocusId = parseAndNormalizeLocusId(searchItem)
                 if (parsedLocusId) {
-                    GLOBAL_PAGE_STATE['igvLoc'] = `${parsedLocusId.chrom}:${parsedLocusId.start_0based}-${parsedLocusId.end_1based}`
+                    GLOBAL_PAGE_STATE['igvLoc'] = buildIgvLocusStringForLocusId(parsedLocusId)
                 }
             }
         }
@@ -11231,8 +11231,8 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     $('#search-form').submit(handleSearch)
-    $('#advanced-search-form').submit(handleSearch)
-    // Delegated handler so dynamically-added inputs (e.g. custom filter rows) submit on Enter
+    // Enter in any of the advanced search form's inputs (including the custom filter rows added later) runs the search.
+    // The form itself is never submitted, since it has no submit button.
     $('#advanced-search-form').on('keypress', 'input', (e) => {
         if (e.which === 13) {
             e.preventDefault()

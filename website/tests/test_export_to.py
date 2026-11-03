@@ -102,8 +102,8 @@ def do_export(page, fmt, overlap_handling=None):
         timeout=60000,
     )
 
-    # The page keeps working for 2 s after each download link (performExport), then resets the cursor and clears its
-    # pending export. Wait for that, so a second export from this page isn't cleared before its Download click.
+    # performExport waits 2 s after each download link and then resets the cursor. Wait for that, so the next export
+    # from this page starts after this one has finished.
     page.wait_for_function("() => document.body.style.cursor !== 'wait'", timeout=60000)
 
     page.remove_listener("dialog", accept_dialog)

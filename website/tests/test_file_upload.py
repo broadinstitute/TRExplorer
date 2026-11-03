@@ -201,11 +201,12 @@ def test_upload_token_is_sql_injection_safe(index_page, console_errors, tmp_path
     f = tmp_path / "evil.txt"
     f.write_text("x\\') OR TRUE--\n")
     upload_files(page, [f])
-    page.wait_for_load_state("networkidle")
+    # The search sets the cursor back to default when it finishes
+    page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
 
     assert not page.is_visible("#error-message")
-    # Injection would return a full page of unfiltered rows; a safely-escaped token matches nothing.
-    assert len(page.query_selector_all("#results-table tbody tr")) < 50
+    # Injection would return unfiltered rows; a safely-escaped token matches nothing.
+    assert page.evaluate("window.searchResults.total_results") == 0
     assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
 
 
