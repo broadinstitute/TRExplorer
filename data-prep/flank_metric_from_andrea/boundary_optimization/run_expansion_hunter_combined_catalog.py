@@ -24,8 +24,7 @@ DOCKER_IMAGE = "weisburd/str-analysis-with-expansion-hunter@sha256:7a006e45a297d
 REFERENCE_FASTA_PATH = "gs://str-truth-set/hg38/ref/hg38.fa"
 REFERENCE_FASTA_FAI_PATH = "gs://str-truth-set/hg38/ref/hg38.fa.fai"
 
-SAMPLE_TABLE_PATH = os.path.expanduser(
-    "~/code/tandem-repeat-explorer/data-prep/expansion_hunter_genotype_quality/selected_1kGP_samples.tsv")
+SAMPLE_TABLE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "selected_1kGP_samples.tsv")
 CATALOG_PATH = "gs://tandem-repeat-catalog/v2.0/boundary_optimization/combined_eh_catalog.json"
 OUTPUT_DIR = "gs://bw2-delete-after-5-days/boundary_optimization_validation/combined_catalog_eh_run"
 

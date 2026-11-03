@@ -1,6 +1,6 @@
 """Compare ExpansionHunter's per-allele pOk under the gap-purity rule's original vs. extended locus
 definitions, using the corrected combined-catalog run (samples listed in
-../expansion_hunter_genotype_quality/selected_1kGP_samples.tsv, optimized-streaming -- built from
+selected_1kGP_samples.tsv, optimized-streaming -- built from
 the corrected combined_eh_catalog.json, which covers ALL 347,704 Andrea v2-exact-match loci as
 __original entries, plus __extended entries for the 16,264 that the gap-purity rule extends, plus
 the non-GCN/NGC known disease loci).
@@ -48,7 +48,7 @@ DATA_DIR = Path(__file__).parent / "data"
 JSON_DIR = DATA_DIR / "combined_catalog_eh_output" / "json"
 ANDREA_CATALOG_PATH = Path(__file__).parent.parent / "TR_catalog_2_6bp_with_flank_metrics.tsv.gz"
 ANDREA_SCAN_TSV = DATA_DIR / "gap_purity_scan_v2_exact_matches.tsv"
-SAMPLE_TABLE_PATH = Path(__file__).parent.parent.parent / "expansion_hunter_genotype_quality" / "selected_1kGP_samples.tsv"
+SAMPLE_TABLE_PATH = Path(__file__).parent / "selected_1kGP_samples.tsv"
 
 SAMPLES = pd.read_table(SAMPLE_TABLE_PATH)["sample_id"].tolist()
 
