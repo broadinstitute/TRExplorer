@@ -1,6 +1,63 @@
 <script>
     /** --------- START of utils for IGV.js  ---------- */
 
+    // A row of the IGV track selection dialog: the track's checkbox and help icon (if any), and its number of loci
+    const buildIgvTrackCheckboxRow = (rt, checkboxStyle = 'display: inline-block') => `
+        <tr><td><div class="ui checkbox igv-track-checkbox" style="${checkboxStyle}"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
+    `
+
+    // Whether an IGV track was loaded from the URL in custom track slot slotNumber (1-3) of the page state
+    const isTrackFromCustomTrackSlot = (track, slotNumber) =>
+        !!track.url && track.url === (GLOBAL_PAGE_STATE[`igv_custom_track_url_${slotNumber}`] || '').trim()
+
+    // Sets the custom track URL inputs of the IGV track selection dialog from GLOBAL_PAGE_STATE
+    const setCustomTrackUrlInputsFromPageState = () => {
+        for (let i = 1; i <= 3; i++) {
+            $(`#igv-custom-track-url-${i}`).val(GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] || '')
+        }
+    }
+
+    // Shows the IGV row, first ending any slideUp that is hiding it, which would otherwise hide it again when it finishes
+    const showIgvRow = () => {
+        $('#igv-row').stop(true, true).show()
+        $('#show-igv-divider-text').hide()
+        $('#hide-igv-divider-text').show()
+    }
+
+    // Shows or hides the IGV row to match GLOBAL_PAGE_STATE['showIGV'] (eg. hides it after Back to a state where it was
+    // hidden), updating IGV when it is shown, and sets the custom track URL inputs from the page state
+    const applyIgvPageState = async () => {
+        if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
+            showIgvRow()
+            await updateIgv()
+        } else {
+            $('#igv-row').hide()
+            $('#hide-igv-divider-text').hide()
+            $('#show-igv-divider-text').show()
+        }
+        setCustomTrackUrlInputsFromPageState()
+    }
+
+    // Makes the divider above the IGV row show or hide it, and saves the choice in the URL. onToggled runs after each
+    // toggle.
+    const initShowIgvDivider = (onToggled = () => {}) => {
+        $('#show-igv-divider').click(async () => {
+            GLOBAL_PAGE_STATE['showIGV'] = (GLOBAL_PAGE_STATE['showIGV'] === 1) ? 0 : 1
+            writePersistentPageStateToUrl()
+
+            if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
+                showIgvRow()
+                await updateIgv()
+            } else {
+                $('#igv-row').slideUp(500, () => {
+                    $('#hide-igv-divider-text').hide()
+                    $('#show-igv-divider-text').show()
+                })
+            }
+            onToggled()
+        })
+    }
+
     const generateIgvConfig = (addSelectedTracks) => {
 
         // specify IGV tracks and the data to display in them
@@ -71,12 +128,14 @@
 
             })
 
-            // Add custom tracks if they have URLs
+            // Add custom tracks if they have URLs. The URL comes from the page URL, which anyone can craft, and IGV shows
+            // the track name and description (by default, the URL) as HTML, so both are given here, escaped.
             for (let i = 1; i <= 3; i++) {
                 const url = GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`]
                 if (url && url.trim() !== '') {
                     tracks.push({
-                        name: url.split('/').pop(),
+                        name: escapeHtmlText(url.split('/').pop()),
+                        description: escapeHtmlText(url.trim()),
                         url: url.trim()
                     })
                 }
@@ -105,8 +164,9 @@
 
     async function updateIgv() {
 
-        // create igv.js browser object if it hasn't been created yet
-        if (!window.igvBrowser) {
+        // create igv.js browser object if it hasn't been created yet. A call that comes while it's being created waits for
+        // that (window.igvBrowserSetup), rather than creating a second browser and filling in the track dialog again.
+        window.igvBrowserSetup = window.igvBrowserSetup || (async () => {
             const config = generateIgvConfig(false)
             window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
 
@@ -121,12 +181,45 @@
                         writePersistentPageStateToUrl()
                     }
                 })
+                // a custom track: forget its URL, so it doesn't come back the next time IGV is updated
+                for (let i = 1; i <= 3; i++) {
+                    if (isTrackFromCustomTrackSlot(track, i)) {
+                        GLOBAL_PAGE_STATE[`igv_custom_track_url_${i}`] = ''
+                        $(`#igv-custom-track-url-${i}`).val('')
+                        writePersistentPageStateToUrl()
+                    }
+                }
+            })
+
+            // IGV shows the fields of a clicked feature as HTML without escaping them. A custom track's file can come from
+            // anyone (its URL can be in a shared link), so custom tracks' popups are built here with the fields escaped,
+            // in the same layout as IGV's own popups. Returning undefined keeps IGV's popup for the other tracks.
+            window.igvBrowser.on('trackclick', (track, popoverData) => {
+                if (![1, 2, 3].some(i => isTrackFromCustomTrackSlot(track, i)) || !Array.isArray(popoverData) || popoverData.length === 0) {
+                    return undefined
+                }
+                // IGV already escapes the '<' of some values (e.g. a VCF's symbolic ALT allele), so that's undone first
+                const escapeFieldText = (text) => escapeHtmlText(String(text == null ? '' : text).replace(/&lt;/g, '<'))
+                return popoverData.map(item => {
+                    // IGV's own HTML items are separators ('<hr>' strings, or {html: '<hr ... />'}), shown as a plain
+                    // separator, and links (e.g. to OpenCRAVAT for a SNP), which are left out since they can't be checked
+                    const html = item && item.html !== undefined ? item.html : (typeof item === 'string' && item.startsWith('<') ? item : null)
+                    if (html !== null) return /^\s*(<hr[^>]*>\s*)+$/.test(html) ? '<hr>' : ''
+                    if (item && item.name) {
+                        return `<div title="${escapeFieldText(item.value)}"><span>${escapeFieldText(item.name)}</span>&nbsp;&nbsp;&nbsp;${escapeFieldText(item.value)}</div>`
+                    }
+                    return `<div title="${escapeFieldText(item)}">${escapeFieldText(item)}</div>`
+                }).join('')
             })
 
             window.igvBrowser.on('locuschange', (locus) => {
-                if (locus[0] && locus[0].chr && locus[0].start && locus[0].end) {
-                    GLOBAL_PAGE_STATE['igvLoc'] = `${locus[0].chr}:${parseInt(locus[0].start)}-${parseInt(locus[0].end)}`
-                    writePersistentPageStateToUrl()
+                // A whole chromosome starts at 0, so the coordinates are checked for being numbers rather than for being truthy
+                if (locus[0] && locus[0].chr && Number.isFinite(locus[0].start) && Number.isFinite(locus[0].end)) {
+                    // igv.js keeps a 0-based start but reads locus strings as 1-based, so add 1. Panning replaces the
+                    // current history entry instead of adding one, so Back goes to the previous page state rather than
+                    // stepping through IGV locations (which IGV re-reports, and so re-pushes, after each Back).
+                    GLOBAL_PAGE_STATE['igvLoc'] = `${locus[0].chr}:${Math.floor(locus[0].start) + 1}-${Math.round(locus[0].end)}`
+                    writePersistentPageStateToUrl(true)
                 }
             })
 
@@ -139,18 +232,12 @@
             </button>`
             )
 
-            $('#igv-tr-explorer-catalog-tracks-checkboxes').html($('#igv-tr-explorer-catalog-tracks-checkboxes').html() +
-                TR_EXPLORER_CATALOG.map((rt) => `
-                <tr><td>
-                    <div class="inline-field"><div class="ui checkbox igv-track-checkbox"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div> ${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '" ></i>' : ''}
-                </td><td class="igv-number-of-loci-column">
-                     ${rt[3].toLocaleString()}
-                </td></tr>
-            `).join(' ') + `
+            $('#igv-tr-explorer-catalog-tracks-checkboxes').append(
+                TR_EXPLORER_CATALOG.map((rt) => buildIgvTrackCheckboxRow(rt)).join(' ') + `
                 <tr>
                     <td style="padding: 5px 0px !important" colspan="2">
                         <a href="#" class="show-details-button" id="show-details-for-source-catalogs">Show checkboxes for source catalogs</a>
-                        <i class="question circle icon link" style="margin-left: 15px;" data-html="These source catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]."></i>
+                        <i class="question circle icon link" style="margin-left: 15px;" data-html="These source catalogs were merged to create the TRExplorer Catalog. For more details, see [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]."></i>
                     </td>
                 </tr>
             ` + `
@@ -158,33 +245,22 @@
                     <td colspan="2">
                         <table style="width: 100%;">
             ` +
-                TR_EXPLORER_SOURCE_CATALOGS.map((rt) => `
-                <tr><td><div class="ui checkbox igv-track-checkbox" style="margin-left: 30px !important; display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' ') + `
+                TR_EXPLORER_SOURCE_CATALOGS.map((rt) => buildIgvTrackCheckboxRow(rt, 'margin-left: 30px !important; display: inline-block')).join(' ') + `
                         </table>
                     </td>
                 </tr>
             `)
 
-            $('#igv-variation-cluster-tracks-checkboxes').html($('#igv-variation-cluster-tracks-checkboxes').html() +
-                TR_VARIATION_CLUSTERS.map((rt) => `
-                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' ')
-            )
+            $('#igv-variation-cluster-tracks-checkboxes').append(
+                TR_VARIATION_CLUSTERS.map((rt) => buildIgvTrackCheckboxRow(rt)).join(' '))
 
-            $('#igv-other-tr-catalog-tracks-checkboxes').html($('#igv-other-tr-catalog-tracks-checkboxes').html() +
-                GENOME_WIDE_TR_CATALOGS.map((rt) => `
-                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' ')
-            )
+            $('#igv-other-tr-catalog-tracks-checkboxes').append(
+                GENOME_WIDE_TR_CATALOGS.map((rt) => buildIgvTrackCheckboxRow(rt)).join(' '))
 
-            $('#igv-known-disease-loci-checkboxes').html($('#igv-known-disease-loci-checkboxes').html() +
-                KNOWN_TR_LOCI_TRACK.map((rt) => `
-                <tr><td><div class="ui checkbox igv-track-checkbox" style="display: inline-block"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>${rt[4] ? '<i class="question circle icon link" data-html="' + rt[4] + '"></i>' : ''}</td><td class="igv-number-of-loci-column">${rt[3].toLocaleString()}</td></tr>
-            `).join(' ')
-            )
+            $('#igv-known-disease-loci-checkboxes').append(
+                KNOWN_TR_LOCI_TRACK.map((rt) => buildIgvTrackCheckboxRow(rt)).join(' '))
 
-            $('#igv-reference-tracks-checkboxes').html($('#igv-reference-tracks-checkboxes').html() +
+            $('#igv-reference-tracks-checkboxes').append(
                 `<tr><td>` +
                 REFERENCE_TRACKS.map((rt) => `
                 <div class="ui checkbox igv-track-checkbox"><input type="checkbox" name="${rt[0]}" ${GLOBAL_PAGE_STATE[rt[0]] ? 'checked' : ''}><label>${rt[1]}</label></div>
@@ -192,7 +268,7 @@
                 + `</td></tr>`
             )
 
-            $('#igv-custom-tracks').html($('#igv-custom-tracks').html() +
+            $('#igv-custom-tracks').append(
                 `<tr>
                 <td colspan="2">
                     <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-1" placeholder="Enter a public data file URL for custom track #1. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
@@ -201,8 +277,11 @@
                 </td>
             </tr>`
             )
+            // The inputs didn't exist when the page state was restored, so fill them in now
+            setCustomTrackUrlInputsFromPageState()
 
-            $(".ui.checkbox").checkbox()
+            // Only the checkboxes added above: initializing others again would reset their settings (e.g. onChange)
+            $('#igv-track-selection-dialog .ui.checkbox').checkbox()
 
             // Add click handler for source catalogs toggle
             $('#show-details-for-source-catalogs').click(function(e) {
@@ -210,10 +289,10 @@
                 var content = $('.source-catalogs-content');
                 if (content.css('display') === 'none') {
                     content.css('display', 'table-row');
-                    $(this).text('Hide source catalogs');
+                    $(this).text('Hide checkboxes for source catalogs');
                 } else {
                     content.css('display', 'none');
-                    $(this).text('Show source catalogs');
+                    $(this).text('Show checkboxes for source catalogs');
                 }
             });
 
@@ -224,6 +303,7 @@
                     const isChecked = GLOBAL_PAGE_STATE[trackName] === 1
                     $(`input[name="${trackName}"]`).prop('checked', isChecked)
                 })
+                setCustomTrackUrlInputsFromPageState()
 
                 $('#igv-track-selection-dialog').modal('show')
                 $('.question').popup({ on: 'click' })
@@ -251,20 +331,34 @@
                 writePersistentPageStateToUrl()
                 await updateIgv()
             })
-        }
+        })().catch((error) => {
+            // Remove the failed browser, which igv.js leaves in the viewport, so that a retry doesn't add a second one
+            igv.removeAllBrowsers()
+            window.igvBrowser = null
+            window.igvBrowserSetup = null  // so that the next call tries again
+            throw error
+        })
+        await window.igvBrowserSetup
 
         if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
             const igvConfig = generateIgvConfig(true)
 
             console.log("Updating igv config to", igvConfig)
-            await window.igvBrowser.loadSessionObject(igvConfig)
+            // A track that fails to load (e.g. a mistyped custom track URL) makes this throw, so the error is logged here
+            // rather than passed on to callers, which would then skip loading the page's data.
+            try {
+                await window.igvBrowser.loadSessionObject(igvConfig)
+            } catch (error) {
+                console.error('IGV failed to load a track:', error)
+            }
         }
     }
 
     // Show IGV at a given locus string (e.g. "chr13:102161564-102161844"), opening
-    // the IGV panel if hidden, then scrolling the page to it. The page-local
-    // `#show-igv-divider` click handler drives the async init when IGV is hidden;
-    // when already shown we trigger search() directly on the existing browser.
+    // the IGV panel if hidden, then scrolling the page to it. When IGV is hidden, the
+    // click handler that initShowIgvDivider installs on #show-igv-divider shows it and
+    // creates or updates the browser; when it's already shown, search() is called on the
+    // existing browser.
     async function showIgvAt(locus) {
         if (!locus) return
         GLOBAL_PAGE_STATE['igvLoc'] = locus

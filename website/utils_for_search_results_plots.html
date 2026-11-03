@@ -147,6 +147,10 @@
         return settings.xMode === 'bins'
     }
 
+    // Whether a histogram's bins have a whole-number width, so that each bin holds a fixed set of integers. The query
+    // (buildSearchResultsPlotQuery) and the bin labels and click filters (getHistogramBins) must agree on this.
+    const hasIntegerHistogramBins = (settings, xColumn) => xColumn.type === 'INTEGER' && settings.xScale === 'linear'
+
     // Bar plots stack the color categories when the bar heights add up (counts and sums), and put them side by side
     // otherwise (means, medians, mins and maxes)
     const isStackedBarPlot = (settings) => settings.type === 'bar' && !!settings.color && (!settings.y || settings.agg === 'sum')
@@ -327,8 +331,7 @@
         if (histogram) {
             // Equal-width bins in the plotted (scaled) space. A linear axis over an integer column gets bins whose
             // width is a whole number, so that each bin holds a fixed set of integers.
-            const isIntegerBins = xColumn.type === 'INTEGER' && settings.xScale === 'linear'
-            const binWidth = isIntegerBins
+            const binWidth = hasIntegerHistogramBins(settings, xColumn)
                 ? `GREATEST(1, CEIL((MAX(tx) - MIN(tx) + 1) / ${settings.bins}))`
                 : `(MAX(tx) - MIN(tx)) / ${settings.bins}`
             ctes.push(`transformed AS (SELECT *, ${plotScaleTransformSql('x', settings.xScale)} AS tx FROM base)`)
@@ -489,7 +492,7 @@
     }
 
     const hexColorWithAlpha = (hexColor, alpha) => {
-        const [r, g, b] = [1, 3, 5].map(i => parseInt(hexColor.slice(i, i + 2), 16))
+        const {r, g, b} = hexToRgb(hexColor)
         return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
 
@@ -621,7 +624,7 @@
         const firstRow = rows[0]
         if (!firstRow || firstRow.bin_range_lo === null || firstRow.bin_range_lo === undefined) return []
         const {bin_range_lo: lo, bin_range_hi: hi, bin_width: width} = firstRow
-        const isIntegerBins = xColumn.type === 'INTEGER' && settings.xScale === 'linear'
+        const isIntegerBins = hasIntegerHistogramBins(settings, xColumn)
         const numBins = isIntegerBins ? Math.ceil((hi - lo + 1) / width) : (width > 0 ? settings.bins : 1)
         const toRawValue = PLOT_SCALE_TRANSFORMS[settings.xScale].inverse
         const bins = []
@@ -653,15 +656,38 @@
         return bins
     }
 
+    // Splits a bar or box plot query's rows into the rows for each (x, color) pair, the rows with each x category's
+    // totals over the color categories, and the row with the totals over all loci
+    const splitPlotQueryRows = (rows) => {
+        const xTotalRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 1)
+        return {
+            leafRows: rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 0),
+            xTotalRows,
+            xTotalRowsByXLabel: Object.fromEntries(xTotalRows.map(r => [r.x_label, r])),
+            grandTotalRow: rows.find(r => r.is_grand_total === 1),
+        }
+    }
+
+    // The number of loci in the shown x and color categories that have no y value
+    const countLociWithoutYValue = (settings, leafRows, shownXLabels, colorLabels) => {
+        const shownXLabelSet = new Set(shownXLabels)
+        const shownColorLabelSet = new Set(colorLabels)
+        return leafRows.filter(r => shownXLabelSet.has(r.x_label) && shownColorLabelSet.has(settings.color ? r.c_label : ''))
+            .reduce((sum, r) => sum + r.n - r.n_y, 0)
+    }
+
+    // The legend options of a plot whose datasets are the color column's categories
+    const buildColorLegendOptions = (settings) => ({
+        display: !!settings.color,
+        title: {display: !!settings.color, text: settings.color ? SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME[settings.color].displayName : ''},
+    })
+
     const buildBarPlotChart = (settings, rows) => {
         const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
         const histogram = isHistogramPlot(settings)
         const stacked = isStackedBarPlot(settings)
         const percent = stacked && settings.pct === 1
-        const leafRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 0)
-        const xTotalRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 1)
-        const xTotalRowsByXLabel = Object.fromEntries(xTotalRows.map(r => [r.x_label, r]))
-        const grandTotalRow = rows.find(r => r.is_grand_total === 1)
+        const {leafRows, xTotalRows, xTotalRowsByXLabel, grandTotalRow} = splitPlotQueryRows(rows)
         const barValue = (row) => settings.y ? row.y_value : row.n
         const colorLabels = getShownColorCategories(settings, rows)
 
@@ -742,10 +768,7 @@
         if (settings.y) {
             const aggregateDescription = {mean: 'mean', median: 'approximate median', min: 'minimum', max: 'maximum', sum: 'sum'}[settings.agg]
             captionSentences.push(`Bar heights show the ${aggregateDescription} of ${columns[settings.y].displayName} over the loci in each ${histogram ? 'bin' : 'category'}.`)
-            const shownXLabelSet = new Set(xCategories.map(c => c.xLabel))
-            const shownColorLabelSet = new Set(colorLabels)
-            const lociWithoutY = leafRows.filter(r => shownXLabelSet.has(r.x_label) && shownColorLabelSet.has(settings.color ? r.c_label : ''))
-                .reduce((sum, r) => sum + r.n - r.n_y, 0)
+            const lociWithoutY = countLociWithoutYValue(settings, leafRows, xCategories.map(c => c.xLabel), colorLabels)
             if (lociWithoutY > 0) {
                 captionSentences.push(`${pluralizeLoci(lociWithoutY)} with no ${columns[settings.y].displayName} value are not included in the bar heights.`)
             }
@@ -776,8 +799,7 @@
                     },
                     plugins: {
                         legend: {
-                            display: !!settings.color,
-                            title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''},
+                            ...buildColorLegendOptions(settings),
                             // Floating stack segments are positioned from all the colors' values, so hiding a color
                             // from the legend would leave the others at the wrong heights
                             ...(drawStackAsFloatingBars ? {onClick: () => {}} : {}),
@@ -830,10 +852,7 @@
 
     const buildBoxPlotChart = (settings, rows) => {
         const columns = SEARCH_RESULTS_PLOT_COLUMNS_BY_NAME
-        const leafRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 0)
-        const xTotalRows = rows.filter(r => r.is_grand_total === 0 && r.is_total_over_colors === 1)
-        const xTotalRowsByXLabel = Object.fromEntries(xTotalRows.map(r => [r.x_label, r]))
-        const grandTotalRow = rows.find(r => r.is_grand_total === 1)
+        const {leafRows, xTotalRows, xTotalRowsByXLabel, grandTotalRow} = splitPlotQueryRows(rows)
         const colorLabels = getShownColorCategories(settings, rows)
         const leafRowsByLabels = Object.fromEntries(leafRows.map(r => [`${r.x_label}\t${settings.color ? r.c_label : ''}`, r]))
 
@@ -873,10 +892,7 @@
         const captionSentences = [
             `Based on ${pluralizeLoci(grandTotalRow ? grandTotalRow.n : 0)} in ${describeSearchResultsPlotLoci(settings)}. Boxes span the 25th to 75th percentiles (approximate) of ${yName}, the thick line is the median, and the whiskers reach the most extreme values that are within 1.5 times the interquartile range (the 75th minus the 25th percentile, in ${yName} units) of the box.`,
         ]
-        const shownXLabelSet = new Set(xLabels)
-        const shownColorLabelSet = new Set(colorLabels)
-        const lociWithoutY = leafRows.filter(r => shownXLabelSet.has(r.x_label) && shownColorLabelSet.has(settings.color ? r.c_label : ''))
-            .reduce((sum, r) => sum + r.n - r.n_y, 0)
+        const lociWithoutY = countLociWithoutYValue(settings, leafRows, xLabels, colorLabels)
         if (lociWithoutY > 0) {
             captionSentences.push(`${pluralizeLoci(lociWithoutY)} with no ${yName} value${settings.yScale === 'log' ? ', or a value ≤ 0 that a log scale can\'t show,' : ''} are not included.`)
         }
@@ -893,7 +909,7 @@
                         y: buildNumericAxisOptions(settings.yScale, yName, {beginAtZero: false, ...yAxisRange}),
                     },
                     plugins: {
-                        legend: {display: !!settings.color, title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''}},
+                        legend: buildColorLegendOptions(settings),
                         tooltip: {callbacks: {label: (context) => {
                             const row = context.dataset.boxRows[context.dataIndex]
                             if (!row) return ''
@@ -1128,7 +1144,7 @@
                         y: buildNumericAxisOptions(settings.yScale, yName),
                     },
                     plugins: {
-                        legend: {display: !!settings.color, title: {display: !!settings.color, text: settings.color ? columns[settings.color].displayName : ''}},
+                        legend: buildColorLegendOptions(settings),
                         tooltip: {callbacks: {label: (context) => {
                             const point = context.raw
                             return `${point.locusId}: ${xName} = ${formatPlotNumber(point.rawX)}, ${yName} = ${formatPlotNumber(point.rawY)}`

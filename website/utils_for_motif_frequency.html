@@ -3,7 +3,7 @@
     const computeMotifFrequenciesTableHtml = (motifFrequencyTableRows, showTitle = false) => {
         const helpText = `
         Motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC T2T assemblies.
-        Percentages represent what fraction of the 94 haplotype sequences is covered by each motif.
+        Each percentage is the count of a motif divided by the total count of all motifs that Vamos reported for this locus across these haplotype sequences.
         `
 
         let result = ''
@@ -50,18 +50,14 @@
             total += count
         }
 
-        const minimumFrequencyThreshold = 0  // 0.01
-
         // convert counts to fractions
         let motifCount = 0
         let homopolymerMotifCount = 0
         for (let motif in motifCounts) {
             motifCounts[motif] /= total
-            if (motifCounts[motif] >= minimumFrequencyThreshold) {
-                motifCount += 1
-                if (motif.length == 1) {
-                    homopolymerMotifCount += 1
-                }
+            motifCount += 1
+            if (motif.length == 1) {
+                homopolymerMotifCount += 1
             }
         }
 
@@ -70,8 +66,11 @@
         }
 
         const truncateMotifAt = 35
+        const truncateMotifForDisplay = (m) => m.length > truncateMotifAt ? `${m.substring(0, truncateMotifAt)}... (${m.length}bp)` : m
+        // List the most frequent motifs first, so that a table cut short still shows them
+        const motifsByDecreasingFrequency = Object.keys(motifCounts).sort((a, b) => motifCounts[b] - motifCounts[a] || a.localeCompare(b))
         let resultMotifs = []
-        for (let motif in motifCounts) {
+        for (const motif of motifsByDecreasingFrequency) {
             let motifRow
             let motifPercentString
             if (motifCounts[motif] >= 0.01) {
@@ -82,11 +81,11 @@
                 motifPercentString = (motifCounts[motif] * 100.0).toFixed(1)
             }
             motifRow += `<td style='text-align:right'><i>${motifPercentString}%</i></td>`
-            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${motif.length > truncateMotifAt ? (motif.substring(0, truncateMotifAt) + '... (' + motif.length + 'bp)') : motif}</span></td>`
+            motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>${truncateMotifForDisplay(motif)}</span></td>`
             if (efficientMotifs[motif]) {
                 motifRow += `<td><span style='white-space: nowrap; font-family: monospace'>`
                 if (efficientMotifs[motif] != motif) {
-                    motifRow += `${efficientMotifs[motif].length <= truncateMotifAt ? efficientMotifs[motif] : (efficientMotifs[motif].substring(0, truncateMotifAt) + '... (' + efficientMotifs[motif].length + 'bp)')}`
+                    motifRow += truncateMotifForDisplay(efficientMotifs[motif])
                 } else {
                     motifRow += '<i>same as motif</i>'
                 }

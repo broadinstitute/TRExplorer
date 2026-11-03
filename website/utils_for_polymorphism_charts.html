@@ -1,6 +1,75 @@
 <script>
     /** --------- START of utils for polymorphism charts  ---------- */
 
+    const destroyExistingChart = (canvas) => {
+        const existingChart = Chart.getChart(canvas)
+        if (existingChart) {
+            existingChart.destroy()
+        }
+    }
+
+    // Square charts (the count matrices) are as tall as they are wide
+    const setSquareCanvasSize = (canvas, chartWidth) => {
+        canvas.style.minWidth = chartWidth
+        canvas.style.height = chartWidth
+        canvas.style.minHeight = chartWidth
+        canvas.style.maxHeight = chartWidth
+    }
+
+    // A count matrix chart's tooltip appears centered above the cell under the mouse
+    const MATRIX_CHART_TOOLTIP_PLACEMENT = {
+        displayColors: false,
+        position: 'nearest',
+        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
+        xAlign: 'center',
+    }
+
+    // The size of a count matrix cell: its slot on a category axis, minus a 1px gap when the slot is wider than 2px. An
+    // axis can have more categories than pixels (e.g. a wide range of repeat counts), and a fixed gap would then make the
+    // size negative, which hides the cells from the tooltips.
+    const computeCountMatrixCellSize = (axisSizeInPixels, numCategories) => {
+        const slotSize = axisSizeInPixels / numCategories
+        return slotSize > 2 ? slotSize - 1 : slotSize
+    }
+
+    // The dataset of a count matrix chart. Each cell fills its slot on the category axes (see
+    // computeCountMatrixCellSize), so cells never overlap neighboring categories, and is shaded by the square root of its
+    // count relative to maxCount, so small counts stay visible. Both axes need offset: true so that the first and last
+    // cells are drawn in full.
+    const buildCountMatrixDataset = (data, maxCount, numXLabels, numYLabels) => ({
+        data: data,
+        width: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).width, numXLabels),
+        height: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).height, numYLabels),
+        backgroundColor: function(context) {
+            const value = context.dataset.data[context.dataIndex].v
+            if (value === 0) return 'rgba(255, 255, 255, 0)'
+            const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
+            return `rgba(33, 133, 208, ${alpha})`
+        },
+        borderColor: 'rgba(0, 0, 0, 0.5)',
+        borderWidth: function(context) {
+            return context.dataset.data[context.dataIndex].v === 0 ? 0 : 1
+        },
+    })
+
+    // The bars of an allele size histogram, one per size from minAlleleSize - 1 to maxAlleleSize + 1, with the reference
+    // allele's bar in orange, and the y-axis limit: the power of 10 at or above twice the largest count, divided by 2.
+    // Used by the polymorphism dialog's charts and the small charts in the results table.
+    const buildAlleleSizeHistogramBars = (frequencies, refAlleleSize, minAlleleSize, maxAlleleSize) => {
+        const xLabels = []
+        for (let i = minAlleleSize - 1; i <= maxAlleleSize + 1; i++) {
+            xLabels.push(i)
+        }
+        const maxCount = frequencies.length > 0 ? Math.max(...frequencies.map(f => f.count)) : 1
+        return {
+            xLabels,
+            counts: xLabels.map(x => frequencies.find(f => f.size === x)?.count || 0),
+            colors: xLabels.map(x => x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)'),
+            borderColors: xLabels.map(x => x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)'),
+            yLimit: Math.pow(10, Math.ceil(Math.log10(2 * maxCount))) / 2,
+        }
+    }
+
     const createAlleleFrequencyChart = (chartData) => {
         const frequencies = chartData.frequencies
         const thisObj = chartData.thisObj
@@ -11,40 +80,19 @@
         const maxAlleleSize = chartData.maxAlleleSize
         const axisUnits = chartData.axisUnits
 
-        const chartLabel = chartData.label
-
         //frequencies.sort((a, b) => a.size - b.size)
 
-        const yLookup = {}
-        const xLabels =  []
-        const colors = []
-        const borderColors = []
-        for (let i = minAlleleSize - 1; i <= maxAlleleSize + 1; i++) {
-            xLabels.push(i)
-            yLookup[i] = 0
-        }
-        for (let x of xLabels) {
-            yLookup[x] = frequencies.find(f => f.size === x)?.count || 0
-            colors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 0.7)' : 'rgba(33, 133, 208, 0.5)')
-            borderColors.push(x === refAlleleSize ? 'rgba(255, 165, 0, 1)' : 'rgba(33, 133, 208, 1)')
-        }
+        const {xLabels, counts, colors, borderColors, yLimit} = buildAlleleSizeHistogramBars(
+            frequencies, refAlleleSize, minAlleleSize, maxAlleleSize)
 
-        // Destroy any existing chart on this canvas
-        const existingChart = Chart.getChart(thisObj);
-        if (existingChart) {
-            existingChart.destroy();
-        }
+        destroyExistingChart(thisObj)
 
-
-        //set y-limit to the nearest whole power of 10 divided by 2, rounding up
-        const maxCount = frequencies.length > 0 ? Math.max(...frequencies.map(f => f.count)) : 1
-        const yLimit = Math.pow(10, Math.ceil(Math.log10(2 * maxCount))) / 2
         new Chart(thisObj, {
             type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
-                    data: xLabels.map(d => yLookup[d]),
+                    data: counts,
                     backgroundColor: colors,
                     borderColor: borderColors,
                     borderWidth: 1
@@ -58,6 +106,9 @@
                     legend: {
                         display: true,
                         align: 'end',
+                        // The legend explains the reference allele's color rather than standing for a dataset, so clicking
+                        // it does nothing (Chart.js's default click handler would try to hide a dataset, and throw)
+                        onClick: () => {},
                         labels: {
                             boxWidth: 10,
                             boxHeight: 10,
@@ -149,116 +200,89 @@
         const lookup = {}
         const items = frequenciesString.split(',')
         for (let i = 0; i < items.length; i++) {
-            try {
-                const value = items[i].split(':')
-                const genotype = value[0].split('/')
-                const allele1 = parseInt(genotype[0])
-                const allele2 = parseInt(genotype[1])
-                const shortAlleleSize = Math.min(allele1, allele2)
-                const longAlleleSize = Math.max(allele1, allele2)
-                const count = parseInt(value[1])
-                data.push({ x: longAlleleSize, y: shortAlleleSize, v: count})
-                lookup[`${shortAlleleSize}/${longAlleleSize}`] = count
-            } catch (e) {
-                console.error('Error parsing biallelic histogram string:', e)
-                return [[], {}]
-            }
+            const value = items[i].split(':')
+            const genotype = value[0].split('/')
+            const allele1 = parseInt(genotype[0])
+            const allele2 = parseInt(genotype[1])
+            const shortAlleleSize = Math.min(allele1, allele2)
+            const longAlleleSize = Math.max(allele1, allele2)
+            const count = parseInt(value[1])
+            data.push({ x: longAlleleSize, y: shortAlleleSize, v: count})
+            lookup[`${shortAlleleSize}/${longAlleleSize}`] = count
         }
 
         return [data, lookup]
     }
 
+    // The axis labels and cells of a genotype heatmap that shows allele sizes from minAlleleSize to maxAlleleSize. When
+    // that range is wider than 20 sizes, the genotypes are summed into square bins of binSize sizes, and each label is a
+    // half-open range "start-end".
+    //
+    // Args:
+    //   data: genotype cells, [{x: long allele size, y: short allele size, v: count}], from parseBiallelicHistogramString
+    //   lookup: {"short/long": count}, from parseBiallelicHistogramString
+    //
+    // Returns {labels, data, lookup}: the labels of both axes, and the (binned) cells and lookup in the same form
+    const binGenotypeCounts = (data, lookup, minAlleleSize, maxAlleleSize) => {
+        const minSize = minAlleleSize - 1
+        const maxSize = maxAlleleSize + 1
+        const maxBins = 20
+        const needsBinning = (maxSize - minSize) > maxBins
+        const binSize = needsBinning ? Math.ceil((maxSize - minSize) / maxBins) : 1
+
+        const firstBinStart = Math.max(0, minSize - binSize)
+        const labels = []
+        for (let binStart = firstBinStart; binStart <= maxSize + binSize; binStart += binSize) {
+            labels.push(needsBinning ? `${binStart}-${binStart + binSize}` : binStart)
+        }
+        if (!needsBinning) {
+            return {labels, data, lookup}
+        }
+
+        // Add each observed genotype to its bin. Genotypes outside the shown range are left out.
+        const binCounts = labels.map(() => labels.map(() => 0))  // [short allele bin][long allele bin]
+        for (const [genotype, count] of Object.entries(lookup)) {
+            const [shortAlleleSize, longAlleleSize] = genotype.split('/').map(Number)
+            const shortBin = Math.floor((shortAlleleSize - firstBinStart) / binSize)
+            const longBin = Math.floor((longAlleleSize - firstBinStart) / binSize)
+            if (shortBin >= 0 && shortBin < labels.length && longBin >= 0 && longBin < labels.length) {
+                binCounts[shortBin][longBin] += count
+            }
+        }
+
+        const binnedData = []
+        const binnedLookup = {}
+        labels.forEach((shortAlleleLabel, shortBin) => {
+            labels.forEach((longAlleleLabel, longBin) => {
+                const binCount = binCounts[shortBin][longBin]
+                binnedData.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCount})
+                if (binCount > 0) {
+                    binnedLookup[`${shortAlleleLabel}/${longAlleleLabel}`] = binCount
+                }
+            })
+        })
+        return {labels, data: binnedData, lookup: binnedLookup}
+    }
+
     const createBiallelicHistogramChart = (chartData) => {
-        let lookup = chartData.lookup
         const thisObj = chartData.thisObj
-        const refAlleleSize = chartData.refAlleleSize
         const chartWidth = chartData.chartWidth
-        const chartHeight = chartData.chartHeight
-        const minAlleleSize = chartData.minAlleleSize - 1
-        const maxAlleleSize = chartData.maxAlleleSize + 1
         const axisUnits = chartData.axisUnits
 
-        // Find the range of allele sizes
-        let data = chartData.data
-        //const allShortAlleles = data.map(d => d.y)
-        //const allLongAlleles = data.map(d => d.x)
-
-        // Calculate bin size if range exceeds 30
-        const maxBins = 20
-        const needsBinning = (maxAlleleSize - minAlleleSize) > maxBins
-        const binSize = needsBinning ? Math.ceil((maxAlleleSize - minAlleleSize) / maxBins) : 1
-
-        // Create labels for both axes
-        const shortAlleleLabels = []
-        const longAlleleLabels = []
-
-        // Create binned or regular labels
-        for (let i = Math.max(0, minAlleleSize - binSize); i <= maxAlleleSize + binSize; i += binSize) {
-            const binEnd = i + binSize
-            const label = needsBinning ? `${i}-${binEnd}` : i
-            shortAlleleLabels.push(label)
-            longAlleleLabels.push(label)
-        }
-
-        if (needsBinning) {
-            data = []
-            for (const shortAlleleLabel of shortAlleleLabels) {
-                for (const longAlleleLabel of longAlleleLabels) {
-                    let binCount = 0
-                    const shortAlleleStart = parseInt(shortAlleleLabel.split('-')[0])
-                    const shortAlleleEnd = parseInt(shortAlleleLabel.split('-')[1])
-                    const longAlleleStart = parseInt(longAlleleLabel.split('-')[0])
-                    const longAlleleEnd = parseInt(longAlleleLabel.split('-')[1])
-                    for (let short = shortAlleleStart; short < shortAlleleEnd; short++) {
-                        for (let long = longAlleleStart; long < longAlleleEnd; long++) {
-                            const value = lookup[`${short}/${long}`]
-                            if (value) {
-                                binCount += value
-                            }
-                        }
-                    }
-                    data.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCount})
-                }
-            }
-
-            lookup = {}
-            for (const d of data) {
-                if (d.v > 0) {
-                    lookup[`${d.y}/${d.x}`] = d.v
-                }
-            }
-        }
+        const {labels, data, lookup} = binGenotypeCounts(chartData.data, chartData.lookup, chartData.minAlleleSize, chartData.maxAlleleSize)
 
         // Calculate maxCount from the binned data. When fixedMaxCount is supplied
         // (HPRC256 charts on the locus page), use it so the color scale stays
         // consistent as the user flips between Population/Sex strata.
         const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
-        // Destroy any existing chart
-        const existingChart = Chart.getChart(thisObj)
-        if (existingChart) {
-            existingChart.destroy()
-        }
+        destroyExistingChart(thisObj)
 
         // Create the chart
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [{
-                    data: data,
-                    backgroundColor: function(context) {
-                        const value = context.dataset.data[context.dataIndex].v
-                        if (value === 0) return 'rgba(255, 255, 255, 0)'
-                        const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
-                        return `rgba(33, 133, 208, ${alpha})`
-                    },
-                    borderColor: 'rgba(0, 0, 0, 0.5)',
-                    borderWidth: function(context) {
-                        const value = context.dataset.data[context.dataIndex].v
-                        if (value === 0) return 0
-                        return 1
-                    }
-                }]
+                datasets: [buildCountMatrixDataset(data, maxCount, labels.length, labels.length)]
             },
             options: {
                 responsive: true,
@@ -267,8 +291,8 @@
                 scales: {
                     x: {
                         type: 'category',
-                        offset: false,  // Remove offset to center labels
-                        labels: longAlleleLabels,
+                        offset: true,
+                        labels: labels,
                         title: {
                             display: true,
                             text: `Long Allele: ${axisUnits}`,
@@ -282,9 +306,9 @@
                     },
                     y: {
                         type: 'category',
-                        offset: false,  // Remove offset to center labels
+                        offset: true,
                         reverse: true,  // Reverse y-axis
-                        labels: shortAlleleLabels,
+                        labels: labels,
                         title: {
                             display: true,
                             text: `Short Allele: ${axisUnits}`,
@@ -299,17 +323,14 @@
                 },
                 plugins: {
                     tooltip: {
-                        displayColors: false,
-                        position: 'nearest',
-                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
-                        xAlign: 'center',
+                        ...MATRIX_CHART_TOOLTIP_PLACEMENT,
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]
                                 const value = c.dataset.data[c.dataIndex].v
                                 if (value === 0) return ''
-                                const shortLabel = shortAlleleLabels[c.parsed.y]
-                                const longLabel = longAlleleLabels[c.parsed.x]
+                                const shortLabel = labels[c.parsed.y]
+                                const longLabel = labels[c.parsed.x]
                                 // if it's a bin, show the range
                                 if (typeof shortLabel === 'string' && typeof longLabel === 'string' && shortLabel.includes('-') && longLabel.includes('-')) {
                                     const shortStart = parseInt(shortLabel.split('-')[0])
@@ -325,8 +346,8 @@
                                 const c = context
                                 const value = c.dataset.data[c.dataIndex].v
                                 if (value === 0) return null
-                                const shortLabel = shortAlleleLabels[c.parsed.y]
-                                const longLabel = longAlleleLabels[c.parsed.x]
+                                const shortLabel = labels[c.parsed.y]
+                                const longLabel = labels[c.parsed.x]
                                 const genotype = `${shortLabel}/${longLabel}`
                                 return `Individuals: ${lookup[genotype] || 0}`
                             }
@@ -339,10 +360,7 @@
             }
         })
 
-        thisObj.style.minWidth = chartWidth
-        thisObj.style.height = chartWidth
-        thisObj.style.minHeight = chartWidth
-        thisObj.style.maxHeight = chartWidth
+        setSquareCanvasSize(thisObj, chartWidth)
     }
 
     const parseSizeAndValueDistributionString = function(frequenciesString) {
@@ -353,17 +371,9 @@
         const data = []
         const items = frequenciesString.split(',')
         for (let i = 0; i < items.length; i++) {
-            try {
-                const [keyPart, countPart] = items[i].split(':')
-                const [repeatCount, value] = keyPart.split('/')
-                const x = parseInt(repeatCount)
-                const y = parseFloat(value)
-                const v = parseInt(countPart)
-                data.push({ x: x, y: y, v: v })
-            } catch (e) {
-                console.error('Error parsing size-and-value distribution string:', e)
-                return []
-            }
+            const [keyPart, countPart] = items[i].split(':')
+            const [repeatCount, value] = keyPart.split('/')
+            data.push({ x: parseInt(repeatCount), y: parseFloat(value), v: parseInt(countPart) })
         }
         return data
     }
@@ -384,56 +394,30 @@
             xLabels = [...new Set(chartData.data.map(d => d.x))].sort((a, b) => a - b)
         }
 
-        // y-axis: fixedYAxisZeroToOne forces a [0, 1] range with cells centered on
-        // the 0.02 bins that the data is generated at (see bin_value in
+        // y-axis: a fixed [0, 1] range with cells centered on the 0.02 bins that the
+        // data is generated at (see bin_value in
         // compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py).
         // Only multiples of 0.1 get a visible tick label. Labels are ascending so
         // 1.0 sits at the top and 0 at the bottom of the category axis.
         const Y_BIN = 0.02
         const N_Y_BINS = 50
-        let yLabels
-        const yIsFixed = !!chartData.fixedYAxisZeroToOne
-        if (yIsFixed) {
-            yLabels = []
-            for (let i = 0; i <= N_Y_BINS; i++) yLabels.push(parseFloat((i * Y_BIN).toFixed(2)))
-        } else {
-            yLabels = [...new Set(chartData.data.map(d => d.y))].sort((a, b) => b - a)
-        }
+        const yLabels = []
+        for (let i = 0; i <= N_Y_BINS; i++) yLabels.push(parseFloat((i * Y_BIN).toFixed(2)))
 
         // Snap data y values to the binned grid so chart.js can match them to the
         // category labels even if the parsed floats picked up rounding error.
-        const data = yIsFixed
-            ? chartData.data.map(d => ({ x: d.x, y: parseFloat((Math.round(d.y / Y_BIN) * Y_BIN).toFixed(2)), v: d.v }))
-            : chartData.data
+        const data = chartData.data.map(d => ({ x: d.x, y: parseFloat((Math.round(d.y / Y_BIN) * Y_BIN).toFixed(2)), v: d.v }))
 
         const yTickIsVisible = (label) => Math.abs(label * 10 - Math.round(label * 10)) < 1e-6
 
         const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
-        // Destroy any existing chart
-        const existingChart = Chart.getChart(thisObj)
-        if (existingChart) {
-            existingChart.destroy()
-        }
+        destroyExistingChart(thisObj)
 
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [{
-                    data: data,
-                    backgroundColor: function(context) {
-                        const value = context.dataset.data[context.dataIndex].v
-                        if (value === 0) return 'rgba(255, 255, 255, 0)'
-                        const alpha = Math.pow(value / maxCount, 0.5)
-                        return `rgba(33, 133, 208, ${alpha})`
-                    },
-                    borderColor: 'rgba(0, 0, 0, 0.5)',
-                    borderWidth: function(context) {
-                        const value = context.dataset.data[context.dataIndex].v
-                        if (value === 0) return 0
-                        return 1
-                    }
-                }]
+                datasets: [buildCountMatrixDataset(data, maxCount, xLabels.length, yLabels.length)]
             },
             options: {
                 responsive: true,
@@ -442,7 +426,7 @@
                 scales: {
                     x: {
                         type: 'category',
-                        offset: false,
+                        offset: true,
                         labels: xLabels,
                         title: {
                             display: true,
@@ -453,32 +437,29 @@
                     },
                     y: {
                         type: 'category',
-                        offset: false,
+                        offset: true,
                         labels: yLabels,
                         title: {
                             display: true,
                             text: yAxisLabel,
                             font: { size: 12 }
                         },
-                        ticks: yIsFixed ? {
+                        ticks: {
                             autoSkip: false,
                             callback: function(value, index) {
                                 const label = yLabels[index]
                                 return yTickIsVisible(label) ? label.toFixed(1) : ''
                             },
-                        } : undefined,
-                        grid: yIsFixed ? {
+                        },
+                        grid: {
                             display: true,
                             color: (context) => yTickIsVisible(yLabels[context.index]) ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0)',
-                        } : { display: true },
+                        },
                     }
                 },
                 plugins: {
                     tooltip: {
-                        displayColors: false,
-                        position: 'nearest',
-                        yAlign: 'bottom',  // anchor tooltip bottom to point → appears above the cell
-                        xAlign: 'center',
+                        ...MATRIX_CHART_TOOLTIP_PLACEMENT,
                         callbacks: {
                             title: function(context) {
                                 const c = context[0]
@@ -500,10 +481,7 @@
             }
         })
 
-        thisObj.style.minWidth = chartWidth
-        thisObj.style.height = chartWidth
-        thisObj.style.minHeight = chartWidth
-        thisObj.style.maxHeight = chartWidth
+        setSquareCanvasSize(thisObj, chartWidth)
     }
 
     /** --------- END of utils for polymorphism charts  ---------- */

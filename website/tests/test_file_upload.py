@@ -7,6 +7,8 @@ results table to the union of the file's loci/regions.
 """
 
 import gzip
+import struct
+import zlib
 
 import pytest
 
@@ -42,7 +44,7 @@ def test_upload_txt_regions_and_genes(index_page, console_errors, tmp_path):
 
     chip = page.inner_text("#tr-file-chip-container")
     assert "panel.txt" in chip
-    assert "2 loci" in chip
+    assert "2 items" in chip
     rows = page.query_selector_all("#results-table tbody tr")
     assert len(rows) > 0
     assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
@@ -57,7 +59,7 @@ def test_upload_txt_with_header_row(index_page, tmp_path):
     upload_files(page, [f])
     wait_for_results(page)
     # header 'region' is skipped, leaving exactly one item
-    assert "1 locus" in page.inner_text("#tr-file-chip-container")
+    assert "1 item" in page.inner_text("#tr-file-chip-container")
 
 
 def test_upload_locus_id(index_page, console_errors, tmp_path):
@@ -77,7 +79,7 @@ def test_upload_locus_id(index_page, console_errors, tmp_path):
 
     upload_files(page, [f])
     wait_for_results(page)
-    assert "1 locus" in page.inner_text("#tr-file-chip-container")
+    assert "1 item" in page.inner_text("#tr-file-chip-container")
     locus_ids = [
         el.get_attribute("data-locus-id")
         for el in page.query_selector_all(".row-locus-page-link")
@@ -103,7 +105,7 @@ def test_upload_locus_id_with_chr_prefix(index_page, console_errors, tmp_path):
 
     upload_files(page, [f])
     wait_for_results(page)
-    assert "1 locus" in page.inner_text("#tr-file-chip-container")
+    assert "1 item" in page.inner_text("#tr-file-chip-container")
     locus_ids = [
         el.get_attribute("data-locus-id")
         for el in page.query_selector_all(".row-locus-page-link")
@@ -128,7 +130,7 @@ def test_drop_file_on_main_search_box(index_page, console_errors, tmp_path):
     wait_for_results(page)
     chip = page.inner_text("#tr-file-chip-container")
     assert "dropped_on_search_box.txt" in chip
-    assert "1 locus" in chip
+    assert "1 item" in chip
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
     assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
 
@@ -169,6 +171,31 @@ def test_upload_gzip(index_page, tmp_path):
     upload_files(page, [f])
     wait_for_results(page)
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
+
+
+def write_bgzip_file(path, data, block_size):
+    """Writes data the way bgzip does: as BGZF blocks (gzip members whose header holds the block size), each with at
+    most block_size bytes of data, followed by the empty end-of-file block."""
+    with open(path, "wb") as fh:
+        for chunk in [data[i:i + block_size] for i in range(0, len(data), block_size)] + [b""]:
+            compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
+            deflated = compressor.compress(chunk) + compressor.flush()
+            header = b"\x1f\x8b\x08\x04" + b"\x00" * 4 + b"\x00\xff" + struct.pack("<H", 6) + b"BC" + struct.pack("<HH", 2, 18 + len(deflated) + 8 - 1)
+            fh.write(header + deflated + struct.pack("<II", zlib.crc32(chunk), len(chunk)))
+
+
+def test_upload_bgzip(index_page, console_errors, tmp_path):
+    """A bgzip-compressed .bed.gz, which is a series of gzip members, is decompressed in full, including lines that
+    span two members."""
+    page = index_page
+    f = tmp_path / "panel.bed.gz"
+    write_bgzip_file(f, b"chr4\t3074000\t3075000\nchr6\t16327000\t16328000\n", block_size=16)
+
+    upload_files(page, [f])
+    wait_for_results(page)
+    assert "2 regions" in page.inner_text("#tr-file-chip-container")
+    assert len(page.query_selector_all("#results-table tbody tr")) > 0
+    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
 
 
 def test_upload_after_paging_shows_results(index_page, tmp_path):

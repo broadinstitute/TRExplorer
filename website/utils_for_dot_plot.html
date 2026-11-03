@@ -10,10 +10,11 @@
     const dotPlotIsNoise = (matrix, i, j, minDiagonalRun = 3) => {
         const size = matrix.length;
         for (const directionJ of [1, -1]) {
-            let runLength = 0;
+            // the run includes cell (i, j) itself, and each direction's loop starts one step away from it
+            let runLength = 1;
             for (const direction of [1, -1]) {
-                let currentI = i;
-                let currentJ = j;
+                let currentI = i + direction;
+                let currentJ = j + direction * directionJ;
                 while (
                     currentI >= 0 &&
                     currentJ >= 0 &&
@@ -33,28 +34,20 @@
         return true;
     }
 
-    const dotPlotFilterOutNoise = (matrix, minDiagonalRun = 3, setNoiseToDifferentColor = false) => {
+    const dotPlotFilterOutNoise = (matrix, minDiagonalRun = 3) => {
         for (let i = 0; i < matrix.length; i++) {
             for (let j = 0; j < matrix.length; j++) {
                 if (matrix[i][j] > 0 && dotPlotIsNoise(matrix, i, j, minDiagonalRun)) {
-                    matrix[i][j] = setNoiseToDifferentColor ? 2 : 0;
+                    matrix[i][j] = 0;
                 }
             }
         }
     }
 
-    function plotDotPlot(dotPlotCanvas, sequence, pixelsPerCell = 1, setNoiseToDifferentColor = false) {
-
-        if (!sequence) {
-            console.warn("Sequence is empty")
-            return
-        }
-
-        if (sequence.length > 1000) {
-            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
-            return
-        }
-
+    // Splits a sequence whose parts are joined by "|" (e.g. left flank|repeat|right flank) into the sequence
+    // without the "|" characters and the positions in that sequence where each "|" was. Also used by the
+    // periodicity plot.
+    const splitSequenceAtSeparators = (sequence) => {
         const separatorPositions = []
         const filteredSequenceChars = []
         for (const c of sequence) {
@@ -64,59 +57,79 @@
                 filteredSequenceChars.push(c)
             }
         }
-        const filteredSequence = filteredSequenceChars.join("")
+        return { filteredSequence: filteredSequenceChars.join(""), separatorPositions }
+    }
+
+    // Colors the pixelsPerCell x pixelsPerCell square that shows matrix cell (row, column) in an RGBA pixel buffer
+    // whose rows are widthInPixels wide. Also used by the periodicity plot.
+    const fillScaledCellPixels = (pixelData, widthInPixels, row, column, pixelsPerCell, r, g, b) => {
+        for (let dy = 0; dy < pixelsPerCell; dy++) {
+            for (let dx = 0; dx < pixelsPerCell; dx++) {
+                const pixelIndex = ((row * pixelsPerCell + dy) * widthInPixels + column * pixelsPerCell + dx) * 4
+                pixelData[pixelIndex] = r
+                pixelData[pixelIndex + 1] = g
+                pixelData[pixelIndex + 2] = b
+                pixelData[pixelIndex + 3] = 255
+            }
+        }
+    }
+
+    // Safari refuses to draw a canvas of more than about 16.7 million pixels, and filling a much larger pixel buffer takes
+    // too long and too much memory, so the dot plot and the periodicity plot stay within this many pixels
+    const MAX_PLOT_CANVAS_AREA_IN_PIXELS = 16000000
+
+    // Draws the dot plot of a sequence whose parts are joined by "|", and returns true. If the sequence is empty or longer
+    // than 1,000bp, clears the canvas instead (it may still show the dot plot of another sequence) and returns false.
+    // Long sequences are drawn with fewer than pixelsPerCell pixels per base, to stay within MAX_PLOT_CANVAS_AREA_IN_PIXELS.
+    function plotDotPlot(dotPlotCanvas, sequence, pixelsPerCell = 1) {
+
+        const clearCanvas = () => {
+            dotPlotCanvas.width = 0
+            dotPlotCanvas.height = 0
+        }
+
+        if (!sequence) {
+            console.warn("Sequence is empty")
+            clearCanvas()
+            return false
+        }
+
+        if (sequence.length > 1000) {
+            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
+            clearCanvas()
+            return false
+        }
+
+        const { filteredSequence, separatorPositions } = splitSequenceAtSeparators(sequence)
 
         const matrix = dotPlotGenerateMatrix(filteredSequence)
-        dotPlotFilterOutNoise(matrix, 6, setNoiseToDifferentColor)
+        dotPlotFilterOutNoise(matrix, 6)
 
 
         const size = matrix.length;
-        const scaledSize = size * pixelsPerCell;
+        // At most 1,000 bases, so at least 4 pixels per base fit
+        const drawnPixelsPerCell = Math.min(pixelsPerCell, Math.floor(Math.sqrt(MAX_PLOT_CANVAS_AREA_IN_PIXELS / (size * size))))
+        const scaledSize = size * drawnPixelsPerCell;
 
-        let pixelData;
-        try {
-            pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
-        } catch (e) {
-            console.error(`Failed to allocate dot plot buffer (size: ${scaledSize}x${scaledSize}, sequence length: ${filteredSequence.length}):`, e)
-            return
-        }
+        const pixelData = new Uint8ClampedArray(scaledSize * scaledSize * 4);
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
-                const value = matrix[i][j];
-                let r = 255, g = 255, b = 255, a = 255;
-                if (value === 1) {
-                    r = 0
-                    g = 0
-                    b = 0
-                } else if (value === 2) {
-                    r = 255
-                    g = 0
-                    b = 0
-                }
-                for (let dy = 0; dy < pixelsPerCell; dy++) {
-                    for (let dx = 0; dx < pixelsPerCell; dx++) {
-                        const scaledRow = i * pixelsPerCell + dy
-                        const scaledCol = j * pixelsPerCell + dx
-                        const pixelIndex = (scaledRow * scaledSize + scaledCol) * 4
-                        pixelData[pixelIndex] = r
-                        pixelData[pixelIndex + 1] = g
-                        pixelData[pixelIndex + 2] = b
-                        pixelData[pixelIndex + 3] = a
-                    }
-                }
+                // matching bases are black, everything else is white
+                const shade = matrix[i][j] === 1 ? 0 : 255
+                fillScaledCellPixels(pixelData, scaledSize, i, j, drawnPixelsPerCell, shade, shade, shade)
             }
         }
 
-        dotPlotCanvas.width = matrix.length * pixelsPerCell
-        dotPlotCanvas.height = matrix.length * pixelsPerCell
+        dotPlotCanvas.width = scaledSize
+        dotPlotCanvas.height = scaledSize
 
         const context = dotPlotCanvas.getContext("2d")
         context.putImageData(new ImageData(pixelData, scaledSize, scaledSize), 0, 0)
         context.fillStyle = "rgba(0, 0, 255, 1)"
         for (const position of separatorPositions) {
-            const x = position * pixelsPerCell
-            context.fillRect(x, 0, 1.5, dotPlotCanvas.height)
+            context.fillRect(position * drawnPixelsPerCell, 0, 1.5, dotPlotCanvas.height)
         }
+        return true
     }
 
     /*
@@ -124,7 +137,7 @@
 
     const pixelsPerCell = 2 // higher number increases resolution
     const dotPlotCanvas = document.getElementById("dotPlotCanvas")
-    plotDotPlot(dotPlotCanvas, inputSequence, pixelsPerCell, false)
+    plotDotPlot(dotPlotCanvas, inputSequence, pixelsPerCell)
     dotPlotCanvas.style.width = "100px"
     dotPlotCanvas.style.height = "100px"
 

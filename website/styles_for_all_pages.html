@@ -136,18 +136,6 @@
         cursor: pointer;
     }
 
-    .igv-row-sidebar-title {
-        font-family: Lato, "Helvetica Neue", Arial, Helvetica, sans-serif;
-        font-size: 18px;
-        font-weight: 700;
-    }
-
-    .igv-row-sidebar-text {
-        display: block;
-        font-family: Lato, "Helvetica Neue", Arial, Helvetica, sans-serif;
-        font-size: 14px;
-    }
-
     #show-igv-divider {
         text-align: center;
         margin: 1.5em 0;
@@ -467,20 +455,6 @@
         opacity: 0.8;
     }
 
-    /* Style for disabled export dropdown */
-    .export-selector .ui.selection.dropdown.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-
-    /* Style for disabled export label */
-    .export-selector .export-label {
-        transition: opacity 0.2s;
-    }
-    .export-selector .ui.selection.dropdown.disabled + .export-label {
-        opacity: 0.5;
-    }
-
     /* one grid column per group of checkboxes, each group listed top to bottom */
     .results-table-column-settings-checkbox-grid {
         display: grid;
@@ -603,8 +577,9 @@
         white-space: normal;
     }
 
-    /* Custom filter rows */
-    .custom-filter-row {
+    /* Custom filter rows and extra polymorphism filter rows */
+    .custom-filter-row,
+    .polymorphism-filter-row {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -620,12 +595,13 @@
         font-size: 1.1em;
     }
 
-    /* Conjunction dropdown only appears on the 2nd+ rows of each custom filter group */
-    .custom-filter-row .ui.selection.dropdown.custom-filter-conjunction {
+    .custom-filter-row .ui.selection.dropdown.custom-filter-conjunction,
+    .polymorphism-filter-row .ui.selection.dropdown.polymorphism-filter-conjunction {
         min-width: 80px;
         width: 80px;
     }
 
+    /* Conjunction dropdown only appears on the 2nd+ rows of each custom filter group */
     .custom-filter-row:first-child .custom-filter-conjunction {
         display: none;
     }
@@ -695,19 +671,15 @@
         color: #333;
     }
 
-    .custom-filter-help-icon[data-tooltip]::after {
-        max-width: 400px;
-        width: max-content;
-        white-space: normal;
-    }
-
-    .custom-filter-delete {
+    .custom-filter-delete,
+    .polymorphism-filter-delete {
         cursor: pointer;
         color: #999;
         font-size: 1.1em;
     }
 
-    .custom-filter-delete:hover {
+    .custom-filter-delete:hover,
+    .polymorphism-filter-delete:hover {
         color: #db2828;
     }
 
@@ -715,14 +687,6 @@
     #custom-filter-column-dialog {
         width: 900px !important;
         max-width: 95vw;
-    }
-
-    /* Extra polymorphism filter rows */
-    .polymorphism-filter-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
     }
 
     /* The enable-checkbox has an empty label; shrink its padding so the label
@@ -741,11 +705,6 @@
         margin-right: -8px;
     }
 
-    .polymorphism-filter-row .ui.selection.dropdown.polymorphism-filter-conjunction {
-        min-width: 80px;
-        width: 80px;
-    }
-
     .polymorphism-filter-row .ui.selection.dropdown.polymorphism-filter-sigma-dropdown {
         min-width: 170px;
         width: 170px;
@@ -762,15 +721,6 @@
         width: auto !important;
     }
 
-    .polymorphism-filter-delete {
-        cursor: pointer;
-        color: #999;
-        font-size: 1.1em;
-    }
-
-    .polymorphism-filter-delete:hover {
-        color: #db2828;
-    }
 
 
     .gene-info-popup-content {

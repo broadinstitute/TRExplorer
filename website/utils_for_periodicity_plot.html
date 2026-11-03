@@ -20,54 +20,17 @@
         return Math.abs(hash)
     }
 
-    const generatePeriodicityMatrixWithBackwardLook = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
-        const clampedMin = Math.max(minMotifSize, 1)
-        const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
-        const rowCount = Math.max(clampedMax, clampedMin)
-        const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
-
-        let hashCache = new Map()
-        for (let row = clampedMin - 1; row < clampedMax; row++) {
-            const period = row + 1
-            let prevShiftedMotif
-            for (let column = 0; column < sequence.length; column++) {
-                const motifEndingAtThisLetter = sequence.slice(column - period + 1, column + 1)
-                const shiftedMotifEndingAtThisLetter = shiftStringBy(motifEndingAtThisLetter, (column + 1) % period)
-                let shiftedMotif
-                if (prevShiftedMotif === shiftedMotifEndingAtThisLetter) {
-                    shiftedMotif = shiftedMotifEndingAtThisLetter
-                } else if (column + period < sequence.length && sequence[column] === sequence[column + period]) {
-                    const motifStartingAtThisLetter = sequence.slice(column, column + period)
-                    const shiftedMotifStartingAtThisLetter = shiftStringBy(motifStartingAtThisLetter, column % period)
-                    shiftedMotif = shiftedMotifStartingAtThisLetter
-                    prevShiftedMotif = shiftedMotif
-                } else {
-                    prevShiftedMotif = null
-                    continue
-                }
-
-                if (hashCache.has(shiftedMotif)) {
-                    matrix[row][column] = hashCache.get(shiftedMotif)
-                } else {
-                    const hash = hashString(shiftedMotif)
-                    hashCache.set(shiftedMotif, hash)
-                    matrix[row][column] = hash
-                }
-            }
-        }
-
-        return matrix
-    }
-
     const generatePeriodicityMatrix = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
         const clampedMin = Math.max(minMotifSize, 1)
         const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
         const rowCount = Math.max(clampedMax, clampedMin)
         const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
 
-        let hashCache = new Map()
         for (let row = clampedMin - 1; row < clampedMax; row++) {
             const period = row + 1
+            // Motifs of different periods have different lengths, so each period gets its own cache, which lets the
+            // motifs of the periods already done be freed
+            const hashCache = new Map()
             for (let column = 0; column < sequence.length - period; column++) {
                 if (sequence[column] !== sequence[column + period]) {
                     continue
@@ -97,25 +60,43 @@
         }
     }
 
-    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, useBackwardLook = false, startWithPeriod=1, endWithPeriod=24) => {
+    // Browsers refuse to draw a canvas wider than about 32,000 pixels, so the periodicity plot stays narrower than this.
+    // It also stays within MAX_PLOT_CANVAS_AREA_IN_PIXELS (defined in utils_for_dot_plot.html).
+    const MAX_PERIODICITY_PLOT_WIDTH_IN_PIXELS = 30000
 
-        const separatorPositions = []
-        const filteredSequenceChars = []
-        for (const c of sequence) {
-            if (c === "|") {
-                separatorPositions.push(filteredSequenceChars.length)
-            } else {
-                filteredSequenceChars.push(c)
-            }
-        }
-        const filteredSequence = filteredSequenceChars.join("")
+    // Building the matrix reads a motif as long as the period at each position, so it takes about (sequence length) x
+    // (number of periods)^2 / 2 steps. In Chrome on a 2026 laptop, a plot of 1 billion steps takes about 0.6 seconds to
+    // build and draw, and older or slower browsers can take several times longer. Larger plots would freeze the page for
+    // longer, so they're skipped.
+    const MAX_PERIODICITY_MATRIX_COMPUTATION_STEPS = 1000000000
 
-        let matrix
-        if (useBackwardLook) {
-            matrix = generatePeriodicityMatrixWithBackwardLook(filteredSequence, startWithPeriod, endWithPeriod)
-        } else {
-            matrix = generatePeriodicityMatrix(filteredSequence, startWithPeriod, endWithPeriod)
+    // Draws the periodicity plot and returns its matrix, or returns null without drawing anything when the sequence is
+    // too long to draw within the size limits even at 1 pixel per cell, or to compute within the steps limit above. For
+    // long sequences, each cell is drawn with fewer than pixelsPerCell pixels, while the plot keeps its displayed height
+    // of pixelsPerCell per period.
+    // The period labels and the blue separator lines are page elements placed over the canvas, since the page stretches
+    // the canvas to its width, which would squeeze text drawn on it and can drop thin lines. So the canvas must be the
+    // only child of a parent element of its own, and fill its width. This makes that parent a positioned box with room on
+    // its left for the labels.
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, startWithPeriod=1, endWithPeriod=24) => {
+        const overlayContainer = canvas.parentElement
+        overlayContainer.querySelectorAll('.periodicity-plot-overlay-element').forEach(element => element.remove())
+
+        const { filteredSequence, separatorPositions } = splitSequenceAtSeparators(sequence)
+
+        const numPeriodsToPlot = Math.min(endWithPeriod, Math.floor(filteredSequence.length / 2))
+        const drawnPixelsPerCell = Math.min(
+            pixelsPerCell,
+            Math.floor(MAX_PERIODICITY_PLOT_WIDTH_IN_PIXELS / filteredSequence.length),
+            Math.floor(Math.sqrt(MAX_PLOT_CANVAS_AREA_IN_PIXELS / (numPeriodsToPlot * filteredSequence.length))),
+        )
+        const numMatrixComputationSteps = filteredSequence.length * numPeriodsToPlot * numPeriodsToPlot / 2
+        if (drawnPixelsPerCell < 1 || numMatrixComputationSteps > MAX_PERIODICITY_MATRIX_COMPUTATION_STEPS) {
+            console.warn(`Sequence length is ${filteredSequence.length.toLocaleString()}bp, which is too long for a periodicity plot of ${numPeriodsToPlot} periods. Skipping...`)
+            return null
         }
+
+        const matrix = generatePeriodicityMatrix(filteredSequence, startWithPeriod, endWithPeriod)
 
 
         // zip matrix[2] with the filteredSequence
@@ -132,10 +113,8 @@
         const backgroundColor = hexToRgb("#FFFFFF")
         const motifPalette = ['#24f2a5', '#f27124', '#d8f224', '#24f257', '#d824f2', '#247ef2', '#64f224', '#2431f2', '#6424f2', '#f29824', '#f2e524', '#8b24f2', '#f224e5', '#24f27e', '#3ef224', '#f22424', '#24f2cb', '#f22471', '#24f2f2', '#f2be24', '#b124f2', '#24cbf2', '#8bf224', '#b1f224', '#3e24f2', '#f224be', '#24a5f2', '#f24a24', '#2457f2', '#f22498', '#24f231']
 
-        const width = columnCount * pixelsPerCell
-        const height = rowCount * pixelsPerCell
-        const fontSize = 11
-        const labelOffset = Math.ceil(fontSize * 2)
+        const width = columnCount * drawnPixelsPerCell
+        const height = rowCount * drawnPixelsPerCell
         const pixelData = new Uint8ClampedArray(width * height * 4)
 
         for (let row = 0; row < rowCount; row++) {
@@ -143,48 +122,71 @@
                 const value = matrix[row][column]
                 const paletteIndex = value === 0 ? -1 : value % motifPalette.length
                 const color = paletteIndex >= 0 ? hexToRgb(motifPalette[paletteIndex]) : backgroundColor
-
-                for (let dy = 0; dy < pixelsPerCell; dy++) {
-                    for (let dx = 0; dx < pixelsPerCell; dx++) {
-                        const pixelRow = row * pixelsPerCell + dy
-                        const pixelCol = column * pixelsPerCell + dx
-                        const pixelIndex = (pixelRow * width + pixelCol) * 4
-                        pixelData[pixelIndex] = color.r
-                        pixelData[pixelIndex + 1] = color.g
-                        pixelData[pixelIndex + 2] = color.b
-                        pixelData[pixelIndex + 3] = 255
-                    }
-                }
+                fillScaledCellPixels(pixelData, width, row, column, drawnPixelsPerCell, color.r, color.g, color.b)
             }
         }
 
-        canvas.width = width + labelOffset
+        canvas.width = width
         canvas.height = height
         const context = canvas.getContext("2d")
-        context.putImageData(new ImageData(pixelData, width, height), labelOffset, 0)
+        context.putImageData(new ImageData(pixelData, width, height), 0, 0)
         canvas.style.height = `${1 * pixelsPerCell * rowCount}px`
-        context.fillStyle = "rgba(0, 0, 255, 1)"
-        for (const position of separatorPositions) {
-            const x = labelOffset + position * pixelsPerCell
-            context.fillRect(x, 0, 1.5, height)
+
+        // The period labels end just left of the leftmost colored cell, so that they sit next to the plotted periodicity
+        // instead of across a blank left flank, without covering any colored cell. When a separator line lies at or left
+        // of that cell, they end left of the line instead, so they don't cross it.
+        // A plot with no colored cell keeps its labels at the left edge.
+        const firstColoredColumn = Math.min(...matrix.map(matrixRow => matrixRow.findIndex(value => value > 0)).filter(column => column >= 0))
+        let labelsEndColumn = 0
+        if (Number.isFinite(firstColoredColumn)) {
+            const separatorPositionsAtOrBeforeFirstColoredColumn = separatorPositions.filter(position => position <= firstColoredColumn)
+            labelsEndColumn = separatorPositionsAtOrBeforeFirstColoredColumn.length > 0
+                ? Math.max(...separatorPositionsAtOrBeforeFirstColoredColumn)
+                : firstColoredColumn
         }
 
-        context.fillStyle = "rgba(0, 0, 0, 1)"
-        context.textAlign = "left"
-        context.textBaseline = "middle"
-        context.font = `${fontSize}px monospace`
+        // The labels are sized to the displayed rows. The canvas fills the box right of the room left for labels of up to
+        // 3 digits, so a position that is a given fraction of the way across the canvas is that fraction of the box's
+        // width minus that room, measured from where the canvas starts.
+        const fontSizeInPixels = Math.round(1.1 * pixelsPerCell)
+        const labelRoomInPixels = Math.ceil(2.2 * fontSizeInPixels)
+        overlayContainer.style.position = 'relative'
+        overlayContainer.style.paddingLeft = `${labelRoomInPixels}px`
+        const canvasWidth = `(100% - ${labelRoomInPixels}px)`
 
-        let lastLabelY = -Infinity
-        const minSpacing = fontSize * 1.2
+        for (const position of separatorPositions) {
+            const separatorLine = document.createElement('div')
+            separatorLine.className = 'periodicity-plot-overlay-element'
+            Object.assign(separatorLine.style, {
+                position: 'absolute',
+                top: '0',
+                left: `calc(${labelRoomInPixels}px + ${canvasWidth} * ${position / columnCount})`,
+                width: '1.5px',
+                height: canvas.style.height,
+                backgroundColor: 'rgba(0, 0, 255, 1)',
+            })
+            overlayContainer.appendChild(separatorLine)
+        }
 
+        // Every 3rd period is labeled. A label's right edge, measured from the box's right edge, is the part of the
+        // canvas's width right of labelsEndColumn.
+        const labelsRightOffset = `calc(${canvasWidth} * ${1 - labelsEndColumn / columnCount})`
         for (let row = 0; row < rowCount; row++) {
-            const y = row * pixelsPerCell + pixelsPerCell / 2
             //const isBoundary = row === 0 || row === rowCount - 1
-            const drawLabel = (row + 1) % 3 === 0
-            const hasSpace = (y - lastLabelY >= minSpacing)
-            if (drawLabel && hasSpace) {
-                context.fillText(`${row + 1}`, 2, y)
-                lastLabelY = y
+            if ((row + 1) % 3 === 0) {
+                const label = document.createElement('div')
+                label.className = 'periodicity-plot-overlay-element'
+                label.textContent = `${row + 1}`
+                Object.assign(label.style, {
+                    position: 'absolute',
+                    top: `${(row + 0.5) * pixelsPerCell}px`,
+                    right: labelsRightOffset,
+                    marginRight: `${Math.ceil(fontSizeInPixels / 4)}px`,
+                    transform: 'translateY(-50%)',
+                    font: `${fontSizeInPixels}px monospace`,
+                    lineHeight: '1',
+                })
+                overlayContainer.appendChild(label)
             }
         }
 
@@ -249,9 +251,11 @@
         container.innerHTML = ""
         container.style.display = "flex"
         container.style.alignItems = "flex-end"
-        container.style.gap = "6px"
-        container.style.height = "160px"
-        container.style.marginTop = "16px"
+        // Centered when the bars fit, and starting at the left edge (instead of overflowing past it) when they don't
+        container.style.justifyContent = "safe center"
+        container.style.gap = "12px"
+        container.style.height = "320px"
+        container.style.marginTop = "32px"
 
         const scores = computeBarScores(periodicityMatrix)
         const maxScore = Math.max(...scores, 0)
@@ -261,18 +265,18 @@
             wrapper.style.display = "flex"
             wrapper.style.flexDirection = "column"
             wrapper.style.alignItems = "center"
-            wrapper.style.font = "11px monospace"
+            wrapper.style.font = "22px monospace"
 
             const bar = document.createElement("div")
             const normalized = maxScore === 0 ? 0 : (score / maxScore)
-            bar.style.height = `${normalized * 120}px`
-            bar.style.width = "10px"
+            bar.style.height = `${normalized * 240}px`
+            bar.style.width = "20px"
             bar.style.backgroundColor = "#4cc9f0" //"#6366F1" //"#4cc9f0"
-            bar.style.borderRadius = "2px 2px 0 0"
+            bar.style.borderRadius = "4px 4px 0 0"
             //bar.title = `Period ${index + 1}: ${(score * 100).toFixed(1)}%`
 
             const label = document.createElement("span")
-            label.style.paddingTop = "5px"
+            label.style.paddingTop = "10px"
             label.textContent = `${index + 1}`
 
             wrapper.appendChild(bar)
@@ -284,19 +288,20 @@
 
     /*
     Example:
-    <canvas id="periodicityMatrixCanvas"></canvas>
+    <div style="width: 100%; box-sizing: border-box"><canvas id="periodicityMatrixCanvas" style="width: 100%"></canvas></div>
     <div id="barPlotContainer"></div>
 
 
     const pixelsPerCell = 10
     const minRunLength = 3
-    const useBackwardLook = false
 
     const periodicityCanvas = document.getElementById("periodicityMatrixCanvas")
-    const periodicityMatrix = plotPeriodicityPlot(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength, useBackwardLook)
+    const periodicityMatrix = plotPeriodicityPlot(periodicityCanvas, inputSequence, pixelsPerCell, minRunLength)
 
     const barPlotContainer = document.getElementById("barPlotContainer")
-    buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)
+    if (periodicityMatrix) {
+        buildPeriodicityMatrixBarChart(barPlotContainer, periodicityMatrix)
+    }
     */
 
     /** --------- END of utils for periodicity plots  ---------- */

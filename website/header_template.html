@@ -1,14 +1,16 @@
 <head>
+<meta charset="utf-8">
 <title>TRExplorer</title>
 <link rel="icon" type="image/png" href="favicon.png">
-<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css">
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2"></script>
+<!-- The integrity hashes make the browser refuse a library file that differs from the pinned version -->
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css" integrity="sha384-MC/DuDYHQs0NorkJdvxXwZeSFDEhHVVrH/XQ/7JQAKKDazcvpRQ7feYib4xf32ZT" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.js" integrity="sha384-J90C/4H4FEvN97dzFx745RBJDfRe8Lt+DQaL3uLYunPE2dagUsllBeEn5aZa4w8M" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.1.1/dist/chartjs-chart-matrix.min.js" integrity="sha384-1F0fhFjxtd37WkZThr/GLGd2DOt6mD75iIOalHTjrs81mR3tCsjVz+GmPMUOvPpL" crossorigin="anonymous"></script>
 
 <!-- script src="https://storage.googleapis.com/tgg-viewer/igv.js-bw2/dist/igv.min.js?version=2024-08-06"></script -->
-<script src="https://cdn.jsdelivr.net/npm/igv@3.4.0/dist/igv.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/igv@3.4.0/dist/igv.min.js" integrity="sha384-J21zKGdBhzZpn51sPRNDOJ3M4Qy2FSjQ9aHKq5GmTf04u8xNCfx0svchjQea5Dyd" crossorigin="anonymous"></script>
 
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-6R8FPBQRFH"></script>
@@ -41,6 +43,10 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const TR_CATALOG_BASE_URL = "https://storage.googleapis.com/tandem-repeat-catalog"
 
+    // Papers that several help texts link to
+    const WEISBURD_DOLZHENKO_2026_PAPER_URL = 'https://authors.elsevier.com/c/1m~6CgeXHn5V'
+    const DANZI_2025_PAPER_URL = 'https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2'
+
     const SHARED_TR_CATALOG_SIZES = {
         known_disease_loci: 63,
         illumina_174k_catalog: 174300,
@@ -71,15 +77,15 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
     const TR_EXPLORER_CATALOG  = [
-        ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], "TR catalog described in [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]"],
-        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], "Version 2.0 of the TR catalog described in [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs."],
+        ["igv_tr_explorer_catalog_v1", "TRExplorer catalog v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.repeat_catalog_v1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog'], `TR catalog described in [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]`],
+        ["igv_tr_explorer_catalog_v2", "TRExplorer catalog v2.0", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2'], `Version 2.0 of the TR catalog described in [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]. This version introduces loci from the Vamos v2.1 catalog in order to improve coverage of VNTRs.`],
         ["igv_tr_explorer_catalog_v2_1", "TRExplorer catalog v2.1 draft", `${TR_CATALOG_BASE_URL}/v2.1/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.bed.gz`, SHARED_TR_CATALOG_SIZES['tr_explorer_catalog_v2_1'], "Draft of version 2.1 of the TR catalog. It adds 58,135 loci whose boundaries were extended beyond their v2.0 definitions, and leaves all 5,599,658 v2.0 loci unchanged."],
     ]
 
     const TR_VARIATION_CLUSTERS = [
-        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.variation_clusters_and_isolated_TRs_v2.hg38.TRGT.bed.gz`, 5339786, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]."],
-        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, "This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]."],
-        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, "Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='https://authors.elsevier.com/c/1m~6CgeXHn5V' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]."],
+        ["igv_vc_and_isolated_v2", "Variation clusters + isolated TRs v2", `${TR_CATALOG_BASE_URL}/v2.0/TRExplorer.variation_clusters_and_isolated_TRs_v2.hg38.TRGT.bed.gz`, 5339786, `This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer v2 catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>].`],
+        ["igv_vc_and_isolated_v1", "Variation clusters and isolated repeats v1.0", `${TR_CATALOG_BASE_URL}/v1.0/TRExplorer.variation_clusters_and_isolated_TRs_v1.hg38.TRGT.bed.gz`, 4542828, `This catalog contains intervals representing variation clusters, as well as entries for all TRExplorer catalog loci that are not within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>].`],
+        ["igv_vc_v1", "Variation clusters v1.0", `${TR_CATALOG_BASE_URL}/v1.0/variation_clusters_v1.hg38.bed.gz`, 271362, `Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>].`],
     ];
 
     const KNOWN_TR_LOCI_TRACK = [
@@ -101,7 +107,7 @@ gtag('config', 'G-6R8FPBQRFH');
         ["igv_chiu", "Chiu et al.", `${TR_CATALOG_BASE_URL}/other_catalogs/Chiu_et_al.bed.gz`, 18759399, "The TR catalog described in [<a href='https://pubmed.ncbi.nlm.nih.gov/38947075/' target=_blank>Chiu et al. 2024</a>]"],
     ]
 
-    REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
+    const REFERENCE_BASE_URL = "https://storage.googleapis.com/tgg-viewer/ref/GRCh38"
 
     const REFERENCE_TRACKS = [
         ["igv_gencode", "Gencode v50 basic", `${REFERENCE_BASE_URL}/gencode_v50/gencode.v50.GRCh38.sorted.txt.gz`],
@@ -181,6 +187,18 @@ gtag('config', 'G-6R8FPBQRFH');
         'StdevFromT2TAssemblies',
     ]
 
+    // The allele histogram column of each dataset that has one, and that dataset's standard deviation column
+    const STDEV_COLUMN_BY_ALLELE_HISTOGRAM_COLUMN = {
+        'HPRC256_AlleleHistogram': 'HPRC256_Stdev',
+        'HPRC256TotalLength_AlleleHistogram': 'HPRC256TotalLength_Stdev',
+        'TenK10K_AlleleHistogram': 'TenK10K_Stdev',
+        'AlleleFrequenciesFromIllumina174k': 'StdevFromIllumina174k',
+        'AlleleFrequenciesFromT2TAssemblies': 'StdevFromT2TAssemblies',
+    }
+
+    // The genotype (biallelic) histogram column of each dataset that has one
+    const BIALLELIC_HISTOGRAM_COLUMNS = ['HPRC256_BiallelicHistogram', 'HPRC256TotalLength_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
+
     const STDEV_SIGMA_SUBSCRIPTS = {
         'HPRC256_Stdev': 'Hprc256:LPS',
         'HPRC256TotalLength_Stdev': 'Hprc256:Length',
@@ -199,8 +217,6 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256_BiallelicHistogram': 'Repeat Count in Longest Pure Segment (LPS)',
         'HPRC256TotalLength_BiallelicHistogram': 'Total Repeat Count (TRGT Allele Length / Motif Size)',
         'TenK10K_BiallelicHistogram': 'Repeat Count',
-        'HPRC256_AlleleSizeAndPurityDistribution': 'Raw Repeat Count (TRGT Allele Length / Motif Size)',
-        'HPRC256_AlleleSizeAndMethylationDistribution': 'Raw Repeat Count (TRGT Allele Length / Motif Size)',
     }
 
     const ALLELE_HISTOGRAM_SHORT_NAMES = {
@@ -209,11 +225,6 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_AlleleHistogram': 'TenK10K Phase 1',
         'AlleleFrequenciesFromIllumina174k': '1kGP',
         'AlleleFrequenciesFromT2TAssemblies': 'T2T',
-        'HPRC256_BiallelicHistogram': 'HPRC256:LPS',
-        'HPRC256TotalLength_BiallelicHistogram': 'HPRC256:Length',
-        'TenK10K_BiallelicHistogram': 'TenK10K Phase 1',
-        'HPRC256_AlleleSizeAndPurityDistribution': 'HPRC256',
-        'HPRC256_AlleleSizeAndMethylationDistribution': 'HPRC256',
     }
     const ALLELE_FREQUENCY_CHART_TITLES = {
         'HPRC256_AlleleHistogram': 'Allele Frequencies (LPS) from HPRC 256 PacBio samples',
@@ -228,23 +239,28 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256_AlleleSizeAndMethylationDistribution': 'Allele Methylation Heatmap from HPRC 256 PacBio samples',
     }
 
+    // The descriptions of the datasets that several charts are based on
+    const HPRC256_DATASET_DESCRIPTION = 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)'
+    const HPRC256_TOTAL_LENGTH_DATASET_DESCRIPTION = 'based on the total allele lengths from TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)'
+    const TENK10K_DATASET_DESCRIPTION = 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>'
+
     const ALLELE_FREQUENCY_CHART_SUBTITLES = {
-        'HPRC256_AlleleHistogram': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'HPRC256TotalLength_AlleleHistogram': 'based on the total allele lengths from TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_AlleleHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
+        'HPRC256_AlleleHistogram': HPRC256_DATASET_DESCRIPTION,
+        'HPRC256TotalLength_AlleleHistogram': HPRC256_TOTAL_LENGTH_DATASET_DESCRIPTION,
+        'TenK10K_AlleleHistogram': TENK10K_DATASET_DESCRIPTION,
         'AlleleFrequenciesFromIllumina174k': 'based on ExpansionHunter calls in <a href=https://github.com/Illumina/RepeatCatalogs/blob/master/docs/str_diversity_1kg.md target=_blank>2,504 short-read genomes from 1kGP</a>',
         'AlleleFrequenciesFromT2TAssemblies': 'based on assembly-to-hg38 alignments of 78 diploid T2T assemblies as described in <a href=https://pubmed.ncbi.nlm.nih.gov/37214979 target=_blank>Weisburd et al. 2023</a>',
-        'HPRC256_BiallelicHistogram': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'HPRC256TotalLength_BiallelicHistogram': 'based on the total allele lengths from TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'TenK10K_BiallelicHistogram': 'based on ExpansionHunter calls in 1,925 short-read genomes from the <a href=https://www.biorxiv.org/content/10.1101/2024.11.02.621562v2 target=_blank>TenK10K Phase 1 dataset</a>',
-        'HPRC256_AlleleSizeAndPurityDistribution': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
-        'HPRC256_AlleleSizeAndMethylationDistribution': 'based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC)',
+        'HPRC256_BiallelicHistogram': HPRC256_DATASET_DESCRIPTION,
+        'HPRC256TotalLength_BiallelicHistogram': HPRC256_TOTAL_LENGTH_DATASET_DESCRIPTION,
+        'TenK10K_BiallelicHistogram': TENK10K_DATASET_DESCRIPTION,
+        'HPRC256_AlleleSizeAndPurityDistribution': HPRC256_DATASET_DESCRIPTION,
+        'HPRC256_AlleleSizeAndMethylationDistribution': HPRC256_DATASET_DESCRIPTION,
     }
 
     const STDEV_HELP_TEXTS = {
-        'HPRC256_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>]. <br />`,
-        'HPRC256TotalLength_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in 256 PacBio HiFi samples from the Human Pan-genome Reference Consortium (HPRC), using the total length of each allele (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment. For a locus in a variation cluster, it is the total length of the whole cluster. <br />`,
-        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>]. <br />`,
+        'HPRC256_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_AlleleHistogram']}. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="${DANZI_2025_PAPER_URL}" target="_blank">Danzi et al. 2025</a>]. <br />`,
+        'HPRC256TotalLength_Stdev': `This is the standard deviation of the allele frequency distribution ${HPRC256_DATASET_DESCRIPTION}, using the total length of each allele (the TRGT allele length divided by the motif length, rounded down) rather than its longest pure segment. For a locus in a variation cluster, it is the total length of the whole cluster. <br />`,
+        'AoU1027_Stdev': `This is the standard deviation of the allele frequency distribution based on TRGT calls in PacBio HiFi samples from 1,027 African American participants in the All of Us (AoU) project. Allele sizes were computed using the longest pure segment (LPS) as described in [<a href="${DANZI_2025_PAPER_URL}" target="_blank">Danzi et al. 2025</a>]. <br />`,
         'TenK10K_Stdev': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}. <br /><br />TenK10K Phase 1 primarily contains individuals of European ancestry.`,
         'StdevFromIllumina174k': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}. <br />`,
         'StdevFromT2TAssemblies': `This is the standard deviation of the allele frequency distribution ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}. <br />`
@@ -256,9 +272,6 @@ gtag('config', 'G-6R8FPBQRFH');
         'TenK10K_AlleleHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_AlleleHistogram']}.`,
         'AlleleFrequenciesFromIllumina174k': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromIllumina174k']}.`,
         'AlleleFrequenciesFromT2TAssemblies': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['AlleleFrequenciesFromT2TAssemblies']}.`,
-        'HPRC256_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256_BiallelicHistogram']}.`,
-        'HPRC256TotalLength_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['HPRC256TotalLength_BiallelicHistogram']}. For a locus in a variation cluster, the sizes are the total length of the whole cluster divided by the motif length of the locus.`,
-        'TenK10K_BiallelicHistogram': `Allele frequencies ${ALLELE_FREQUENCY_CHART_SUBTITLES['TenK10K_BiallelicHistogram']}.`,
     }
 
     const HPRC256_SEX_UI_TO_DATA = { '': '', 'XX': 'female', 'XY': 'male' }
@@ -297,7 +310,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256_AlleleHistogram',
             unsuffixedColumn:    'AlleleSizeHistogram',
             stratColPrefix:      'AlleleSizeHistogram__',
-            getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
             urlPopField:         'hprc256_allele_pop',
             urlSexField:         'hprc256_allele_sex',
@@ -311,7 +324,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256_BiallelicHistogram',
             unsuffixedColumn:    'BiallelicHistogram',
             stratColPrefix:      'BiallelicHistogram__',
-            getCompleteTableId:  () => HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
             urlPopField:         'hprc256_biallelic_pop',
             urlSexField:         'hprc256_biallelic_sex',
@@ -325,7 +338,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256TotalLength_AlleleHistogram',
             unsuffixedColumn:    'AlleleSizeHistogram',
             stratColPrefix:      'AlleleSizeHistogram__',
-            getCompleteTableId:  () => HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256TotalLengthStratifiedRow',
             urlPopField:         'hprc256_total_length_allele_pop',
             urlSexField:         'hprc256_total_length_allele_sex',
@@ -339,7 +352,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256TotalLength_BiallelicHistogram',
             unsuffixedColumn:    'BiallelicHistogram',
             stratColPrefix:      'BiallelicHistogram__',
-            getCompleteTableId:  () => HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256TotalLengthStratifiedRow',
             urlPopField:         'hprc256_total_length_biallelic_pop',
             urlSexField:         'hprc256_total_length_biallelic_sex',
@@ -353,7 +366,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256_AlleleSizeAndPurityDistribution',
             unsuffixedColumn:    'AlleleSizeAndPurityDistribution',
             stratColPrefix:      'AlleleSizeAndPurityDistribution__',
-            getCompleteTableId:  () => HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256PurityStratifiedRow',
             urlPopField:         'hprc256_purity_pop',
             urlSexField:         'hprc256_purity_sex',
@@ -367,7 +380,7 @@ gtag('config', 'G-6R8FPBQRFH');
             mainColumn:          'HPRC256_AlleleSizeAndMethylationDistribution',
             unsuffixedColumn:    'AlleleSizeAndMethylationDistribution',
             stratColPrefix:      'AlleleSizeAndMethylationDistribution__',
-            getCompleteTableId:  () => HPRC256_METHYLATION_COMPLETE_TABLE_ID,
+            completeTableId:     HPRC256_METHYLATION_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256MethylationStratifiedRow',
             urlPopField:         'hprc256_methylation_pop',
             urlSexField:         'hprc256_methylation_sex',
@@ -405,6 +418,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 <label style="display: inline-flex; align-items: center;"><b>Population:</b>&nbsp;&nbsp;<select class="hprc256-pop-select">${popOpts}</select></label>
                 <label style="display: inline-flex; align-items: center;"><b>Sex:</b>&nbsp;&nbsp;<select class="hprc256-sex-select">${sexOpts}</select></label>
                 <span class="hprc256-stratum-empty-note" style="display:none; color:#686868; font-style: italic;">No HPRC256 alleles for this stratum at this locus</span>
+                <span class="hprc256-stratum-error-note" style="display:none; color:#9f3a38; font-style: italic;">Couldn't load the alleles for this stratum. Please try again.</span>
             </div>
         `
     }
@@ -415,14 +429,16 @@ gtag('config', 'G-6R8FPBQRFH');
     // The column groups, one list per row of group boxes in the export and custom filter dialogs
     const BIGQUERY_COLUMN_GROUP_ROWS = {{ column_group_rows | tojson }}
 
-    // GENE_REGION_PRIORITY from global_constants.py via Jinja2
-    const gene_region_priority = {{ gene_region_priority | tojson }}
+    // Escapes text for use in HTML, as element content or as an attribute value. Help texts and popups are HTML that a
+    // Semantic UI popup renders from an element's data-html attribute, and escaping that HTML with this gives the popup
+    // the HTML exactly as written, since the browser decodes the attribute value.
+    const escapeHtmlText = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
-    // Help texts are HTML that a Semantic UI popup renders from an element's data-html attribute. This escapes the
-    // characters that would end that double-quoted attribute value early or be decoded by it, so the popup gets the help
-    // text's HTML exactly as written.
-    function escapeHelpTextForDataHtmlAttribute(helpText) {
-        return helpText.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    // Escapes text for use inside a single-quoted BigQuery (GoogleSQL) string literal, to prevent SQL injection.
+    // GoogleSQL uses backslash escapes, so the backslash MUST be escaped first (before the quote); otherwise a value
+    // like `x\') OR TRUE--` would escape past the quote's backslash and break out of the literal.
+    function escapeTextForSqlStringLiteral(text) {
+        return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
     }
 
     // Help texts for UI columns - starts with BigQuery descriptions, then adds/overrides
@@ -439,19 +455,14 @@ gtag('config', 'G-6R8FPBQRFH');
         TRsInRegion: 'Number of other TRs in the vicinity of this locus that are separated from each other by no more than 6bp of spacer sequence',
         NumRepeatsInReference: 'Number of repeats calculated by taking the width of the TR locus reference interval and dividing it by the motif size, then rounding down to the nearest integer',
         ReferenceRepeatPurity: 'The fraction of bases within the TR locus reference sequence that match perfect repeats of the specified motif. For example, CAG.CAG.CAG has purity = 1.0, while CAG.CAA.CAG has purity = 0.89<br /><br /><b>Range:</b> 0 to 1',
-        AoU1027_OE_LengthPercentile: 'Observed / Expected TR length metric from the TR constraint model described in [<a href="https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2" target="_blank">Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog',
+        AoU1027_OE_LengthPercentile: `Observed / Expected TR length metric from the TR constraint model described in [<a href="${DANZI_2025_PAPER_URL}" target="_blank">Danzi et al. 2025</a>], displayed as a percentile rank relative to all other TR loci in the catalog`,
         VamosMotifFrequencies: 'Different motifs detected at this locus by the Vamos v2.1 pipeline when applied to 94 HPRC assemblies',
         FlanksAndLocusMappability: 'UCSC 36-mer mappability scores averaged across the TR locus and +/- 150bp of its flanking sequences<br /><br /><b>Range:</b> 0 to 1',
-        GencodeGeneRegion: `The most significant gene region that overlaps the TR locus in Gencode v50 (comprehensive) ${gene_region_priority}`,
-        RefseqGeneRegion: `The most significant RefSeq gene region that overlaps the TR locus ${gene_region_priority}`,
-        ManeGeneRegion: `The most significant gene region that overlaps the TR locus in MANE v1.4 ${gene_region_priority}`,
-        HPRC256_BiallelicHistogram: 'Biallelic histogram of HPRC256',
-        TenK10K_BiallelicHistogram: 'Biallelic histogram of TenK10K Phase 1',
 
         // UI-only columns (not in BigQuery schema)
         polymorphism: 'Summary of available polymorphism data for the TR locus',
         isPathogenic: 'Whether this is a known disease-associated locus (provided as a separate column to enable sorting)',
-        variationCluster: 'Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href=\'https://authors.elsevier.com/c/1m~6CgeXHn5V\' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]',
+        variationCluster: `Summarizes whether the TR locus resides within a variation cluster. Variation Clusters (VCs) are genomic intervals that contain one or more TRs embedded within a wider region that harbors multiple common polymorphisms. For more details, see [<a href='${WEISBURD_DOLZHENKO_2026_PAPER_URL}' target=_blank>Weisburd, Dolzhenko et al. 2026</a>]`,
         dotPlot: 'Dot plot visualization of the reference repeat sequence and flanking sequences. Vertical blue lines represent locus boundaries',
     }
 
@@ -636,8 +647,8 @@ gtag('config', 'G-6R8FPBQRFH');
         // Convert to URL hash using jQuery's param method
         const hash = '#' + $.param(nonDefaultParams)
 
-        // Get current hash to check if state has changed
-        const currentHash = window.location.hash
+        // Get current hash to check if state has changed. A URL with no hash describes the same state as '#'.
+        const currentHash = window.location.hash || '#'
         if (currentHash !== hash) {
             // Update URL and add to browser history
             if (replaceCurrentHistoryEntry) {
@@ -648,10 +659,46 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    // Returns the page state that the URL hash describes: DEFAULT_GLOBAL_PAGE_STATE, overridden by each hash parameter
+    // that is a page state key (or its URL_PARAM_ALIASES alias), with 'true', 'false' and numbers converted (an empty
+    // value stays an empty string). An empty hash gives the default state.
+    const readPageStateFromUrlHash = () => {
+        const pageState = JSON.parse(JSON.stringify(DEFAULT_GLOBAL_PAGE_STATE))
+        for (const [urlKey, value] of new URLSearchParams(window.location.hash.substring(1)).entries()) {
+            // Convert abbreviated URL param name to internal state name if needed
+            const key = URL_PARAM_REVERSE_ALIASES[urlKey] || urlKey
+            if (key in DEFAULT_GLOBAL_PAGE_STATE && value != null) {
+                pageState[key] = value === 'true' ? true :
+                                 value === 'false' ? false :
+                                 value !== '' && !isNaN(value) ? Number(value) : value
+            }
+        }
+        return pageState
+    }
+
+    // Opens the What's New, FAQ, Downloads and About dialogs from their links in the page header
+    const initHeaderDialogLinks = () => {
+        ['whats-new', 'faq', 'downloads', 'about'].forEach(prefix => {
+            $(`#${prefix}-link`).click((e) => {
+                e.preventDefault()
+                $(`#${prefix}-modal`).modal('show')
+            })
+        })
+    }
+
     const computeIntervalSize = (interval) => {
         const [chrom, start_end] = interval.split(':')
         const [start, end] = start_end.split('-')
         return parseInt(end) - parseInt(start)
+    }
+
+    // Splits a LocusId like '4-3074876-3074933-CAG' into its chromosome (without 'chr'), 0-based start, end and motif
+    const parseLocusId = (locusId) => {
+        const parts = locusId.split('-')
+        const motif = parts.pop()
+        const end = parseInt(parts.pop())
+        const start0Based = parseInt(parts.pop())
+        return { chrom: parts.join('-'), start0Based, end, motif }
     }
 
 
@@ -704,23 +751,23 @@ gtag('config', 'G-6R8FPBQRFH');
         return await response.json()
     }
 
+    // The window.searchResults key under which a chart's stratified row for a locus and interval is cached. A LocusId can
+    // be genotyped under multiple TRGT intervals, so each (locus, interval) needs its own cache slot.
+    const buildHprc256StratifiedRowCacheKey = (cfg, locusId, interval) =>
+        cfg.cacheKey + '__' + locusId + (interval ? ('__' + interval) : '')
+
     const fetchHprc256StratifiedRow = async (chartKind, locusId, interval) => {
         const cfg = HPRC256_STRATIFIED_CHARTS[chartKind]
-        // Cache key is (chart kind, locus, interval) — a LocusId can be genotyped
-        // under multiple TRGT intervals, so each (locus, interval) needs its own
-        // cache slot.
-        const intervalSuffix = interval ? ('__' + interval) : ''
-        const cacheKey = cfg.cacheKey + '__' + locusId + intervalSuffix
+        const cacheKey = buildHprc256StratifiedRowCacheKey(cfg, locusId, interval)
         if (window.searchResults && cacheKey in window.searchResults) {
             return window.searchResults[cacheKey]
         }
-        const escapedLocusId = locusId.replace(/'/g, "\\'")
         // Backtick-quoted, since `interval` is a reserved word in BigQuery SQL
-        let where = `\`${cfg.locusIdColumn}\` = '${escapedLocusId}'`
+        let where = `\`${cfg.locusIdColumn}\` = '${escapeTextForSqlStringLiteral(locusId)}'`
         if (interval) {
-            where += ` AND \`${cfg.intervalColumn}\` = '${interval.replace(/'/g, "\\'")}'`
+            where += ` AND \`${cfg.intervalColumn}\` = '${escapeTextForSqlStringLiteral(interval)}'`
         }
-        const query = `SELECT * FROM ${cfg.getCompleteTableId()} WHERE ${where} LIMIT 1`
+        const query = `SELECT * FROM ${cfg.completeTableId} WHERE ${where} LIMIT 1`
         const result = await queryBigQuery(query, 0, 1, null, null)
         const stratifiedRow = (result && result.rows && result.rows.length > 0) ? result.rows[0] : null
         if (window.searchResults) window.searchResults[cacheKey] = stratifiedRow
@@ -748,6 +795,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const containerEl = controlsEl.parentElement
         const canvasEl    = containerEl.querySelector('canvas')
         const emptyNoteEl = controlsEl.querySelector('.hprc256-stratum-empty-note')
+        const errorNoteEl = controlsEl.querySelector('.hprc256-stratum-error-note')
 
         const pop     = controlsEl.querySelector('.hprc256-pop-select').value
         const sexData = HPRC256_SEX_UI_TO_DATA[controlsEl.querySelector('.hprc256-sex-select').value] || ''
@@ -772,25 +820,47 @@ gtag('config', 'G-6R8FPBQRFH');
         const usingNonDefaultInterval = !!(activeInterval && catalogInterval && activeInterval !== catalogInterval)
 
         let histogramString
-        if (!stratum && !usingNonDefaultInterval) {
-            histogramString = mainCatalogRow[cfg.mainColumn]
-        } else {
-            const stratifiedColName = stratum ? (cfg.stratColPrefix + stratum) : cfg.unsuffixedColumn
-            const intervalSuffix = activeInterval ? ('__' + activeInterval) : ''
-            const cacheKey = cfg.cacheKey + '__' + mainCatalogRow.LocusId + intervalSuffix
-            const alreadyCached = window.searchResults && cacheKey in window.searchResults
-            if (!alreadyCached) {
-                showHprc256SpinnerOverlay(containerEl)
+        let fixedRanges
+        try {
+            if (!stratum && !usingNonDefaultInterval) {
+                histogramString = mainCatalogRow[cfg.mainColumn]
+            } else {
+                const stratifiedColName = stratum ? (cfg.stratColPrefix + stratum) : cfg.unsuffixedColumn
+                // fetchHprc256StratifiedRow returns a cached row right away, so the spinner is shown only for a query
+                const isRowCached = window.searchResults
+                    && buildHprc256StratifiedRowCacheKey(cfg, mainCatalogRow.LocusId, activeInterval) in window.searchResults
+                if (!isRowCached) showHprc256SpinnerOverlay(containerEl)
                 try {
                     const fetchedRow = await fetchHprc256StratifiedRow(chartKind, mainCatalogRow.LocusId, activeInterval)
                     histogramString = fetchedRow ? fetchedRow[stratifiedColName] : null
                 } finally {
-                    hideHprc256SpinnerOverlay(containerEl)
+                    if (!isRowCached) hideHprc256SpinnerOverlay(containerEl)
                 }
-            } else {
-                const cached = window.searchResults[cacheKey]
-                histogramString = cached ? cached[stratifiedColName] : null
             }
+
+            // The fixed axis and color ranges, which don't change as the user flips between strata. The ones that
+            // renderChartsInPolymorphismDialog saved on the canvas come from the catalog row's interval, so for another
+            // interval they're computed from that interval's unstratified values instead, so that its alleles outside
+            // the catalog interval's range still show.
+            const parseSavedRange = (value) => value != null ? parseFloat(value) : null
+            fixedRanges = usingNonDefaultInterval
+                ? await computeHprc256FixedRangesForInterval(chartKind, mainCatalogRow.LocusId, activeInterval)
+                : {
+                    minAlleleSize: parseSavedRange(canvasEl.dataset.fixedMinAlleleSize),
+                    maxAlleleSize: parseSavedRange(canvasEl.dataset.fixedMaxAlleleSize),
+                    maxCount: parseSavedRange(canvasEl.dataset.fixedMaxCount),
+                    minX: parseSavedRange(canvasEl.dataset.fixedMinX),
+                    maxX: parseSavedRange(canvasEl.dataset.fixedMaxX),
+                }
+        } catch (error) {
+            console.error(`Failed to load the HPRC256 ${chartKind} chart data:`, error)
+            // Clear the chart rather than leave the previous selection's data under the new selection
+            if (controlsEl.__hprc256InFlightToken === myToken) {
+                destroyExistingChart(canvasEl)
+                emptyNoteEl.style.display = 'none'
+                errorNoteEl.style.display = 'inline'
+            }
+            return
         }
 
         // Stale-fetch guard: if a newer call superseded this one while the
@@ -798,6 +868,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // data always matches the latest dropdown state.
         if (controlsEl.__hprc256InFlightToken !== myToken) return
 
+        errorNoteEl.style.display = 'none'
         const safeString = histogramString || ''
         emptyNoteEl.style.display = safeString ? 'none' : 'inline'
 
@@ -806,46 +877,66 @@ gtag('config', 'G-6R8FPBQRFH');
             thisObj: canvasEl, refAlleleSize,
             axisUnits: canvasEl.dataset.axisUnits,
             chartWidth: canvasEl.dataset.chartWidth, chartHeight: canvasEl.dataset.chartHeight,
-            label: canvasEl.dataset.label,
         }
-        // Pull fixed global ranges seeded by renderChartsInPolymorphismDialog so the
-        // axis and color scale don't change as the user flips between strata.
-        const fixedMinAlleleSize = canvasEl.dataset.fixedMinAlleleSize != null ? parseFloat(canvasEl.dataset.fixedMinAlleleSize) : null
-        const fixedMaxAlleleSize = canvasEl.dataset.fixedMaxAlleleSize != null ? parseFloat(canvasEl.dataset.fixedMaxAlleleSize) : null
-        const fixedMaxCount      = canvasEl.dataset.fixedMaxCount      != null ? parseFloat(canvasEl.dataset.fixedMaxCount)      : null
         if (cfg.chartType === 'alleleHistogram') {
             const freqs = parseAlleleFrequenciesString(safeString)
             const sizes = freqs.map(f => f.size)
             createAlleleFrequencyChart({
                 ...sharedOpts, frequencies: freqs,
-                minAlleleSize: fixedMinAlleleSize != null ? fixedMinAlleleSize : (sizes.length ? Math.min(...sizes) : refAlleleSize),
-                maxAlleleSize: fixedMaxAlleleSize != null ? fixedMaxAlleleSize : (sizes.length ? Math.max(...sizes) : refAlleleSize),
+                minAlleleSize: fixedRanges.minAlleleSize != null ? fixedRanges.minAlleleSize : (sizes.length ? Math.min(...sizes) : refAlleleSize),
+                maxAlleleSize: fixedRanges.maxAlleleSize != null ? fixedRanges.maxAlleleSize : (sizes.length ? Math.max(...sizes) : refAlleleSize),
             })
         } else if (cfg.chartType === 'biallelicHistogram') {
             const [data, lookup] = parseBiallelicHistogramString(safeString)
             createBiallelicHistogramChart({
                 ...sharedOpts, data, lookup,
-                minAlleleSize: fixedMinAlleleSize != null ? fixedMinAlleleSize : (data.length ? Math.min(...data.map(f => Math.min(f.x, f.y))) : refAlleleSize),
-                maxAlleleSize: fixedMaxAlleleSize != null ? fixedMaxAlleleSize : (data.length ? Math.max(...data.map(f => Math.max(f.x, f.y))) : refAlleleSize),
-                fixedMaxCount: fixedMaxCount,
+                minAlleleSize: fixedRanges.minAlleleSize != null ? fixedRanges.minAlleleSize : (data.length ? Math.min(...data.map(f => Math.min(f.x, f.y))) : refAlleleSize),
+                maxAlleleSize: fixedRanges.maxAlleleSize != null ? fixedRanges.maxAlleleSize : (data.length ? Math.max(...data.map(f => Math.max(f.x, f.y))) : refAlleleSize),
+                fixedMaxCount: fixedRanges.maxCount,
             })
         } else {
-            const data = parseSizeAndValueDistributionString(safeString)
-            const fixedMinX = canvasEl.dataset.fixedMinX != null ? parseFloat(canvasEl.dataset.fixedMinX) : null
-            const fixedMaxX = canvasEl.dataset.fixedMaxX != null ? parseFloat(canvasEl.dataset.fixedMaxX) : null
             createSizeAndValueHeatmapChart({
-                data, thisObj: canvasEl,
+                data: parseSizeAndValueDistributionString(safeString),
+                thisObj: canvasEl,
                 chartWidth: canvasEl.dataset.chartWidth,
                 yAxisLabel: canvasEl.dataset.yAxisLabel,
-                fixedMinX: fixedMinX,
-                fixedMaxX: fixedMaxX,
-                fixedMaxCount: fixedMaxCount,
-                fixedYAxisZeroToOne: true,
+                fixedMinX: fixedRanges.minX,
+                fixedMaxX: fixedRanges.maxX,
+                fixedMaxCount: fixedRanges.maxCount,
             })
         }
     }
 
+    // The fixed axis and color ranges of a stratified chart for one of the locus's intervals other than the catalog
+    // row's. They are computed the way renderChartsInPolymorphismDialog computes them from the catalog row, but from that
+    // interval's unstratified ("All") values. Returns {minAlleleSize, maxAlleleSize, maxCount} for the allele histograms
+    // and genotype heatmaps, {minX, maxX, maxCount} for the purity and methylation heatmaps, or {} if there is no data.
+    const computeHprc256FixedRangesForInterval = async (chartKind, locusId, interval) => {
+        if (HPRC256_STRATIFIED_CHARTS[chartKind].chartType === 'sizeAndValueHeatmap') {
+            // The purity and methylation heatmaps share one range, as in computeHprc256GlobalRanges
+            const [purityRow, methylationRow] = await Promise.all([
+                fetchHprc256StratifiedRow('purity', locusId, interval),
+                fetchHprc256StratifiedRow('methylation', locusId, interval),
+            ])
+            const range = computeSizeAndValueRange(
+                purityRow && purityRow.AlleleSizeAndPurityDistribution,
+                methylationRow && methylationRow.AlleleSizeAndMethylationDistribution)
+            return range ? {minX: range.xMin, maxX: range.xMax, maxCount: range.maxCount} : {}
+        }
+        const lpsRow = await fetchHprc256StratifiedRow(chartKind, locusId, interval)
+        const range = lpsRow && computeAlleleSizeRange(lpsRow.BiallelicHistogram, lpsRow.AlleleSizeHistogram)
+        if (!range) return {}
+        return {
+            minAlleleSize: range.xMin,
+            maxAlleleSize: range.xMax,
+            maxCount: lpsRow.BiallelicHistogram
+                ? computeGenotypeHeatmapMaxCount(lpsRow.BiallelicHistogram, range.xMin, range.xMax)
+                : null,
+        }
+    }
+
     const parseAlleleFrequenciesString = (frequenciesString) => {
+        if (!frequenciesString) return []
         try {
             const data = []
             const items = frequenciesString.split(',')
@@ -873,7 +964,7 @@ gtag('config', 'G-6R8FPBQRFH');
         let details = []
         for (let token of repeatMaskerIntervals.split(', ')) {
             const tokenEntries = token.split(':')
-            if (!'Simple_repeat|Low_complexity'.includes(tokenEntries[0])) {
+            if (!['Simple_repeat', 'Low_complexity'].includes(tokenEntries[0])) {
                 values.add(tokenEntries[0])
                 count += 1
                 details.push(`<span style='font-family: monospace'>${tokenEntries[0]}: ${tokenEntries[1]}</span>`)
@@ -895,7 +986,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const descriptions = {'uce': 'original UCE defined list (human-mouse-rat 100% sequence identity  >= 200bp), lifted over from hg19',
             'cFootprint_primate': 'evidence for TF binding for constrained primate elements (should be more constrained than mammals)',
             'uce_primate': 'ultra conserved in primates at least 20 bp',
-            'har': 'elements conserved in mammals but enriched for fixed changes in human only - could be either depleted or enriched for SVs in humans \\\\ sent request to corresponding author 12.14.2023; liftover hg18 -> hg38',
+            'har': 'elements conserved in mammals but enriched for fixed changes in human only - could be either depleted or enriched for SVs in humans; liftover hg18 -> hg38',
             'zoonomia_tfbs': 'zoonomia constrained tfbs',
             'zooHAR': 'zoonomia human accelerated regions',
             'zooCHAR': 'zoonomia chimp-human accelerated regions',
@@ -908,7 +999,7 @@ gtag('config', 'G-6R8FPBQRFH');
             'en3_dnase_k4m3': 'encode3 DNase-H3K4me3',
             'en3_pLS_ctcf': 'encode3 pLS-CTCF',
             'en3_pLS': 'encode3 pLS',
-            'UCSC_TF_ChIP': 'UCSC table browser query on encTfChipPkENCFF730MQM"',
+            'UCSC_TF_ChIP': 'UCSC table browser query on encTfChipPkENCFF730MQM',
             'vista': 'VISTA enhancer core element - positive',
             'abc_loeuf_0.15': 'same as abc_0.015 + any target gene loeuf < 0.35',
             'abc_pHaplo_0.9': 'ABC score >= 0.015 + any target gene pHaplo > 0.9',
@@ -919,15 +1010,15 @@ gtag('config', 'G-6R8FPBQRFH');
             k = k.trim()
             const description = descriptions[k]
             if (description) {
-                return `<span class="show-popup action-link" data-position="top center" data-html="&lt;div style='min-width: 200px'&gt;${description}&lt;/div&gt;">${k}</span>`
+                return `<span class="show-popup action-link" data-position="top center" data-html="${escapeHtmlText(`<div style='min-width: 200px'>${escapeHtmlText(description)}</div>`)}">${k}</span>`
             }
             return k
         }).join(', ')
     }
 
     const showTruncatedSequence = (sequence, truncateAt=12, showSize=true, leftTruncate=false, addBpSuffix=false) => {
-        // Sequence-bearing catalog columns are nulled by `CASE WHEN ReferenceRegionSize <= 10000`
-        // in the index-page SELECT for large loci; return empty so renderers don't crash on null.
+        // The index-page SELECT nulls ReferenceRepeatSequence when it is longer than 10,000 bp
+        // (`CASE WHEN LENGTH(col) <= 10000`); return empty so renderers don't crash on null.
         if (sequence == null) return ''
         let sequenceSizeString = ''
         if (showSize) {
@@ -975,9 +1066,9 @@ gtag('config', 'G-6R8FPBQRFH');
             <span style="color: #333;">
                 = ${row.HPRC256_Stdev != null ? row.HPRC256_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
             </span>
-            ${row.AoU1027_Stdev != null ? `<span class="action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>` : ''}
-            ${row.AoU1027_Stdev != null ? `<span style="color: #333;">
-                = ${row.AoU1027_Stdev != null ? row.AoU1027_Stdev.toFixed(1) : '<span style="color: #888888;">not available</span>'} &nbsp; &nbsp;
+            ${row.AoU1027_Stdev != null ? `<span class="action-link">σ<sub>${STDEV_SIGMA_SUBSCRIPTS["AoU1027_Stdev"]}</sub></span>
+            <span style="color: #333;">
+                = ${row.AoU1027_Stdev.toFixed(1)} &nbsp; &nbsp;
             </span>` : ''}
             <span class="action-link">
                 ${row['HPRC256TotalLength_Stdev'] != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["HPRC256TotalLength_Stdev"]}</sub>` : ''}  ${row['TenK10K_Stdev'] != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["TenK10K_Stdev"]}</sub>` : ''}  ${row.StdevFromIllumina174k != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromIllumina174k"]}</sub>` : ''}  ${row.StdevFromT2TAssemblies != null ? `σ<sub>${STDEV_SIGMA_SUBSCRIPTS["StdevFromT2TAssemblies"]}</sub>` : ''}
@@ -1015,33 +1106,38 @@ gtag('config', 'G-6R8FPBQRFH');
         { suffix: 'Stdev', header: 'Stdev', format: (v) => v?.toFixed(2) ?? '-', highlight: true },
     ]
 
-    // Maps a stratified-LPS row's per-interval summary stats onto the HPRC256_*
-    // catalog-row shape, so generateSummaryStatsTable can render an extra row from
-    // it without duplicating column-handling logic. ``showIntervalInName`` controls
-    // whether the dataset's "Dataset" column carries the interval label (true when
-    // multiple HPRC256 rows are about to be rendered side-by-side; false when only
-    // one HPRC256 row exists and the label would be redundant).
+    // The label of an HPRC256 interval: a variation cluster when the interval has a variation cluster id, or else a
+    // standalone TR
+    const describeHprc256Interval = (interval, variationClusterId) => variationClusterId
+        ? `Variation cluster ${interval}`
+        : `Standalone TR ${interval}`
+
+    // A generateSummaryStatsTable dataset for a stratified-LPS row's per-interval summary stats, which are mapped onto
+    // the HPRC256_* catalog-row shape (sourceRow) so the table renders them without duplicating column-handling logic.
+    // ``showIntervalInName`` controls whether the dataset's "Dataset" column carries the interval label (true when
+    // multiple HPRC256 rows are about to be rendered side-by-side; false when only one HPRC256 row exists and the label
+    // would be redundant).
     const buildHprc256IntervalDatasetRow = (stratifiedRow, showIntervalInName) => {
-        if (!stratifiedRow) return null
-        const isVc = stratifiedRow['VC'] && stratifiedRow['VC'] !== ''
-        const intervalLabel = stratifiedRow['Interval'] || '?'
-        const kindLabel = isVc ? `Variation cluster ${intervalLabel}` : `Standalone TR ${intervalLabel}`
         return {
+            prefix: 'HPRC256_',
             // Only annotate the dataset name with the interval when multiple HPRC256
             // rows are present — otherwise it's redundant clutter.
-            name: showIntervalInName ? `HPRC256:LPS — ${kindLabel}` : 'HPRC256:LPS',
+            name: showIntervalInName
+                ? `HPRC256:LPS — ${describeHprc256Interval(stratifiedRow['Interval'] || '?', stratifiedRow['VC'])}`
+                : 'HPRC256:LPS',
             description: showIntervalInName
                 ? 'Per-interval stats from the HPRC256 stratified LPS table'
-                : '256 long-read PacBio samples from HPRC genotyped using TRGT-LPS',
-            // Mirror the SUMMARY_STATS_COLUMNS suffixes onto a HPRC256_-style flat dict.
-            HPRC256_MinAllele: stratifiedRow['Min'],
-            HPRC256_Median: stratifiedRow['Median'],
-            HPRC256_99thPercentile: stratifiedRow['99thPercentile'],
-            HPRC256_MaxAllele: stratifiedRow['Max'],
-            HPRC256_UniqueAlleleLengths: stratifiedRow['UniqueAlleleLengths'],
-            HPRC256_NumCalledAlleles: stratifiedRow['NumCalledAlleles'],
-            HPRC256_ModeAllele: stratifiedRow['Mode'],
-            HPRC256_Stdev: stratifiedRow['Stdev'],
+                : SUMMARY_STATS_DATASETS.find(d => d.prefix === 'HPRC256_').description,
+            sourceRow: {
+                HPRC256_MinAllele: stratifiedRow['Min'],
+                HPRC256_Median: stratifiedRow['Median'],
+                HPRC256_99thPercentile: stratifiedRow['99thPercentile'],
+                HPRC256_MaxAllele: stratifiedRow['Max'],
+                HPRC256_UniqueAlleleLengths: stratifiedRow['UniqueAlleleLengths'],
+                HPRC256_NumCalledAlleles: stratifiedRow['NumCalledAlleles'],
+                HPRC256_ModeAllele: stratifiedRow['Mode'],
+                HPRC256_Stdev: stratifiedRow['Stdev'],
+            },
         }
     }
 
@@ -1054,15 +1150,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const showIntervalInName = useIntervalRows && hprc256IntervalRows.length > 1
         const datasets = useIntervalRows
             ? [
-                ...hprc256IntervalRows.map(stratifiedRow => {
-                    const built = buildHprc256IntervalDatasetRow(stratifiedRow, showIntervalInName)
-                    return {
-                        prefix: 'HPRC256_',
-                        name: built.name,
-                        description: built.description,
-                        sourceRow: built,
-                    }
-                }),
+                ...hprc256IntervalRows.map(stratifiedRow => buildHprc256IntervalDatasetRow(stratifiedRow, showIntervalInName)),
                 ...SUMMARY_STATS_DATASETS.filter(d => d.prefix !== 'HPRC256_'),
             ]
             : SUMMARY_STATS_DATASETS
@@ -1120,7 +1208,7 @@ gtag('config', 'G-6R8FPBQRFH');
         if (row.AoU1027_OE_LengthPercentile != null) {
             html += `
                 <div style="margin-top: 15px; text-align: center;">
-                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${escapeHelpTextForDataHtmlAttribute(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
+                    Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 10px;" data-html="${escapeHtmlText(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
                 </div>
             `
         }
@@ -1133,7 +1221,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // describe the whole cluster
     const describeHprc256TotalLengthInterval = (row) => {
         const interval = row['HPRC256TotalLength_Interval']
-        const [chrom, start0Based, end] = row['LocusId'].split('-')
+        const { chrom, start0Based, end } = parseLocusId(row['LocusId'])
         return interval && interval !== `${chrom}:${start0Based}-${end}`
             ? `<br />This locus is part of the variation cluster ${interval}, so these sizes are the total length of the whole cluster divided by the motif length of this locus`
             : ''
@@ -1144,8 +1232,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // one) divided by the motif length, since that is what their sizes measure
     const getReferenceAlleleSizeForColumn = (row, columnName) => {
         if (columnName.startsWith('HPRC256TotalLength_') && row['HPRC256TotalLength_Interval']) {
-            const [, start0Based, end] = row['HPRC256TotalLength_Interval'].match(/:(\d+)-(\d+)$/)
-            return Math.floor((parseInt(end) - parseInt(start0Based)) / row['ReferenceMotif'].length)
+            return Math.floor(computeIntervalSize(row['HPRC256TotalLength_Interval']) / row['ReferenceMotif'].length)
         }
         return row['NumRepeatsInReference']
     }
@@ -1157,26 +1244,23 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const generatePolymorphismDialogContent = (row, options = {}) => {
         const { showSigmaSummary = true } = options
-        const stdevColumns = ['HPRC256_Stdev', 'HPRC256TotalLength_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev', 'StdevFromIllumina174k', 'StdevFromT2TAssemblies']
-        const alleleFrequencyColumns = ['HPRC256_AlleleHistogram', 'HPRC256TotalLength_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']
-        const biallelicHistogramColumns = ['HPRC256_BiallelicHistogram', 'HPRC256TotalLength_BiallelicHistogram', 'TenK10K_BiallelicHistogram']
-        const sizeAndValueDistColumns = [
-            {column: 'HPRC256_AlleleSizeAndPurityDistribution', yAxisLabel: 'TRGT Allele Purity'},
-            {column: 'HPRC256_AlleleSizeAndMethylationDistribution', yAxisLabel: 'TRGT Allele Methylation'},
-        ]
+        const yAxisLabelBySizeAndValueDistColumn = {
+            'HPRC256_AlleleSizeAndPurityDistribution': 'TRGT Allele Purity',
+            'HPRC256_AlleleSizeAndMethylationDistribution': 'TRGT Allele Methylation',
+        }
 
-        const nStdevsNotAvailable = stdevColumns.filter(key => row[key] == null).length
+        const nStdevsNotAvailable = ALL_STDEV_COLUMNS.filter(key => row[key] == null).length
 
         let polymorphismDialogContent1 = `<div class="content info-font-size" style="text-align: center">`
 
         // Summary statistics section (sigma values) - only show if showSigmaSummary is true
-        if (showSigmaSummary && nStdevsNotAvailable < stdevColumns.length) {
+        if (showSigmaSummary && nStdevsNotAvailable < ALL_STDEV_COLUMNS.length) {
             polymorphismDialogContent1 += `
                 <div><span style="font-weight: bold">Allele Frequency Distribution Summary Statistics</span></div>
                 <div style="margin-top: 5px">
                     <table style="margin: 0 auto">
             `
-            for (const key of stdevColumns) {
+            for (const key of ALL_STDEV_COLUMNS) {
                 if (row[key] != null) {
                     polymorphismDialogContent1 += `
                         <tr>
@@ -1187,7 +1271,7 @@ gtag('config', 'G-6R8FPBQRFH');
                                 = ${row[key].toFixed(3)}
                             </td>
                             <td style="text-align: right;">
-                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHelpTextForDataHtmlAttribute(STDEV_HELP_TEXTS[key])}"></i>
+                                <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHtmlText(STDEV_HELP_TEXTS[key])}"></i>
                             </td>
                         </tr>
                     `
@@ -1198,7 +1282,7 @@ gtag('config', 'G-6R8FPBQRFH');
             if (nStdevsNotAvailable > 0) {
                 polymorphismDialogContent1 += `<br />`
                 let namesOfMissingSigmas = []
-                for (const key of stdevColumns) {
+                for (const key of ALL_STDEV_COLUMNS) {
                     if (row[key] == null) {
                         namesOfMissingSigmas.push(`<span style="font-size: 1.2em;">σ<sub style="font-size: 0.7em;">${STDEV_SIGMA_SUBSCRIPTS[key]}</sub></span>`)
                     }
@@ -1209,7 +1293,7 @@ gtag('config', 'G-6R8FPBQRFH');
             if (row.AoU1027_OE_LengthPercentile != null) {
                 polymorphismDialogContent1 += `
                     <div style="margin-top: 25px">
-                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHelpTextForDataHtmlAttribute(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
+                        Constraint (O/E Length) percentile = ${((100*row.AoU1027_OE_LengthPercentile).toFixed(1))}% <i class="question circle icon link" style="margin-left: 15px;" data-html="${escapeHtmlText(RESULTS_TABLE_COLUMN_HELP_TEXTS['AoU1027_OE_LengthPercentile'])}"></i>
                     </div>
                 `
             }
@@ -1219,87 +1303,47 @@ gtag('config', 'G-6R8FPBQRFH');
             polymorphismDialogContent1 += `<span style="color: #686868;">No polymorphism data available</span><br /><br />`
         }
 
-        // Check if any chart data is available
-        const alleleFrequencyColumnsAvailable = alleleFrequencyColumns.some(column => row[column] != null)
-        const biallelicHistogramColumnsAvailable = biallelicHistogramColumns.some(column => row[column] != null)
-
-        if (alleleFrequencyColumnsAvailable) {
-            // calculate the height of the allele frequency charts
-            polymorphismDialogContent1 += `
+        // A section of charts, with one panel (title, subtitle, chart and stratum controls) per column that has data
+        const renderChartSection = (columns, renderCanvas) => {
+            const columnsWithData = columns.filter(columnName => row[columnName] != null)
+            if (columnsWithData.length === 0) return ''
+            return `
                 <div style="margin-top: 15px;">
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-            `
-
-            for (const columnName of alleleFrequencyColumns) {
-                if (row[columnName] != null) {
-                    polymorphismDialogContent1 += `
+                ${columnsWithData.map(columnName => `
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
                             <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}${columnName.startsWith('HPRC256TotalLength_') ? describeHprc256TotalLengthInterval(row) : ''}</span></div>
-                            <canvas class="allele-frequency-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
+                            ${renderCanvas(columnName)}
                             ${renderHprc256StratumControlsForColumn(columnName)}
                         </div>
-                    `
-                }
-            }
-            polymorphismDialogContent1 += '</div></div>'
+                `).join('')}
+                    </div>
+                </div>`
         }
+        const renderHistogramCanvas = (canvasClass) => (columnName) =>
+            `<canvas class="${canvasClass}" data-frequencies-column="${columnName}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>`
 
-        if (biallelicHistogramColumnsAvailable) {
-            polymorphismDialogContent1 += `
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-            `
-            for (const columnName of biallelicHistogramColumns) {
-                if (row[columnName] != null) {
-                    polymorphismDialogContent1 += `
-                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}${columnName.startsWith('HPRC256TotalLength_') ? describeHprc256TotalLengthInterval(row) : ''}</span></div>
-                            <canvas class="biallelic-histogram-chart" data-label="${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]}" data-frequencies-column="${columnName}" data-ref-allele-size="${getReferenceAlleleSizeForColumn(row, columnName)}" data-axis-units="${AXIS_UNITS[columnName]}" data-chart-width="500px" data-chart-height="200px" style="width: 100%; height: 100px;"></canvas>
-                            ${renderHprc256StratumControlsForColumn(columnName)}
-                        </div>
-                    `
-                }
-            }
-            polymorphismDialogContent1 += '</div></div>'
-        }
-
-        const sizeAndValueDistColumnsAvailable = sizeAndValueDistColumns.some(entry => row[entry.column] != null)
-        if (sizeAndValueDistColumnsAvailable) {
-            polymorphismDialogContent1 += `
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
-            `
-            for (const {column: columnName, yAxisLabel} of sizeAndValueDistColumns) {
-                if (row[columnName] != null) {
-                    polymorphismDialogContent1 += `
-                        <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}</span></div>
-                            <canvas class="size-and-value-dist-chart" data-frequencies-column="${columnName}" data-y-axis-label="${yAxisLabel}" data-chart-width="500px" style="width: 100%; height: 100px;"></canvas>
-                            ${renderHprc256StratumControlsForColumn(columnName)}
-                        </div>
-                    `
-                }
-            }
-            polymorphismDialogContent1 += '</div></div>'
-        }
+        polymorphismDialogContent1 += renderChartSection(
+            Object.keys(STDEV_COLUMN_BY_ALLELE_HISTOGRAM_COLUMN), renderHistogramCanvas('allele-frequency-chart'))
+        polymorphismDialogContent1 += renderChartSection(
+            BIALLELIC_HISTOGRAM_COLUMNS, renderHistogramCanvas('biallelic-histogram-chart'))
+        polymorphismDialogContent1 += renderChartSection(
+            Object.keys(yAxisLabelBySizeAndValueDistColumn), (columnName) =>
+                `<canvas class="size-and-value-dist-chart" data-frequencies-column="${columnName}" data-y-axis-label="${yAxisLabelBySizeAndValueDistColumn[columnName]}" data-chart-width="500px" style="width: 100%; height: 100px;"></canvas>`)
 
         polymorphismDialogContent1 += '</div>'
         return polymorphismDialogContent1
     }
 
 
-    // Compute the global (unstratified) HPRC256 plot ranges so the LPS-based charts
-    // (Allele Frequencies + Genotype Heatmap) and the repeat-count-based heatmaps
-    // (Allele Purity + Methylation) keep a fixed axis/color scale when users change
-    // the Population/Sex stratum.
-    // Returns {xMin, xMax, maxCount} for a dataset's unstratified genotype heatmap, or {xMin, xMax} for its allele
-    // histogram if it has no heatmap data, or null if it has neither
+    // Returns {xMin, xMax} of the allele sizes in a dataset's unstratified genotype heatmap, or in its allele histogram
+    // if it has no heatmap data, or null if it has neither
     const computeAlleleSizeRange = (biallelicHistogramString, alleleHistogramString) => {
         if (biallelicHistogramString) {
             const [data] = parseBiallelicHistogramString(biallelicHistogramString)
             if (data.length > 0) {
                 const allSizes = data.flatMap(d => [d.x, d.y])
-                return {xMin: Math.min(...allSizes), xMax: Math.max(...allSizes), maxCount: Math.max(...data.map(d => d.v))}
+                return {xMin: Math.min(...allSizes), xMax: Math.max(...allSizes)}
             }
         }
         if (alleleHistogramString) {
@@ -1311,6 +1355,24 @@ gtag('config', 'G-6R8FPBQRFH');
         return null
     }
 
+    // The largest count in a genotype heatmap that shows allele sizes from minAlleleSize to maxAlleleSize, after binning
+    // the genotypes the same way createBiallelicHistogramChart does
+    const computeGenotypeHeatmapMaxCount = (biallelicHistogramString, minAlleleSize, maxAlleleSize) => {
+        const [data, lookup] = parseBiallelicHistogramString(biallelicHistogramString)
+        const binnedData = binGenotypeCounts(data, lookup, minAlleleSize, maxAlleleSize).data
+        return binnedData.length > 0 ? Math.max(...binnedData.map(d => d.v)) : 1
+    }
+
+    // Returns {xMin, xMax, maxCount} of the repeat counts and cell counts in the unstratified purity and methylation
+    // heatmaps combined, or null if neither has data
+    const computeSizeAndValueRange = (purityDistributionString, methylationDistributionString) => {
+        const combined = parseSizeAndValueDistributionString(purityDistributionString)
+            .concat(parseSizeAndValueDistributionString(methylationDistributionString))
+        if (combined.length === 0) return null
+        const xs = combined.map(d => d.x)
+        return {xMin: Math.min(...xs), xMax: Math.max(...xs), maxCount: Math.max(...combined.map(d => d.v))}
+    }
+
     // Which of computeHprc256GlobalRanges's allele size ranges each HPRC256 allele histogram and genotype heatmap uses
     const HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN = {
         'HPRC256_AlleleHistogram': 'lps',
@@ -1319,114 +1381,93 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256TotalLength_BiallelicHistogram': 'totalLength',
     }
 
-    const computeHprc256GlobalRanges = (row) => {
-        const result = {
-            lps: computeAlleleSizeRange(row.HPRC256_BiallelicHistogram, row.HPRC256_AlleleHistogram),
-            totalLength: computeAlleleSizeRange(row.HPRC256TotalLength_BiallelicHistogram, row.HPRC256TotalLength_AlleleHistogram),
-        }
-
-        const purityData = row.HPRC256_AlleleSizeAndPurityDistribution ? parseSizeAndValueDistributionString(row.HPRC256_AlleleSizeAndPurityDistribution) : []
-        const methData   = row.HPRC256_AlleleSizeAndMethylationDistribution ? parseSizeAndValueDistributionString(row.HPRC256_AlleleSizeAndMethylationDistribution) : []
-        const combined = purityData.concat(methData)
-        if (combined.length > 0) {
-            const xs = combined.map(d => d.x)
-            result.repeatXMin = Math.min(...xs)
-            result.repeatXMax = Math.max(...xs)
-            result.repeatMaxCount = Math.max(...combined.map(d => d.v))
-        }
-
-        return result
-    }
+    // Compute the global (unstratified) HPRC256 plot ranges so the LPS and total allele length charts
+    // (Allele Frequencies + Genotype Heatmap) and the repeat-count-based heatmaps
+    // (Allele Purity + Methylation) keep a fixed axis/color scale when users change
+    // the Population/Sex stratum.
+    const computeHprc256GlobalRanges = (row) => ({
+        lps: computeAlleleSizeRange(row.HPRC256_BiallelicHistogram, row.HPRC256_AlleleHistogram),
+        totalLength: computeAlleleSizeRange(row.HPRC256TotalLength_BiallelicHistogram, row.HPRC256TotalLength_AlleleHistogram),
+        repeat: computeSizeAndValueRange(row.HPRC256_AlleleSizeAndPurityDistribution, row.HPRC256_AlleleSizeAndMethylationDistribution),
+    })
 
     const renderChartsInPolymorphismDialog = (row) => {
 
         const hprc256Globals = computeHprc256GlobalRanges(row)
 
-        let alleleFrequencyChartData = []
-        $('.allele-frequency-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')
-            const frequenciesString = row[frequenciesColumn]
-            if (!frequenciesString) return   // Skip if no data
+        // Draws one kind of allele size chart (the allele histograms or the genotype heatmaps). Each HPRC256 chart uses its
+        // dataset's allele size range, from its genotype heatmap, so the allele histogram's axis matches the heatmap's.
+        // The range is saved on the canvas so it stays the same when the user picks another population or sex. The other
+        // charts share the range of all of them.
+        //
+        // Args:
+        //   canvasSelector: selector of the chart canvases
+        //   parseChartValues: (column value) -> the chart's data fields, eg. {frequencies}
+        //   getAlleleSizes: (the chart's data fields) -> the allele sizes in its data
+        //   createChart: (chart data) -> draws the chart
+        const renderAlleleSizeCharts = (canvasSelector, parseChartValues, getAlleleSizes, createChart) => {
+            const chartDataList = []
+            $(canvasSelector).each(function() {
+                const frequenciesColumn = $(this).data('frequencies-column')
+                if (!row[frequenciesColumn]) return   // Skip if no data
 
-            const frequencies = parseAlleleFrequenciesString(frequenciesString)
-
-            alleleFrequencyChartData.push({
-                frequencies: frequencies,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                axisUnits: $(this).data('axis-units'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...frequencies.map(f => f.size)),
-                maxAlleleSize: Math.max(...frequencies.map(f => f.size)),
-                isHprc256: frequenciesColumn in HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN,
-                fixedRange: hprc256Globals[HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN[frequenciesColumn]],
+                const chartValues = parseChartValues(row[frequenciesColumn])
+                const alleleSizes = getAlleleSizes(chartValues)
+                chartDataList.push({
+                    ...chartValues,
+                    frequenciesColumn: frequenciesColumn,
+                    thisObj: this,
+                    refAlleleSize: $(this).data('ref-allele-size'),
+                    axisUnits: $(this).data('axis-units'),
+                    chartWidth: $(this).data('chart-width'),
+                    chartHeight: $(this).data('chart-height'),
+                    minAlleleSize: Math.min(...alleleSizes),
+                    maxAlleleSize: Math.max(...alleleSizes),
+                    fixedRange: hprc256Globals[HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN[frequenciesColumn]],
+                })
             })
-        })
 
-        // Non-HPRC256 charts keep their pre-existing shared range; the HPRC256 chart
-        // gets its range from the global biallelic histogram so the axis matches the
-        // Genotype Heatmap and stays fixed across Population/Sex changes.
-        const nonHprc256AlleleData = alleleFrequencyChartData.filter(d => !d.isHprc256)
-        let overallMinAlleleSize = nonHprc256AlleleData.length > 0 ? Math.min(...nonHprc256AlleleData.map(d => d.minAlleleSize)) : 0
-        let overallMaxAlleleSize = nonHprc256AlleleData.length > 0 ? Math.max(...nonHprc256AlleleData.map(d => d.maxAlleleSize)) : 0
+            const otherChartDataList = chartDataList.filter(d => !(d.frequenciesColumn in HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN))
+            const sharedMinAlleleSize = otherChartDataList.length > 0 ? Math.min(...otherChartDataList.map(d => d.minAlleleSize)) : 0
+            const sharedMaxAlleleSize = otherChartDataList.length > 0 ? Math.max(...otherChartDataList.map(d => d.maxAlleleSize)) : 0
 
-        alleleFrequencyChartData.forEach((chartData) => {
-            if (chartData.isHprc256 && chartData.fixedRange) {
-                chartData.minAlleleSize = chartData.fixedRange.xMin
-                chartData.maxAlleleSize = chartData.fixedRange.xMax
-                chartData.thisObj.dataset.fixedMinAlleleSize = chartData.fixedRange.xMin
-                chartData.thisObj.dataset.fixedMaxAlleleSize = chartData.fixedRange.xMax
-            } else {
-                chartData.minAlleleSize = overallMinAlleleSize
-                chartData.maxAlleleSize = overallMaxAlleleSize
+            for (const chartData of chartDataList) {
+                if (chartData.fixedRange) {
+                    chartData.minAlleleSize = chartData.fixedRange.xMin
+                    chartData.maxAlleleSize = chartData.fixedRange.xMax
+                    chartData.thisObj.dataset.fixedMinAlleleSize = chartData.fixedRange.xMin
+                    chartData.thisObj.dataset.fixedMaxAlleleSize = chartData.fixedRange.xMax
+                } else {
+                    chartData.minAlleleSize = sharedMinAlleleSize
+                    chartData.maxAlleleSize = sharedMaxAlleleSize
+                }
+                createChart(chartData)
             }
-            createAlleleFrequencyChart(chartData)
-        })
+        }
 
-        let biallelicHistogramChartData = []
-        $('.biallelic-histogram-chart').each(function() {
-            const frequenciesColumn = $(this).data('frequencies-column')
-            let frequenciesString = row[frequenciesColumn]
-            if (!frequenciesString) return   // Skip if no data
+        renderAlleleSizeCharts(
+            '.allele-frequency-chart',
+            (frequenciesString) => ({frequencies: parseAlleleFrequenciesString(frequenciesString)}),
+            ({frequencies}) => frequencies.map(f => f.size),
+            createAlleleFrequencyChart)
 
-            let [data, lookup] = parseBiallelicHistogramString(frequenciesString)
-
-            biallelicHistogramChartData.push({
-                data: data,
-                lookup: lookup,
-                thisObj: this,
-                refAlleleSize: $(this).data('ref-allele-size'),
-                axisUnits: $(this).data('axis-units'),
-                chartWidth: $(this).data('chart-width'),
-                chartHeight: $(this).data('chart-height'),
-                label: $(this).data('label'),
-                minAlleleSize: Math.min(...data.map(f => Math.min(f.x, f.y))),
-                maxAlleleSize: Math.max(...data.map(f => Math.max(f.x, f.y))),
-                isHprc256: frequenciesColumn in HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN,
-                fixedRange: hprc256Globals[HPRC256_ALLELE_SIZE_RANGE_KEY_BY_COLUMN[frequenciesColumn]],
+        renderAlleleSizeCharts(
+            '.biallelic-histogram-chart',
+            (frequenciesString) => {
+                const [data, lookup] = parseBiallelicHistogramString(frequenciesString)
+                return {data, lookup}
+            },
+            ({data}) => data.flatMap(d => [d.x, d.y]),
+            (chartData) => {
+                // An HPRC256 heatmap's color scale is fixed too, at its largest binned count, so it stays the same when
+                // the user picks another population or sex
+                if (chartData.fixedRange) {
+                    chartData.fixedMaxCount = computeGenotypeHeatmapMaxCount(
+                        row[chartData.frequenciesColumn], chartData.minAlleleSize, chartData.maxAlleleSize)
+                    chartData.thisObj.dataset.fixedMaxCount = chartData.fixedMaxCount
+                }
+                createBiallelicHistogramChart(chartData)
             })
-        })
-
-        const nonHprc256BiallelicData = biallelicHistogramChartData.filter(d => !d.isHprc256)
-        overallMinAlleleSize = nonHprc256BiallelicData.length > 0 ? Math.min(...nonHprc256BiallelicData.map(d => d.minAlleleSize)) : 0
-        overallMaxAlleleSize = nonHprc256BiallelicData.length > 0 ? Math.max(...nonHprc256BiallelicData.map(d => d.maxAlleleSize)) : 0
-
-        biallelicHistogramChartData.forEach((chartData) => {
-            if (chartData.isHprc256 && chartData.fixedRange) {
-                chartData.minAlleleSize = chartData.fixedRange.xMin
-                chartData.maxAlleleSize = chartData.fixedRange.xMax
-                chartData.fixedMaxCount = chartData.fixedRange.maxCount
-                chartData.thisObj.dataset.fixedMinAlleleSize = chartData.fixedRange.xMin
-                chartData.thisObj.dataset.fixedMaxAlleleSize = chartData.fixedRange.xMax
-                chartData.thisObj.dataset.fixedMaxCount = chartData.fixedRange.maxCount
-            } else {
-                chartData.minAlleleSize = overallMinAlleleSize
-                chartData.maxAlleleSize = overallMaxAlleleSize
-            }
-            createBiallelicHistogramChart(chartData)
-        })
 
         $('.size-and-value-dist-chart').each(function() {
             const frequenciesColumn = $(this).data('frequencies-column')
@@ -1434,23 +1475,19 @@ gtag('config', 'G-6R8FPBQRFH');
             if (!frequenciesString) return
 
             const data = parseSizeAndValueDistributionString(frequenciesString)
-            const isHprc256 = frequenciesColumn === 'HPRC256_AlleleSizeAndPurityDistribution'
-                              || frequenciesColumn === 'HPRC256_AlleleSizeAndMethylationDistribution'
-
             const chartArgs = {
                 data: data,
                 thisObj: this,
                 chartWidth: $(this).data('chart-width'),
                 yAxisLabel: $(this).data('y-axis-label'),
-                fixedYAxisZeroToOne: true,
             }
-            if (isHprc256 && hprc256Globals.repeatXMin != null) {
-                chartArgs.fixedMinX = hprc256Globals.repeatXMin
-                chartArgs.fixedMaxX = hprc256Globals.repeatXMax
-                chartArgs.fixedMaxCount = hprc256Globals.repeatMaxCount
-                this.dataset.fixedMinX = hprc256Globals.repeatXMin
-                this.dataset.fixedMaxX = hprc256Globals.repeatXMax
-                this.dataset.fixedMaxCount = hprc256Globals.repeatMaxCount
+            if (hprc256Globals.repeat) {
+                chartArgs.fixedMinX = hprc256Globals.repeat.xMin
+                chartArgs.fixedMaxX = hprc256Globals.repeat.xMax
+                chartArgs.fixedMaxCount = hprc256Globals.repeat.maxCount
+                this.dataset.fixedMinX = hprc256Globals.repeat.xMin
+                this.dataset.fixedMaxX = hprc256Globals.repeat.xMax
+                this.dataset.fixedMaxCount = hprc256Globals.repeat.maxCount
             }
             createSizeAndValueHeatmapChart(chartArgs)
         })
@@ -1473,7 +1510,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const sequence = [leftFlank, repeatSeq, rightFlank].join('|')
 
         const pixelsPerCell = 2 // higher number increases resolution
-        plotDotPlot(this, sequence, pixelsPerCell, false)
+        plotDotPlot(this, sequence, pixelsPerCell)
     }
 
     function addClickHandlerToShowDotPlotDialog() {
@@ -1493,28 +1530,36 @@ gtag('config', 'G-6R8FPBQRFH');
 
             const dotPlotPixelsPerCell = 10
             const dotPlotDialogCanvas = $('#dot-plot-dialog-canvas').get(0)
-            plotDotPlot(dotPlotDialogCanvas, sequence, dotPlotPixelsPerCell, false)
+            const wasDotPlotDrawn = plotDotPlot(dotPlotDialogCanvas, sequence, dotPlotPixelsPerCell)
+            $(dotPlotDialogCanvas).toggle(wasDotPlotDrawn)
+            $('#dot-plot-dialog-dot-plot-not-drawn-message').toggle(!wasDotPlotDrawn)
 
             const dotPlotDialogPeriodicityPlotCanvas = $('#dot-plot-dialog-periodicity-plot-canvas').get(0)
-            const periodicityPlotPixelsPerCell = 10
+            const periodicityPlotPixelsPerCell = 20
             const minRunLength = 5
-            const useBackwardLook = false
             const endWithPeriod = Math.max(motif.length * 2, 12)
             const periodicityMatrix = plotPeriodicityPlot(
                 dotPlotDialogPeriodicityPlotCanvas,
                 sequence,
                 periodicityPlotPixelsPerCell,
                 minRunLength,
-                useBackwardLook,
                 1,
                 endWithPeriod,
             )
 
             const barPlotDiv = $('#dot-plot-dialog-bar-plot').get(0)
-            buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)
+            if (periodicityMatrix) {
+                $(dotPlotDialogPeriodicityPlotCanvas).show()
+                buildPeriodicityMatrixBarChart(barPlotDiv, periodicityMatrix)
+            } else {
+                $(dotPlotDialogPeriodicityPlotCanvas).hide()
+                // Undo the bar chart layout that an earlier locus's histogram may have left on the container
+                Object.assign(barPlotDiv.style, {display: 'block', height: 'auto', marginTop: '0'})
+                barPlotDiv.textContent = 'This sequence is too long to draw a periodicity plot.'
+            }
 
             $('#dot-plot-dialog-sequences').html(`
-                    <table>
+                    <table style="margin: 0 auto">
                     <tr><td><b>Left Flank:</b></td></tr>
                     <tr><td><span style="font-family: monospace">${leftFlank}</span></td></tr>
                     <tr><td><b>Repeat Sequence:</b></td></tr>
@@ -1549,15 +1594,79 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    // Returns the names sorted by the p-value in details[name].pvalue, most significant first. Names without a p-value
+    // go last.
+    const sortNamesByDetailPvalue = (names, details) => [...names].sort(
+        (a, b) => (details[a]?.pvalue ?? Infinity) - (details[b]?.pvalue ?? Infinity))
+
+    // eg. ['CD4_TCM', 'NK', 'B'] returns 'CD4_TCM (+2 more)'
+    const formatFirstNameAndNumberOfOthers = (names) => names.length <= 1 ? names[0] : `${names[0]} (+${names.length - 1} more)`
+
+    // A results table value that opens a popup with popupHtml when clicked. popupVariation is an optional Semantic UI
+    // popup variation (a CSS class for the popup, e.g. 'wide').
+    function buildCellValueWithPopup(cellHtml, popupHtml, popupVariation = '') {
+        const variationAttribute = popupVariation ? ` data-variation="${popupVariation}"` : ''
+        return `<span class="action-cell show-popup"${variationAttribute} data-html="${escapeHtmlText(popupHtml)}">${cellHtml}</span>`
+    }
+
+    // Parses a column that holds JSON, such as Tanudisastro2024_Details, or returns null (after logging the error) if it
+    // can't be parsed. An empty column is read as jsonIfMissing.
+    const parseJsonColumn = (row, columnName, jsonIfMissing = '{}') => {
+        try {
+            return JSON.parse(row[columnName] || jsonIfMissing)
+        } catch (e) {
+            console.error(`Failed to parse ${columnName}:`, e)
+            return null
+        }
+    }
+
+    // The rows of a table of Tanudisastro 2024 sc-eTR associations, one per cell type, most significant first. Used by
+    // the results table popup and the locus page, which pass alignNumbersRight = true and false.
+    const buildScEtrTableRowsHtml = (cellTypes, details, alignNumbersRight) => {
+        const numberCellStyle = alignNumbersRight ? ' style="text-align: right;"' : ''
+        return sortNamesByDetailPvalue(cellTypes, details).filter(cellType => details[cellType]).map(cellType => {
+            const d = details[cellType]
+            return `<tr>
+                <td>${cellType}</td>
+                <td>${d.eGene || ''}</td>
+                <td${numberCellStyle}>${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
+                <td${numberCellStyle}>${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
+                <td${numberCellStyle}>${d.rank || ''} / ${d.totalInCellType || ''}</td>
+            </tr>`
+        }).join('')
+    }
+
+    // The rows of a table of Manigbas 2024 PheWAS trait associations, one per trait, most significant first. The results
+    // table popup's compact table (isCompactTable = true) right-aligns the numbers and shows replication as an icon. The
+    // locus page's full table also shows -log10(p), and shows replication as Yes or No.
+    const buildPheWASTableRowsHtml = (details, isCompactTable) => {
+        const numberCellStyle = isCompactTable ? 'text-align: right;' : ''
+        return sortNamesByDetailPvalue(Object.keys(details), details).filter(traitName => details[traitName]).map(traitName => {
+            const d = details[traitName]
+            const replicatedHtml = isCompactTable
+                ? (d.replicatedInAoU
+                    ? '<i class="check circle green icon" title="Replicated in All of Us"></i>'
+                    : '<i class="minus circle grey icon" title="Not replicated"></i>')
+                : (d.replicatedInAoU ? '<span style="color: green;">Yes</span>' : '<span style="color: gray;">No</span>')
+            const caviarColor = d.caviarProbability >= 0.9 ? 'green' : (d.caviarProbability >= 0.5 ? 'orange' : '')
+            return `<tr>
+                <td>${traitName}</td>
+                <td>${d.traitType || ''}</td>
+                <td style="${numberCellStyle}">${d.pvalue != null ? d.pvalue.toExponential(isCompactTable ? 1 : 2) : ''}</td>
+                ${isCompactTable ? '' : `<td>${d.log10Pvalue != null ? d.log10Pvalue.toFixed(1) : ''}</td>`}
+                <td style="${numberCellStyle} color: ${caviarColor}; font-weight: ${caviarColor ? 'bold' : 'normal'};">
+                    ${d.caviarProbability != null ? (d.caviarProbability * 100).toFixed(1) + '%' : ''}
+                </td>
+                <td style="${numberCellStyle}">${d.sampleSize != null ? d.sampleSize.toLocaleString() : ''}</td>
+                <td>${replicatedHtml}</td>
+            </tr>`
+        }).join('')
+    }
+
     function buildScEtrPopupContent(row) {
         const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
-        let details
-        try {
-            details = JSON.parse(row['Tanudisastro2024_Details'] || '{}')
-        } catch (e) {
-            console.error('Failed to parse Tanudisastro2024_Details:', e)
-            return '<div>Error loading details</div>'
-        }
+        const details = parseJsonColumn(row, 'Tanudisastro2024_Details')
+        if (!details) return '<div>Error loading details</div>'
         const tanudisastroLocusId = details.Tanudisastro2024_LocusId
         const trexplorerLocusId = row['LocusId']
 
@@ -1577,26 +1686,7 @@ gtag('config', 'G-6R8FPBQRFH');
             <thead><tr>
                 <th>Cell Type</th><th>eGene</th><th style="text-align: right;">P-value</th><th style="text-align: right;">Effect Size</th><th style="text-align: right;">P-value Rank</th>
             </tr></thead><tbody>`
-
-        // Sort cell types by p-value (most significant first)
-        const sortedCellTypes = [...cellTypes].sort((a, b) => {
-            const pvalA = details[a]?.pvalue ?? Infinity
-            const pvalB = details[b]?.pvalue ?? Infinity
-            return pvalA - pvalB
-        })
-
-        for (const cellType of sortedCellTypes) {
-            const d = details[cellType]
-            if (!d) continue
-            html += `<tr>
-                <td>${cellType}</td>
-                <td>${d.eGene || ''}</td>
-                <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
-                <td style="text-align: right;">${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
-                <td style="text-align: right;">${d.rank || ''} / ${d.totalInCellType || ''}</td>
-            </tr>`
-        }
-
+        html += buildScEtrTableRowsHtml(cellTypes, details, true)
         html += '</tbody></table>'
         html += '<div style="font-size: 0.9em; color: #666; margin-top: 8px;">Source: <a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro et al. 2024</a></div>'
         html += '</div>'
@@ -1605,53 +1695,20 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     function buildPheWASPopupContent(row) {
-        let details
-        try {
-            details = JSON.parse(row['Manigbas2024_Details'] || '{}')
-        } catch (e) {
-            console.error('Failed to parse Manigbas2024_Details:', e)
-            return '<div>Error loading details</div>'
-        }
-
-        // Details is now directly keyed by trait names
-        const traitNames = Object.keys(details)
+        // Keyed by trait name
+        const details = parseJsonColumn(row, 'Manigbas2024_Details')
+        if (!details) return '<div>Error loading details</div>'
 
         let html = '<div style="overflow-x: auto;">'
 
-        if (traitNames.length === 0) {
+        if (Object.keys(details).length === 0) {
             html += '<p>This locus was tested in the UK Biobank PheWAS but showed no significant trait associations.</p>'
         } else {
-            // Table with details sorted by p-value
             html += `<table class="ui compact table" style="white-space: nowrap;">
                 <thead><tr>
                     <th>Trait</th><th>Type</th><th style="text-align: right;">P-value</th><th style="text-align: right;">CAVIAR Prob</th><th style="text-align: right;">Sample Size</th><th>Replicated</th>
                 </tr></thead><tbody>`
-
-            // Sort traits by p-value (most significant first)
-            const sortedTraitNames = [...traitNames].sort((a, b) => {
-                const pvalA = details[a]?.pvalue ?? Infinity
-                const pvalB = details[b]?.pvalue ?? Infinity
-                return pvalA - pvalB
-            })
-
-            for (const traitName of sortedTraitNames) {
-                const d = details[traitName]
-                if (!d) continue
-                const replicatedIcon = d.replicatedInAoU
-                    ? '<i class="check circle green icon" title="Replicated in All of Us"></i>'
-                    : '<i class="minus circle grey icon" title="Not replicated"></i>'
-                const caviarColor = d.caviarProbability >= 0.9 ? 'green' : (d.caviarProbability >= 0.5 ? 'orange' : '')
-                html += `<tr>
-                    <td>${traitName}</td>
-                    <td>${d.traitType || ''}</td>
-                    <td style="text-align: right;">${d.pvalue != null ? d.pvalue.toExponential(1) : ''}</td>
-                    <td style="text-align: right; color: ${caviarColor}; font-weight: ${caviarColor ? 'bold' : 'normal'};">
-                        ${d.caviarProbability != null ? (d.caviarProbability * 100).toFixed(1) + '%' : ''}
-                    </td>
-                    <td style="text-align: right;">${d.sampleSize != null ? d.sampleSize.toLocaleString() : ''}</td>
-                    <td>${replicatedIcon}</td>
-                </tr>`
-            }
+            html += buildPheWASTableRowsHtml(details, true)
             html += '</tbody></table>'
         }
 
@@ -1724,12 +1781,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const isSignificant = row['Zhang2025_LengthEffectTestResult'] === 'significant'
         const slope = row['Zhang2025_LengthEffectSlope']
         const fdr = row['Zhang2025_LengthEffectFDR']
-        let details = {}
-        try {
-            details = JSON.parse(row['Zhang2025_Details'] || '{}')
-        } catch (e) {
-            console.error('Failed to parse Zhang2025_Details:', e)
-        }
+        const details = parseJsonColumn(row, 'Zhang2025_Details') || {}
         const formatFdr = (value) => value < 0.001 ? value.toExponential(1) : value.toFixed(4)
         const sourceLibrary = details.lengthEffectSourceLibrary
         const sourceLibraryResults = details[sourceLibrary] || {}
@@ -1766,18 +1818,13 @@ gtag('config', 'G-6R8FPBQRFH');
         }
         if (details.matchType === 'fuzzy') {
             // Both intervals are chrom:start-end with a 0-based start, so each width is end - start
-            const locusIdParts = row['LocusId'].split('-')
-            const motif = locusIdParts.pop()
-            const end = parseInt(locusIdParts.pop())
-            const start0Based = parseInt(locusIdParts.pop())
-            const chrom = locusIdParts.join('-')
-            const [, zhangStart0Based, zhangEnd] = details.zhangInterval.match(/:(\d+)-(\d+)$/)
+            const { chrom, start0Based, end, motif } = parseLocusId(row['LocusId'])
             html += `<div style="background: #fff3cd; padding: 8px; margin-top: 10px; border-radius: 4px;">
                 <i class="info circle icon"></i>
                 <b>Note:</b> This TRExplorer locus definition (chr${chrom}:${start0Based}-${end}, width:
                 ${(end - start0Based).toLocaleString()}bp, motif: ${motif}) overlaps but is not exactly the same as the
                 <code>${details.zhangLocusId}</code> (${details.zhangInterval}, width:
-                ${(zhangEnd - zhangStart0Based).toLocaleString()}bp, motif: ${details.zhangMotif}) definition used in
+                ${computeIntervalSize(details.zhangInterval).toLocaleString()}bp, motif: ${details.zhangMotif}) definition used in
                 Zhang et al.
             </div>`
         }
@@ -1803,22 +1850,12 @@ gtag('config', 'G-6R8FPBQRFH');
         seen in controls: at least 3 Illumina 450k array probes within 1 kb, each above the 99.9th percentile
         (hypermethylated) or below the 0.1th percentile (hypomethylated) of the controls.`
 
-    function parseGargDmrDetails(row, columnName) {
-        try {
-            return JSON.parse(row[columnName] || '[]')
-        } catch (e) {
-            console.error(`Failed to parse ${columnName}:`, e)
-            return []
-        }
-    }
-
     // eg. formatCount(1, 'proband', 'probands') returns '1 proband'
     const formatCount = (count, singular, plural) => `${count.toLocaleString()} ${count === 1 ? singular : plural}`
 
     // eg. 'chr1:100-250' returns 'chr1:100-250 (hg38), 150 bp'
     function describeHg38Interval(interval) {
-        const [, start0Based, end] = interval.match(/:(\d+)-(\d+)$/)
-        return `${interval} (hg38), ${(parseInt(end) - parseInt(start0Based)).toLocaleString()} bp`
+        return `${interval} (hg38), ${computeIntervalSize(interval).toLocaleString()} bp`
     }
 
     // The genes whose promoter (+/-2 kb of the TSS) or gene body overlaps a DMR
@@ -1834,7 +1871,7 @@ gtag('config', 'G-6R8FPBQRFH');
     function buildGarg2019DmrDetailsHtml(row, cohort) {
         const isAutism = cohort === 'autism'
         let html = ''
-        for (const dmr of parseGargDmrDetails(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details)) {
+        for (const dmr of parseJsonColumn(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details, '[]') || []) {
             const carriers = isAutism
                 ? [formatCount(dmr.numProbandsWithDMR, 'autism proband', 'autism probands')]
                     .concat(dmr.numSiblingsWithDMR > 0 ? [formatCount(dmr.numSiblingsWithDMR, 'unaffected sibling', 'unaffected siblings')] : [])
@@ -1862,6 +1899,9 @@ gtag('config', 'G-6R8FPBQRFH');
             }
             html += '<br />'
         }
+        // "CG" in the motif is intended wording, here and in the Garg 2020 popup. The lookup also matches a CG that spans
+        // two motif copies (e.g. a GCC repeat, read as GCCGCC), but a motif and its rotations (GCC, CCG, CGC) are the
+        // same motif, so "in the motif" covers those loci. Don't replace it with a longer description of the rule.
         html += `<span style="color: #666;">${GARG_DMR_DEFINITION} This TRExplorer locus was assigned this result because
             it overlaps the reported DMR and contains CpG sites ("CG" in the motif). Garg et al. studied 297 autism
             probands and 286 of their unaffected siblings, and 767 individuals with schizophrenia.</span><br /><br />
@@ -1879,7 +1919,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // The Garg 2020 details shown in the Garg 2020 DMRs column's popup and on the locus page
     function buildGarg2020DmrDetailsHtml(row) {
         let html = ''
-        for (const dmr of parseGargDmrDetails(row, 'Garg2020_DMRDetails')) {
+        for (const dmr of parseJsonColumn(row, 'Garg2020_DMRDetails', '[]') || []) {
             html += `Of the 23,116 people whose DNA methylation in blood was surveyed by Garg et al. 2020,
                 <b>${formatCount(dmr.numIndividualsWithDMR, 'person', 'people')}</b> had a rare <b>${dmr.methylationChange}</b>
                 DMR (differentially methylated region), a frequency of ${dmr.frequencyPer10000} per 10,000 (95% confidence interval). The authors predicted the
@@ -1896,6 +1936,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 ${dmr.validation ? `<b>Validation or reference:</b> ${dmr.validation}<br />` : ''}
                 <br />`
         }
+        // "CG in the motif" is intended wording; see the comment in buildGarg2019DmrDetailsHtml
         html += `<span style="color: #666;">${GARG_DMR_DEFINITION} Only TRs whose repeat contains CpG sites (CG in the motif)
             are matched.</span>`
         html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">
@@ -1908,11 +1949,8 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // A Garg DMR column's value, which opens a popup with the DMR details when clicked
     function buildGargDmrCellValue(displayText, popupTitle, detailsHtml) {
-        const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>${popupTitle}</b></div>${detailsHtml}`
-            .replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-        return `<span class="action-cell show-popup" data-variation="dmr-details-popup" data-html="${escapedPopupContent}">
-            <span class="action-link">${displayText}</span>
-        </span>`
+        return buildCellValueWithPopup(`<span class="action-link">${displayText}</span>`,
+            `<div style="margin-bottom: 0.5em;"><b>${popupTitle}</b></div>${detailsHtml}`, 'dmr-details-popup')
     }
 
     // The Garg 2019 Autism DMRs or Garg 2019 Schizophrenia DMRs column's value, eg. 'Hypermethylated (1 proband)'.
@@ -1920,7 +1958,7 @@ gtag('config', 'G-6R8FPBQRFH');
     function buildGarg2019DmrColumnValue(row, cohort) {
         const methylationChange = row[GARG_2019_COLUMNS_BY_COHORT[cohort].methylationChange]
         if (!methylationChange) return ''
-        const dmrs = parseGargDmrDetails(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details)
+        const dmrs = parseJsonColumn(row, GARG_2019_COLUMNS_BY_COHORT[cohort].details, '[]') || []
         const carriers = cohort === 'autism'
             ? formatCount(dmrs.reduce((total, dmr) => total + dmr.numProbandsWithDMR, 0), 'proband', 'probands')
             : formatCount(dmrs.reduce((total, dmr) => total + dmr.numIndividualsWithDMR, 0), 'individual', 'individuals')
@@ -2114,11 +2152,7 @@ gtag('config', 'G-6R8FPBQRFH');
     // a contraction deletes the tract's first whole units. Returns null if the row lacks the reference sequences
     // (the results query leaves out ReferenceRepeatSequence for loci over 10kb).
     function getSpliceAISimulatedAlleleVariant(row, repeatCount) {
-        const locusIdParts = row['LocusId'].split('-')
-        const motif = locusIdParts.pop()
-        locusIdParts.pop()  // end
-        const start0Based = locusIdParts.pop()
-        const chrom = locusIdParts.join('-')
+        const { chrom, start0Based, motif } = parseLocusId(row['LocusId'])
         const tract = (row['ReferenceRepeatSequence'] || '').toUpperCase()
         const anchor = (row['ReferenceLeftFlank'] || '').slice(-1).toUpperCase()
         if (!tract || !anchor) return null
@@ -2169,7 +2203,7 @@ gtag('config', 'G-6R8FPBQRFH');
         let hasVariantTooLongForSpliceAILookup = false
         let hasVariantWithoutReferenceSequence = false
         // Truncated at 12 bp like the results table's Motif column, with the motif length shown only when truncated
-        const motif = row['LocusId'].split('-').pop()
+        const { motif } = parseLocusId(row['LocusId'])
         const motifHtml = motif.length > 12
             ? `<span style="font-family: monospace">${motif.substring(0, 12)}</span>... (${motif.length})`
             : `<span style="font-family: monospace">${motif}</span>`
@@ -2212,8 +2246,6 @@ gtag('config', 'G-6R8FPBQRFH');
     const GENE_INFO_API_URL = 'https://us-central1-cmg-analysis.cloudfunctions.net/query_gene_lookup_db'
     const GENE_INFO_CACHE = new Map()
 
-    const escapeHtmlText = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-
     const generateGeneNameCellValue = (geneName) => {
         if (!geneName) return ''
         return String(geneName).split(',').map(part => {
@@ -2228,8 +2260,7 @@ gtag('config', 'G-6R8FPBQRFH');
         if (GENE_INFO_CACHE.has(geneName)) {
             return GENE_INFO_CACHE.get(geneName)
         }
-        const escapedName = String(geneName).replace(/'/g, "''")
-        const sql = `SELECT * FROM \`cmg-analysis.gene_lookup.combined_gene_disease_association_table\` WHERE UPPER(gene_symbol) = UPPER('${escapedName}')`
+        const sql = `SELECT * FROM \`cmg-analysis.gene_lookup.combined_gene_disease_association_table\` WHERE UPPER(gene_symbol) = UPPER('${escapeTextForSqlStringLiteral(String(geneName))}')`
         const response = await fetch(GENE_INFO_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2250,26 +2281,29 @@ gtag('config', 'G-6R8FPBQRFH');
         const pubmedNames = geneSymbol
             ? [geneSymbol, ...(aliases || '').split(',').map(s => s.trim()).filter(s => s)]
             : []
+        // In the order in which the links are shown
         const linkSpecs = {
-            OMIM:           mimNumber  ? link('OMIM', `https://omim.org/entry/${encodeURIComponent(mimNumber)}`) : '',
+            OMIM:           mimNumber  ? link('OMIM', SOURCES.OMIM.url({ mimNumber })) : '',
             ClinGen:        hgncId     ? link('ClinGen', `https://search.clinicalgenome.org/kb/gene-dosage/${hgncId}`) : '',
-            ClinVar:        geneSymbol ? link('ClinVar', `https://www.ncbi.nlm.nih.gov/clinvar?term=${geneSymbol}[gene]`) : '',
-            HGMD:           geneSymbol ? link('HGMD', `https://my.qiagendigitalinsights.com/bbp/view/hgmd/pro/gene.php?gene=${geneSymbol}`) : '',
+            ClinVar:        geneSymbol ? link('ClinVar', SOURCES.ClinVar.url({ geneSymbol })) : '',
+            HGMD:           geneSymbol ? link('HGMD', SOURCES.HGMD.url({ geneSymbol })) : '',
             GeneCards:      geneSymbol ? link('GeneCards', `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${geneSymbol}`) : '',
-            Decipher:       ensemblId  ? link('Decipher', `https://www.deciphergenomics.org/gene/${ensemblId}/overview/protein-genomic-info`) : '',
+            Decipher:       ensemblId  ? link('Decipher', SOURCES.Decipher.url({ ensemblId })) : '',
             Geno2MP:        geneSymbol ? link('Geno2MP', `https://geno2mp.gs.washington.edu/Geno2MP/#/gene/${geneSymbol}/gene/0/0/0`) : '',
             Monarch:        geneSymbol ? link('Monarch', `https://monarchinitiative.org/explore?search=${geneSymbol}#search`) : '',
-            gnomAD:         ensemblId  ? link('gnomAD', `https://gnomad.broadinstitute.org/gene/${ensemblId}?dataset=gnomad_r4`) : '',
             'Protein Atlas':ensemblId  ? link('Protein Atlas', `https://www.proteinatlas.org/${ensemblId}/tissue`) : '',
             GTEx:           ensemblId  ? link('GTEx', `https://www.gtexportal.org/home/gene/${ensemblId}`) : '',
             UniProt:        ensemblId  ? link('UniProt', `https://www.uniprot.org/uniprot?query=${ensemblId}+AND(reviewed:true)+AND(organism_id:9606)`) : '',
+            gnomAD:         ensemblId  ? link('gnomAD', gnomadGeneUrl(ensemblId, 'gnomad_r4')) : '',
             primAD:         geneSymbol ? link('primAD', `https://primad.basespace.illumina.com/gene/${geneSymbol}`) : '',
             KEGG:           geneSymbol ? link('KEGG', `https://www.kegg.jp/kegg-bin/search_pathway_text?keyword=${geneSymbol}&viewImage=true`) : '',
             PubMed:         pubmedNames.length ? link('PubMed', `https://www.ncbi.nlm.nih.gov/pubmed/?term=(${pubmedNames.join(' OR ')})`) : '',
             'NCBI Gene':    ensemblId  ? link('NCBI Gene', `https://www.ncbi.nlm.nih.gov/gene/?term=${ensemblId}`) : '',
         }
-        const order = ['OMIM', 'ClinGen', 'ClinVar', 'HGMD', 'GeneCards', 'Decipher', 'Geno2MP', 'Monarch', 'Protein Atlas', 'GTEx', 'UniProt', 'gnomAD', 'primAD', 'KEGG', 'PubMed', 'NCBI Gene']
-        const linksHtml = order.filter(k => !exclude.has(k)).map(k => linkSpecs[k]).filter(s => s).join('')
+        const linksHtml = Object.entries(linkSpecs)
+            .filter(([name, linkHtml]) => linkHtml && !exclude.has(name))
+            .map(([, linkHtml]) => linkHtml)
+            .join('')
         if (!linksHtml) return ''
         return `<div class="gene-info-external-links"><span class="gene-info-section-label">Links:</span>${linksHtml}</div>`
     }
@@ -2287,7 +2321,7 @@ gtag('config', 'G-6R8FPBQRFH');
         : 'https://gnomad.broadinstitute.org/'
 
     // Constraint-score thresholds for red/yellow highlighting in the gene-info popup.
-    // pLI: higher = more constrained; LOEUF/MOEUF: lower = more constrained.
+    // pLI: higher = more constrained; LOEUF: lower = more constrained.
     const CONSTRAINT_THRESHOLDS = {
         'pLI_v2': { red: { value: 0.9, operator: '>=' } },
         'pLI_v4': { red: { value: 0.9, operator: '>=' } },
@@ -2309,12 +2343,16 @@ gtag('config', 'G-6R8FPBQRFH');
         return false
     }
 
+    // The 'Red when ...' and 'Yellow when ...' lines that describe a constraint score's thresholds (0, 1 or 2 lines)
+    const describeConstraintThresholdLines = (t) => {
+        const lines = []
+        if (t && t.red)    lines.push(`<span style='color: ${CONSTRAINT_RED_COLOR}; font-weight: bold;'>Red</span> when ${constraintOpSymbol(t.red.operator)} ${t.red.value}`)
+        if (t && t.yellow) lines.push(`<span style='color: ${CONSTRAINT_YELLOW_COLOR}; font-weight: bold;'>Yellow</span> when ${constraintOpSymbol(t.yellow.operator)} ${t.yellow.value}`)
+        return lines
+    }
+
     const constraintPopupHtml = (label, key) => {
-        const t = CONSTRAINT_THRESHOLDS[key]
-        if (!t) return `<div style='white-space: nowrap;'><b>${label}</b></div>`
-        const lines = [`<b>${label}</b>`]
-        if (t.red)    lines.push(`<span style='color: ${CONSTRAINT_RED_COLOR}; font-weight: bold;'>Red</span> when ${constraintOpSymbol(t.red.operator)} ${t.red.value}`)
-        if (t.yellow) lines.push(`<span style='color: ${CONSTRAINT_YELLOW_COLOR}; font-weight: bold;'>Yellow</span> when ${constraintOpSymbol(t.yellow.operator)} ${t.yellow.value}`)
+        const lines = [`<b>${label}</b>`, ...describeConstraintThresholdLines(CONSTRAINT_THRESHOLDS[key])]
         return `<div style='white-space: nowrap;'>${lines.join('<br>')}</div>`
     }
 
@@ -2327,7 +2365,7 @@ gtag('config', 'G-6R8FPBQRFH');
         if (constraintCrosses(t.red, val)) color = CONSTRAINT_RED_COLOR
         else if (constraintCrosses(t.yellow, val)) color = CONSTRAINT_YELLOW_COLOR
         if (!color) return formatted
-        const popup = constraintPopupHtml(labelForPopup, key).replace(/"/g, '&quot;')
+        const popup = escapeHtmlText(constraintPopupHtml(labelForPopup, key))
         return `<span class="constraint-hover-popup" data-html="${popup}" style="color: ${color}; font-weight: bold;">${formatted}</span>`
     }
 
@@ -2387,36 +2425,37 @@ gtag('config', 'G-6R8FPBQRFH');
         'pLI_v2': {
             description: '<b>pLI (v2)</b>: Probability of loss-of-function intolerance from gnomAD v2',
             thresholdKey: 'pLI_v2',
-            thresholdLabel: 'pLI (v2)',
             url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r2_1'),
         },
         'pLI_v4': {
             description: '<b>pLI (v4)</b>: Probability of loss-of-function intolerance from gnomAD v4',
             thresholdKey: 'pLI_v4',
-            thresholdLabel: 'pLI (v4)',
             url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
         },
         'LOEUF': {
             description: '<b>LOEUF (v4)</b>: Loss-of-function observed/expected upper bound from gnomAD v4',
             thresholdKey: 'LOEUF',
-            thresholdLabel: 'LOEUF (v4)',
             url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
         },
         'MOEUF': {
-            description: '<b>Missense O/E (v4)</b>: Missense observed/expected ratio from gnomAD v4',
-            thresholdKey: 'MOEUF',
-            thresholdLabel: 'Missense O/E (v4)',
+            description: '<b>Missense O/E upper bound (v4)</b>: Missense observed/expected upper bound (MOEUF) from gnomAD v4',
             url: ({ ensemblId }) => gnomadGeneUrl(ensemblId, 'gnomad_r4'),
         },
     }
 
     const getSourceInfo = (src) => SOURCES[String(src).split(':')[0]] || {}
 
+    // Returns the source names in a gene-lookup sources value like '3: OMIM, ClinVar, pLI_v4:0.98', or null if it isn't
+    // in that format
+    const parseGeneInfoSourceNames = (sourcesStr) => {
+        const match = String(sourcesStr || '').match(/^\d+:\s*(.*)$/)
+        return match ? match[1].split(',').map(s => s.trim()).filter(s => s) : null
+    }
+
     const renderGeneInfoSourcesBadges = (sourcesStr, ids = {}) => {
         if (!sourcesStr) return ''
-        const match = String(sourcesStr).match(/^(\d+):\s*(.*)$/)
-        if (!match) return escapeHtmlText(sourcesStr)
-        const sourcesList = match[2].split(',').map(s => s.trim()).filter(s => s)
+        const sourcesList = parseGeneInfoSourceNames(sourcesStr)
+        if (!sourcesList) return escapeHtmlText(sourcesStr)
         const pastelColors = ['#e8d5d5', '#d5dfe8', '#d5e8db', '#e8e2d5', '#ddd5e8', '#d5e8e6', '#e8d5e0', '#e0e8d5']
         return sourcesList.map((src, i) => {
             const bg = pastelColors[i % pastelColors.length]
@@ -2425,13 +2464,9 @@ gtag('config', 'G-6R8FPBQRFH');
             const url = info.url ? info.url(ids) : null
             const descriptionParts = []
             if (info.description) descriptionParts.push(info.description)
-            if (info.thresholdKey) {
-                const t = CONSTRAINT_THRESHOLDS[info.thresholdKey]
-                if (t && t.red)    descriptionParts.push(`<span style='color: ${CONSTRAINT_RED_COLOR}; font-weight: bold;'>Red</span> when ${constraintOpSymbol(t.red.operator)} ${t.red.value}`)
-                if (t && t.yellow) descriptionParts.push(`<span style='color: ${CONSTRAINT_YELLOW_COLOR}; font-weight: bold;'>Yellow</span> when ${constraintOpSymbol(t.yellow.operator)} ${t.yellow.value}`)
-            }
+            if (info.thresholdKey) descriptionParts.push(...describeConstraintThresholdLines(CONSTRAINT_THRESHOLDS[info.thresholdKey]))
             const popupAttr = descriptionParts.length
-                ? ` class="source-hover-popup" data-html="<div style='white-space: nowrap;'>${descriptionParts.join('<br>').replace(/"/g, '&quot;')}</div>"`
+                ? ` class="source-hover-popup" data-html="${escapeHtmlText(`<div style='white-space: nowrap;'>${descriptionParts.join('<br>')}</div>`)}"`
                 : ''
             if (url) return `<a href="${url}" target="_blank" style="text-decoration: none;"${popupAttr}>${badge}</a>`
             if (popupAttr) return `<span${popupAttr}>${badge}</span>`
@@ -2463,18 +2498,13 @@ gtag('config', 'G-6R8FPBQRFH');
         const pliV2 = renderConstraintValue(row['pLI_v2'], 'pLI_v2', 'pLI (v2)')
         const pliV4 = renderConstraintValue(row['pLI_v4'], 'pLI_v4', 'pLI (v4)')
         const loeuf = renderConstraintValue(row['lof_oe_ci_upper_v4'], 'LOEUF', 'LOEUF (v4)')
-        const moeuf = renderConstraintValue(row['mis_oe_ci_upper_v4'], 'MOEUF', 'Missense O/E (v4)')
+        const moeuf = renderConstraintValue(row['mis_oe_ci_upper_v4'])  // no highlighting thresholds
 
         const mimNumbers = String(row['OMIM_mim_number'] || '').split(';').map(m => m.trim()).filter(m => m)
 
-        const sourceNamesMatch = String(sources).match(/^\d+:\s*(.*)$/)
-        const sourceNames = sourceNamesMatch
-            ? new Set(sourceNamesMatch[1].split(',').map(s => s.trim()).filter(s => s))
-            : new Set()
-
         const externalLinks = buildGeneExternalLinks({
             geneSymbol, hgncId, ensemblId, aliases, mimNumber: mimNumbers[0] || '',
-            excludeNames: sourceNames,
+            excludeNames: new Set(parseGeneInfoSourceNames(sources) || []),
         })
 
         const hgncCell = hgncId ? `<a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${encodeURIComponent(hgncId)}" target="_blank">${escapeHtmlText(hgncId)}</a>` : ''
@@ -2497,7 +2527,7 @@ gtag('config', 'G-6R8FPBQRFH');
             infoRow('pLI (v2):', pliV2),
             infoRow('pLI (v4):', pliV4),
             infoRow('LOEUF (v4):', loeuf),
-            infoRow('Missense O/E (v4):', moeuf),
+            infoRow('Missense O/E upper bound (v4):', moeuf),
         ].join('')
 
         const phenotypeSummary = row['LLM_phenotype_summary'] || ''
@@ -2564,6 +2594,32 @@ gtag('config', 'G-6R8FPBQRFH');
         })
     }
 
+    // The source catalogs that the Source column can show: each one's name in the Source value, the TRExplorer catalog
+    // version that added its loci, where they originally came from, and its label and number of loci in the index page's
+    // "Search TR Catalog" dropdown (null for a source that the dropdown doesn't offer). The column numbers them in this
+    // order.
+    const SOURCE_CATALOGS_IN_SOURCE_COLUMN = [
+        ['KnownDiseaseAssociatedLoci', 'v1', 'Known disease-associated loci', 'Known disease-associated loci (v1)', 83],
+        ['Illumina174kPolymorphicTRs', 'v1', 'Illumina 174k polymorphic TR catalog', 'Illumina 174k polymorphic TRs', 174244],
+        ['PerfectRepeatsInReference', 'v1', 'Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats', 'Perfect repeats in hg38', 4391197],
+        ['PolymorphicTRsInT2TAssemblies', 'v1', 'Polymorphic TRs in 78 T2T assemblies', 'Polymorphic TRs in 78 T2T assemblies', 297517],
+        ['KnownDiseaseAssociatedLociV2', 'v2', 'Known disease-associated loci (v2)', 'Known disease-associated loci (v2)', 7],
+        ['PolymorphicTRsInT2TAssembliesV2', 'v2', 'Polymorphic TRs in 321 T2T assemblies', 'Polymorphic TRs in 321 T2T assemblies', 280262],
+        ['KnownFunctionalVNTRs', 'v2', 'Curated list of known VNTRs that were missing from the TRExplorer catalog', 'Known functional VNTRs', 13],
+        ['HipSTRCatalog', 'v2', 'HipSTR catalog TRs that were missing from the TRExplorer catalog', 'HipSTR catalog', 129523],
+        ['AdottoTRsFromDanzi2025', 'v2', 'Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog', 'Danzi et al. 2025 (Adotto)', 263108],
+        ['ClinvarIndelsThatAreTRs2025', 'v2', 'Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog', 'ClinVar indels that are TRs', 815],
+        ['Tanudisastro2025', 'v2', 'TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog', 'Tanudisastro et al. 2024', 1209],
+        ['Manigbas2024', 'v2', 'TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog', 'Manigbas et al. 2024', 2347],
+        ['Sulovari2019', 'v2', 'TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog', 'Sulovari et al. 2019', 388],
+        ['Garg2021', 'v2', 'TRs from Garg et al. 2021 that were missing from the TRExplorer catalog', 'Garg et al. 2021', 1300],
+        ['Mukamel2021', 'v2', 'TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog', 'Mukamel et al. 2021', 39],
+        ['Annear2021', 'v2', 'TRs from Annear et al. 2021 that were missing from the TRExplorer catalog', 'Annear et al. 2021', 156],
+        ['Hause2016', 'v2', 'TRs from Hause et al. 2016 that were missing from the TRExplorer catalog', 'Hause et al. 2016', 604],
+        ['VamosV3', 'v2', 'Vamos v3 catalog TRs that were missing from the TRExplorer catalog', 'Vamos v3 catalog', 56846],
+        ['ExtendedLocusBoundaries', 'v2.1', 'TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions', null, null],
+    ]
+
     let TABLE_COLUMNS = {
         LocusId: {
             displayName: 'LocusId',
@@ -2621,14 +2677,6 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['GencodeGeneRegion'],
             getRequiredColumns: () => ['GencodeGeneRegion'],
         },
-        GencodeGeneName: {
-            displayName: 'Gene',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneName'],
-            getValue: (row) => generateGeneNameCellValue(row['GencodeGeneName']),
-            getSortColumns: () => ['GencodeGeneName'],
-            getRequiredColumns: () => ['GencodeGeneName'],
-        },
         polymorphism: {
             displayName: 'Polymorphism Summary',
             defaultSortDirection: 'DESC',
@@ -2641,31 +2689,13 @@ gtag('config', 'G-6R8FPBQRFH');
             displayName: 'Source',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['Source'],
             getValue: (row) => {
-                const sourceCatalogNameMap = {
-                    KnownDiseaseAssociatedLoci: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Known disease-associated loci'>v1 &nbsp;<i>[1]</i></span>",
-                    Illumina174kPolymorphicTRs: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Illumina 174k polymorphic TR catalog'>v1 &nbsp;<i>[2]</i></span>",
-                    PerfectRepeatsInReference:  "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Perfect repeats in hg38 spanning ≥ 9bp and ≥ 3 repeats'>v1 &nbsp;<i>[3]</i></span>",
-                    PolymorphicTRsInT2TAssemblies: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v1<br /><br /><b>Original source:</b> Polymorphic TRs in 78 T2T assemblies'>v1 &nbsp;<i>[4]</i></span>",
-                    KnownDiseaseAssociatedLociV2:    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Known disease-associated loci (v2)'>v2 &nbsp; <i>[5]</i></span>",
-                    PolymorphicTRsInT2TAssembliesV2: "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic TRs in 321 T2T assemblies'>v2 &nbsp; <i>[6]</i></span>",
-                    KnownFunctionalVNTRs:            "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Curated list of known VNTRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[7]</i></span>",
-                    HipSTRCatalog:                   "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> HipSTR catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[8]</i></span>",
-                    AdottoTRsFromDanzi2025:          "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Polymorphic or constrained TRs from Danzi et al. 2025 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[9]</i></span>",
-                    ClinvarIndelsThatAreTRs2025:     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Clinvar indels (Path/Likely Path) that represent TR expansions or contractions and were missing from the TRExplorer catalog'>v2 &nbsp; <i>[10]</i></span>",
-                    Tanudisastro2025:                "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Tanudisastro et al. 2024 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[11]</i></span>",
-                    Manigbas2024:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Manigbas et al. 2024 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[12]</i></span>",
-                    Sulovari2019:                    "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Sulovari et al. 2019 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[13]</i></span>",
-                    Garg2021:                        "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Garg et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[14]</i></span>",
-                    Mukamel2021:                     "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Mukamel et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[15]</i></span>",
-                    Annear2021:                      "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Annear et al. 2021 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[16]</i></span>",
-                    Hause2016:                       "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> TRs from Hause et al. 2016 that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[17]</i></span>",
-                    VamosV3:                         "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2<br /><br /><b>Original source:</b> Vamos v3 catalog TRs that were missing from the TRExplorer catalog'>v2 &nbsp; <i>[18]</i></span>",
-                    ExtendedLocusBoundaries:         "<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer v2.1<br /><br /><b>Original source:</b> TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions'>v2.1 &nbsp; <i>[19]</i></span>",
-                }
-                const [version, sourceCatalog] = row['Source'].split(':')
-                // Fall back to the raw value so a source that isn't in the map above shows
-                // something rather than rendering as undefined.
-                return sourceCatalogNameMap[sourceCatalog] || row['Source']
+                const sourceCatalog = row['Source'].split(':')[1]
+                const sourceCatalogIndex = SOURCE_CATALOGS_IN_SOURCE_COLUMN.findIndex(([name]) => name === sourceCatalog)
+                // Fall back to the raw value so a source that isn't in SOURCE_CATALOGS_IN_SOURCE_COLUMN still shows
+                // something
+                if (sourceCatalogIndex === -1) return row['Source']
+                const [, version, originalSource] = SOURCE_CATALOGS_IN_SOURCE_COLUMN[sourceCatalogIndex]
+                return `<span class='show-popup action-link' data-html='<b>Source catalog:</b> TRExplorer ${version}<br /><br /><b>Original source:</b> ${originalSource}'>${version} &nbsp; <i>[${sourceCatalogIndex + 1}]</i></span>`
             },
             getSortColumns: () => ['Source'],
             getRequiredColumns: () => ['Source'],
@@ -2795,116 +2825,12 @@ gtag('config', 'G-6R8FPBQRFH');
             getSortColumns: () => ['FlanksAndLocusMappability'],
             getRequiredColumns: () => ['FlanksAndLocusMappability']
         },
-        GencodeGeneId: {
-            displayName: 'Gencode Gene Id',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeGeneId'],
-            getValue: (row) => row['GencodeGeneId'],
-            getSortColumns: () => ['GencodeGeneId'],
-            getRequiredColumns: () => ['GencodeGeneId']
-        },
-        GencodeTranscriptId: {
-            displayName: 'Gencode Transcript',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['GencodeTranscriptId'],
-            getValue: (row) => row['GencodeTranscriptId'],
-            getSortColumns: () => ['GencodeTranscriptId'],
-            getRequiredColumns: () => ['GencodeTranscriptId']
-        },
-        RefseqGeneRegion: {
-            displayName: 'RefSeq Region',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['RefseqGeneRegion']),
-            getSortColumns: () => ['RefseqGeneRegion'],
-            getRequiredColumns: () => ['RefseqGeneRegion']
-        },
-        RefseqGeneId: {
-            displayName: 'RefSeq Id',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneId'],
-            getValue: (row) => row['RefseqGeneId'],
-            getSortColumns: () => ['RefseqGeneId'],
-            getRequiredColumns: () => ['RefseqGeneId']
-        },
-        RefseqTranscriptId: {
-            displayName: 'RefSeq Transcript Id',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqTranscriptId'],
-            getValue: (row) => row['RefseqTranscriptId'],
-            getSortColumns: () => ['RefseqTranscriptId'],
-            getRequiredColumns: () => ['RefseqTranscriptId']
-        },
-        RefseqGeneName: {
-            displayName: 'RefSeq Gene',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['RefseqGeneName'],
-            getValue: (row) => generateGeneNameCellValue(row['RefseqGeneName']),
-            getSortColumns: () => ['RefseqGeneName'],
-            getRequiredColumns: () => ['RefseqGeneName']
-        },
-        ManeGeneRegion: {
-            displayName: 'MANE Region',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneRegion'],
-            getValue: (row) => getGeneRegionColumnValue(row['ManeGeneRegion']),
-            getSortColumns: () => ['ManeGeneRegion'],
-            getRequiredColumns: () => ['ManeGeneRegion']
-        },
-        ManeGeneId: {
-            displayName: 'MANE Gene Id',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneId'],
-            getValue: (row) => row['ManeGeneId'],
-            getSortColumns: () => ['ManeGeneId'],
-            getRequiredColumns: () => ['ManeGeneId']
-        },
-        ManeTranscriptId: {
-            displayName: 'MANE Transcript',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeTranscriptId'],
-            getValue: (row) => row['ManeTranscriptId'],
-            getSortColumns: () => ['ManeTranscriptId'],
-            getRequiredColumns: () => ['ManeTranscriptId']
-        },
-        ManeGeneName: {
-            displayName: 'MANE Gene',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['ManeGeneName'],
-            getValue: (row) => generateGeneNameCellValue(row['ManeGeneName']),
-            getSortColumns: () => ['ManeGeneName'],
-            getRequiredColumns: () => ['ManeGeneName']
-        },
-        HPRC256_BiallelicHistogram: {
-            displayName: 'HPRC256:LPS Biallelic Histogram',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC256_BiallelicHistogram'],
-            getValue: (row) => row['HPRC256_BiallelicHistogram'],
-            getSortColumns: () => ['HPRC256_BiallelicHistogram'],
-            getRequiredColumns: () => ['HPRC256_BiallelicHistogram']
-        },
-        HPRC256TotalLength_BiallelicHistogram: {
-            displayName: 'HPRC256:Length Biallelic Histogram',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['HPRC256TotalLength_BiallelicHistogram'],
-            getValue: (row) => row['HPRC256TotalLength_BiallelicHistogram'],
-            getSortColumns: () => ['HPRC256TotalLength_BiallelicHistogram'],
-            getRequiredColumns: () => ['HPRC256TotalLength_BiallelicHistogram']
-        },
-        TenK10K_BiallelicHistogram: {
-            displayName: 'TenK10K Phase 1 Biallelic Histogram',
-            defaultSortDirection: 'DESC',
-            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['TenK10K_BiallelicHistogram'],
-            getValue: (row) => row['TenK10K_BiallelicHistogram'],
-            getSortColumns: () => ['TenK10K_BiallelicHistogram'],
-            getRequiredColumns: () => ['TenK10K_BiallelicHistogram']
-        },
         dotPlot: {
             displayName: 'Dot Plot',
             helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['dotPlot'],
             getValue: (row) => {
-                // Sequence/flank columns are nulled by `CASE WHEN ReferenceRegionSize <= 10000`
-                // in the index-page SELECT for large loci; skip the dot plot when unavailable.
+                // The index-page SELECT nulls ReferenceRepeatSequence when it is longer than 10,000 bp
+                // (`CASE WHEN LENGTH(col) <= 10000`); skip the dot plot when it is unavailable.
                 if (row['ReferenceLeftFlank'] == null || row['ReferenceRightFlank'] == null || row['ReferenceRepeatSequence'] == null) {
                     return ''
                 }
@@ -2923,24 +2849,13 @@ gtag('config', 'G-6R8FPBQRFH');
         },
         Tanudisastro2024_SignificantCellTypes: {
             displayName: 'sc-eTRs 2024',
-            defaultSortDirection: 'DESC',
+            defaultSortDirection: 'ASC',  // lowest p-value (most significant) first; untested loci stay last (NULLS LAST)
             helpText: 'Immune cell types with significant sc-eTR associations from [<a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro 2024</a>]',
             getValue: (row) => {
                 if (!row['Tanudisastro2024_SignificantCellTypes']) return ''
                 const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
-                const popupContent = buildScEtrPopupContent(row)
-
-                // Display: "CD4_TCM (+4 more)"
-                const displayText = cellTypes.length <= 1
-                    ? cellTypes[0]
-                    : `${cellTypes[0]} (+${cellTypes.length-1} more)`
-
-                // Escape popupContent for safe HTML attribute inclusion
-                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-
-                return `<span class="action-cell show-popup" data-html="${escapedPopupContent}">
-                    <span class="action-link">${displayText}</span>
-                </span>`
+                return buildCellValueWithPopup(
+                    `<span class="action-link">${formatFirstNameAndNumberOfOthers(cellTypes)}</span>`, buildScEtrPopupContent(row))
             },
             getSortColumns: () => ['Tanudisastro2024_MinPvalue'],
             getRequiredColumns: () => [
@@ -2952,7 +2867,7 @@ gtag('config', 'G-6R8FPBQRFH');
         },
         Manigbas2024_AssociatedTraits: {
             displayName: 'PheWAS 2024',
-            defaultSortDirection: 'DESC',  // ASC = lowest p-value first = most significant first
+            defaultSortDirection: 'ASC',  // lowest p-value (most significant) first; untested loci stay last (NULLS LAST)
             helpText: 'Traits with fine-mapped causal TR associations from [<a href="https://www.nature.com/articles/s41467-024-54678-0" target="_blank">Manigbas 2024</a>] UK Biobank PheWAS',
             getValue: (row) => {
                 // Check if locus was tested (has Details) vs not tested (NULL)
@@ -2967,20 +2882,12 @@ gtag('config', 'G-6R8FPBQRFH');
                     return '<span style="color: #888;">No associations</span>'
                 }
 
-                const traits = associatedTraits.split(',')
-                const popupContent = buildPheWASPopupContent(row)
-
-                // Display: "High blood pressure (+4 more)"
-                const displayText = traits.length <= 1
-                    ? traits[0]
-                    : `${traits[0]} (+${traits.length-1} more)`
-
-                // Escape popupContent for safe HTML attribute inclusion
-                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-
-                return `<span class="action-cell show-popup" data-html="${escapedPopupContent}">
-                    <span class="action-link">${displayText}</span>
-                </span>`
+                // Trait names are taken from the Details keys because some names contain commas (e.g. 'Pulse rate,
+                // automated reading'), so splitting AssociatedTraits on commas would break them apart.
+                const details = parseJsonColumn(row, 'Manigbas2024_Details')
+                const traits = details ? sortNamesByDetailPvalue(Object.keys(details), details) : associatedTraits.split(',')
+                return buildCellValueWithPopup(
+                    `<span class="action-link">${formatFirstNameAndNumberOfOthers(traits)}</span>`, buildPheWASPopupContent(row))
             },
             getSortColumns: () => ['Manigbas2024_MinPvalue'],
             getRequiredColumns: () => [
@@ -2995,11 +2902,9 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: 'Whether an element from the ENCODE4 MPRA (massively parallel reporter assay) experiments that overlaps this repeat was called active (it raised reporter expression with FDR < 0.05) in at least one cell line. Click <b>Yes</b> for the cell lines and caveats.',
             getValue: (row) => {
                 if (getEncode4MpraCellLines(row).length === 0) return ''
-                const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>ENCODE4 Expression MPRA</b></div>
-                    ${buildEncode4MpraDetailsHtml(row)}`.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-                return `<span class="action-cell show-popup" data-variation="mpra-details-popup" data-html="${escapedPopupContent}">
-                    <i class="check circle icon"></i><span class="action-link">Yes</span>
-                </span>`
+                return buildCellValueWithPopup('<i class="check circle icon"></i><span class="action-link">Yes</span>',
+                    `<div style="margin-bottom: 0.5em;"><b>ENCODE4 Expression MPRA</b></div>${buildEncode4MpraDetailsHtml(row)}`,
+                    'mpra-details-popup')
             },
             // Sort by the number of cell lines with an MPRA call. NULLIF turns 0 into NULL, so loci with no MPRA call
             // (including those with only CRISPR calls) sort last in either direction.
@@ -3012,12 +2917,12 @@ gtag('config', 'G-6R8FPBQRFH');
             helpText: 'Result of the massively parallel reporter assay (MPRA) of promoter STRs from Zhang et al. 2025, which tested whether changing the repeat copy number changes reporter expression in HEK293T cells. A check means the repeat length significantly changed expression (FDR < 0.1), and a gray &#x2715; means it did not. Click either one for the length effect slope and FDR. The result is from the paper\'s main library (hSTR1), or from its second library (hSTR2) when hSTR1 had too few barcodes to test the locus. Empty if the locus was not tested, or had too few barcodes in both libraries.',
             getValue: (row) => {
                 if (!wasZhang2025MpraLengthEffectTested(row)) return ''
-                const escapedPopupContent = `<div style="margin-bottom: 0.5em;"><b>Expression MPRA for promoter-proximal STRs</b></div>
-                    ${buildZhang2025MpraDetailsHtml(row)}`.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
                 const icon = row['Zhang2025_LengthEffectTestResult'] === 'significant'
                     ? '<i class="check circle icon"></i><span class="action-link">Significant</span>'
                     : '<i class="times circle outline grey icon"></i><span class="action-link">Not Significant</span>'
-                return `<span class="action-cell show-popup" data-variation="mpra-details-popup" data-html="${escapedPopupContent}">${icon}</span>`
+                return buildCellValueWithPopup(icon,
+                    `<div style="margin-bottom: 0.5em;"><b>Expression MPRA for promoter-proximal STRs</b></div>${buildZhang2025MpraDetailsHtml(row)}`,
+                    'mpra-details-popup')
             },
             // Significant loci first, then not significant ones, each ordered from the smallest FDR. Loci with no
             // result ('not enough data' or not tested) sort last in either direction.
@@ -3090,10 +2995,9 @@ gtag('config', 'G-6R8FPBQRFH');
                     + `<div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1em;">${tableHtml}</div>`
                     + `<div style="color: #666;">${SPLICEAI_SIMULATED_ALLELES_EXPLANATION}</div>`
                     + footnotesHtml
-                const escapedPopupContent = popupContent.replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-                return `<span class="action-cell show-popup" data-variation="wide" data-html="${escapedPopupContent}">
-                    <span class="action-link">${repeatCount} repeat${repeatCount === 1 ? '' : 's'}: ${deltaScore.toFixed(2)} ${changeType}${deltaScores.length > 1 ? ' ...' : ''}</span>
-                </span>`
+                return buildCellValueWithPopup(
+                    `<span class="action-link">${repeatCount} repeat${repeatCount === 1 ? '' : 's'}: ${deltaScore.toFixed(2)} ${changeType}${deltaScores.length > 1 ? ' ...' : ''}</span>`,
+                    popupContent, 'wide')
             },
             getCellStyle: (row) => {
                 const backgroundColor = getSpliceAIDeltaScoreBackgroundColor(row['SpliceAI_MaxDeltaScore'])
@@ -3128,11 +3032,8 @@ gtag('config', 'G-6R8FPBQRFH');
                 Empty if the TR locus doesn't overlap any of these regions.`,
             getValue: (row) => {
                 if (!row['CentromereAndSatelliteRegion']) return ''
-                const escapedPopupContent = buildCentromereAndSatelliteRegionDetailsHtml(row)
-                    .replace(/'/g, '&#39;').replace(/"/g, '&quot;')
-                return `<span class="action-cell show-popup" data-variation="centromere-and-satellite-region-popup" data-html="${escapedPopupContent}">
-                    <span class="action-link">${row['CentromereAndSatelliteRegion']}</span>
-                </span>`
+                return buildCellValueWithPopup(`<span class="action-link">${row['CentromereAndSatelliteRegion']}</span>`,
+                    buildCentromereAndSatelliteRegionDetailsHtml(row), 'centromere-and-satellite-region-popup')
             },
             getSortColumns: () => ['CentromereAndSatelliteRegion'],
             getRequiredColumns: () => ['CentromereAndSatelliteRegion'],
@@ -3154,6 +3055,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256_BiallelicHistogram',
         'HPRC256_AlleleSizeAndPurityDistribution',
         'HPRC256_AlleleSizeAndMethylationDistribution',
+        // The interval the HPRC256 columns above describe, which the stratified population and sex queries are pinned to
+        'HPRC256_NarrowestInterval',
         'HPRC256TotalLength_Stdev',
         'HPRC256TotalLength_AlleleHistogram',
         'HPRC256TotalLength_BiallelicHistogram',
@@ -3166,17 +3069,32 @@ gtag('config', 'G-6R8FPBQRFH');
     ]
 
 
-    const alleleHistogramColumnToOtherColumns = {
-        'HPRC256_AlleleHistogram': ['HPRC256_Stdev'],
-        'HPRC256TotalLength_AlleleHistogram': ['HPRC256TotalLength_Stdev'],
-        'TenK10K_AlleleHistogram': ['TenK10K_Stdev'],
-        'AlleleFrequenciesFromIllumina174k': ['StdevFromIllumina174k'],
-        'AlleleFrequenciesFromT2TAssemblies': ['StdevFromT2TAssemblies'],
+    // The gene annotation columns, which show the value as is, as a gene name, or as a gene region
+    const showValueAsIs = (value) => value
+    for (const [columnName, displayName, formatValue] of [
+        ['GencodeGeneName', 'Gene', generateGeneNameCellValue],
+        ['GencodeGeneId', 'Gencode Gene Id', showValueAsIs],
+        ['GencodeTranscriptId', 'Gencode Transcript', showValueAsIs],
+        ['RefseqGeneRegion', 'RefSeq Region', getGeneRegionColumnValue],
+        ['RefseqGeneId', 'RefSeq Id', showValueAsIs],
+        ['RefseqTranscriptId', 'RefSeq Transcript Id', showValueAsIs],
+        ['RefseqGeneName', 'RefSeq Gene', generateGeneNameCellValue],
+        ['ManeGeneRegion', 'MANE Region', getGeneRegionColumnValue],
+        ['ManeGeneId', 'MANE Gene Id', showValueAsIs],
+        ['ManeTranscriptId', 'MANE Transcript', showValueAsIs],
+        ['ManeGeneName', 'MANE Gene', generateGeneNameCellValue],
+    ]) {
+        TABLE_COLUMNS[columnName] = {
+            displayName,
+            defaultSortDirection: 'DESC',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS[columnName],
+            getValue: (row) => formatValue(row[columnName]),
+            getSortColumns: () => [columnName],
+            getRequiredColumns: () => [columnName],
+        }
     }
 
-
-    for (const columnName of ['HPRC256_AlleleHistogram', 'HPRC256TotalLength_AlleleHistogram', 'TenK10K_AlleleHistogram', 'AlleleFrequenciesFromIllumina174k', 'AlleleFrequenciesFromT2TAssemblies']) {
-        const stdevColumnName = alleleHistogramColumnToOtherColumns[columnName][0]
+    for (const [columnName, stdevColumnName] of Object.entries(STDEV_COLUMN_BY_ALLELE_HISTOGRAM_COLUMN)) {
         TABLE_COLUMNS[columnName] = {
             displayName: `Allele Distribution (${ALLELE_HISTOGRAM_SHORT_NAMES[columnName]})`,
             helpText: ALLELE_HISTOGRAM_HELP_TEXTS[columnName],
@@ -3187,8 +3105,23 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
+    // The background color and label of a standard deviation cell, by its rank percentile among loci with the same motif
+    const STDEV_RANK_PERCENTILE_TIERS = [
+        {minPercentile: 0.999, color: '#ff9999', label: 'top 0.1%'},
+        {minPercentile: 0.99, color: '#ffcccc', label: 'top 1%'},
+        {minPercentile: 0.95, color: '#ffe8cc', label: 'top 5%'},
+        {minPercentile: 0.9, color: '#ffffcc', label: 'top 10%'},
+    ]
+    const findStdevRankPercentileTier = (rankPercentile) =>
+        rankPercentile == null ? undefined : STDEV_RANK_PERCENTILE_TIERS.find(tier => rankPercentile >= tier.minPercentile)
+
     for (const columnName of ['HPRC256_Stdev', 'HPRC256TotalLength_Stdev', 'AoU1027_Stdev', 'TenK10K_Stdev']) {
-        const isTotalLength = columnName === 'HPRC256TotalLength_Stdev'
+        const isLps = columnName === 'HPRC256_Stdev' || columnName === 'AoU1027_Stdev'
+        const alleleLengthDescription = isLps
+            ? 'the longest pure segment (LPS) of each allele'
+            : (columnName === 'HPRC256TotalLength_Stdev'
+                ? 'the total length of each allele (of the whole variation cluster for a locus in one)'
+                : 'the ExpansionHunter repeat count of each allele')
         TABLE_COLUMNS[columnName] = {
             displayName: `σ<sub>${STDEV_SIGMA_SUBSCRIPTS[columnName]}</sub>`,
             helpText: STDEV_HELP_TEXTS[columnName],
@@ -3198,54 +3131,34 @@ gtag('config', 'G-6R8FPBQRFH');
                 const stdev = row[columnName]
                 if (rankPercentile == null || total == null || total <= 1) return ''
                 if (stdev == null || stdev < 0.2) return ''
-                if (rankPercentile >= 0.999) return ' background-color: #ff9999;'
-                if (rankPercentile >= 0.99) return ' background-color: #ffcccc;'
-                if (rankPercentile >= 0.95) return ' background-color: #ffe8cc;'
-                if (rankPercentile >= 0.9) return ' background-color: #ffffcc;'
-                return ''
+                const tier = findStdevRankPercentileTier(rankPercentile)
+                return tier ? ` background-color: ${tier.color};` : ''
             },
             getValue: (row) => {
                 if (row[columnName] != null) {
-                    let tagText = ''
                     let tag = ''
                     if (row[`${columnName}RankByMotif`] != null && row[`${columnName}RankTotalNumberByMotif`] != null) {
                         const rank = row[`${columnName}RankByMotif`]
                         const total = row[`${columnName}RankTotalNumberByMotif`]
                         const rankPercentile = row[`${columnName}RankPercentile`]
-                        if (total == 1) {
-                            tagText = ' (only)'
-                        } else if (rankPercentile != null && rankPercentile >= 0.999) {
-                            tagText = ' (top 0.1%)'
-                        } else if (rankPercentile != null && rankPercentile >= 0.99) {
-                            tagText = ' (top 1%)'
-                        } else if (rankPercentile != null && rankPercentile >= 0.95) {
-                            tagText = ' (top 5%)'
-                        } else if (rankPercentile != null && rankPercentile >= 0.9) {
-                            tagText = ' (top 10%)'
-                        } else {
-                            tagText = ' (rank)'
-                        }
+                        const tier = findStdevRankPercentileTier(rankPercentile)
+                        const tagText = total == 1 ? ' (only)' : ` (${tier ? tier.label : 'rank'})`
 
-
-                        if (tagText) {
-                            const stdevHelp = isTotalLength
-                                ? `The standard deviation of allele lengths (in repeat units) observed at this locus in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset, computed using the total length of each allele (of the whole variation cluster for a locus in one).`
-                                : `The standard deviation of allele lengths (in repeat units) observed at this locus in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset, computed using the longest pure segment (LPS) of each allele.`
-                            const rankHelp = `Rank of the standard deviation at this locus among all loci with the same motif in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset. Rank 1 = highest standard deviation (most polymorphic).`
-                            const percentileHelp = `Percentile rank within all loci having the same motif in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset. Higher = more polymorphic (1.00 means the standard deviation of the allele frequency histogram at this locus is the highest among loci with this motif).`
-                            tag = ` &nbsp; <span class="show-popup action-link" data-html="`
-                            tag += `<div style=&quot;min-width:250px&quot;><b>Standard Deviation:</b> ${row[columnName].toFixed(2)} <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${stdevHelp}'></i><br /><br />`
-                            tag += `<b>Rank:</b> ${rank?.toLocaleString()} out of ${total.toLocaleString()} `
-                            tag += `analyzed loci with this motif <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${rankHelp}'></i><br /><br />`
-                            tag += `<b>Percentile:</b> ${rankPercentile != null ? rankPercentile.toFixed(2) : 'n/a'} <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${percentileHelp}'></i><br /><br />`
-                            tag += `<i>NOTE:</i> The rank indicates how variable the allele lengths are within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset - at this locus compared to other loci with the same motif.`
-                            if (!isTotalLength) {
-                                tag += ` When calculated using the longest pure segment (LPS), as it was here, this ranking strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;https://www.biorxiv.org/content/10.1101/2025.01.06.631535v2&quot; target=_blank>Danzi et al. 2025</a>])`
-                            }
-                            tag += `</div>`
-                            tag += `">`
-                            tag += `${tagText}</span>`
+                        const stdevHelp = `The standard deviation of allele lengths (in repeat units) observed at this locus in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset, computed using ${alleleLengthDescription}.`
+                        const rankHelp = `Rank of the standard deviation at this locus among all loci with the same motif in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset. Rank 1 = highest standard deviation (most polymorphic).`
+                        const percentileHelp = `Percentile rank within all loci having the same motif in the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset. Higher = more polymorphic (1.00 means the standard deviation of the allele frequency histogram at this locus is the highest among loci with this motif).`
+                        tag = ` &nbsp; <span class="show-popup action-link" data-html="`
+                        tag += `<div style=&quot;min-width:250px&quot;><b>Standard Deviation:</b> ${row[columnName].toFixed(2)} <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${stdevHelp}'></i><br /><br />`
+                        tag += `<b>Rank:</b> ${rank?.toLocaleString()} out of ${total.toLocaleString()} `
+                        tag += `analyzed loci with this motif <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${rankHelp}'></i><br /><br />`
+                        tag += `<b>Percentile:</b> ${rankPercentile != null ? rankPercentile.toFixed(2) : 'n/a'} <i class='question circle outline icon link nested-help-icon' style='margin-left: 10px;' data-html='${percentileHelp}'></i><br /><br />`
+                        tag += `<i>NOTE:</i> The rank indicates how variable the allele lengths are within the ${STDEV_SIGMA_SUBSCRIPTS[columnName]} dataset - at this locus compared to other loci with the same motif.`
+                        if (isLps) {
+                            tag += ` When calculated using the longest pure segment (LPS), as it was here, this ranking strongly separates disease-associated TR loci from other TRs (see [<a href=&quot;${DANZI_2025_PAPER_URL}&quot; target=_blank>Danzi et al. 2025</a>])`
                         }
+                        tag += `</div>`
+                        tag += `">`
+                        tag += `${tagText}</span>`
                     }
                     return `${grayIfZero(row[columnName], row[columnName].toFixed(2))}${tag}`
                 } else {
@@ -3277,8 +3190,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // ----- HPRC256 decomposed-allele rendering -----
 
-    // Per-section state. Keyed off the DOM so we don't keep stale state if the page
-    // is re-rendered for a different locus.
+    // State of the allele sequences section. renderDecomposedAllelesSection resets it for each locus.
     const DECOMPOSED_ALLELES_STATE = {
         alleles: [],            // parsed { seq, count, isRef, skipReason, motifUnits } records
         totalCalledHaplotypes: 0,
@@ -3354,24 +3266,24 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // Fetch every stratified-LPS row for a given LocusId, ordered narrowest-interval
     // first. Used by the locus page summary stats table to render one HPRC256 row
-    // per (LocusId, Interval) pair. The full row payload (per-stratum + summary
-    // stats) makes this reusable for re-rendering charts under interval changes,
-    // but the summary stats table only needs the per-interval summary columns.
+    // per (LocusId, Interval) pair. The full rows (per-stratum + summary stats) are
+    // also cached for the LPS allele and genotype charts, so switching the interval
+    // doesn't query them again.
     const fetchAllHprc256IntervalRows = async (locusId) => {
         if (!locusId) return []
-        const escapedLocusId = locusId.replace(/'/g, "\\'")
         const sql = `
             SELECT * FROM ${HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID}
-            WHERE LocusId = '${escapedLocusId}'`
+            WHERE LocusId = '${escapeTextForSqlStringLiteral(locusId)}'`
         try {
             const result = await queryBigQuery(sql, 0, 256, null, null)
             const rows = result?.rows || []
+            if (window.searchResults) {
+                for (const row of rows) {
+                    window.searchResults[buildHprc256StratifiedRowCacheKey(HPRC256_STRATIFIED_CHARTS.allele, locusId, row['Interval'])] = row
+                }
+            }
             const intervalSpan = (iv) => {
-                if (!iv || typeof iv !== 'string' || !iv.includes(':')) return Infinity
-                const range = iv.split(':')[1]
-                if (!range || !range.includes('-')) return Infinity
-                const [s, e] = range.split('-')
-                const span = parseInt(e) - parseInt(s)
+                const span = iv ? computeIntervalSize(iv) : NaN
                 return Number.isFinite(span) ? span : Infinity
             }
             return rows.slice().sort((a, b) => {
@@ -3419,7 +3331,12 @@ gtag('config', 'G-6R8FPBQRFH');
             <div class="loading-indicator"><div class="ui small active inline loader"></div><span>Loading allele sequences&hellip;</span></div>
         </div>`
 
+    // Each call of fetchAndRenderDecomposedAlleles gets the next id, and only the latest call updates the section, so a
+    // slow response for an interval the user has since switched away from can't replace the current interval's sequences
+    let latestDecomposedAllelesRequestId = 0
+
     const fetchAndRenderDecomposedAlleles = async (chromIndex, locusId, interval) => {
+        const requestId = ++latestDecomposedAllelesRequestId
         if (chromIndex == null || !locusId || !interval) {
             // Catalog row missing the join key — render nothing.
             $('#locus-page-allele-sequences').html('')
@@ -3438,17 +3355,18 @@ gtag('config', 'G-6R8FPBQRFH');
             // Show a loading indicator while the (sometimes slow) BigQuery fetch runs.
             $('#locus-page-allele-sequences').html(alleleSequencesLoadingHtml())
             const result = await queryBigQuery(sql, 0, 1, null, null)
+            if (requestId !== latestDecomposedAllelesRequestId) return
             const queryRow = result?.rows?.[0]
             if (!queryRow) {
                 $('#locus-page-allele-sequences').html('')
                 return
             }
             $('#locus-page-allele-sequences').html(renderDecomposedAllelesSection(queryRow))
-            wireDecomposedAlleles()
+            rerenderDecomposedAllelesTable()
         } catch (e) {
-            // Table may not exist yet (placeholder timestamp). Fail silently — log only.
+            // The allele sequences section is optional: on a query error, log it and leave the section empty
             console.warn('Decomposed alleles fetch failed:', e)
-            $('#locus-page-allele-sequences').html('')
+            if (requestId === latestDecomposedAllelesRequestId) $('#locus-page-allele-sequences').html('')
         }
     }
 
@@ -3511,7 +3429,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // Each top canonical class claims the next palette color. Rare classes get gray.
         const canonicalColor = {}
         topCanonicals.forEach((canon, i) => {
-            canonicalColor[canon] = i < MOTIF_COLORS.length ? MOTIF_COLORS[i] : OTHER_MOTIFS_COLOR
+            canonicalColor[canon] = MOTIF_COLORS[i]  // MAX_COLORED_CANONICAL_MOTIFS is at most MOTIF_COLORS.length
         })
         const colorMap = {}
         Object.keys(counts).forEach(m => {
@@ -3611,16 +3529,15 @@ gtag('config', 'G-6R8FPBQRFH');
             const style = isRun
                 ? `display:inline-flex; align-items:center; justify-content:center; min-width:42px; height:24px; padding:0 4px; background:${color}; color:#fff; font-size:11px; font-family:monospace; border-right:1px solid #fff; box-sizing:border-box;`
                 : `display:inline-block; width:12px; height:24px; background:${color}; border-right:1px solid #fff; box-sizing:border-box;`
-            // Semantic UI's `.popup()` reads `data-content` and removes its own copy
-            // after init; the `allele-motif-box` class is the selector we bind to in
-            // observeCompositionPlaceholders right after the placeholder is injected.
+            // The box's tooltip text goes in `data-content`, which the delegated hover handler in ensureMotifBoxTooltip
+            // reads from boxes with the `allele-motif-box` class.
             return `<span class="allele-motif-box" style="${style}" data-content="${escapeHtmlText(title)}">${escapeHtmlText(label)}</span>`
         })
         return `<div style="display:flex; flex-wrap:wrap; align-items:stretch; line-height:0;">${boxParts.join('')}</div>`
     }
 
     // Build the HTML for the Sequence cell. `mode` controls the form:
-    //   'boxes'     — colored composition viz (RLE only when over RLE_THRESHOLD).
+    //   'boxes'     — one colored box per repeat unit.
     //   'collapsed' — always RLE; every run is a labeled block.
     //   'dotted'    — text form like "CAG&middot;CAG&middot;CAT" (no boxes).
     // Skipped alleles ignore `mode` and show the skip note + raw sequence inline.
@@ -3631,7 +3548,7 @@ gtag('config', 'G-6R8FPBQRFH');
         if (allele.skipReason) {
             let note
             if (allele.skipReason === 'too_long') note = '(decomposition skipped: too long)'
-            else if (allele.skipReason === 'invalid_chars') note = '(skipped: contains N or other non-ACGT)'
+            else if (allele.skipReason === 'contains_invalid_bases') note = '(skipped: contains N or other non-ACGT)'
             else note = `(skipped: ${allele.skipReason})`
             return `<div style="font-style:italic; color:#888;">${escapeHtmlText(note)}</div>
                 <div style="margin-top:4px; font-family:monospace; font-size:0.85em; overflow-wrap:anywhere; color:#333;">${escapeHtmlText(allele.seq)}</div>`
@@ -3679,7 +3596,7 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     // Build the sortable <thead>. The icon reflects the current sort state for the
-    // column (neutral / up / down). Click handling is wired in rewireDecomposedAllelesHandlers.
+    // column (neutral / up / down). Click handling is wired in wireDecomposedAllelesHandlers.
     const renderAlleleTableHeader = (sortColumn, sortDirection) => {
         const cells = Object.entries(ALLELE_TABLE_COLUMNS).map(([key, col]) => {
             const isSorted = key === sortColumn && sortDirection != null
@@ -3716,13 +3633,9 @@ gtag('config', 'G-6R8FPBQRFH');
     const renderHprc256IntervalOptions = (currentValue) => {
         const intervals = window.__HPRC256_INTERVALS || []
         if (intervals.length <= 1) return null
-        return intervals.map((iv) => {
-            const isVc = iv['vc'] && iv['vc'] !== ''
-            const label = isVc
-                ? `Variation cluster ${iv['interval']}`
-                : `Standalone TR ${iv['interval']}`
-            return `<option value="${iv['interval']}"${iv['interval'] === currentValue ? ' selected' : ''}>${label}</option>`
-        }).join('')
+        return intervals.map((iv) =>
+            `<option value="${iv['interval']}"${iv['interval'] === currentValue ? ' selected' : ''}>${describeHprc256Interval(iv['interval'], iv['vc'])}</option>`
+        ).join('')
     }
 
     // Dropdown above the table that toggles the sequence-column display mode.
@@ -3779,13 +3692,13 @@ gtag('config', 'G-6R8FPBQRFH');
             // TSV of EVERY motif at this locus (both the top legend entries and the
             // rare ones in this popup), sorted by count desc then motif asc. Encoded
             // into a data: URI so the link downloads without any event wiring.
-            // encodeURIComponent never emits a single quote, so this stays safe inside
+            // encodeURIComponent leaves single quotes as they are, so they're encoded too, to keep the link safe inside
             // the single-quoted data-html attribute below.
             const allMotifsTsv = 'motif\tHPRC256_count\n' + Object.keys(motifCounts)
                 .sort((a, b) => motifCounts[b] - motifCounts[a] || (a < b ? -1 : a > b ? 1 : 0))
                 .map(m => `${m}\t${motifCounts[m]}`)
                 .join('\n')
-            const downloadHref = `data:text/tab-separated-values;charset=utf-8,${encodeURIComponent(allMotifsTsv)}`
+            const downloadHref = `data:text/tab-separated-values;charset=utf-8,${encodeURIComponent(allMotifsTsv).replace(/'/g, '%27')}`
             // Height cap + vertical scroll live on the OUTER wrapper; the column
             // layout on the INNER div has no height cap. Putting both on one element
             // makes multicol fill a column to the cap then flow sideways into the next
@@ -3826,8 +3739,7 @@ gtag('config', 'G-6R8FPBQRFH');
         const totalCalled = parseInt(queryRow.total_allele_number, 10) || 0
         const totalUnique = parseInt(queryRow.total_unique_alleles, 10) || alleles.length
 
-        // Reset state for this locus. Sort and sequence-mode are reset to defaults so
-        // navigating between loci doesn't carry over stale settings.
+        // Reset the allele list and paging for this locus.
         const state = DECOMPOSED_ALLELES_STATE
         state.alleles = alleles
         state.totalCalledHaplotypes = totalCalled
@@ -3842,15 +3754,6 @@ gtag('config', 'G-6R8FPBQRFH');
             && (urlSortDirection === 'ASC' || urlSortDirection === 'DESC')
         state.sortColumn = validSort ? urlSortColumn : null
         state.sortDirection = validSort ? urlSortDirection : null
-
-        // Legend tally and color map are computed over all alleles (not the visible
-        // slice) so they stay stable as the user paginates or re-sorts.
-        const colorInfo = buildMotifColorMap(state.alleles)
-        const visible = getVisibleAlleles()
-        const tableHtml = renderAlleleTable(
-            visible, totalCalled, colorInfo.colorMap, state.sequenceMode,
-            state.sortColumn, state.sortDirection,
-        )
 
         // Full VCF-record span (shared across all sub-TRIDs of a compound TRGT record).
         // ``vcf_start_0based``/``vcf_end_1based`` come from VCF POS / INFO/END and may
@@ -3874,15 +3777,15 @@ gtag('config', 'G-6R8FPBQRFH');
                         TRGT reported ${totalUnique} unique allele${totalUnique === 1 ? '' : 's'} at this locus; <a href="https://github.com/Jong-hun-Park/trviz" target="_blank">TRViz</a> (<a href="https://doi.org/10.1093/bioadv/vbad058" target="_blank">Park <i>et al.</i> 2023</a>) then decomposed these alleles into the following motifs:
                     </div>
                 </div>
-                <div id="decomposed-alleles-legend" style="margin-bottom:12px;">${renderLegend(colorInfo)}</div>
-                <div id="decomposed-alleles-table-container">${tableHtml}</div>
-                <div id="decomposed-alleles-load-more-container">${renderLoadMoreButton()}</div>
+                <div id="decomposed-alleles-legend" style="margin-bottom:12px;"></div>
+                <div id="decomposed-alleles-table-container"></div>
+                <div id="decomposed-alleles-load-more-container"></div>
             </div>`
     }
 
-    // Shared Semantic UI tooltip element + delegated hover handler for the motif boxes.
+    // One shared tooltip element + delegated hover handler for the motif boxes.
     // We never call `.popup()` per-box: with thousands of boxes per allele the
-    // per-element binding cost is prohibitive. Instead one floating `.ui.popup` div
+    // per-element binding cost is prohibitive. Instead one plain floating div
     // gets repositioned on hover via a single event-delegated handler on document.
     let motifBoxTooltipEl = null
     let motifBoxTooltipBound = false
@@ -3946,12 +3849,13 @@ gtag('config', 'G-6R8FPBQRFH');
         $('#decomposed-alleles-legend .show-popup').popup({ on: 'click', hoverable: true })
     }
 
-    // Re-render the table body + legend + load-more button using the current state.
-    // Called after any state change (sort, load-more, sequence-mode change).
+    // Render the table body + legend + load-more button using the current state, and set up their handlers.
+    // Called after renderDecomposedAllelesSection's section is inserted, and after any state change (sort,
+    // load-more, sequence-mode change).
     const rerenderDecomposedAllelesTable = () => {
         const state = DECOMPOSED_ALLELES_STATE
-        // Same all-alleles tally as the initial render so legend + colors don't shift
-        // when the user paginates or re-sorts.
+        // Legend tally and color map are computed over all alleles (not the visible
+        // slice) so they stay stable as the user paginates or re-sorts.
         const colorInfo = buildMotifColorMap(state.alleles)
         const visible = getVisibleAlleles()
         const tableHtml = renderAlleleTable(
@@ -4016,15 +3920,6 @@ gtag('config', 'G-6R8FPBQRFH');
             e.preventDefault()
             showIgvAt($(this).data('locus'))
         })
-    }
-
-    // Called once after the section is first rendered for a locus. Sets up handlers,
-    // observers, and the legend popup; subsequent state changes go through
-    // rerenderDecomposedAllelesTable.
-    const wireDecomposedAlleles = () => {
-        wireDecomposedAllelesHandlers()
-        initLegendPopup()
-        observeCompositionPlaceholders()
     }
 
 </script>
@@ -4172,9 +4067,13 @@ gtag('config', 'G-6R8FPBQRFH');
         <div id="dot-plot-dialog-content" style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
             <div style="font-size:1.5em; padding: 10px 10px"><b>Dot Plot</b></div>
             <canvas id="dot-plot-dialog-canvas" style="width: 100%; height: 100%"></canvas>
+            <div id="dot-plot-dialog-dot-plot-not-drawn-message" style="display: none">This sequence is too long to draw a dot plot (the limit is 1,000bp).</div>
             <br /><br />
             <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot</b></div>
-            <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
+            <!-- plotPeriodicityPlot puts the plot's period labels in this box, next to the canvas -->
+            <div style="width: 100%; box-sizing: border-box">
+                <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
+            </div>
             <br /><br />
             <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
             <div id="dot-plot-dialog-bar-plot" style="width: 100%; max-width: 100%"></div>
