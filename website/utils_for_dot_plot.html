@@ -34,10 +34,12 @@
         return true;
     }
 
-    const dotPlotFilterOutNoise = (matrix, minDiagonalRun = 3) => {
+    // Sets each nonzero cell for which isNoise(matrix, i, j) returns true to 0, row by row, so a cell's check sees the
+    // cells before it already cleared. Also used by the periodicity plot.
+    const zeroOutNoiseCells = (matrix, isNoise) => {
         for (let i = 0; i < matrix.length; i++) {
-            for (let j = 0; j < matrix.length; j++) {
-                if (matrix[i][j] > 0 && dotPlotIsNoise(matrix, i, j, minDiagonalRun)) {
+            for (let j = 0; j < matrix[0].length; j++) {
+                if (matrix[i][j] > 0 && isNoise(matrix, i, j)) {
                     matrix[i][j] = 0;
                 }
             }
@@ -88,22 +90,23 @@
             dotPlotCanvas.height = 0
         }
 
-        if (!sequence) {
+        // The "|" separators aren't bases, so they don't count toward the 1,000bp limit
+        const { filteredSequence, separatorPositions } = splitSequenceAtSeparators(sequence || '')
+
+        if (!filteredSequence) {
             console.warn("Sequence is empty")
             clearCanvas()
             return false
         }
 
-        if (sequence.length > 1000) {
-            console.warn(`Sequence length is ${sequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
+        if (filteredSequence.length > 1000) {
+            console.warn(`Sequence length is ${filteredSequence.length.toLocaleString()}bp which is larger than the 1,000bp max sequence length for dot plots. Skipping...`)
             clearCanvas()
             return false
         }
 
-        const { filteredSequence, separatorPositions } = splitSequenceAtSeparators(sequence)
-
         const matrix = dotPlotGenerateMatrix(filteredSequence)
-        dotPlotFilterOutNoise(matrix, 6)
+        zeroOutNoiseCells(matrix, (m, i, j) => dotPlotIsNoise(m, i, j, 6))
 
 
         const size = matrix.length;

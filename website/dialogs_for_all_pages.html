@@ -1,0 +1,158 @@
+<!-- modal dialog for selecting IGV tracks -->
+<div class="ui modal" id="igv-track-selection-dialog">
+    <i class="close icon"></i>
+    <div class="header" style="white-space: nowrap; display: flex; justify-content: space-between; align-items: center;">
+        Select IGV Tracks
+        <span style="font-size: 14px; font-weight: normal;">
+            <a href="#" id="igv-tracks-clear-all" class="action-link">clear all</a>
+        </span>
+    </div>
+    <div class="content" style="padding-top:0px; max-height: 70vh; overflow-y: auto;">
+        <div class="ui form">
+            <table class="ui stackable table igv-track-selection-table">
+                <tr>
+                    <td style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-tr-explorer-catalog-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    TRExplorer Catalog
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                    # of loci
+                                </th>
+                            </tr>
+                        </table>
+                        <table class="igv-checkbox-container-table" id="igv-variation-cluster-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Variation Clusters
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                </th>
+                            </tr>
+                        </table>
+                        <table class="igv-checkbox-container-table" id="igv-known-disease-loci-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Known Disease-associated TR Loci
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                </th>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-other-tr-catalog-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">
+                                    Other Genome-wide TR Catalogs
+                                </th>
+                                <th class="igv-checkbox-container-header-row igv-number-of-loci-column">
+                                    # of loci
+                                </th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-reference-tracks-checkboxes">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">Reference Tracks</th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="padding: 10px 25px !important">
+                        <table class="igv-checkbox-container-table" id="igv-custom-tracks" style="width: 100%;">
+                            <tr>
+                                <th class="igv-checkbox-container-header-row">Custom Tracks <i class="question circle icon link" style="margin-left: 15px;" data-html="These inputs allow you to load your own custom tracks into IGV.js. They accept BED, BAM, VCF, GFF, BigWig, or any other IGV.js-compatible data format. The data file (and index) just have to be online at a publicly-accessible &nbsp;https://, &nbsp;gs://, &nbsp;or s3:// &nbsp; URL."></i></th>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui deny button">
+            Cancel
+        </div>
+        <div id="igv-tracks-modal-apply-button" class="ui positive right labeled icon button">
+            Apply
+            <i class="checkmark icon"></i>
+        </div>
+    </div>
+</div>
+
+<div class="ui modal" id="whats-new-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        TRExplorer Updates
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="whats_new.html" style="width: 100%; height: 100%; border: 0px; min-height: 380px"></iframe>
+    </div>
+</div>
+
+
+<div class="ui modal" id="about-modal" style="width: 915px">
+    <i class="close icon"></i>
+    <div class="header">
+        About TRExplorer
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="about.html" style="width: 100%; height: 100%; border: 0px; min-height: 440px"></iframe>
+    </div>
+</div>
+
+
+<!-- FAQ modal dialog -->
+<div class="ui modal" id="faq-modal" style="height: 80%; min-height:75%">
+    <i class="close icon"></i>
+    <div class="header">
+        Frequently Asked Questions
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%">
+        <iframe src="FAQ.html" style="width: 100%; height: 100%; border: 0px"></iframe>
+    </div>
+</div>
+
+<!-- downloads modal dialog -->
+<div class="ui modal" id="downloads-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        Downloads
+    </div>
+    <div class="content" style="font-size: 1.1em; height: 100%;">
+        <iframe src="downloads.html" style="width: 100%; height: 100%; border: 0px; min-height: 560px;"></iframe>
+    </div>
+</div>
+
+<!-- modal dialog for displaying the dot plot and periodicity plot -->
+<div class="ui modal" id="dot-plot-dialog">
+    <i class="close icon"></i>
+    <div class="header" id="dot-plot-dialog-header" style="text-align: center">
+        Dot Plot
+    </div>
+    <div class="content scrolling">
+        <div id="dot-plot-dialog-content" style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Dot Plot</b></div>
+            <canvas id="dot-plot-dialog-canvas" style="width: 100%; height: 100%"></canvas>
+            <div id="dot-plot-dialog-dot-plot-not-drawn-message" style="display: none">This sequence is too long to draw a dot plot (the limit is 1,000bp).</div>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot</b></div>
+            <!-- plotPeriodicityPlot puts the plot's period labels in this box, next to the canvas -->
+            <div style="width: 100%; box-sizing: border-box">
+                <canvas id="dot-plot-dialog-periodicity-plot-canvas" style="width: 100%"></canvas>
+            </div>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Periodicity Plot Histogram</b></div>
+            <div id="dot-plot-dialog-bar-plot" style="width: 100%; max-width: 100%"></div>
+            <br /><br />
+            <div style="font-size:1.5em; padding: 10px 10px"><b>Sequences</b></div>
+            <div id="dot-plot-dialog-sequences" style="width: 100%; max-width: 100%"></div>
+        </div>
+    </div>
+</div>

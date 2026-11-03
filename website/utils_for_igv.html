@@ -170,7 +170,6 @@
             const config = generateIgvConfig(false)
             window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
 
-            //window.igvBrowser.trackViews.forEach((trackView) => { monkeyPatchPopupData(trackView.track) }
             window.igvBrowser.on('trackremoved', (track) => {
                 // get the track id that matches the url
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
@@ -225,7 +224,6 @@
 
             // add the IGV tracks selection button
             $($('#igv-viewport')[0].shadowRoot).find('.igv-navbar-left-container').after(
-                //$('.igv-navbar-left-container').after(
                 `<button id="igv-select-tracks-button" class="ui primary basic button" style="height:25px; padding:2px 15px 2px 30px; border-color:#06359d !important; border-width: 1px !important; border-radius:5px; color:#06359d !important; background-color: white !important; cursor: pointer;">
                Select IGV Tracks
                <i class="setting icon" style="margin-left:10px" />
@@ -271,9 +269,7 @@
             $('#igv-custom-tracks').append(
                 `<tr>
                 <td colspan="2">
-                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-1" placeholder="Enter a public data file URL for custom track #1. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
-                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-2" placeholder="Enter a public data file URL for custom track #2. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
-                    <input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-3" placeholder="Enter a public data file URL for custom track #3. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />
+                    ${[1, 2, 3].map(i => `<input type="text" style="margin-bottom: 10px; width:100%;" class="igv-custom-track-url" id="igv-custom-track-url-${i}" placeholder="Enter a public data file URL for custom track #${i}. It can be an indexed BED, BAM, VCF, or other file format supported by IGV.js" />`).join('')}
                 </td>
             </tr>`
             )
@@ -297,7 +293,6 @@
             });
 
             $($('#igv-viewport')[0].shadowRoot).find('#igv-select-tracks-button').click(() => {
-                //$('#igv-select-tracks-button').click(() => {
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
                     const trackName = rt[0]
                     const isChecked = GLOBAL_PAGE_STATE[trackName] === 1
@@ -341,16 +336,23 @@
         await window.igvBrowserSetup
 
         if (GLOBAL_PAGE_STATE['showIGV'] === 1) {
-            const igvConfig = generateIgvConfig(true)
+            // Session updates run one at a time, since overlapping ones (e.g. from showing, hiding and showing IGV while
+            // it is being created) can add tracks twice. Each one reads the page state when it starts, so a queued
+            // update applies the latest state.
+            window.igvSessionUpdate = (window.igvSessionUpdate || Promise.resolve()).then(async () => {
+                if (GLOBAL_PAGE_STATE['showIGV'] !== 1) return
+                const igvConfig = generateIgvConfig(true)
 
-            console.log("Updating igv config to", igvConfig)
-            // A track that fails to load (e.g. a mistyped custom track URL) makes this throw, so the error is logged here
-            // rather than passed on to callers, which would then skip loading the page's data.
-            try {
-                await window.igvBrowser.loadSessionObject(igvConfig)
-            } catch (error) {
-                console.error('IGV failed to load a track:', error)
-            }
+                console.log("Updating igv config to", igvConfig)
+                // A track that fails to load (e.g. a mistyped custom track URL) makes this throw, so the error is
+                // logged here rather than passed on to callers, which would then skip loading the page's data.
+                try {
+                    await window.igvBrowser.loadSessionObject(igvConfig)
+                } catch (error) {
+                    console.error('IGV failed to load a track:', error)
+                }
+            })
+            await window.igvSessionUpdate
         }
     }
 

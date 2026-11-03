@@ -49,15 +49,6 @@ def base_url(regenerate_website):
     server.shutdown()
 
 
-@pytest.fixture(scope="session")
-def browser_context_args(browser_context_args):
-    """Configure browser context with longer timeout and ignore HTTPS errors."""
-    return {
-        **browser_context_args,
-        "ignore_https_errors": True,
-    }
-
-
 @pytest.fixture
 def console_errors(page):
     """Collect JS errors emitted during the test."""

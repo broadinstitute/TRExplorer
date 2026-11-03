@@ -12,7 +12,7 @@ import urllib.request
 
 import pytest
 
-from test_basic_search import real_errors
+from test_basic_search import do_search, enable_all_columns, real_errors
 
 # All export format values from the dropdown
 EXPORT_FORMATS = [
@@ -44,29 +44,6 @@ EXPORT_QUERY = "chr4:3074000-3075000"
 # the first and last don't touch, so the 'longest' and 'purest' export options have to keep more than one of them
 OVERLAP_HANDLING_EXPORT_QUERY = "chr5:180560940-180560980"
 
-
-def do_search(page, query):
-    """Fill the search box, click Search, and wait for results."""
-    page.fill("#search-query", query)
-    page.click("#search-button")
-    page.wait_for_selector("#results-table tbody tr", timeout=30000)
-
-
-def enable_all_columns(page):
-    """Open column settings dialog, check all boxes, and click Apply."""
-    page.click("#results-table-settings-button")
-    page.wait_for_selector(
-        "#results-table-column-settings-dialog", state="visible", timeout=5000
-    )
-
-    for cb in page.query_selector_all(
-        ".results-table-column-settings-checkboxes input[type='checkbox']"
-    ):
-        if not cb.is_checked():
-            cb.check(force=True)
-
-    page.click("#results-table-column-settings-apply-button")
-    page.wait_for_selector("#results-table tbody tr", timeout=30000)
 
 
 def get_total_results(page):
@@ -151,7 +128,7 @@ def fetch_export_content(url):
 
 def count_data_rows(content, fmt):
     """Count the number of data entries in exported content."""
-    if fmt in ("json", "expansion_hunter"):
+    if fmt == "json":
         return len(json.loads(content))
     lines = [line for line in content.strip().split("\n") if line.strip()]
     if fmt == "tsv" and lines:

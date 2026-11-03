@@ -20,13 +20,12 @@
         return Math.abs(hash)
     }
 
-    const generatePeriodicityMatrix = (sequence, minMotifSize = 1, maxMotifSize = 50) => {
-        const clampedMin = Math.max(minMotifSize, 1)
+    const generatePeriodicityMatrix = (sequence, maxMotifSize = 50) => {
         const clampedMax = Math.min(maxMotifSize, Math.floor(sequence.length / 2))
-        const rowCount = Math.max(clampedMax, clampedMin)
+        const rowCount = Math.max(clampedMax, 1)
         const matrix = Array.from({ length: rowCount }, () => Array(sequence.length).fill(0))
 
-        for (let row = clampedMin - 1; row < clampedMax; row++) {
+        for (let row = 0; row < clampedMax; row++) {
             const period = row + 1
             // Motifs of different periods have different lengths, so each period gets its own cache, which lets the
             // motifs of the periods already done be freed
@@ -78,7 +77,7 @@
     // the canvas to its width, which would squeeze text drawn on it and can drop thin lines. So the canvas must be the
     // only child of a parent element of its own, and fill its width. This makes that parent a positioned box with room on
     // its left for the labels.
-    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, startWithPeriod=1, endWithPeriod=24) => {
+    const plotPeriodicityPlot = (canvas, sequence, pixelsPerCell = 2, minRunLength = 3, endWithPeriod=24) => {
         const overlayContainer = canvas.parentElement
         overlayContainer.querySelectorAll('.periodicity-plot-overlay-element').forEach(element => element.remove())
 
@@ -96,18 +95,16 @@
             return null
         }
 
-        const matrix = generatePeriodicityMatrix(filteredSequence, startWithPeriod, endWithPeriod)
+        const matrix = generatePeriodicityMatrix(filteredSequence, endWithPeriod)
 
 
-        // zip matrix[2] with the filteredSequence
-        //console.log(Array.from(filteredSequence).map((value, index) => `${value}:  ${matrix[2][index]}`).join("\n"))
+        zeroOutNoiseCells(matrix, (m, i, j) => isNoiseInPeriodicityMatrix(m, i, j, minRunLength))
 
-        filterOutNoiseInPeriodicityMatrix(matrix, minRunLength)
-
+        // generatePeriodicityMatrix always returns at least one row, but an empty sequence gives no columns
         const rowCount = matrix.length
-        const columnCount = matrix[0]?.length || 0
-        if (rowCount === 0 || columnCount === 0) {
-            return
+        const columnCount = matrix[0].length
+        if (columnCount === 0) {
+            return null
         }
 
         const backgroundColor = hexToRgb("#FFFFFF")
@@ -172,7 +169,6 @@
         // canvas's width right of labelsEndColumn.
         const labelsRightOffset = `calc(${canvasWidth} * ${1 - labelsEndColumn / columnCount})`
         for (let row = 0; row < rowCount; row++) {
-            //const isBoundary = row === 0 || row === rowCount - 1
             if ((row + 1) % 3 === 0) {
                 const label = document.createElement('div')
                 label.className = 'periodicity-plot-overlay-element'
@@ -194,7 +190,7 @@
     }
 
     const computeBarScores = (matrix) => {
-        if (matrix.length === 0 || matrix[0].length === 0) {
+        if (matrix[0].length === 0) {
             return []
         }
         const width = matrix[0].length
@@ -211,40 +207,20 @@
         let runLength = 1
         const width = matrix[0].length
         const value = matrix[i][j]
-        for (let dx = 1; j + dx < width; dx++) {
-            if (matrix[i][j + dx] !== value) {
-                break
-            }
+        for (const direction of [1, -1]) {
+            for (let dx = 1; j + direction * dx >= 0 && j + direction * dx < width; dx++) {
+                if (matrix[i][j + direction * dx] !== value) {
+                    break
+                }
 
-            runLength += 1
-            if (runLength >= minRunLength) {
-                return false
-            }
-        }
-        for (let dx = 1; j - dx >= 0; dx++) {
-            if (matrix[i][j - dx] !== value) {
-                break
-            }
-
-            runLength += 1
-            if (runLength >= minRunLength) {
-                return false
+                runLength += 1
+                if (runLength >= minRunLength) {
+                    return false
+                }
             }
         }
 
         return true
-    }
-
-    const filterOutNoiseInPeriodicityMatrix = (matrix, minRunLength = 3) => {
-        const matrixRows = matrix.length
-        const matrixColumns = matrix[0].length
-        for (let i = 0; i < matrixRows; i++) {
-            for (let j = 0; j < matrixColumns; j++) {
-                if (matrix[i][j] > 0 && isNoiseInPeriodicityMatrix(matrix, i, j, minRunLength)) {
-                    matrix[i][j] = 0
-                }
-            }
-        }
     }
 
     const buildPeriodicityMatrixBarChart = (container, periodicityMatrix) => {
@@ -271,9 +247,8 @@
             const normalized = maxScore === 0 ? 0 : (score / maxScore)
             bar.style.height = `${normalized * 240}px`
             bar.style.width = "20px"
-            bar.style.backgroundColor = "#4cc9f0" //"#6366F1" //"#4cc9f0"
+            bar.style.backgroundColor = "#4cc9f0"
             bar.style.borderRadius = "4px 4px 0 0"
-            //bar.title = `Period ${index + 1}: ${(score * 100).toFixed(1)}%`
 
             const label = document.createElement("span")
             label.style.paddingTop = "10px"

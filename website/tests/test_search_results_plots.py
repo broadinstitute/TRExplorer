@@ -6,7 +6,7 @@ through the page, so they query BigQuery through the live query proxy like the o
 
 import re
 
-from test_basic_search import do_search, real_errors
+from test_basic_search import MULTI_PAGE_REGION_QUERY, do_search, real_errors
 
 
 def evaluate_with_settings(page, expression, settings):
@@ -139,7 +139,7 @@ def test_add_plot_link_appears_for_any_number_of_results(index_page):
 
 
 def test_a_bad_value_in_a_hidden_field_does_not_block_ok(index_page):
-    do_search(index_page, "ATXN1")
+    do_search(index_page, MULTI_PAGE_REGION_QUERY)
     index_page.click("#add-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
     select_dropdown_item(index_page, "plot-x-column-dropdown", "Source")
@@ -168,17 +168,22 @@ def get_custom_filters(page):
     return page.evaluate("customFilterGroups.flatMap(g => g.filters.map(f => [f.column, f.operator, f.value]))")
 
 
-def open_search_with_plots(page, query, serialized_plots):
-    """Loads the page for a search with the given plots in its URL, and waits for the plots to be drawn."""
-    url = f"{page.url.split('#')[0]}#showRs=1&q={query}&plots={serialized_plots.replace(':', '%3A').replace(',', '%2C')}"
+def load_url_as_fresh_page_and_wait_for_plots(page, url, num_plots):
+    """Loads url as a fresh page, and waits for its num_plots plots to be drawn."""
     # Going through a blank page makes this a fresh page load, rather than a hash change on the current page
     page.goto("about:blank")
     page.goto(url)
-    wait_for_plots_to_finish_loading(page, len(serialized_plots.split(';')))
+    wait_for_plots_to_finish_loading(page, num_plots)
+
+
+def open_search_with_plots(page, query, serialized_plots):
+    """Loads the page for a search with the given plots in its URL, and waits for the plots to be drawn."""
+    url = f"{page.url.split('#')[0]}#showRs=1&q={query}&plots={serialized_plots.replace(':', '%3A').replace(',', '%2C')}"
+    load_url_as_fresh_page_and_wait_for_plots(page, url, len(serialized_plots.split(';')))
 
 
 def test_clicking_a_stacked_bar_segment_filters_to_its_loci(index_page, console_errors):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:GencodeGeneRegion,c:MotifSize,n:5")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion,c:MotifSize,n:5")
     # The tallest bar is intron, and the first color is motif size 1
     num_loci_in_segment = click_plot_bar(index_page, 0, 0)
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_segment}", timeout=60000)
@@ -189,7 +194,7 @@ def test_clicking_a_stacked_bar_segment_filters_to_its_loci(index_page, console_
 
 
 def test_clicking_a_histogram_bin_filters_to_its_range(index_page):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:MotifSize,xm:bins,b:10")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:MotifSize,xm:bins,b:10")
     num_loci_in_second_bin = click_plot_bar(index_page, 0, 1)
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_second_bin}", timeout=60000)
     filters = get_custom_filters(index_page)
@@ -201,7 +206,7 @@ def get_plot_bar_index(page, display_label):
 
 
 def test_clicking_a_bar_whose_label_has_a_quote_filters_to_its_loci(index_page, console_errors):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:GencodeGeneRegion")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion")
     num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "3' UTR"))
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
     assert get_custom_filters(index_page) == [["GencodeGeneRegion", "=", "3' UTR"]]
@@ -220,7 +225,7 @@ def test_captions_name_only_the_drawn_bars_that_cant_be_clicked(index_page):
          'This works for any bar except for the "Other" and "Missing" bars (which also include empty values), since no single filter selects their loci.'),
         ("t:box,x:GencodeGeneRegion,y:MotifSize,n:2,o:1", 'This works for any box except for the "Other" boxes, since no single filter selects their loci.'),
     ]
-    open_search_with_plots(index_page, "ATXN1", ";".join(plot for plot, _ in plots_and_unclickable_bars_sentences))
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, ";".join(plot for plot, _ in plots_and_unclickable_bars_sentences))
     captions = index_page.locator(".search-results-plot-caption").all_inner_texts()
     for (plot, unclickable_bars_sentence), caption in zip(plots_and_unclickable_bars_sentences, captions):
         shape = "box" if plot.startswith("t:box") else "bar"
@@ -233,10 +238,8 @@ def test_captions_name_only_the_drawn_bars_that_cant_be_clicked(index_page):
 
 def test_clicking_a_bar_resets_settings_left_in_the_hidden_advanced_search_panel(index_page):
     # keepCodingLoci is set but doesn't apply, since the advanced search panel is hidden
-    url = f"{index_page.url.split('#')[0]}#showRs=1&q=ATXN1&keepCodingLoci=1&plots=t%3Abar%2Cx%3AGencodeGeneRegion"
-    index_page.goto("about:blank")
-    index_page.goto(url)
-    wait_for_plots_to_finish_loading(index_page, 1)
+    url = f"{index_page.url.split('#')[0]}#showRs=1&q={MULTI_PAGE_REGION_QUERY}&keepCodingLoci=1&plots=t%3Abar%2Cx%3AGencodeGeneRegion"
+    load_url_as_fresh_page_and_wait_for_plots(index_page, url, 1)
     num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
     assert index_page.evaluate("[GLOBAL_PAGE_STATE.showAdvFilters, GLOBAL_PAGE_STATE.keepCodingLoci]") == [1, 0]
@@ -244,23 +247,23 @@ def test_clicking_a_bar_resets_settings_left_in_the_hidden_advanced_search_panel
 
 
 def test_clicking_a_bar_ignores_unsubmitted_edits_and_back_hides_the_panel_again(index_page):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:GencodeGeneRegion")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion")
     # An edit to the search box that wasn't searched for doesn't change what the click selects
     index_page.fill("#search-query", "HTT")
     index_page.locator("#search-query").blur()
     num_loci_in_bar = click_plot_bar(index_page, 0, get_plot_bar_index(index_page, "intron"))
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bar}", timeout=60000)
-    assert index_page.input_value("#search-query") == "ATXN1"
+    assert index_page.input_value("#search-query") == MULTI_PAGE_REGION_QUERY
     assert index_page.is_visible("#advanced-search-form")
     # Back returns to the search before the click, whose advanced search panel was hidden
     index_page.go_back()
     index_page.wait_for_function("GLOBAL_PAGE_STATE.showAdvFilters === 0")
     index_page.wait_for_selector("#advanced-search-form", state="hidden")
-    assert index_page.input_value("#search-query") == "ATXN1"
+    assert index_page.input_value("#search-query") == MULTI_PAGE_REGION_QUERY
 
 
 def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
-    do_search(index_page, "ATXN1")
+    do_search(index_page, MULTI_PAGE_REGION_QUERY)
     total_results = index_page.evaluate("window.searchResults.total_results")
     index_page.click("#add-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
@@ -298,10 +301,7 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
     assert "f%3AMotifSize" in index_page.url
 
     # After a reload, the edit dialog starts out with the plot's filter
-    url = index_page.url
-    index_page.goto("about:blank")
-    index_page.goto(url)
-    wait_for_plots_to_finish_loading(index_page, 1)
+    load_url_as_fresh_page_and_wait_for_plots(index_page, index_page.url, 1)
     index_page.click(".edit-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog.active", state="visible")
     assert index_page.eval_on_selector("#plot-filter-rows .custom-filter-row", """row => [
@@ -329,13 +329,13 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
 
 
 def test_clicking_a_fractional_histogram_bin_filters_to_exactly_its_loci(index_page):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:ReferenceRepeatPurity")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:ReferenceRepeatPurity")
     num_loci_in_bin = click_plot_bar(index_page, 0, 9)
     index_page.wait_for_function(f"window.searchResults && window.searchResults.total_results === {num_loci_in_bin}", timeout=60000)
 
 
 def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
-    open_search_with_plots(index_page, "ATXN1", "t:box,x:GencodeGeneRegion,y:HPRC256_Stdev")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:box,x:GencodeGeneRegion,y:HPRC256_Stdev")
     index_page.wait_for_function("Chart.getChart(document.querySelector('.search-results-plot canvas'))")
     num_loci_in_box = index_page.evaluate(
         "Chart.getChart(document.querySelector('.search-results-plot canvas')).data.datasets[0].boxRows[0].n_y")
@@ -346,7 +346,7 @@ def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
 
 def test_a_box_with_no_height_can_be_clicked(index_page):
     # Most intron loci have a purity of 1, so the intron box's 25th and 75th percentiles are both 1
-    open_search_with_plots(index_page, "ATXN1", "t:box,x:GencodeGeneRegion,y:ReferenceRepeatPurity")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:box,x:GencodeGeneRegion,y:ReferenceRepeatPurity")
     intron_index = get_plot_bar_index(index_page, "intron")
     assert index_page.evaluate(
         f"(() => {{ const row = Chart.getChart(document.querySelector('.search-results-plot canvas')).data.datasets[0].boxRows[{intron_index}]; return row.q1 === row.q3 }})()")
@@ -376,7 +376,7 @@ def test_symlog_histogram_click_filter_edges_match_the_query(index_page):
 
 
 def test_percent_stacks_end_at_100(index_page):
-    open_search_with_plots(index_page, "ATXN1", "t:bar,x:GencodeGeneRegion,c:MotifSize,p:1,n:4,o:1")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion,c:MotifSize,p:1,n:4,o:1")
     assert index_page.evaluate("Chart.getChart(document.querySelector('.search-results-plot canvas')).scales.y.max") == 100
 
 
@@ -405,7 +405,7 @@ def test_other_and_missing_categories_have_no_click_filter(index_page):
 
 def test_small_scatter_plot_is_drawn_as_points(index_page):
     # The heatmap query runs first, and finds few enough loci for the plot to show each one
-    open_search_with_plots(index_page, "ATXN1", "t:scatter,x:MotifSize,y:HPRC256_Stdev")
+    open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:scatter,x:MotifSize,y:HPRC256_Stdev")
     assert index_page.evaluate("Chart.getChart(document.querySelector('.search-results-plot canvas')).config.type") == "scatter"
     assert "Based on" in index_page.inner_text(".search-results-plot-caption")
 
@@ -417,7 +417,7 @@ def test_large_scatter_plot_is_drawn_as_a_heatmap(index_page):
 
 
 def test_add_reload_edit_and_remove_plots(index_page, console_errors):
-    do_search(index_page, "ATXN1")
+    do_search(index_page, MULTI_PAGE_REGION_QUERY)
     index_page.click("#add-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
 
@@ -436,10 +436,7 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     assert re.match(r"Based on [\d,]+ loci in the search results", index_page.inner_text(".search-results-plot-caption"))
 
     # Reloading the page shows the same plot
-    url = index_page.url
-    index_page.goto("about:blank")
-    index_page.goto(url)
-    wait_for_plots_to_finish_loading(index_page, 1)
+    load_url_as_fresh_page_and_wait_for_plots(index_page, index_page.url, 1)
     assert index_page.inner_text(".search-results-plot-title") == "Number of loci by Gencode Gene Region, colored by Motif Size"
 
     # The edit dialog starts out with the plot's settings
@@ -466,12 +463,17 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     index_page.locator(".remove-search-results-plot-link").nth(1).click()
     assert index_page.locator(".search-results-plot").count() == 1
 
-    # Going to the next results page doesn't rerun the plot query
-    num_cached_queries = index_page.evaluate("searchResultsPlotQueryResultsCache.size")
+    # Going to the next results page doesn't rerun the plot query: the only query sent is the results table's
+    queries_sent = []
+    record_query = lambda request: queries_sent.append(request.url) if "query_db" in request.url else None
+    index_page.on("request", record_query)
     index_page.locator(".bottom-pagination .next-page").first.click()
-    index_page.wait_for_function("GLOBAL_PAGE_STATE.currentPage === 2")
-    index_page.wait_for_selector("#results-table tbody tr", timeout=30000)
-    assert index_page.evaluate("searchResultsPlotQueryResultsCache.size") == num_cached_queries
+    # The search sets the cursor back to default when page 2 has loaded and the plots have been refreshed
+    index_page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
+    index_page.wait_for_load_state("networkidle")
+    index_page.remove_listener("request", record_query)
+    assert index_page.evaluate("GLOBAL_PAGE_STATE.currentPage") == 2
+    assert len(queries_sent) == 1
 
     index_page.click(".remove-search-results-plot-link")
     assert index_page.locator(".search-results-plot").count() == 0

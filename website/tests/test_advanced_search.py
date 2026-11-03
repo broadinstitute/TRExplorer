@@ -74,6 +74,11 @@ def get_custom_filters_in_url(page):
     return page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('cf')")
 
 
+def get_serialized_custom_filter_groups(page):
+    """Returns the custom filter model in the URL's "cf" format, which the next search puts in the URL."""
+    return page.evaluate("() => serializeCustomFilterGroups(customFilterGroups)")
+
+
 def get_custom_filter_container_children(page):
     """Returns the class of each element in #custom-filter-rows, which shows where the "AND" separators are."""
     return page.evaluate("() => [...document.getElementById('custom-filter-rows').children].map(el => el.className)")
@@ -184,7 +189,7 @@ def test_add_group_of_filters_with_and(page, base_url):
     assert get_custom_filter_container_children(page) == [
         "custom-filter-group", "custom-filter-group-separator", "custom-filter-group"]
     assert page.locator(".custom-filter-group-separator").inner_text() == "AND"
-    assert get_custom_filters_in_url(page) == (
+    assert get_serialized_custom_filter_groups(page) == (
         "AoU1027_Stdev|>=|0.2|OR;HPRC256_Stdev|>=|0.2|OR;AND;ReferenceRepeatPurity|||AND;TenK10K_Stdev|||AND")
 
 
@@ -215,7 +220,7 @@ def test_and_or_selectors_are_linked_within_a_group_only(page, base_url):
     select_dropdown_item(get_custom_filter_row(page, 1, 1), "custom-filter-conjunction", "OR")
     assert [group["conjunction"] for group in get_custom_filter_groups(page)] == ["AND", "OR"]
     assert_custom_filter_rows_match_model(page)
-    assert get_custom_filters_in_url(page) == (
+    assert get_serialized_custom_filter_groups(page) == (
         "AoU1027_Stdev|>=|0.2|AND;HPRC256_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|OR;ReferenceRepeatPurity|>=|0.5|OR")
 
 
@@ -227,24 +232,44 @@ def test_deleting_the_last_filter_of_a_group_deletes_the_group(page, base_url):
         "AoU1027_Stdev", "TenK10K_Stdev"]
     assert get_custom_filter_container_children(page) == [
         "custom-filter-group", "custom-filter-group-separator", "custom-filter-group"]
-    assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND"
+    assert get_serialized_custom_filter_groups(page) == "AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND"
 
     get_custom_filter_row(page, 0, 0).locator(".custom-filter-delete").click()
     assert get_custom_filter_container_children(page) == ["custom-filter-group"]
-    assert get_custom_filters_in_url(page) == "TenK10K_Stdev|<=|5|AND"
+    assert get_serialized_custom_filter_groups(page) == "TenK10K_Stdev|<=|5|AND"
     # The AND/OR selector is hidden on the first row of a group
     assert not get_custom_filter_row(page, 0, 0).locator(".custom-filter-conjunction").is_visible()
     assert_custom_filter_rows_match_model(page)
 
 
-def test_editing_a_filter_row_updates_the_model_and_url(page, base_url):
+def test_form_edits_reach_the_url_only_when_the_search_button_is_pressed(page, base_url):
+    open_index_page_with_custom_filters(page, base_url, "AoU1027_Stdev|>=|0.2|AND")
+    history_length_before_edits = page.evaluate("() => history.length")
+    value_input = get_custom_filter_row(page, 0, 0).locator(".custom-filter-value")
+    value_input.fill("0.5")
+    value_input.press("Tab")
+    page.fill("#search-query", "HTT")
+    page.locator("#search-query").press("Tab")
+    assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.2|AND"
+    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") is None
+    assert page.evaluate("() => history.length") == history_length_before_edits
+
+    # The search adds one history entry, whose URL holds the edits
+    page.click("#search-button")
+    page.wait_for_function("() => new URLSearchParams(location.hash.slice(1)).get('showRs') === '1'")
+    assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.5|AND"
+    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") == "HTT"
+    assert page.evaluate("() => history.length") == history_length_before_edits + 1
+
+
+def test_editing_a_filter_row_updates_the_model(page, base_url):
     open_index_page_with_custom_filters(page, base_url, "AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|||AND")
     row = get_custom_filter_row(page, 1, 0)
     select_dropdown_item(row, "custom-filter-op", "<=")
     row.locator(".custom-filter-value").fill("5")
     row.locator(".custom-filter-value").press("Tab")
     get_custom_filter_row(page, 0, 0).locator(".custom-filter-enable-checkbox label").click()
-    assert get_custom_filters_in_url(page) == "!AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND"
+    assert get_serialized_custom_filter_groups(page) == "!AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND"
     assert_custom_filter_rows_match_model(page)
 
     # A null check hides the value input, and changing the column clears the operator and shows the input again

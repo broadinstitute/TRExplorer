@@ -2,6 +2,7 @@
 <html>
     {% include "header_template.html" %}
 <body>
+{% include "dialogs_for_all_pages.html" %}
 <style>
     .locus-info-label {
         font-weight: bold;
@@ -160,10 +161,7 @@
         "ManeGeneId",
         "ManeTranscriptId",
 
-        "StdevFromIllumina174k",
         "AlleleFrequenciesFromIllumina174k",
-
-        "StdevFromT2TAssemblies",
         "AlleleFrequenciesFromT2TAssemblies",
 
         "HPRC256_AlleleHistogram",
@@ -262,6 +260,17 @@
     const readAndApplyPersistentPageStateFromUrl = async () => {
         GLOBAL_PAGE_STATE = readPageStateFromUrlHash()
         console.log("Starting to initialize page. GLOBAL_PAGE_STATE:", GLOBAL_PAGE_STATE)
+
+        // A URL without an IGV location (e.g. one with only the locusId) opens IGV at this page's locus rather than at
+        // the default one. This has to happen before IGV starts loading below.
+        const parsedLocusId = parseAndNormalizeLocusId(GLOBAL_PAGE_STATE['locusId'])
+        if (GLOBAL_PAGE_STATE['igvLoc'] === DEFAULT_GLOBAL_PAGE_STATE['igvLoc'] && parsedLocusId) {
+            GLOBAL_PAGE_STATE['igvLoc'] = `chr${parsedLocusId.chrom}:${parsedLocusId.start_0based}-${parsedLocusId.end_1based}`
+        }
+        // Rewrite the current history entry in the form this page writes (the search page's links order the parameters
+        // differently), so that the writes while the page loads find the same hash and add no history entry. Otherwise
+        // Back would return to the original URL, whose load would add the entry again.
+        writePersistentPageStateToUrl(true)
 
         // IGV and the locus data load at the same time, so that a slow or failing IGV track doesn't hold up the locus data
         const [igvResult] = await Promise.allSettled([applyIgvPageState(), performSearch()])
@@ -505,8 +514,7 @@
         // Generate allele frequency charts section (hide sigma summary since we show the table above). The charts of an
         // earlier render (e.g. before Back) are destroyed first, since replacing their canvases doesn't free them.
         $('#locus-page-polymorphism-data canvas').each(function() { destroyExistingChart(this) })
-        const polymorphismContent = generatePolymorphismDialogContent(row, { showSigmaSummary: false })
-        $('#locus-page-polymorphism-data').html(polymorphismContent ? polymorphismContent.replace(/\s+/g, ' ').trim() : '')
+        $('#locus-page-polymorphism-data').html(generatePolymorphismDialogContent(row, { showSigmaSummary: false }))
 
         renderChartsInPolymorphismDialog(row);
 
@@ -638,14 +646,7 @@
         })()
 
         $('.question').popup({ on: 'click' })
-        $('.show-popup').popup({
-            on: 'click',
-            hoverable: true,
-            onVisible: function() {
-                // Initialize any nested help icons (.nested-help-icon) inside this just-opened popup.
-                $(this).popup('get popup').find('.nested-help-icon').popup({ on: 'hover' })
-            }
-        })
+        initShowPopupsWithNestedHelpIcons()
         initGeneInfoLinks()
 
         // Attach handler to both the (IGV) link and the Reference Region link
@@ -667,21 +668,14 @@
                 return
             }
 
-            const locusIdMatch = locusId.match(LOCUS_ID_REGEXP)
-            if (!locusIdMatch) {
+            const parsedLocusId = parseAndNormalizeLocusId(locusId)
+            if (!parsedLocusId) {
                 displayError(`Invalid locusId format: ${locusId}. Expected format: chrom-start-end-motif (eg. 4-3074876-3074933-CAG)`)
                 return
             }
-            let [_, chrom, start_0based, end_1based, motif] = locusIdMatch
-            // LocusId is stored uppercase and without a "chr" prefix or comma thousands-separators, which the regex
-            // tolerates
-            chrom = chrom.toUpperCase()
-            start_0based = parseInt(start_0based.replace(/,/g, ''))
-            end_1based = parseInt(end_1based.replace(/,/g, ''))
-            motif = motif.toUpperCase()
-            locusId = `${chrom}-${start_0based}-${end_1based}-${motif}`
-            const chromIndex = CHROM_TO_CHROM_INDEX[chrom]
-            if (chromIndex === undefined) {
+            const { chrom, start_0based, end_1based, motif } = parsedLocusId
+            locusId = parsedLocusId.locusId
+            if (CHROM_TO_CHROM_INDEX[chrom] === undefined) {
                 displayError(`Unknown chromosome in locusId: ${locusId}`)
                 return
             }
@@ -692,10 +686,8 @@
             document.title = `TRExplorer: ${locusId}`
             $('#locus-page-title').text(`Locus Page: ${referenceRegion} ${truncatedMotif}`)
 
-            // the BigQuery table is partitioned on chrom_index and clustered by start_0based, so include these in the
-            // WHERE clause to limit the bytes scanned
             let selectedColumns = REQUIRED_DATA_COLUMNS_FOR_LOCUS_PAGE
-            const whereClause = `WHERE (chrom_index=${chromIndex} AND start_0based=${start_0based} AND LocusId = '${escapeTextForSqlStringLiteral(locusId)}')`
+            const whereClause = `WHERE ${buildSqlConditionForLocusId(parsedLocusId)}`
             const query = `SELECT ${selectedColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause}`
 
             window.searchResults = await queryBigQuery(query, 0, 1, null, null)

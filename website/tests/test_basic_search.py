@@ -11,7 +11,12 @@ import re
 import pytest
 
 
-# Queries from the example links on the page, with expected minimum result counts
+# The tests query the live site's BigQuery table through its public proxy, so every query counts toward the site's
+# daily query quota. A region search scans only the table partition and blocks its region falls in (tens of MB), while a
+# gene or transcript name search scans whole columns of the table (about 0.5 GiB). So the tests search names only where
+# name search itself is tested, and search a region everywhere else.
+
+# Queries from the example links on the page, with expected minimum result counts. Each one is searched once.
 SEARCH_QUERIES = [
     ("chr4:3074000-3075000", 1),
     ("ATXN1", 1),
@@ -19,8 +24,12 @@ SEARCH_QUERIES = [
     ("ENST00000370475", 1),
 ]
 
-# Queries that are expected to have more than one page of results
-MULTI_PAGE_QUERIES = ["ATXN1", "ENSG00000165060"]
+# A region search with several pages of results: the span of the ATXN1 gene
+MULTI_PAGE_REGION_QUERY = "chr6:16299112-16761490"
+
+# Columns whose sorting the tests check, one of each kind of sort: by position, by a text column, by a column with
+# its own sort columns (the allele histogram sorts by its stdev), and by a number
+COLUMNS_TO_TEST_SORTING = ["ReferenceRegion", "GencodeGeneName", "HPRC256_AlleleHistogram", "AoU1027_OE_LengthPercentile"]
 
 
 def do_search(page, query):
@@ -31,8 +40,12 @@ def do_search(page, query):
 
 
 def wait_for_results_refresh(page):
-    """Wait for a search/sort/page-change to complete."""
-    page.wait_for_selector("#loading-container", state="visible", timeout=5000)
+    """Wait for a sort, page change or column change, which re-runs the search on screen, to finish.
+
+    The old rows stay visible while the new query runs, so this waits for the page to set the cursor back to default,
+    which it does when a search finishes. The search sets it to 'wait' before the action's click returns.
+    """
+    page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
     page.wait_for_selector("#results-table tbody tr", timeout=30000)
 
 
@@ -75,7 +88,7 @@ def enable_all_columns(page):
             cb.check(force=True)
 
     page.click("#results-table-column-settings-apply-button")
-    page.wait_for_selector("#results-table tbody tr", timeout=30000)
+    wait_for_results_refresh(page)
 
 
 def get_sortable_column_names(page):
@@ -135,35 +148,35 @@ def test_search_chr4_region_has_htt_disease_locus(index_page, console_errors):
     assert_no_errors(index_page, console_errors, f"search '{query}'")
 
 
-@pytest.mark.parametrize("query,min_results", SEARCH_QUERIES)
-def test_all_columns_and_sorting(index_page, console_errors, query, min_results):
-    """Enable all columns, verify they load, then sort each column both directions."""
+def test_all_columns_and_sorting(index_page, console_errors):
+    """Enable all columns, verify they load, then sort a few columns of different kinds in both directions."""
     page = index_page
+    query = SEARCH_QUERIES[0][0]
     do_search(page, query)
     enable_all_columns(page)
     assert_no_errors(page, console_errors, f"all columns for '{query}'")
+    assert set(COLUMNS_TO_TEST_SORTING) <= set(get_sortable_column_names(page))
 
-    columns = get_sortable_column_names(page)
-    assert len(columns) > 0, "No sortable columns found"
-
-    for column_name in columns:
+    for column_name in COLUMNS_TO_TEST_SORTING:
         selector = f"th.results-table-sortable-header[data-column='{column_name}']"
 
-        # Click to sort (first click sets the column's default sort direction)
+        # The first click sorts in the column's default direction, and the second in the other direction
         page.click(selector)
         wait_for_results_refresh(page)
         assert_no_errors(page, console_errors, f"sort '{column_name}' click 1 for '{query}'")
+        first_direction = page.evaluate("GLOBAL_PAGE_STATE['sd']")
 
-        # Click again to toggle sort direction
         page.click(selector)
         wait_for_results_refresh(page)
         assert_no_errors(page, console_errors, f"sort '{column_name}' click 2 for '{query}'")
+        assert page.evaluate("[GLOBAL_PAGE_STATE['sc'], GLOBAL_PAGE_STATE['sd']]") == [
+            column_name, "DESC" if first_direction == "ASC" else "ASC"]
 
 
-@pytest.mark.parametrize("query", MULTI_PAGE_QUERIES)
-def test_pagination_all_columns(index_page, console_errors, query):
+def test_pagination_all_columns(index_page, console_errors):
     """Enable all columns, navigate to pages 2, 3, and the last page without errors."""
     page = index_page
+    query = MULTI_PAGE_REGION_QUERY
     do_search(page, query)
     enable_all_columns(page)
     assert_no_errors(page, console_errors, f"all columns page 1 for '{query}'")

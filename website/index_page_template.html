@@ -4,6 +4,8 @@
 {% include "header_template.html" %}
 
 <body>
+{% include "dialogs_for_all_pages.html" %}
+
 <!-- modal dialog for uploading a panel of loci / regions -->
 <div class="ui modal" id="tr-file-upload-modal">
     <i class="close icon"></i>
@@ -11,7 +13,7 @@
     <div class="content">
         <p>Search for multiple loci or regions at once. Files can be gzip-compressed (ie. have a .gz extension). Next time, you can also just drag &amp; drop these files directly into the main search box.</p>
         <ul style="margin-top: 0;">
-            <li><b>TXT / TSV</b> &mdash; the first column should contain TR LocusIds (eg. chr4-3074877-3074933-CAG), hg38 genomic regions (eg. chr4:3074000-3075000), gene symbols, or Ensembl/RefSeq gene or transcript ids &mdash; one per row. A header row is optional.</li>
+            <li><b>TXT / TSV</b> &mdash; the first column should contain TR LocusIds (eg. chr4-3074876-3074933-CAG), hg38 genomic regions (eg. chr4:3074000-3075000), gene symbols, or Ensembl/RefSeq gene or transcript ids &mdash; one per row. A header row is optional.</li>
             <li><b>BED</b> &mdash; the first 3 columns should contain the hg38 coordinates: chrom, start, end (0-based, half-open).</li>
         </ul>
         <div id="tr-file-dropzone" style="border: 2px dashed #b0b8c4; border-radius: 8px; padding: 40px 20px; text-align: center; color: #667; cursor: pointer; transition: background-color 0.15s, border-color 0.15s;">
@@ -356,7 +358,7 @@
                             </a>
                         </span>
                     </div>
-                    <!-- Chip shown when a panel file has been uploaded (ChatGPT-style attachment) -->
+                    <!-- Chip shown when a panel file has been uploaded -->
                     <div id="tr-file-chip-container" style="display:none; margin-bottom: 8px;"></div>
                     <div class="ui action input" id="tr-main-search-dropzone">
                         <input type="text" id="search-query" name="search-query" placeholder="eg. chr4:3074000-3075000, ATXN1, ENSG00000165060, ENST00000370475, or a list of these" style="padding-right: 42px; transition: box-shadow 0.15s;">
@@ -721,6 +723,18 @@
         ],
     ]
 
+    // A column in only one of the two lists couldn't be both chosen in the dialog and shown in the table
+    {
+        const columnsInDialog = RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES_BY_DIALOG_COLUMN.flat()
+        const columnsInOnlyOneList = [
+            ...RESULTS_TABLE_COLUMN_NAMES.filter(columnName => !columnsInDialog.includes(columnName)),
+            ...columnsInDialog.filter(columnName => !RESULTS_TABLE_COLUMN_NAMES.includes(columnName)),
+        ]
+        if (columnsInOnlyOneList.length > 0) {
+            throw new Error('These columns are in only one of RESULTS_TABLE_COLUMN_NAMES and RESULTS_TABLE_COLUMN_SELECTION_CHECKBOXES_BY_DIALOG_COLUMN: ' + columnsInOnlyOneList.join(', '))
+        }
+    }
+
     // Columns that can be used for filtering in the UI, with their display names and group
     const CUSTOM_FILTER_COLUMNS = {{ custom_filter_columns_json }}
 
@@ -736,7 +750,6 @@
             return ''
         }
         let diseaseAssociatedIconHtml = ''
-        let diseaseLocusId = ''
         let diseaseDescription = `<span style='font-weight: bold; white-space: nowrap; text-align: left; display: block;'>Disease-associated locus</span><br />`
         try {
             //console.log(row.DiseaseInfo)
@@ -761,11 +774,10 @@
                 <span style='display: block; white-space: nowrap;'>For more information, see:<br />${resources.join(', &nbsp; ')}</span>
             </span>`
         } catch (e) {
-            diseaseLocusId = row.LocusId
-            diseaseDescription = '<i>An error occurred while loading this information.</i>'
+            diseaseDescription = `<i>An error occurred while loading the disease information for ${escapeHtmlText(row.LocusId)}.</i>`
             console.error(`Error parsing ${row.LocusId} DiseaseInfo JSON: ${row.DiseaseInfo}`, e)
         }
-        diseaseAssociatedIconHtml += `<i style="margin-right: 10px;" class="disease-associated-icon action-cell user md icon" data-title="${escapeHtmlText(diseaseLocusId)}" data-html="${escapeHtmlText(diseaseDescription)}"></i>`
+        diseaseAssociatedIconHtml += `<i style="margin-right: 10px;" class="disease-associated-icon action-cell user md icon" data-html="${escapeHtmlText(diseaseDescription)}"></i>`
         if (linkText) {
             diseaseAssociatedIconHtml = `<span class="">${diseaseAssociatedIconHtml} ${linkText}</span>`
         }
@@ -787,13 +799,10 @@
         // A search that is still running (e.g. when Back is pressed) belongs to the state being replaced, so it's made to
         // discard its results before anything else, including the wait for IGV below
         searchSeq++
-        // Suppress URL-hash writes while we apply state to the form — the
-        // onChange handlers we wired up would otherwise immediately overwrite
-        // the URL with intermediate form state during repopulation. The flag
-        // is reset to false either explicitly (after the form is populated,
-        // so the auto-search at the end sees live persistence) or in the
-        // finally block (catch-all if an earlier await rejects).
-        suppressFormStatePersistence = true
+        // Marks the form as being filled in from the URL, so that its dropdowns' onChange handlers don't treat the
+        // changes as the user's. The flag is reset either explicitly (after the form is filled in, before the search at
+        // the end) or in the finally block (if an earlier await rejects).
+        isFormBeingFilledInFromUrl = true
         try {
 
         // An empty hash (eg. after Back to the page as first opened) gives the default state, which is applied to the
@@ -810,6 +819,12 @@
         for (const key of ['customFilters', 'extraPolymorphismFilters', 'plots']) {
             GLOBAL_PAGE_STATE[key] = `${GLOBAL_PAGE_STATE[key]}` // convert to string
         }
+        // The page number and page size go into the pagination controls' HTML and the query's row range, so a value
+        // from the URL that isn't one of them is replaced
+        GLOBAL_PAGE_STATE['currentPage'] = Math.max(1, parseInt(GLOBAL_PAGE_STATE['currentPage']) || 1)
+        if (!RESULTS_PAGE_SIZES.includes(GLOBAL_PAGE_STATE['pageSize'])) {
+            GLOBAL_PAGE_STATE['pageSize'] = DEFAULT_GLOBAL_PAGE_STATE['pageSize']
+        }
         // Restore the uploaded panel that this history entry's search used. A panel that this page doesn't have in memory
         // (e.g. after a reload, or in a link opened elsewhere) can't be restored, so its id is dropped, and its search
         // isn't run, since without the panel it would return unrelated loci.
@@ -825,7 +840,8 @@
         await applyIgvPageState()
 
         // advanced search wrapper
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
+        isAdvancedSearchPanelOpen = GLOBAL_PAGE_STATE['showAdvFilters'] === 1
+        if (isAdvancedSearchPanelOpen) {
             $('#advanced-search-form').show()
             $('#filter-button .filter.icon').removeClass('rotated')
         } else {
@@ -837,8 +853,11 @@
         // search
         $('#search-query').val(GLOBAL_PAGE_STATE['searchQuery'])
 
-        applyAdvancedSearchDropdownsFromPageState()
-
+        $('#source-catalog-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sourceCatalog'])
+        $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
+        $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
+        $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
+        $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
         $('input[name="keepMotifSize"]').val(GLOBAL_PAGE_STATE['keepMotifSize'])
         $('input[name="keepMotif"]').val(GLOBAL_PAGE_STATE['keepMotif'])
 
@@ -861,9 +880,7 @@
         copySearchFormStateToPageState()
         writePersistentPageStateToUrl(true)
 
-        // Form is fully populated from URL state; from now on, form edits
-        // immediately propagate back to the URL hash.
-        suppressFormStatePersistence = false
+        isFormBeingFilledInFromUrl = false
 
         if (GLOBAL_PAGE_STATE['showRs'] === 1) {
             if (!validateForm()) {
@@ -890,9 +907,8 @@
             }
         }
         } finally {
-            // Ensure live URL persistence is re-enabled even if an earlier
-            // await (e.g. updateIgv) rejected before the explicit reset above.
-            suppressFormStatePersistence = false
+            // Reset even if an earlier await (e.g. updateIgv) rejected before the explicit reset above
+            isFormBeingFilledInFromUrl = false
         }
     }
 
@@ -939,6 +955,9 @@
         }
     })
 
+
+    // The choices in the results table's "Page size" dropdown
+    const RESULTS_PAGE_SIZES = [10, 20, 50, 100, 200, 500, 1000]
 
     const updatePaginationControls = () => {
 
@@ -1002,13 +1021,7 @@
                         <i class="dropdown icon"></i>
                         <div class="text">${pageSize}</div>
                         <div class="menu">
-                            <div class="item" data-value="10">10</div>
-                            <div class="item" data-value="20">20</div>
-                            <div class="item" data-value="50">50</div>
-                            <div class="item" data-value="100">100</div>
-                            <div class="item" data-value="200">200</div>
-                            <div class="item" data-value="500">500</div>
-                            <div class="item" data-value="1000">1000</div>
+                            ${RESULTS_PAGE_SIZES.map(size => `<div class="item" data-value="${size}">${size}</div>`).join('')}
                         </div>
                     </div>
                 </div>
@@ -1044,8 +1057,8 @@
         // Shows another page of the results. The page is kept between 1 and totalPages, since the controls stay clickable
         // while a page loads.
         const goToPage = (page) => {
+            // performSearch writes the URL once the page has loaded
             GLOBAL_PAGE_STATE['currentPage'] = Math.max(1, Math.min(page, totalPages))
-            writePersistentPageStateToUrl()
             performSearch(true, true)
         }
 
@@ -1415,7 +1428,6 @@
         })
         if (filter.operator) $row.find('.custom-filter-op').dropdown('set selected', filter.operator)
 
-        // The value is written to the URL by the form's change handler, when the input loses focus
         $row.find('.custom-filter-value')
             .val(filter.value)
             .toggle(!isNullCheckOperator(filter.operator))
@@ -1499,8 +1511,9 @@
         // handlers, which empty() would remove.
         const $linkContainer = $('#add-custom-filter-link-container').detach()
         const $container = $('#custom-filter-rows')
+        // Edits of the search form's filters need no callback, since they're read when the next search starts
         drawCustomFilterGroups($container, customFilterGroups, 'Add another custom filter...',
-            persistAllAdvancedFormStateToUrl, renderCustomFilterGroups)
+            () => {}, renderCustomFilterGroups)
 
         const hasFilters = customFilterGroups.length > 0
         if (hasFilters) {
@@ -1515,19 +1528,18 @@
         $('#add-custom-filter-link-container .question').popup({ on: 'click' })
     }
 
-    // Captures the current state of every control in the advanced search form
-    // (dropdowns, checkboxes, AND text inputs) into GLOBAL_PAGE_STATE and writes
-    // the URL hash. Wired up to onChange events so the URL reflects edits in real
-    // time without waiting for the Search button.
-    let suppressFormStatePersistence = true
-    const persistAllAdvancedFormStateToUrl = () => {
-        if (suppressFormStatePersistence) return
-        copySearchFormStateToPageState()
-        writePersistentPageStateToUrl()
-    }
+    // True while readAndApplyPersistentPageStateFromUrl fills in the form from the URL
+    let isFormBeingFilledInFromUrl = true
 
-    // Copies the search box and the advanced search form's settings into GLOBAL_PAGE_STATE
+    // Whether the advanced search panel is open. Its settings apply to a search only while it is. GLOBAL_PAGE_STATE's
+    // showAdvFilters is the value for the search on screen, and is set from this one when the next search starts.
+    let isAdvancedSearchPanelOpen = false
+
+    // Copies the search box and the advanced search form's settings into GLOBAL_PAGE_STATE. This happens only when a
+    // search starts, so GLOBAL_PAGE_STATE and the URL describe the search on screen, never form edits not yet searched.
     const copySearchFormStateToPageState = () => {
+        GLOBAL_PAGE_STATE['showAdvFilters'] = isAdvancedSearchPanelOpen ? 1 : 0
+        GLOBAL_PAGE_STATE['uploadedFileId'] = UPLOADED_FILE ? UPLOADED_FILE.id : 0
         GLOBAL_PAGE_STATE['searchQuery'] = $('#search-query').val()
         GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
         GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
@@ -1568,7 +1580,7 @@
     $('#add-custom-filter-link, #add-custom-filter-group-link').click(function(e) {
         e.preventDefault()
         showCustomFilterColumnDialog(addNewCustomFiltersToGroups(
-            customFilterGroups, null, persistAllAdvancedFormStateToUrl, renderCustomFilterGroups))
+            customFilterGroups, null, () => {}, renderCustomFilterGroups))
     })
 
     // "Add Filters" button handler in modal
@@ -1623,9 +1635,6 @@
     // that the search already has (such as a plot's own filters, after an earlier click on the plot) aren't added again.
     const addCustomFilterGroupsAndSearch = async (groups) => {
         Object.assign(GLOBAL_PAGE_STATE, window.lastSearchPageState)
-        // The current history entry may hold form edits made since the last search, so it's rewritten to that
-        // search, which is where the browser's Back button should return to
-        writePersistentPageStateToUrl(true)
         // Custom filters only apply while the advanced search panel is open. Its other settings don't apply while
         // it's hidden either, so they're reset to their defaults before it opens: otherwise settings left in the
         // hidden panel would start applying too. The browser's Back button brings them back.
@@ -1813,26 +1822,16 @@
 
         $row.find('.polymorphism-filter-conjunction').dropdown({
             ...RAISE_DROPDOWN_WHILE_OPEN,
-            onChange: function(value) {
-                syncPolymorphismFilterConjunctions(value)
-                persistAllAdvancedFormStateToUrl()
-            },
+            onChange: syncPolymorphismFilterConjunctions,
         })
-        $row.find('.polymorphism-filter-sigma-dropdown').dropdown({
-            ...RAISE_DROPDOWN_WHILE_OPEN,
-            onChange: function() { persistAllAdvancedFormStateToUrl() },
-        })
+        $row.find('.polymorphism-filter-sigma-dropdown').dropdown({...RAISE_DROPDOWN_WHILE_OPEN})
         if (sigmaType) {
             $row.find('.polymorphism-filter-sigma-dropdown').dropdown('set selected', sigmaType)
         }
 
-        // The advanced search form's change handler saves edits of the threshold and the checkbox
         $row.find('.polymorphism-filter-enable-checkbox').checkbox()
 
-        $row.find('.polymorphism-filter-delete').click(function() {
-            $row.remove()
-            persistAllAdvancedFormStateToUrl()
-        })
+        $row.find('.polymorphism-filter-delete').click(() => $row.remove())
 
         return $row
     }
@@ -1840,7 +1839,6 @@
     $('#add-polymorphism-filter-link').click(function(e) {
         e.preventDefault()
         addPolymorphismFilterRow()
-        persistAllAdvancedFormStateToUrl()
     })
 
     // Reads the extra polymorphism filter rows into a list of {$row, enabled, conjunction, sigmaType, threshold}, where
@@ -1954,10 +1952,7 @@
             fileFormat = 'BED'
             selectClause = `CONCAT('chr', chrom), start_0based + 1 AS start_1based, end_1based, ReferenceMotif, LocusId`
             conditions.push(`start_0based + 1 < end_1based`)
-        } else if(value === 'medaka') {
-            fileFormat = 'BED'
-            selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
-        } else if(value === 'strdust') {
+        } else if(value === 'medaka' || value === 'strdust') {
             fileFormat = 'BED'
             selectClause = `CONCAT('chr', chrom), start_0based, end_1based, LocusId`
         } else if(value === 'inquistr') {
@@ -1999,8 +1994,10 @@
                 // TR rows: one row per locus
                 const trsQuery = `SELECT CONCAT('chr', chrom) AS vc_chrom, start_0based AS vc_start, end_1based AS vc_end, CONCAT('ID=', LocusId, ';MOTIFS=', ReferenceMotif, ';STRUC=<TR:', LocusId, '>') AS InfoField FROM loci`
 
-                // VC rows: one row per unique VariationCluster
-                const vcQuery = `SELECT vc_chrom, vc_start, vc_end, InfoField FROM (SELECT SPLIT(VariationCluster, ':')[OFFSET(0)] AS vc_chrom, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(0)] AS INT64) AS vc_start, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(1)] AS INT64) AS vc_end, CONCAT('ID=', VariationClusterId, ';MOTIFS=', VariationClusterMotifs, ';STRUC=<VC:', REPLACE(VariationCluster, 'chr', ''), '>') AS InfoField, ROW_NUMBER() OVER (PARTITION BY VariationCluster ORDER BY id) AS _vc_rank FROM loci WHERE VariationCluster IS NOT NULL AND VariationCluster != '' AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')) WHERE _vc_rank = 1`
+                // VC rows: one row per unique VariationCluster. Each one's ID is its interval (e.g. VC:19:103809-103838)
+                // and its STRUC lists the TRs it contains, as in the v2.1 catalog, since the TRs' own ids would give a
+                // cluster with a single TR the same ID as that TR's row
+                const vcQuery = `SELECT vc_chrom, vc_start, vc_end, InfoField FROM (SELECT SPLIT(VariationCluster, ':')[OFFSET(0)] AS vc_chrom, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(0)] AS INT64) AS vc_start, CAST(SPLIT(SPLIT(VariationCluster, ':')[OFFSET(1)], '-')[OFFSET(1)] AS INT64) AS vc_end, CONCAT('ID=VC:', REPLACE(VariationCluster, 'chr', ''), ';MOTIFS=', VariationClusterMotifs, ';STRUC=<VC:', VariationClusterId, '>') AS InfoField, ROW_NUMBER() OVER (PARTITION BY VariationCluster ORDER BY id) AS _vc_rank FROM loci WHERE VariationCluster IS NOT NULL AND VariationCluster != '' AND (VariationClusterFilterReason IS NULL OR VariationClusterFilterReason = '')) WHERE _vc_rank = 1`
 
                 if (trgtCatalogType === 'vc_only') {
                     query = `${lociQuery}${vcQuery} ORDER BY vc_chrom, vc_start, vc_end`
@@ -2261,10 +2258,6 @@
 
         const resultsTableElement = $('#results-table')
 
-        // Mark the URL as a search, so reopening it reruns the search, even one that found nothing
-        GLOBAL_PAGE_STATE['showRs'] = 1
-        writePersistentPageStateToUrl()
-
         resultsTableElement.removeClass('loading')
         destroyResultsTableCharts()
         if (!results.rows || results.rows.length === 0) {
@@ -2320,27 +2313,21 @@
 
         // Add click handlers for sortable headers
         resultsTableElement.find('.results-table-sortable-header').click(function() {
+            // A new column sorts in its default direction, a second click flips the direction, and a third click goes
+            // back to the default sort
             const column = $(this).data('column')
-            if (column === sortColumn) {
-                if (sortDirection === 'ASC') {
-                    if (!TABLE_COLUMNS[column]?.defaultSortDirection || TABLE_COLUMNS[column]?.defaultSortDirection == 'ASC') {
-                        GLOBAL_PAGE_STATE['sd'] = 'DESC'
-                    } else {
-                        GLOBAL_PAGE_STATE['sc'] = DEFAULT_SORT_COLUMN
-                        GLOBAL_PAGE_STATE['sd'] = DEFAULT_SORT_DIRECTION
-                    }
-                } else if (sortDirection === 'DESC') {
-                    if (TABLE_COLUMNS[column]?.defaultSortDirection == 'DESC') {
-                        GLOBAL_PAGE_STATE['sd'] = 'ASC'
-                    } else {
-                        GLOBAL_PAGE_STATE['sc'] = DEFAULT_SORT_COLUMN
-                        GLOBAL_PAGE_STATE['sd'] = DEFAULT_SORT_DIRECTION
-                    }
-                }
-            } else {
+            const defaultDirection = TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC'
+            if (column !== sortColumn) {
                 GLOBAL_PAGE_STATE['sc'] = column
-                GLOBAL_PAGE_STATE['sd'] = TABLE_COLUMNS[column]?.defaultSortDirection || 'ASC'
+                GLOBAL_PAGE_STATE['sd'] = defaultDirection
+            } else if (sortDirection === defaultDirection) {
+                GLOBAL_PAGE_STATE['sd'] = defaultDirection === 'ASC' ? 'DESC' : 'ASC'
+            } else {
+                GLOBAL_PAGE_STATE['sc'] = DEFAULT_SORT_COLUMN
+                GLOBAL_PAGE_STATE['sd'] = DEFAULT_SORT_DIRECTION
             }
+            // The new order is shown from its top
+            GLOBAL_PAGE_STATE['currentPage'] = 1
 
             performSearch(true, true)
         })
@@ -2401,14 +2388,7 @@
         $('.allele-frequency-inline-chart').each(createSmallAlleleFrequencyChart)
 
         // init popups
-        $('.show-popup').popup({
-            on: 'click',
-            hoverable: true,
-            onVisible: function() {
-                // Initialize any nested help icons (.nested-help-icon) inside this just-opened popup.
-                $(this).popup('get popup').find('.nested-help-icon').popup({ on: 'hover' })
-            }
-        })
+        initShowPopupsWithNestedHelpIcons()
         $('.cell-in-polymorphism-column').click(showPolymorphismDialog)
         $('.disease-associated-icon').popup({ on: 'click' })
         initGeneInfoLinks(resultsTableElement)
@@ -2473,8 +2453,8 @@
         })
 
         // The dialog closes by itself, as on any click of its positive (Apply) or deny (Cancel) button
+        // performSearch writes the URL once the results have loaded
         GLOBAL_PAGE_STATE['showColumns'] = selectedColumns.join(SHOW_COLUMNS_VALUE_DELIMITER)
-        writePersistentPageStateToUrl()
         performSearch(true, true)
     })
 
@@ -2514,18 +2494,11 @@
             if (chromIndex === undefined) return 'FALSE'
             return `(chrom_index = ${chromIndex} AND start_0based < ${end} AND end_1based >= ${start})`
         }
-        const locusIdMatch = queryValue.match(LOCUS_ID_REGEXP)
-        if (locusIdMatch) {
-            let [_, chrom, start_0based, end_1based, motif] = locusIdMatch
-            start_0based = start_0based.replace(/,/g, '')
-            end_1based = end_1based.replace(/,/g, '')
-            const chromIndex = CHROM_TO_CHROM_INDEX[chrom.toUpperCase()]
-            if (chromIndex === undefined) return 'FALSE'  // unknown contig -> match nothing, not invalid SQL
-            // LocusId is stored uppercase and without a "chr" prefix, so rebuild it from the parsed parts (also
-            // strips comma thousands-separators and surrounding whitespace the regex tolerated)
-            // rather than matching on the raw, possibly "chr"-prefixed or lowercase, sanitizedQueryValue.
-            const normalizedLocusId = escapeTextForSqlStringLiteral(`${chrom}-${start_0based}-${end_1based}-${motif}`.toUpperCase())
-            return `(chrom_index = ${chromIndex} AND start_0based = ${parseInt(start_0based)} AND LocusId = '${normalizedLocusId}')`
+        // Matched on the LocusId in its stored form, rather than on the raw, possibly "chr"-prefixed or lowercase,
+        // sanitizedQueryValue
+        const parsedLocusId = parseAndNormalizeLocusId(queryValue)
+        if (parsedLocusId) {
+            return buildSqlConditionForLocusId(parsedLocusId)
         }
         // Try other fields. This is written on one line, since an uploaded panel repeats it for each of its items, and
         // BigQuery limits the length of a query.
@@ -2563,7 +2536,7 @@
     let searchSeq = 0
 
     // Normalize a BED chromosome name for CHROM_TO_CHROM_INDEX lookup: strip any "chr" prefix and
-    // uppercase (map keys are bare "1".."22"/"X"/"Y"/"MT"/"M" plus "chr"-prefixed variants).
+    // uppercase (map keys are bare "1".."22"/"X"/"Y"/"MT"/"M").
     const normalizeBedChrom = (c) => String(c == null ? '' : c).trim().replace(/^chr/i, '').toUpperCase()
 
     // The size of the BGZF block that starts at the given offset, read from the block's gzip header (the "BC" extra
@@ -2690,10 +2663,11 @@
     const clearUploadedFile = () => {
         uploadSeq++  // cancel any in-flight upload so it can't repopulate state after this clear
         UPLOADED_FILE = null
-        GLOBAL_PAGE_STATE['uploadedFileId'] = 0
         renderUploadedFileChip()
-        GLOBAL_PAGE_STATE['currentPage'] = 1  // return to the first page for the new (unfiltered) search
-        if (validateForm()) performSearch(false)
+        if (validateForm()) {
+            GLOBAL_PAGE_STATE['currentPage'] = 1  // return to the first page for the new (unfiltered) search
+            performSearch(false)
+        }
     }
 
     // Handle one or more chosen/dropped files: parse each independently (so mixed TXT/TSV/BED work),
@@ -2768,11 +2742,11 @@
             $('#tr-file-upload-modal').modal('show')
             return
         }
-        UPLOADED_FILE = uploadedFile
         // The upload time in milliseconds, so that an id is never reused after a reload or in another tab, where a link
         // or history entry with this id would otherwise restore a different panel
-        GLOBAL_PAGE_STATE['uploadedFileId'] = Date.now()
-        UPLOADED_FILES_BY_ID.set(GLOBAL_PAGE_STATE['uploadedFileId'], uploadedFile)
+        uploadedFile.id = Date.now()
+        UPLOADED_FILE = uploadedFile
+        UPLOADED_FILES_BY_ID.set(uploadedFile.id, uploadedFile)
         renderUploadedFileChip()
 
         if (failed.length || rejected.length) {
@@ -2791,8 +2765,10 @@
         // box does exact region/LocusId/gene matching (not free-text), so ANDing a stale typed value
         // with the panel would almost always yield zero results. Advanced filters still apply.
         $('#search-query').val('')
-        GLOBAL_PAGE_STATE['currentPage'] = 1  // a fresh panel search starts on the first page
-        if (validateForm()) performSearch(false)
+        if (validateForm()) {
+            GLOBAL_PAGE_STATE['currentPage'] = 1  // a fresh panel search starts on the first page
+            performSearch(false)
+        }
     }
 
     // Build the WHERE clause restricting results to the uploaded file's tokens and/or BED regions
@@ -2858,11 +2834,11 @@
         // The catalog dropdown lives in the advanced filter panel, so while that panel is
         // hidden the search scopes itself to the default catalog (v2) instead of querying
         // the whole table, which also holds the v2.1 draft loci.
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+        if (!isAdvancedSearchPanelOpen) {
             conditions.push(SOURCE_CATALOG_SQL_CONDITIONS[DEFAULT_GLOBAL_PAGE_STATE['sourceCatalog']])
         }
 
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
+        if (isAdvancedSearchPanelOpen) {
 
             // Add source catalog condition
             const sourceCatalogCondition = SOURCE_CATALOG_SQL_CONDITIONS[$('#source-catalog-dropdown').dropdown('get value')]
@@ -3035,14 +3011,15 @@
 
             const query = `SELECT ${selectClauseColumns.join(', ')} FROM ${COMPLETE_TABLE_ID} ${whereClause} ORDER BY ${sortClause}`
 
-            const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (GLOBAL_PAGE_STATE['currentPage'] - 1)
+            const requestedPage = GLOBAL_PAGE_STATE['currentPage']
+            const startIndex = GLOBAL_PAGE_STATE['pageSize'] * (requestedPage - 1)
             const pageSize = GLOBAL_PAGE_STATE['pageSize']
 
             window.lastSearchConditions = conditions
             window.lastSearchSortClause = sortClause
             // The settings that produce these results: the displayed search's for a re-run of it, or else read from the
             // form now, since it can be edited while the query runs. Clicking a plot's bar or box narrows them down.
-            if (!isRerunOfDisplayedSearch && !suppressFormStatePersistence) copySearchFormStateToPageState()
+            if (!isRerunOfDisplayedSearch && !isFormBeingFilledInFromUrl) copySearchFormStateToPageState()
             const searchPageState = isRerunOfDisplayedSearch
                 ? window.lastSearchPageState
                 : Object.fromEntries(SEARCH_PAGE_STATE_KEYS.map(key => [key, GLOBAL_PAGE_STATE[key]]))
@@ -3051,6 +3028,20 @@
             // A newer search started while this query was in flight -> discard this stale result so it
             // can't overwrite the newer search's rows (e.g. rapid upload then chip-remove).
             if (mySeq !== searchSeq) return
+
+            // Mark the URL as a search, so reopening it reruns the search, even one that found nothing
+            GLOBAL_PAGE_STATE['showRs'] = 1
+
+            // A page past the last page (e.g. in a link made before the catalog changed) has no rows, so the last page
+            // is shown instead. The current history entry is changed to it rather than a new one added, so that Back
+            // doesn't return to the page past the end, which would add the entry again.
+            const lastPage = Math.ceil(results.total_results / pageSize)
+            if (!results.rows?.length && results.total_results > 0 && requestedPage > lastPage) {
+                GLOBAL_PAGE_STATE['currentPage'] = lastPage
+                writePersistentPageStateToUrl(true)
+                window.lastSearchPageState = searchPageState
+                return performSearch(showTableWhileLoading, true)
+            }
             window.searchResults = results
 
             // Reset navigation index for new search results
@@ -3060,7 +3051,7 @@
             // Remove loading indicator and placeholder before showing results
             $('#loading-container').hide()
 
-            persistAllAdvancedFormStateToUrl()
+            writePersistentPageStateToUrl()
             window.lastSearchPageState = searchPageState
 
             displaySearchResults()
@@ -3088,26 +3079,15 @@
 
     initHeaderDialogLinks()
 
-    // The close icon of the error message hides it (Semantic UI messages don't close by themselves)
-    $('#error-message .close').click(() => $('#error-message').hide())
 
-    // Sets the advanced search panel's dropdowns and polymorphism threshold from GLOBAL_PAGE_STATE
-    const applyAdvancedSearchDropdownsFromPageState = () => {
-        $('#source-catalog-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['sourceCatalog'])
-        $('#overlap-locus-set-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'])
-        $('#polymorphism-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['polymorphismFilterType'])
-        $('input[name="polymorphismThreshold"]').val(GLOBAL_PAGE_STATE['polymorphismThreshold'])
-        $('#variation-cluster-filter-dropdown').dropdown('set selected', GLOBAL_PAGE_STATE['vcFilterType'])
-    }
-
+    // Opening or closing the panel is a form edit, which goes into the URL when the next search starts. The panel's
+    // controls keep their values while it's closed.
     const toggleAdvancedSearch = () => {
-        GLOBAL_PAGE_STATE['showAdvFilters'] = (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) ? 0 : 1
-        writePersistentPageStateToUrl()
+        isAdvancedSearchPanelOpen = !isAdvancedSearchPanelOpen
 
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] === 1) {
+        if (isAdvancedSearchPanelOpen) {
             $('#advanced-search-form').slideDown(300)
             $('#filter-button .filter.icon').removeClass('rotated')
-            applyAdvancedSearchDropdownsFromPageState()
         } else {
             $('#advanced-search-form').slideUp(300)
             $('#filter-button .filter.icon').addClass('rotated')
@@ -3174,7 +3154,7 @@
     const validateForm = () => {
         $('#form-error-message').hide()
         $('.field.error, .polymorphism-filter-row.error, .custom-filter-row.error').removeClass('error')
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) return true
+        if (!isAdvancedSearchPanelOpen) return true
 
         if (parseMotifSizeRanges($('#motif-size-input').val()) === null) {
             showFormValidationError('Invalid motif size filter. Please specify motif sizes or size ranges like: 3, 2-6, 7-')
@@ -3272,19 +3252,19 @@
             if (regionMatch) {
                 GLOBAL_PAGE_STATE['igvLoc'] = searchItem
             } else {
-                const locusIdMatch = searchItem.match(LOCUS_ID_REGEXP)
-                if (locusIdMatch) {
-                    let [_, chrom, start_0based, end_1based, __] = locusIdMatch
-                    GLOBAL_PAGE_STATE['igvLoc'] = `${chrom}:${start_0based}-${end_1based}`
+                const parsedLocusId = parseAndNormalizeLocusId(searchItem)
+                if (parsedLocusId) {
+                    GLOBAL_PAGE_STATE['igvLoc'] = `${parsedLocusId.chrom}:${parsedLocusId.start_0based}-${parsedLocusId.end_1based}`
                 }
             }
         }
-        // Move IGV, if it's shown, to the new location too
+        await performSearch(false)
+
+        // Move IGV, if it's shown, to the new location too. This comes after the search has added its history entry,
+        // since IGV's 'locuschange' handler rewrites the current entry, which before then is the previous search's.
         if (GLOBAL_PAGE_STATE['igvLoc'] !== previousIgvLoc && GLOBAL_PAGE_STATE['showIGV'] === 1 && window.igvBrowser) {
             window.igvBrowser.search(GLOBAL_PAGE_STATE['igvLoc']).catch(error => console.error('IGV search failed:', error))
         }
-
-        await performSearch(false)
     }
 
     $('#search-form').submit(handleSearch)
@@ -3392,9 +3372,7 @@
                 <span style="color: #888; margin-left: 20px; white-space: nowrap;">${catalog.numLoci.toLocaleString()} loci</span>
             </div>
         </div>`).join(''))
-    $('#source-catalog-dropdown').dropdown({
-        onChange: persistAllAdvancedFormStateToUrl
-    })
+    $('#source-catalog-dropdown').dropdown()
 
     // Choosing a value in the polymorphism, variation cluster or overlap locus set filter dropdown also checks the
     // checkbox that turns on that filter
@@ -3406,27 +3384,17 @@
         $(dropdownSelector).dropdown({
             ...RAISE_DROPDOWN_WHILE_OPEN,
             onChange: (value) => {
-                if (value && !suppressFormStatePersistence) {
+                if (value && !isFormBeingFilledInFromUrl) {
                     $(`input[name="${filterCheckboxName}"]`).prop('checked', true)
                 }
-                persistAllAdvancedFormStateToUrl()
             }
         })
     }
 
-    // Persist changes to checkboxes and text inputs in the advanced form
-    // (and the main search input) immediately to the URL hash. Dropdowns are
-    // handled by their own Semantic-UI onChange callbacks above and in
-    // addCustomFilterRowToView / addPolymorphismFilterRow. Text inputs fire 'change'
-    // on blur so the URL doesn't churn on every keystroke.
-    $('#advanced-search-form').on('change', 'input[type="checkbox"], input[type="text"]', persistAllAdvancedFormStateToUrl)
-    $('#search-query').on('change', persistAllAdvancedFormStateToUrl)
-
     $('#known-disease-motifs-link').click((e) => {
         e.preventDefault()
 
-        // Setting the value doesn't fire a change event, which the advanced form's handler needs to save it in the URL
-        $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI).trigger('change')
+        $('#motif-input').val(MOTIFS_AT_KNOWN_DISEASE_ASSOCIATED_LOCI)
     })
 
     // Example search links preserve any non-default settings the user has
@@ -3445,7 +3413,7 @@
         e.preventDefault()
 
         $('#search-query').val('')
-        if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
+        if (!isAdvancedSearchPanelOpen) {
             toggleAdvancedSearch()
         }
         $('input[name="keepLociThatOverlapDiseaseAssociatedLoci"]')

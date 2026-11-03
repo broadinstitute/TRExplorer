@@ -12,7 +12,7 @@ import zlib
 
 import pytest
 
-from test_basic_search import real_errors, do_search, click_next_page, get_total_pages
+from test_basic_search import MULTI_PAGE_REGION_QUERY, real_errors, do_search, click_next_page, get_total_pages
 
 
 def wait_for_results(page):
@@ -62,46 +62,21 @@ def test_upload_txt_with_header_row(index_page, tmp_path):
     assert "1 item" in page.inner_text("#tr-file-chip-container")
 
 
-def test_upload_locus_id(index_page, console_errors, tmp_path):
-    """A TXT containing a real LocusId (chr-start-end-motif) matches that locus."""
+@pytest.mark.parametrize("locus_id_prefix", ["", "chr"])
+def test_upload_locus_id(index_page, console_errors, tmp_path, locus_id_prefix):
+    """A TXT containing a real LocusId (chrom-start-end-motif) matches that locus. A "chr"-prefixed LocusId (as commonly
+    pasted or exported, e.g. chr4-...-CAG) matches too, even though catalog LocusIds have no "chr" prefix."""
     page = index_page
     # First find a real LocusId by running a region search and reading a result row.
-    page.fill("#search-query", "chr4:3074000-3075000")
-    page.click("#search-button")
-    wait_for_results(page)
+    do_search(page, "chr4:3074000-3075000")
     locus_id = page.get_attribute(".row-locus-page-link", "data-locus-id")
     assert locus_id and "-" in locus_id
+    assert not locus_id.lower().startswith("chr")
 
     # Clear the search box so only the uploaded file drives the query.
     page.fill("#search-query", "")
     f = tmp_path / "one_locus.txt"
-    f.write_text(locus_id + "\n")
-
-    upload_files(page, [f])
-    wait_for_results(page)
-    assert "1 item" in page.inner_text("#tr-file-chip-container")
-    locus_ids = [
-        el.get_attribute("data-locus-id")
-        for el in page.query_selector_all(".row-locus-page-link")
-    ]
-    assert locus_id in locus_ids
-    assert real_errors(console_errors) == [], f"JS errors: {real_errors(console_errors)}"
-
-
-def test_upload_locus_id_with_chr_prefix(index_page, console_errors, tmp_path):
-    """A "chr"-prefixed LocusId (as commonly pasted/exported, e.g. chr4-...-CAG) must still match,
-    even though the LocusId is stored in the catalog without the "chr" prefix."""
-    page = index_page
-    page.fill("#search-query", "chr4:3074000-3075000")
-    page.click("#search-button")
-    wait_for_results(page)
-    locus_id = page.get_attribute(".row-locus-page-link", "data-locus-id")
-    assert locus_id and "-" in locus_id
-    assert not locus_id.lower().startswith("chr")  # catalog LocusIds have no "chr" prefix
-
-    page.fill("#search-query", "")
-    f = tmp_path / "one_locus_chr_prefixed.txt"
-    f.write_text(f"chr{locus_id}\n")
+    f.write_text(f"{locus_id_prefix}{locus_id}\n")
 
     upload_files(page, [f])
     wait_for_results(page)
@@ -202,15 +177,15 @@ def test_upload_after_paging_shows_results(index_page, tmp_path):
     """Regression: uploading a panel after navigating to page >=2 must reset to page 1 and still
     show the panel's matches, not an empty page (currentPage was left stale before the fix)."""
     page = index_page
-    do_search(page, "ATXN1")
-    if get_total_pages(page) > 1:
-        click_next_page(page)
+    do_search(page, MULTI_PAGE_REGION_QUERY)
+    assert get_total_pages(page) > 1
+    click_next_page(page)
 
     f = tmp_path / "panel.txt"
     f.write_text("chr4:3074000-3075000\n")  # HTT region: far fewer rows than a page-2 offset
     upload_files(page, [f])
     wait_for_results(page)
-    # Uploading clears the leftover "ATXN1" from the search box (panel is the query) and resets to
+    # Uploading clears the leftover query from the search box (panel is the query) and resets to
     # page 1, so the panel's matches are shown instead of an empty page-2 offset.
     assert page.input_value("#search-query") == ""
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
@@ -225,8 +200,7 @@ def test_upload_token_is_sql_injection_safe(index_page, console_errors, tmp_path
     page = index_page
     f = tmp_path / "evil.txt"
     f.write_text("x\\') OR TRUE--\n")
-    page.set_input_files("#tr-file-input", str(f))
-    page.wait_for_selector("#tr-file-chip-container .ui.label", timeout=10000)
+    upload_files(page, [f])
     page.wait_for_load_state("networkidle")
 
     assert not page.is_visible("#error-message")

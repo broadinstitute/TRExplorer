@@ -80,8 +80,6 @@
         const maxAlleleSize = chartData.maxAlleleSize
         const axisUnits = chartData.axisUnits
 
-        //frequencies.sort((a, b) => a.size - b.size)
-
         const {xLabels, counts, colors, borderColors, yLimit} = buildAlleleSizeHistogramBars(
             frequencies, refAlleleSize, minAlleleSize, maxAlleleSize)
 
@@ -194,10 +192,9 @@
     const parseBiallelicHistogramString = function(frequenciesString) {
         // example: frequencies = "2/2:58,2/3:34,3/3:4"
         if (!frequenciesString) {
-            return [[], {}]
+            return []
         }
         const data = []
-        const lookup = {}
         const items = frequenciesString.split(',')
         for (let i = 0; i < items.length; i++) {
             const value = items[i].split(':')
@@ -208,10 +205,9 @@
             const longAlleleSize = Math.max(allele1, allele2)
             const count = parseInt(value[1])
             data.push({ x: longAlleleSize, y: shortAlleleSize, v: count})
-            lookup[`${shortAlleleSize}/${longAlleleSize}`] = count
         }
 
-        return [data, lookup]
+        return data
     }
 
     // The axis labels and cells of a genotype heatmap that shows allele sizes from minAlleleSize to maxAlleleSize. When
@@ -220,10 +216,9 @@
     //
     // Args:
     //   data: genotype cells, [{x: long allele size, y: short allele size, v: count}], from parseBiallelicHistogramString
-    //   lookup: {"short/long": count}, from parseBiallelicHistogramString
     //
-    // Returns {labels, data, lookup}: the labels of both axes, and the (binned) cells and lookup in the same form
-    const binGenotypeCounts = (data, lookup, minAlleleSize, maxAlleleSize) => {
+    // Returns {labels, data}: the labels of both axes, and the (binned) cells in the same form
+    const binGenotypeCounts = (data, minAlleleSize, maxAlleleSize) => {
         const minSize = minAlleleSize - 1
         const maxSize = maxAlleleSize + 1
         const maxBins = 20
@@ -236,13 +231,12 @@
             labels.push(needsBinning ? `${binStart}-${binStart + binSize}` : binStart)
         }
         if (!needsBinning) {
-            return {labels, data, lookup}
+            return {labels, data}
         }
 
         // Add each observed genotype to its bin. Genotypes outside the shown range are left out.
         const binCounts = labels.map(() => labels.map(() => 0))  // [short allele bin][long allele bin]
-        for (const [genotype, count] of Object.entries(lookup)) {
-            const [shortAlleleSize, longAlleleSize] = genotype.split('/').map(Number)
+        for (const {x: longAlleleSize, y: shortAlleleSize, v: count} of data) {
             const shortBin = Math.floor((shortAlleleSize - firstBinStart) / binSize)
             const longBin = Math.floor((longAlleleSize - firstBinStart) / binSize)
             if (shortBin >= 0 && shortBin < labels.length && longBin >= 0 && longBin < labels.length) {
@@ -251,17 +245,12 @@
         }
 
         const binnedData = []
-        const binnedLookup = {}
         labels.forEach((shortAlleleLabel, shortBin) => {
             labels.forEach((longAlleleLabel, longBin) => {
-                const binCount = binCounts[shortBin][longBin]
-                binnedData.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCount})
-                if (binCount > 0) {
-                    binnedLookup[`${shortAlleleLabel}/${longAlleleLabel}`] = binCount
-                }
+                binnedData.push({x: longAlleleLabel, y: shortAlleleLabel, v: binCounts[shortBin][longBin]})
             })
         })
-        return {labels, data: binnedData, lookup: binnedLookup}
+        return {labels, data: binnedData}
     }
 
     const createBiallelicHistogramChart = (chartData) => {
@@ -269,10 +258,10 @@
         const chartWidth = chartData.chartWidth
         const axisUnits = chartData.axisUnits
 
-        const {labels, data, lookup} = binGenotypeCounts(chartData.data, chartData.lookup, chartData.minAlleleSize, chartData.maxAlleleSize)
+        const {labels, data} = binGenotypeCounts(chartData.data, chartData.minAlleleSize, chartData.maxAlleleSize)
 
         // Calculate maxCount from the binned data. When fixedMaxCount is supplied
-        // (HPRC256 charts on the locus page), use it so the color scale stays
+        // (HPRC256 charts, which have Population/Sex dropdowns), use it so the color scale stays
         // consistent as the user flips between Population/Sex strata.
         const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
 
@@ -346,10 +335,7 @@
                                 const c = context
                                 const value = c.dataset.data[c.dataIndex].v
                                 if (value === 0) return null
-                                const shortLabel = labels[c.parsed.y]
-                                const longLabel = labels[c.parsed.x]
-                                const genotype = `${shortLabel}/${longLabel}`
-                                return `Individuals: ${lookup[genotype] || 0}`
+                                return `Individuals: ${value}`
                             }
                         }
                     },
@@ -383,7 +369,7 @@
         const chartWidth = chartData.chartWidth
         const yAxisLabel = chartData.yAxisLabel
 
-        // x-axis: when a fixed range is supplied (HPRC256 charts on the locus page)
+        // x-axis: when a fixed range is supplied (HPRC256 charts, which have Population/Sex dropdowns)
         // use it so the axis matches across the Purity and Methylation heatmaps and
         // stays put as the user changes Population/Sex strata.
         let xLabels
