@@ -1,17 +1,33 @@
 """Tests for the search results plots ("Add plot..." below the results table).
 
-The first tests call the plot code's functions in the page. The last ones add, reload, edit and remove plots
-through the page, so they query BigQuery through the live query proxy like the other tests here.
+Tests that search or open a URL with plots query BigQuery through the live query proxy, like the other tests here. The
+others only call the plot code's functions in the page.
 """
 
 import re
 
-from test_basic_search import MULTI_PAGE_REGION_QUERY, assert_no_errors, do_search
+from test_advanced_search import add_custom_filters_with_dialog, open_custom_filter_column_dialog
+from test_basic_search import MULTI_PAGE_REGION_QUERY, assert_no_errors, click_next_page, select_dropdown_item, do_search
+
+
+# The JavaScript expression for the Chart.js chart of the first plot on the page
+FIRST_PLOT_CHART = "Chart.getChart(document.querySelector('.search-results-plot canvas'))"
 
 
 def evaluate_with_settings(page, expression, settings):
     """Evaluates expression with `s` set to DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS overridden by settings."""
     return page.evaluate(f"(c) => {{ const s = {{...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS, ...c}}; return {expression} }}", settings)
+
+
+def find_problem_with_plot_settings(page, settings):
+    """Returns what findProblemWithSearchResultsPlotSettings says is wrong with the settings, or "" if nothing is."""
+    return evaluate_with_settings(page, "findProblemWithSearchResultsPlotSettings(s)", settings)
+
+
+def assert_plot_settings_survive_the_url_round_trip(page, settings):
+    assert evaluate_with_settings(
+        page, "JSON.stringify(parseSearchResultsPlotSettingsList(serializeSearchResultsPlotSettingsList([s]))[0]) === JSON.stringify(s)",
+        settings)
 
 
 def wait_for_plots_to_finish_loading(page, num_plots):
@@ -21,19 +37,12 @@ def wait_for_plots_to_finish_loading(page, num_plots):
         timeout=90000)
 
 
-def select_dropdown_item(page, dropdown_id, value):
-    page.click(f"#{dropdown_id}")
-    page.click(f"#{dropdown_id} .menu .item[data-value='{value}']")
-
-
 def test_plot_settings_survive_the_url_round_trip(index_page):
     settings = {"type": "box", "x": "GencodeGeneRegion", "y": "HPRC256_Stdev", "yScale": "symlog", "color": "Source",
                 "topN": 5, "sort": "MotifSize", "dir": "asc", "missing": 1}
     serialized = evaluate_with_settings(index_page, "serializeSearchResultsPlotSettingsList([s])", settings)
     assert serialized == "t:box,x:GencodeGeneRegion,y:HPRC256_Stdev,c:Source,ys:symlog,n:5,m:1,s:MotifSize,d:asc"
-    assert evaluate_with_settings(
-        index_page, "JSON.stringify(parseSearchResultsPlotSettingsList(serializeSearchResultsPlotSettingsList([s]))[0]) === JSON.stringify(s)",
-        settings)
+    assert_plot_settings_survive_the_url_round_trip(index_page, settings)
 
 
 def test_plots_from_the_url_that_cant_be_plotted_are_dropped(index_page):
@@ -42,10 +51,10 @@ def test_plots_from_the_url_that_cant_be_plotted_are_dropped(index_page):
 
 
 def test_problems_with_plot_settings(index_page):
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {}) == "Select an X-axis column."
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "box", "x": "Source"}) == "Select a Y-axis column."
-    assert "isn't numeric" in evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source", "y": "GencodeGeneRegion"})
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source"}) == ""
+    assert find_problem_with_plot_settings(index_page, {}) == "Select an X-axis column."
+    assert find_problem_with_plot_settings(index_page, {"type": "box", "x": "Source"}) == "Select a Y-axis column."
+    assert "isn't numeric" in find_problem_with_plot_settings(index_page, {"type": "bar", "x": "Source", "y": "GencodeGeneRegion"})
+    assert find_problem_with_plot_settings(index_page, {"type": "bar", "x": "Source"}) == ""
 
 
 # Two filter groups: Motif Size >= 3 (with a disabled Source filter), and chromosome 1 or 2
@@ -53,9 +62,7 @@ PLOT_FILTERS = "MotifSize|>=|3|AND;!Source|LIKE|%25Illumina%25|AND;AND;chrom|=|c
 
 
 def test_plot_filters_survive_the_url_round_trip(index_page):
-    assert evaluate_with_settings(
-        index_page, "JSON.stringify(parseSearchResultsPlotSettingsList(serializeSearchResultsPlotSettingsList([s]))[0]) === JSON.stringify(s)",
-        {"type": "bar", "x": "GencodeGeneRegion", "filters": PLOT_FILTERS})
+    assert_plot_settings_survive_the_url_round_trip(index_page, {"type": "bar", "x": "GencodeGeneRegion", "filters": PLOT_FILTERS})
 
 
 def test_plot_filters_narrow_the_plot_queries_and_are_named_in_the_caption(index_page):
@@ -69,17 +76,17 @@ def test_plot_filters_narrow_the_plot_queries_and_are_named_in_the_caption(index
 
 
 def test_problems_with_plot_filters(index_page):
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source", "filters": "MotifSize|>=||AND"}) == (
+    assert find_problem_with_plot_settings(index_page, {"type": "bar", "x": "Source", "filters": "MotifSize|>=||AND"}) == (
         "Please enter a value for the Motif Size custom filter")
     # Disabled filters don't apply, so they aren't checked
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "bar", "x": "Source", "filters": "!MotifSize|>=||AND"}) == ""
+    assert find_problem_with_plot_settings(index_page, {"type": "bar", "x": "Source", "filters": "!MotifSize|>=||AND"}) == ""
 
 
 def test_coordinates_can_only_be_scatter_plot_y_axes(index_page):
     for plot_type in ["bar", "box"]:
-        assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": plot_type, "x": "Source", "y": "start_0based"}) == (
+        assert find_problem_with_plot_settings(index_page, {"type": plot_type, "x": "Source", "y": "start_0based"}) == (
             "Start (0-based) can only be a scatter plot Y-axis.")
-    assert evaluate_with_settings(index_page, "findProblemWithSearchResultsPlotSettings(s)", {"type": "scatter", "x": "MotifSize", "y": "start_0based"}) == ""
+    assert find_problem_with_plot_settings(index_page, {"type": "scatter", "x": "MotifSize", "y": "start_0based"}) == ""
 
     index_page.evaluate("showSearchResultsPlotDialog('Add Plot', {...DEFAULT_SEARCH_RESULTS_PLOT_SETTINGS}, null)")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
@@ -142,10 +149,10 @@ def test_a_bad_value_in_a_hidden_field_does_not_block_ok(index_page):
     do_search(index_page, MULTI_PAGE_REGION_QUERY)
     index_page.click("#add-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
-    select_dropdown_item(index_page, "plot-x-column-dropdown", "Source")
+    select_dropdown_item(index_page, "#plot-x-column-dropdown", "Source")
     index_page.fill("#plot-top-n-input", "200")
     # A numerical-only x column makes the bar plot a histogram, which hides the number of categories
-    select_dropdown_item(index_page, "plot-x-column-dropdown", "start_0based")
+    select_dropdown_item(index_page, "#plot-x-column-dropdown", "start_0based")
     assert not index_page.is_visible("#plot-top-n-field")
     index_page.click("#search-results-plot-dialog-ok-button")
     wait_for_plots_to_finish_loading(index_page, 1)
@@ -155,7 +162,7 @@ def test_a_bad_value_in_a_hidden_field_does_not_block_ok(index_page):
 def click_plot_bar(page, dataset_index, bar_index):
     """Clicks the center of a bar (or box) in the first plot's chart and returns the value it shows."""
     bar = page.evaluate(f"""() => {{
-        const chart = Chart.getChart(document.querySelector('.search-results-plot canvas'))
+        const chart = {FIRST_PLOT_CHART}
         const element = chart.getDatasetMeta({dataset_index}).data[{bar_index}]
         const {{x, y, base}} = element.getProps(['x', 'y', 'base'], true)
         return {{x, y: (y + base) / 2, value: chart.data.datasets[{dataset_index}].rawValues?.[{bar_index}]}}
@@ -211,7 +218,7 @@ def test_clicking_a_histogram_bin_filters_to_its_range(index_page):
 
 
 def get_plot_bar_index(page, display_label):
-    return page.evaluate(f"Chart.getChart(document.querySelector('.search-results-plot canvas')).data.labels.indexOf({display_label!r})")
+    return page.evaluate(f"{FIRST_PLOT_CHART}.data.labels.indexOf({display_label!r})")
 
 
 def test_clicking_a_bar_whose_label_has_a_quote_filters_to_its_loci(index_page, console_errors):
@@ -273,29 +280,22 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
     total_results = index_page.evaluate("window.searchResults.total_results")
     index_page.click("#add-search-results-plot-link")
     index_page.wait_for_selector("#search-results-plot-dialog", state="visible")
-    select_dropdown_item(index_page, "plot-x-column-dropdown", "GencodeGeneRegion")
+    select_dropdown_item(index_page, "#plot-x-column-dropdown", "GencodeGeneRegion")
 
-    # "Add filter..." opens the column dialog over the plot dialog, and Escape closes only the column dialog. The
-    # column dialog responds to Escape once it's done opening, which is when it gets the active class.
-    index_page.click("#add-plot-filter-link")
-    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+    # "Add filter..." opens the column dialog over the plot dialog, and Escape closes only the column dialog
+    open_custom_filter_column_dialog(index_page, "#add-plot-filter-link")
     index_page.keyboard.press("Escape")
     index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
     assert index_page.is_visible("#search-results-plot-dialog")
 
-    index_page.click("#add-plot-filter-link")
-    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
-    index_page.click("#custom-filter-column-checkboxes .ui.checkbox:has(input[data-column-name='MotifSize'])")
-    index_page.click("#custom-filter-dialog-add-button")
-    index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
+    add_custom_filters_with_dialog(index_page, "#add-plot-filter-link", ["MotifSize"])
     assert index_page.is_visible("#search-results-plot-dialog")
 
     # OK with an incomplete filter keeps the dialog open and says why
     index_page.click("#search-results-plot-dialog-ok-button")
     assert index_page.inner_text("#search-results-plot-dialog-error") == "Please select an operator for the Motif Size custom filter"
     row = index_page.locator("#plot-filter-rows .custom-filter-row").first
-    row.locator(".custom-filter-op").click()
-    row.locator(".custom-filter-op .item[data-value='>=']").click()
+    select_dropdown_item(row, ".custom-filter-op", ">=")
     row.locator(".custom-filter-value").fill("3")
     index_page.click("#search-results-plot-dialog-ok-button")
     wait_for_plots_to_finish_loading(index_page, 1)
@@ -317,8 +317,7 @@ def test_add_edit_and_click_a_plot_with_a_filter(index_page, console_errors):
     assert index_page.evaluate("""[...document.querySelectorAll('#plot-filter-rows .custom-filter-help-icon, #add-plot-filter-link-container .question')]
         .every(icon => $(icon).data('module-popup'))""")
     # After the column dialog closes, Escape still closes the plot dialog
-    index_page.click("#add-plot-filter-group-link")
-    index_page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+    open_custom_filter_column_dialog(index_page, "#add-plot-filter-group-link")
     index_page.keyboard.press("Escape")
     index_page.wait_for_selector("#custom-filter-column-dialog", state="hidden")
     index_page.keyboard.press("Escape")
@@ -340,9 +339,8 @@ def test_clicking_a_fractional_histogram_bin_filters_to_exactly_its_loci(index_p
 
 def test_clicking_a_box_keeps_only_loci_with_a_y_value(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:box,x:GencodeGeneRegion,y:HPRC256_Stdev")
-    index_page.wait_for_function("Chart.getChart(document.querySelector('.search-results-plot canvas'))")
-    num_loci_in_box = index_page.evaluate(
-        "Chart.getChart(document.querySelector('.search-results-plot canvas')).data.datasets[0].boxRows[0].n_y")
+    index_page.wait_for_function(FIRST_PLOT_CHART)
+    num_loci_in_box = index_page.evaluate(f"{FIRST_PLOT_CHART}.data.datasets[0].boxRows[0].n_y")
     click_plot_bar(index_page, 0, 0)
     wait_for_total_search_results(index_page, num_loci_in_box)
     assert get_custom_filters(index_page)[-1] == ["HPRC256_Stdev", "IS NOT NULL", ""]
@@ -353,7 +351,7 @@ def test_a_box_with_no_height_can_be_clicked(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:box,x:GencodeGeneRegion,y:ReferenceRepeatPurity")
     intron_index = get_plot_bar_index(index_page, "intron")
     assert index_page.evaluate(
-        f"(() => {{ const row = Chart.getChart(document.querySelector('.search-results-plot canvas')).data.datasets[0].boxRows[{intron_index}]; return row.q1 === row.q3 }})()")
+        f"(() => {{ const row = {FIRST_PLOT_CHART}.data.datasets[0].boxRows[{intron_index}]; return row.q1 === row.q3 }})()")
     click_plot_bar(index_page, 0, intron_index)
     index_page.wait_for_function("customFilterGroups.length === 1", timeout=60000)
 
@@ -381,7 +379,7 @@ def test_symlog_histogram_click_filter_edges_match_the_query(index_page):
 
 def test_percent_stacks_end_at_100(index_page):
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:bar,x:GencodeGeneRegion,c:MotifSize,p:1,n:4,o:1")
-    assert index_page.evaluate("Chart.getChart(document.querySelector('.search-results-plot canvas')).scales.y.max") == 100
+    assert index_page.evaluate(f"{FIRST_PLOT_CHART}.scales.y.max") == 100
 
 
 def test_last_integer_histogram_bin_label_stops_at_the_largest_value(index_page):
@@ -410,13 +408,13 @@ def test_other_and_missing_categories_have_no_click_filter(index_page):
 def test_small_scatter_plot_is_drawn_as_points(index_page):
     # The heatmap query runs first, and finds few enough loci for the plot to show each one
     open_search_with_plots(index_page, MULTI_PAGE_REGION_QUERY, "t:scatter,x:MotifSize,y:HPRC256_Stdev")
-    assert index_page.evaluate("Chart.getChart(document.querySelector('.search-results-plot canvas')).config.type") == "scatter"
+    assert index_page.evaluate(f"{FIRST_PLOT_CHART}.config.type") == "scatter"
     assert "Based on" in index_page.inner_text(".search-results-plot-caption")
 
 
 def test_large_scatter_plot_is_drawn_as_a_heatmap(index_page):
     open_search_with_plots(index_page, "chr21:1-46700000", "t:scatter,x:HPRC256_Stdev,y:AoU1027_Stdev,xs:symlog,ys:symlog")
-    assert index_page.evaluate("Chart.getChart(document.querySelector('.search-results-plot canvas')).config.type") == "matrix"
+    assert index_page.evaluate(f"{FIRST_PLOT_CHART}.config.type") == "matrix"
     assert "Each cell's color shows how many" in index_page.inner_text(".search-results-plot-caption")
 
 
@@ -430,8 +428,8 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     index_page.wait_for_selector("#search-results-plot-dialog-error", state="visible")
     assert index_page.is_visible("#search-results-plot-dialog")
 
-    select_dropdown_item(index_page, "plot-x-column-dropdown", "GencodeGeneRegion")
-    select_dropdown_item(index_page, "plot-color-column-dropdown", "MotifSize")
+    select_dropdown_item(index_page, "#plot-x-column-dropdown", "GencodeGeneRegion")
+    select_dropdown_item(index_page, "#plot-color-column-dropdown", "MotifSize")
     index_page.fill("#plot-top-n-input", "5")
     index_page.click("#search-results-plot-dialog-ok-button")
     wait_for_plots_to_finish_loading(index_page, 1)
@@ -471,9 +469,7 @@ def test_add_reload_edit_and_remove_plots(index_page, console_errors):
     queries_sent = []
     record_query = lambda request: queries_sent.append(request.url) if "query_db" in request.url else None
     index_page.on("request", record_query)
-    index_page.locator(".bottom-pagination .next-page").first.click()
-    # The search sets the cursor back to default when page 2 has loaded and the plots have been refreshed
-    index_page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
+    click_next_page(index_page)
     # A plot that reran its query would still be loading
     wait_for_plots_to_finish_loading(index_page, 1)
     index_page.remove_listener("request", record_query)

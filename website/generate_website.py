@@ -1,18 +1,19 @@
 """Parses JINJA templates and converts them to static HTML pages.
 
-This script processes all *_page_template.html files in the current directory,
+This script processes all *_page_template.html files in its own directory (website/),
 renders them using Jinja2, and outputs the final HTML files to the parent directory.
+It can be run from any directory.
 """
 
-import glob
-import json
 import jinja2
-import os
+import pathlib
 import re
 import sys
 
+WEBSITE_DIR = pathlib.Path(__file__).resolve().parent
+
 # Add bigquery-proxy directory to path to import global_constants
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bigquery-proxy'))
+sys.path.insert(0, str(WEBSITE_DIR.parent / 'bigquery-proxy'))
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, GROUP_ROWS_IN_COLUMN_DIALOGS, get_column_descriptions, get_custom_filter_columns, get_exportable_columns, get_plot_columns, find_problems_in_column_descriptions_shown_on_website
 
 # Each What's New entry starts with its date in a bold table cell, e.g. <td style="..."><b>10/15/2026</b></td>
@@ -46,43 +47,30 @@ def main():
     if column_description_problems:
         sys.exit("Fix these column descriptions in bigquery-proxy/global_constants.py:\n  " + "\n  ".join(column_description_problems))
 
-    jinja2_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    jinja2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(WEBSITE_DIR))
 
-    # Get column descriptions to pass to templates
+    # The column lists are written into the pages' scripts with the tojson filter
     column_descriptions = get_column_descriptions()
-
-    # Get custom filter columns to pass to templates
     custom_filter_columns = get_custom_filter_columns()
-    custom_filter_columns_json = json.dumps(custom_filter_columns)
-
-    # Get exportable columns for the export dialog
     exportable_columns = get_exportable_columns()
-    exportable_columns_json = json.dumps(exportable_columns)
-
-    # Get the columns that the search results plots can use
-    plot_columns_json = json.dumps(get_plot_columns())
+    plot_columns = get_plot_columns()
 
     # The header's "What's New (date)" link shows the newest What's New entry date
-    with open("../whats_new.html", "r") as f:
-        latest_whats_new_date = find_latest_entry_date_in_whats_new(f.read())
+    latest_whats_new_date = find_latest_entry_date_in_whats_new((WEBSITE_DIR.parent / "whats_new.html").read_text())
 
-    for template_file in glob.glob("*_page_template.html"):
-        print(f"Processing {template_file}")
-        template_name = os.path.basename(template_file)
-
-        template = jinja2_env.get_template(template_name)
-        html_content = template.render(
+    for template_path in sorted(WEBSITE_DIR.glob("*_page_template.html")):
+        print(f"Processing {template_path.name}")
+        html_content = jinja2_env.get_template(template_path.name).render(
             column_descriptions=column_descriptions,
             column_group_rows=GROUP_ROWS_IN_COLUMN_DIALOGS,
-            custom_filter_columns_json=custom_filter_columns_json,
-            exportable_columns_json=exportable_columns_json,
-            plot_columns_json=plot_columns_json,
+            custom_filter_columns=custom_filter_columns,
+            exportable_columns=exportable_columns,
+            plot_columns=plot_columns,
             latest_whats_new_date=latest_whats_new_date,
         )
 
-        output_html_path = os.path.join("../", template_file.replace("_page_template", ""))
-        with open(output_html_path, "wt") as f:
-            f.write(html_content)
+        output_html_path = WEBSITE_DIR.parent / template_path.name.replace("_page_template", "")
+        output_html_path.write_text(html_content)
 
         print(f"Wrote {output_html_path}")
 

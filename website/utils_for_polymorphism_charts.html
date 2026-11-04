@@ -34,23 +34,27 @@
 
     // The dataset of a count matrix chart. Each cell fills its slot on the category axes (see
     // computeCountMatrixCellSize), so cells never overlap neighboring categories, and is shaded by the square root of its
-    // count relative to maxCount, so small counts stay visible. Both axes need offset: true so that the first and last
-    // cells are drawn in full.
-    const buildCountMatrixDataset = (data, maxCount, numXLabels, numYLabels) => ({
-        data: data,
-        width: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).width, numXLabels),
-        height: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).height, numYLabels),
-        backgroundColor: function(context) {
-            const value = context.dataset.data[context.dataIndex].v
-            if (value === 0) return 'rgba(255, 255, 255, 0)'
-            const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
-            return `rgba(33, 133, 208, ${alpha})`
-        },
-        borderColor: 'rgba(0, 0, 0, 0.5)',
-        borderWidth: function(context) {
-            return context.dataset.data[context.dataIndex].v === 0 ? 0 : 1
-        },
-    })
+    // count relative to the largest count, so small counts stay visible. Both axes need offset: true so that the first and
+    // last cells are drawn in full. fixedMaxCount, when given, is used as the largest count instead (HPRC256 charts,
+    // which have Population/Sex dropdowns, pass it so that the color scale stays the same across strata).
+    const buildCountMatrixDataset = (data, fixedMaxCount, numXLabels, numYLabels) => {
+        const maxCount = fixedMaxCount != null ? fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
+        return {
+            data: data,
+            width: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).width, numXLabels),
+            height: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).height, numYLabels),
+            backgroundColor: function(context) {
+                const value = context.dataset.data[context.dataIndex].v
+                if (value === 0) return 'rgba(255, 255, 255, 0)'
+                const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
+                return `rgba(33, 133, 208, ${alpha})`
+            },
+            borderColor: 'rgba(0, 0, 0, 0.5)',
+            borderWidth: function(context) {
+                return context.dataset.data[context.dataIndex].v === 0 ? 0 : 1
+            },
+        }
+    }
 
     // The bars of an allele size histogram, one per size from minAlleleSize - 1 to maxAlleleSize + 1, with the reference
     // allele's bar in orange, and the y-axis limit: the power of 10 at or above twice the largest count, divided by 2.
@@ -102,7 +106,9 @@
                 animation: false,
                 plugins: {
                     legend: {
-                        display: true,
+                        // A null refAlleleSize (no known reference allele size) colors no bar orange, so there's
+                        // nothing for the legend to explain
+                        display: refAlleleSize != null,
                         align: 'end',
                         // The legend explains the reference allele's color rather than standing for a dataset, so clicking
                         // it does nothing (Chart.js's default click handler would try to hide a dataset, and throw)
@@ -260,18 +266,13 @@
 
         const {labels, data} = binGenotypeCounts(chartData.data, chartData.minAlleleSize, chartData.maxAlleleSize)
 
-        // Calculate maxCount from the binned data. When fixedMaxCount is supplied
-        // (HPRC256 charts, which have Population/Sex dropdowns), use it so the color scale stays
-        // consistent as the user flips between Population/Sex strata.
-        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
-
         destroyExistingChart(thisObj)
 
         // Create the chart
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [buildCountMatrixDataset(data, maxCount, labels.length, labels.length)]
+                datasets: [buildCountMatrixDataset(data, chartData.fixedMaxCount, labels.length, labels.length)]
             },
             options: {
                 responsive: true,
@@ -396,14 +397,12 @@
 
         const yTickIsVisible = (label) => Math.abs(label * 10 - Math.round(label * 10)) < 1e-6
 
-        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
-
         destroyExistingChart(thisObj)
 
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [buildCountMatrixDataset(data, maxCount, xLabels.length, yLabels.length)]
+                datasets: [buildCountMatrixDataset(data, chartData.fixedMaxCount, xLabels.length, yLabels.length)]
             },
             options: {
                 responsive: true,

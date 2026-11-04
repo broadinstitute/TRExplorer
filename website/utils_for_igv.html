@@ -85,6 +85,7 @@
 
                 if (trackName == 'igv_gencode') {
                     tracks.push({
+                        id: trackName,
                         name: trackDisplayName,
                         format: 'refgene',
                         url: trackURL,
@@ -98,6 +99,7 @@
                     })
                 } else if (trackURL.endsWith('.bed.gz')) {
                     const bedTrack = {
+                        id: trackName,
                         format: 'bed',
                         name: trackDisplayName,
                         url: trackURL,
@@ -112,6 +114,7 @@
                     tracks.push(bedTrack)
                 } else if (trackURL.endsWith('.gtf.gz')) {
                     tracks.push({
+                        id: trackName,
                         format: 'gtf',
                         name: trackDisplayName,
                         url: trackURL,
@@ -121,6 +124,7 @@
                     })
                 } else {
                     tracks.push({
+                        id: trackName,
                         name: trackDisplayName,
                         url: trackURL,
                     })
@@ -171,9 +175,10 @@
             window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
 
             window.igvBrowser.on('trackremoved', (track) => {
-                // get the track id that matches the url
+                // a predefined track: unselect it. Each one's id is its page state key (see generateIgvConfig), since two
+                // of them share a URL.
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
-                    if (track.url === rt[2]) {
+                    if (track.id === rt[0]) {
                         const trackName = rt[0]
                         $(`input[name="${trackName}"]`).prop('checked', false)
                         GLOBAL_PAGE_STATE[trackName] = 0

@@ -9,7 +9,7 @@ import urllib.parse
 
 import pytest
 
-from test_basic_search import REGION_QUERY
+from test_basic_search import REGION_QUERY, select_dropdown_item
 
 
 @pytest.fixture(autouse=True)
@@ -71,9 +71,13 @@ def get_custom_filter_groups(page):
     return page.evaluate("() => customFilterGroups")
 
 
-def get_custom_filters_in_url(page):
-    """Returns the value of the "cf" parameter in the page's URL."""
-    return page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('cf')")
+# The JavaScript function that returns the value of a parameter in the page URL's hash, or null if it has none
+GET_URL_HASH_PARAM = "name => new URLSearchParams(location.hash.slice(1)).get(name)"
+
+
+def get_url_hash_param(page, name):
+    """Returns the value of the given parameter in the page URL's hash, or None if it has none."""
+    return page.evaluate(GET_URL_HASH_PARAM, name)
 
 
 def get_serialized_custom_filter_groups(page):
@@ -95,10 +99,16 @@ def assert_custom_filter_rows_match_model(page):
     assert page.evaluate(GET_CUSTOM_FILTER_ROWS_SHOWN_PER_GROUP_JS) == expected_rows_per_group
 
 
+def open_custom_filter_column_dialog(page, link_selector):
+    """Clicks a link that opens the custom filter column dialog, and waits until it's done opening, which is when it gets
+    the active class and starts responding to Escape."""
+    page.click(link_selector)
+    page.wait_for_selector("#custom-filter-column-dialog.active", state="visible")
+
+
 def add_custom_filters_with_dialog(page, link_selector, column_names):
     """Clicks a link that opens the custom filter column dialog, checks the given columns, and clicks Add Filters."""
-    page.click(link_selector)
-    page.wait_for_selector("#custom-filter-column-dialog", state="visible")
+    open_custom_filter_column_dialog(page, link_selector)
     assert page.locator("#custom-filter-column-checkboxes input:checked").count() == 0
     for column_name in column_names:
         page.click(f'#custom-filter-column-checkboxes input[data-column-name="{column_name}"] + label')
@@ -114,12 +124,6 @@ def get_add_another_custom_filter_link_selector(group_index):
 def get_custom_filter_row(page, group_index, row_index):
     """Returns a locator for one custom filter row."""
     return page.locator("#custom-filter-rows .custom-filter-group").nth(group_index).locator(".custom-filter-row").nth(row_index)
-
-
-def select_dropdown_item(row, dropdown_class, value):
-    """Opens one of a row's dropdowns and clicks the item with the given value."""
-    row.locator(f".{dropdown_class}").click()
-    row.locator(f'.{dropdown_class} .item[data-value="{value}"]').click()
 
 
 def capture_sql_of_searches(page):
@@ -219,7 +223,7 @@ def test_and_or_selectors_are_linked_within_a_group_only(page, base_url):
     open_index_page_with_custom_filters(
         page, base_url,
         "AoU1027_Stdev|>=|0.2|AND;HPRC256_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|<=|5|AND;ReferenceRepeatPurity|>=|0.5|AND")
-    select_dropdown_item(get_custom_filter_row(page, 1, 1), "custom-filter-conjunction", "OR")
+    select_dropdown_item(get_custom_filter_row(page, 1, 1), ".custom-filter-conjunction", "OR")
     assert [group["conjunction"] for group in get_custom_filter_groups(page)] == ["AND", "OR"]
     assert_custom_filter_rows_match_model(page)
     assert get_serialized_custom_filter_groups(page) == (
@@ -252,22 +256,22 @@ def test_form_edits_reach_the_url_only_when_the_search_button_is_pressed(page, b
     value_input.press("Tab")
     page.fill("#search-query", REGION_QUERY)
     page.locator("#search-query").press("Tab")
-    assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.2|AND"
-    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") is None
+    assert get_url_hash_param(page, "cf") == "AoU1027_Stdev|>=|0.2|AND"
+    assert get_url_hash_param(page, "q") is None
     assert page.evaluate("() => history.length") == history_length_before_edits
 
     # The search adds one history entry, whose URL holds the edits
     page.click("#search-button")
-    page.wait_for_function("() => new URLSearchParams(location.hash.slice(1)).get('showRs') === '1'")
-    assert get_custom_filters_in_url(page) == "AoU1027_Stdev|>=|0.5|AND"
-    assert page.evaluate("() => new URLSearchParams(location.hash.slice(1)).get('q')") == REGION_QUERY
+    page.wait_for_function(f"({GET_URL_HASH_PARAM})('showRs') === '1'")
+    assert get_url_hash_param(page, "cf") == "AoU1027_Stdev|>=|0.5|AND"
+    assert get_url_hash_param(page, "q") == REGION_QUERY
     assert page.evaluate("() => history.length") == history_length_before_edits + 1
 
 
 def test_editing_a_filter_row_updates_the_model(page, base_url):
     open_index_page_with_custom_filters(page, base_url, "AoU1027_Stdev|>=|0.2|AND;AND;TenK10K_Stdev|||AND")
     row = get_custom_filter_row(page, 1, 0)
-    select_dropdown_item(row, "custom-filter-op", "<=")
+    select_dropdown_item(row, ".custom-filter-op", "<=")
     row.locator(".custom-filter-value").fill("5")
     row.locator(".custom-filter-value").press("Tab")
     get_custom_filter_row(page, 0, 0).locator(".custom-filter-enable-checkbox label").click()
@@ -275,9 +279,9 @@ def test_editing_a_filter_row_updates_the_model(page, base_url):
     assert_custom_filter_rows_match_model(page)
 
     # A null check hides the value input, and changing the column clears the operator and shows the input again
-    select_dropdown_item(row, "custom-filter-op", "IS NULL")
+    select_dropdown_item(row, ".custom-filter-op", "IS NULL")
     assert not row.locator(".custom-filter-value").is_visible()
-    select_dropdown_item(row, "custom-filter-field", "GencodeGeneName")
+    select_dropdown_item(row, ".custom-filter-field", "GencodeGeneName")
     assert get_custom_filter_groups(page)[1]["filters"] == [
         {"column": "GencodeGeneName", "operator": "", "value": "5", "enabled": True}]
     assert row.locator(".custom-filter-value").is_visible()

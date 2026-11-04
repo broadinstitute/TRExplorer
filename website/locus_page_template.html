@@ -474,15 +474,12 @@
 
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
-        let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
-        locusPageRow2Box1 += `</div>`
-        $("#locus-page-row2-box1").html(locusPageRow2Box1)
-
-        let locusPageRow2Box2 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box2 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Right flank:</div>${showTruncatedSequence(row['ReferenceRightFlank'], 58, true, false, true)}`
-        locusPageRow2Box2 += `</div>`
-        $("#locus-page-row2-box2").html(locusPageRow2Box2)
+        for (const [boxId, label, columnName, isLeftFlank] of [
+            ['#locus-page-row2-box1', 'Left flank', 'ReferenceLeftFlank', true],
+            ['#locus-page-row2-box2', 'Right flank', 'ReferenceRightFlank', false],
+        ]) {
+            $(boxId).html(`<div style="padding: 40px 12px 0px 12px"><div class="locus-info-label info-font-size" style="padding-bottom: 10px">${label}:</div>${showTruncatedSequence(row[columnName], 58, true, isLeftFlank, true)}</div>`)
+        }
 
 
         // Generate summary stats table (above motif variability). Skip the
@@ -714,8 +711,9 @@
 
     initHeaderDialogLinks()
 
-    // The back link carries the URL parameters as they are when it's clicked, including changes made on this page
-    $('#back-to-search-link').on('click', function() {
+    // The back link carries the URL parameters as they are when it's used, including changes made on this page. It's
+    // updated before any way of following or copying it: a click, a middle click, the context menu, or Enter after Tab.
+    $('#back-to-search-link').on('mousedown focus contextmenu click', function() {
         this.href = `index.html?#${window.location.hash.substring(1)}`
     })
 

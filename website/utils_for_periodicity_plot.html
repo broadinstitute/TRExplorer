@@ -27,22 +27,11 @@
 
         for (let row = 0; row < clampedMax; row++) {
             const period = row + 1
-            // Motifs of different periods have different lengths, so each period gets its own cache, which lets the
-            // motifs of the periods already done be freed
-            const hashCache = new Map()
             for (let column = 0; column < sequence.length - period; column++) {
                 if (sequence[column] !== sequence[column + period]) {
                     continue
                 }
-                const motif = sequence.slice(column, column + period)
-                const shiftedMotif = shiftStringBy(motif, column % period)
-                if (hashCache.has(shiftedMotif)) {
-                    matrix[row][column] = hashCache.get(shiftedMotif)
-                } else {
-                    const hash = hashString(shiftedMotif)
-                    hashCache.set(shiftedMotif, hash)
-                    matrix[row][column] = hash
-                }
+                matrix[row][column] = hashString(shiftStringBy(sequence.slice(column, column + period), column % period))
             }
         }
 
@@ -197,7 +186,9 @@
         return matrix.map((row, index) => {
             const matches = row.reduce((count, value) => count + (value > 0 ? 1 : 0), 0)
             const period = index + 1
-            const denominator = Math.max(width - period + 1, 1)
+            // generatePeriodicityMatrix compares each position with the one a period later, so a period has
+            // width - period positions that can match
+            const denominator = Math.max(width - period, 1)
             return matches / denominator
         })
     }

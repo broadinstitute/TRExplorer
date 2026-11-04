@@ -1,7 +1,8 @@
 """Tests for export/download functionality.
 
-Searches for a query, enables all columns, then exports to each available format
-and verifies the file downloads successfully and is non-empty. For BED, TSV, and
+Searches for a query, shows all columns for the formats that export the shown columns (TSV
+and JSON), then exports to each available format and verifies the file downloads
+successfully and is non-empty. For BED, TSV, and
 JSON formats, also verifies that the number of rows matches the total result count.
 """
 
@@ -12,7 +13,10 @@ import urllib.request
 
 import pytest
 
-from test_basic_search import assert_no_errors, do_search, enable_all_columns
+from test_basic_search import REGION_QUERY, assert_no_errors, do_search, enable_all_columns
+
+# Formats whose exports have the columns shown in the results table
+FORMATS_WITH_SHOWN_COLUMNS = {"tsv", "json"}
 
 # All export format values from the dropdown
 EXPORT_FORMATS = [
@@ -36,9 +40,6 @@ FORMATS_WITHOUT_DIALOG = {"vamos"}
 
 # Formats where the exported row count should match the total search results
 FORMATS_WITH_EXACT_ROW_COUNT = {"bed", "tsv", "json"}
-
-# A query with a small number of results to keep exports fast
-EXPORT_QUERY = "chr4:3074000-3075000"
 
 # A region whose TR loci (OverlapGroupId 383854 in the 10/30/2026 catalog) form a chain: each overlaps the next, but
 # the first and last don't touch, so the 'longest' and 'purest' export options have to keep more than one of them
@@ -111,12 +112,7 @@ def do_export(page, fmt, overlap_handling=None):
 
 
 def fetch_export_content(url):
-    """Fetch exported file content from a GCS URL, handling gzip decompression.
-
-    Converts storage.cloud.google.com URLs to storage.googleapis.com for
-    direct public access.
-    """
-    url = url.replace("storage.cloud.google.com/", "storage.googleapis.com/")
+    """Fetch exported file content from a GCS URL, handling gzip decompression."""
     with urllib.request.urlopen(url) as resp:
         data = resp.read()
     # Detect gzip by its magic bytes (0x1f 0x8b) rather than the URL suffix: signed GCS URLs
@@ -140,8 +136,11 @@ def count_data_rows(content, fmt):
 def test_export_format(index_page, console_errors, fmt):
     """Export to a given format and verify the download is non-empty and error-free."""
     page = index_page
-    do_search(page, EXPORT_QUERY)
-    enable_all_columns(page)
+    # A search with a few results, to keep exports fast. Only the formats with the shown columns need all of them shown,
+    # which reruns the search.
+    do_search(page, REGION_QUERY)
+    if fmt in FORMATS_WITH_SHOWN_COLUMNS:
+        enable_all_columns(page)
 
     total_results = get_total_results(page)
     download_urls = do_export(page, fmt)

@@ -1085,6 +1085,7 @@ gtag('config', 'G-6R8FPBQRFH');
 
                 if (trackName == 'igv_gencode') {
                     tracks.push({
+                        id: trackName,
                         name: trackDisplayName,
                         format: 'refgene',
                         url: trackURL,
@@ -1098,6 +1099,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     })
                 } else if (trackURL.endsWith('.bed.gz')) {
                     const bedTrack = {
+                        id: trackName,
                         format: 'bed',
                         name: trackDisplayName,
                         url: trackURL,
@@ -1112,6 +1114,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     tracks.push(bedTrack)
                 } else if (trackURL.endsWith('.gtf.gz')) {
                     tracks.push({
+                        id: trackName,
                         format: 'gtf',
                         name: trackDisplayName,
                         url: trackURL,
@@ -1121,6 +1124,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     })
                 } else {
                     tracks.push({
+                        id: trackName,
                         name: trackDisplayName,
                         url: trackURL,
                     })
@@ -1171,9 +1175,10 @@ gtag('config', 'G-6R8FPBQRFH');
             window.igvBrowser = await igv.createBrowser(document.getElementById("igv-viewport"), config)
 
             window.igvBrowser.on('trackremoved', (track) => {
-                // get the track id that matches the url
+                // a predefined track: unselect it. Each one's id is its page state key (see generateIgvConfig), since two
+                // of them share a URL.
                 ALL_AVAILABLE_TRACKS.forEach((rt) => {
-                    if (track.url === rt[2]) {
+                    if (track.id === rt[0]) {
                         const trackName = rt[0]
                         $(`input[name="${trackName}"]`).prop('checked', false)
                         GLOBAL_PAGE_STATE[trackName] = 0
@@ -1536,22 +1541,11 @@ gtag('config', 'G-6R8FPBQRFH');
 
         for (let row = 0; row < clampedMax; row++) {
             const period = row + 1
-            // Motifs of different periods have different lengths, so each period gets its own cache, which lets the
-            // motifs of the periods already done be freed
-            const hashCache = new Map()
             for (let column = 0; column < sequence.length - period; column++) {
                 if (sequence[column] !== sequence[column + period]) {
                     continue
                 }
-                const motif = sequence.slice(column, column + period)
-                const shiftedMotif = shiftStringBy(motif, column % period)
-                if (hashCache.has(shiftedMotif)) {
-                    matrix[row][column] = hashCache.get(shiftedMotif)
-                } else {
-                    const hash = hashString(shiftedMotif)
-                    hashCache.set(shiftedMotif, hash)
-                    matrix[row][column] = hash
-                }
+                matrix[row][column] = hashString(shiftStringBy(sequence.slice(column, column + period), column % period))
             }
         }
 
@@ -1706,7 +1700,9 @@ gtag('config', 'G-6R8FPBQRFH');
         return matrix.map((row, index) => {
             const matches = row.reduce((count, value) => count + (value > 0 ? 1 : 0), 0)
             const period = index + 1
-            const denominator = Math.max(width - period + 1, 1)
+            // generatePeriodicityMatrix compares each position with the one a period later, so a period has
+            // width - period positions that can match
+            const denominator = Math.max(width - period, 1)
             return matches / denominator
         })
     }
@@ -1826,23 +1822,27 @@ gtag('config', 'G-6R8FPBQRFH');
 
     // The dataset of a count matrix chart. Each cell fills its slot on the category axes (see
     // computeCountMatrixCellSize), so cells never overlap neighboring categories, and is shaded by the square root of its
-    // count relative to maxCount, so small counts stay visible. Both axes need offset: true so that the first and last
-    // cells are drawn in full.
-    const buildCountMatrixDataset = (data, maxCount, numXLabels, numYLabels) => ({
-        data: data,
-        width: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).width, numXLabels),
-        height: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).height, numYLabels),
-        backgroundColor: function(context) {
-            const value = context.dataset.data[context.dataIndex].v
-            if (value === 0) return 'rgba(255, 255, 255, 0)'
-            const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
-            return `rgba(33, 133, 208, ${alpha})`
-        },
-        borderColor: 'rgba(0, 0, 0, 0.5)',
-        borderWidth: function(context) {
-            return context.dataset.data[context.dataIndex].v === 0 ? 0 : 1
-        },
-    })
+    // count relative to the largest count, so small counts stay visible. Both axes need offset: true so that the first and
+    // last cells are drawn in full. fixedMaxCount, when given, is used as the largest count instead (HPRC256 charts,
+    // which have Population/Sex dropdowns, pass it so that the color scale stays the same across strata).
+    const buildCountMatrixDataset = (data, fixedMaxCount, numXLabels, numYLabels) => {
+        const maxCount = fixedMaxCount != null ? fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
+        return {
+            data: data,
+            width: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).width, numXLabels),
+            height: ({chart}) => computeCountMatrixCellSize((chart.chartArea || {}).height, numYLabels),
+            backgroundColor: function(context) {
+                const value = context.dataset.data[context.dataIndex].v
+                if (value === 0) return 'rgba(255, 255, 255, 0)'
+                const alpha = Math.pow(value / maxCount, 0.5)  // Square root to make small values more visible
+                return `rgba(33, 133, 208, ${alpha})`
+            },
+            borderColor: 'rgba(0, 0, 0, 0.5)',
+            borderWidth: function(context) {
+                return context.dataset.data[context.dataIndex].v === 0 ? 0 : 1
+            },
+        }
+    }
 
     // The bars of an allele size histogram, one per size from minAlleleSize - 1 to maxAlleleSize + 1, with the reference
     // allele's bar in orange, and the y-axis limit: the power of 10 at or above twice the largest count, divided by 2.
@@ -1894,7 +1894,9 @@ gtag('config', 'G-6R8FPBQRFH');
                 animation: false,
                 plugins: {
                     legend: {
-                        display: true,
+                        // A null refAlleleSize (no known reference allele size) colors no bar orange, so there's
+                        // nothing for the legend to explain
+                        display: refAlleleSize != null,
                         align: 'end',
                         // The legend explains the reference allele's color rather than standing for a dataset, so clicking
                         // it does nothing (Chart.js's default click handler would try to hide a dataset, and throw)
@@ -2052,18 +2054,13 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const {labels, data} = binGenotypeCounts(chartData.data, chartData.minAlleleSize, chartData.maxAlleleSize)
 
-        // Calculate maxCount from the binned data. When fixedMaxCount is supplied
-        // (HPRC256 charts, which have Population/Sex dropdowns), use it so the color scale stays
-        // consistent as the user flips between Population/Sex strata.
-        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
-
         destroyExistingChart(thisObj)
 
         // Create the chart
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [buildCountMatrixDataset(data, maxCount, labels.length, labels.length)]
+                datasets: [buildCountMatrixDataset(data, chartData.fixedMaxCount, labels.length, labels.length)]
             },
             options: {
                 responsive: true,
@@ -2188,14 +2185,12 @@ gtag('config', 'G-6R8FPBQRFH');
 
         const yTickIsVisible = (label) => Math.abs(label * 10 - Math.round(label * 10)) < 1e-6
 
-        const maxCount = chartData.fixedMaxCount != null ? chartData.fixedMaxCount : (data.length > 0 ? Math.max(...data.map(d => d.v)) : 1)
-
         destroyExistingChart(thisObj)
 
         new Chart(thisObj, {
             type: 'matrix',
             data: {
-                datasets: [buildCountMatrixDataset(data, maxCount, xLabels.length, yLabels.length)]
+                datasets: [buildCountMatrixDataset(data, chartData.fixedMaxCount, xLabels.length, yLabels.length)]
             },
             options: {
                 responsive: true,
@@ -2395,10 +2390,10 @@ gtag('config', 'G-6R8FPBQRFH');
         "#08519c", "#4292c6", "#9ecae1",
         "#f8bbd0", "#f48fb1", "#d81b60",
         "#1b9e77", "#66c2a5", "#8dd3c7",
-        "#f9c74f", "#fee191", "#fcbba1",
+        "#f9c74f",
     ]
     const OTHER_MOTIFS_COLOR = "#333333"
-    const MAX_COLORED_CANONICAL_MOTIFS = 10
+    const MAX_COLORED_CANONICAL_MOTIFS = MOTIF_COLORS.length
 
     const SHOW_COLUMNS_VALUE_DELIMITER = ','
 
@@ -2556,11 +2551,11 @@ gtag('config', 'G-6R8FPBQRFH');
         return pop || sexData
     }
 
-    // The interval the catalog row's HPRC256_* (LPS), purity and methylation columns describe: its narrowest one
+    // The interval the catalog row's HPRC256_* (LPS) and purity columns describe: its narrowest one
     const getHprc256CatalogInterval = (mainCatalogRow) => mainCatalogRow['HPRC256_NarrowestInterval']
         || mainCatalogRow.__hprc256DefaultInterval
         || null
-    // The interval the HPRC256 (LPS), purity and methylation charts show: the locus page's interval selection, if any
+    // The interval the HPRC256 (LPS) and purity charts show: the locus page's interval selection, if any
     const getSelectedHprc256Interval = (mainCatalogRow) => GLOBAL_PAGE_STATE['hprc256_interval']
         || getHprc256CatalogInterval(mainCatalogRow)
     // The interval the catalog row's methylation distribution describes. The methylation table has no row at the
@@ -2578,9 +2573,9 @@ gtag('config', 'G-6R8FPBQRFH');
     //
     // mainColumn:        column on the main catalog row (catalog interval, "All" stratum).
     // unsuffixedColumn:  column on the stratified BQ table that holds the "All" stratum value
-    //                    for a given (LocusId, Interval) — used when the user picks a
-    //                    non-narrowest interval (the catalog row's mainColumn is stale).
-    // stratColPrefix:    prefix for per-stratum columns on the stratified BQ table.
+    //                    for a given (LocusId, Interval) — used when the interval shown differs from
+    //                    the one mainColumn describes (getCatalogInterval). Each stratum's column on that table
+    //                    is this name followed by '__' and the stratum.
     // chartType:         which chart draws it: alleleHistogram, biallelicHistogram or sizeAndValueHeatmap.
     // locusIdColumn, intervalColumn: the stratified BQ table's names for those two columns.
     // getSelectedInterval, getCatalogInterval: the interval to show, and the one mainColumn describes.
@@ -2588,7 +2583,6 @@ gtag('config', 'G-6R8FPBQRFH');
         allele: {
             mainColumn:          'HPRC256_AlleleHistogram',
             unsuffixedColumn:    'AlleleSizeHistogram',
-            stratColPrefix:      'AlleleSizeHistogram__',
             completeTableId:     HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
             urlPopField:         'hprc256_allele_pop',
@@ -2602,7 +2596,6 @@ gtag('config', 'G-6R8FPBQRFH');
         biallelic: {
             mainColumn:          'HPRC256_BiallelicHistogram',
             unsuffixedColumn:    'BiallelicHistogram',
-            stratColPrefix:      'BiallelicHistogram__',
             completeTableId:     HPRC256_LPS_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256LpsStratifiedRow',
             urlPopField:         'hprc256_biallelic_pop',
@@ -2616,7 +2609,6 @@ gtag('config', 'G-6R8FPBQRFH');
         totalLengthAllele: {
             mainColumn:          'HPRC256TotalLength_AlleleHistogram',
             unsuffixedColumn:    'AlleleSizeHistogram',
-            stratColPrefix:      'AlleleSizeHistogram__',
             completeTableId:     HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256TotalLengthStratifiedRow',
             urlPopField:         'hprc256_total_length_allele_pop',
@@ -2630,7 +2622,6 @@ gtag('config', 'G-6R8FPBQRFH');
         totalLengthBiallelic: {
             mainColumn:          'HPRC256TotalLength_BiallelicHistogram',
             unsuffixedColumn:    'BiallelicHistogram',
-            stratColPrefix:      'BiallelicHistogram__',
             completeTableId:     HPRC256_TOTAL_LENGTH_STRATIFIED_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256TotalLengthStratifiedRow',
             urlPopField:         'hprc256_total_length_biallelic_pop',
@@ -2644,7 +2635,6 @@ gtag('config', 'G-6R8FPBQRFH');
         purity: {
             mainColumn:          'HPRC256_AlleleSizeAndPurityDistribution',
             unsuffixedColumn:    'AlleleSizeAndPurityDistribution',
-            stratColPrefix:      'AlleleSizeAndPurityDistribution__',
             completeTableId:     HPRC256_ALLELE_PURITY_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256PurityStratifiedRow',
             urlPopField:         'hprc256_purity_pop',
@@ -2658,7 +2648,6 @@ gtag('config', 'G-6R8FPBQRFH');
         methylation: {
             mainColumn:          'HPRC256_AlleleSizeAndMethylationDistribution',
             unsuffixedColumn:    'AlleleSizeAndMethylationDistribution',
-            stratColPrefix:      'AlleleSizeAndMethylationDistribution__',
             completeTableId:     HPRC256_METHYLATION_COMPLETE_TABLE_ID,
             cacheKey:            '_hprc256MethylationStratifiedRow',
             urlPopField:         'hprc256_methylation_pop',
@@ -3049,7 +3038,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
         GLOBAL_PAGE_STATE[cfg.urlPopField] = pop
         GLOBAL_PAGE_STATE[cfg.urlSexField] = sexData
-        writePersistentPageStateToUrl()
+        // The selection is kept in the URL without adding a history entry, since on the search page Back would otherwise
+        // rerun the search
+        writePersistentPageStateToUrl(true)
 
         // In-flight token: rapid stratum / interval changes can fire multiple
         // concurrent fetches. Stamp the controls element with the current call's
@@ -3071,7 +3062,7 @@ gtag('config', 'G-6R8FPBQRFH');
             if (!stratum && !usingNonDefaultInterval) {
                 histogramString = mainCatalogRow[cfg.mainColumn]
             } else {
-                const stratifiedColName = stratum ? (cfg.stratColPrefix + stratum) : cfg.unsuffixedColumn
+                const stratifiedColName = stratum ? `${cfg.unsuffixedColumn}__${stratum}` : cfg.unsuffixedColumn
                 // fetchHprc256StratifiedRow returns a cached row right away, so the spinner is shown only for a query
                 const isRowCached = window.searchResults
                     && buildHprc256StratifiedRowCacheKey(cfg, mainCatalogRow.LocusId, activeInterval) in window.searchResults
@@ -3088,8 +3079,13 @@ gtag('config', 'G-6R8FPBQRFH');
             // renderChartsInPolymorphismDialog saved on the canvas come from the catalog row's interval, so for another
             // interval they're computed from that interval's unstratified values instead, so that its alleles outside
             // the catalog interval's range still show.
+            // The purity and methylation heatmaps share their ranges, and their catalog columns can describe different
+            // intervals (see getHprc256MethylationCatalogInterval), so they keep the saved ranges exactly when the default
+            // interval is selected, which keeps the two charts' ranges the same.
             const parseSavedRange = (value) => value != null ? parseFloat(value) : null
-            fixedRanges = usingNonDefaultInterval
+            const isShowingAnotherIntervalThanTheSavedRanges = cfg.chartType === 'sizeAndValueHeatmap'
+                ? !!GLOBAL_PAGE_STATE['hprc256_interval'] : usingNonDefaultInterval
+            fixedRanges = isShowingAnotherIntervalThanTheSavedRanges
                 ? await computeHprc256FixedRangesForInterval(chartKind, mainCatalogRow.LocusId, activeInterval)
                 : {
                     minAlleleSize: parseSavedRange(canvasEl.dataset.fixedMinAlleleSize),
@@ -3123,7 +3119,9 @@ gtag('config', 'G-6R8FPBQRFH');
             return
         }
 
-        const refAlleleSize = parseInt(canvasEl.dataset.refAlleleSize)
+        // The reference allele size comes from the catalog row, so it describes the catalog's interval. For another
+        // interval, whose alleles are measured over a different span, the chart shows no reference allele.
+        const refAlleleSize = usingNonDefaultInterval ? null : parseInt(canvasEl.dataset.refAlleleSize)
         const sharedOpts = {
             thisObj: canvasEl, refAlleleSize,
             axisUnits: canvasEl.dataset.axisUnits,
@@ -3471,6 +3469,15 @@ gtag('config', 'G-6R8FPBQRFH');
         return html
     }
 
+    // A note for a locus whose methylation data come from another interval than its narrowest one, which the interval
+    // selector shows as the default
+    const describeHprc256MethylationInterval = (row) => {
+        const methylationInterval = row['HPRC256_MethylationInterval']
+        return methylationInterval && methylationInterval !== row['HPRC256_NarrowestInterval']
+            ? `<br />There are no methylation calls at ${row['HPRC256_NarrowestInterval']} for this locus, so by default this heatmap shows the ones at ${methylationInterval}`
+            : ''
+    }
+
     // Added to the subtitle of the HPRC256 total allele length charts of a locus in a variation cluster, whose values
     // describe the whole cluster
     const describeHprc256TotalLengthInterval = (row) => {
@@ -3568,7 +3575,7 @@ gtag('config', 'G-6R8FPBQRFH');
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
                 ${columnsWithData.map(columnName => `
                         <div style="border-top: 1px dashed #ccc; padding: 23px 20px 15px 15px;">
-                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}${columnName.startsWith('HPRC256TotalLength_') ? describeHprc256TotalLengthInterval(row) : ''}</span></div>
+                            <div style="margin-bottom: 5px;"><b>${ALLELE_FREQUENCY_CHART_TITLES[columnName]}</b><br /><span style="color: #686868;">${ALLELE_FREQUENCY_CHART_SUBTITLES[columnName]}${columnName.startsWith('HPRC256TotalLength_') ? describeHprc256TotalLengthInterval(row) : ''}${columnName === 'HPRC256_AlleleSizeAndMethylationDistribution' ? describeHprc256MethylationInterval(row) : ''}</span></div>
                             ${renderCanvas(columnName)}
                             ${renderHprc256StratumControlsForColumn(columnName)}
                         </div>
@@ -4990,23 +4997,16 @@ gtag('config', 'G-6R8FPBQRFH');
                             </div>
                         `.replace(/\s+/g, ' ').trim()
 
-                    return `<span class="action-cell show-popup" data-html='${clusterDetails}'>
-                            <i class="check circle icon"></i><span class="action-link">Yes</span>
-                        </span>: +${Number(row['VariationClusterSizeDiff']).toLocaleString('en-US')}bp`
+                    return buildCellValueWithPopup('<i class="check circle icon"></i><span class="action-link">Yes</span>',
+                        clusterDetails) + `: +${Number(row['VariationClusterSizeDiff']).toLocaleString('en-US')}bp`
                 } else if ( row['VariationClusterFilterReason'] ) {
-                    if (row['VariationClusterFilterReason'] == 'DEPTH') {
-                        return `<span class="action-cell show-popup" data-html="<b>Depth Filter:</b> Variation cluster not computed due to low depth in this region in the PacBio HiFi population dataset used to generate variation clusters">
-                                <i class="times circle outline icon" style="color:gold"></i>
-                            </span>`
-                    } else if (row['VariationClusterFilterReason'] == 'EXTENSION') {
-                        return `<span class="action-cell show-popup" data-html="<b>Size Filter:</b> Variation cluster filtered out because its width exceeded the maximum variation cluster size threshold">
-                                <i class="times circle outline icon" style="color:darkred"></i>
-                            </span>`
-                    } else {
-                        return `<span class="action-cell show-popup" data-html="${row['VariationClusterFilterReason']}">
-                                <i class="times circle outline icon" style="color:darkorange"></i>
-                            </span>`
-                    }
+                    const reason = row['VariationClusterFilterReason']
+                    const [iconColor, reasonHtml] = reason === 'DEPTH'
+                        ? ['gold', '<b>Depth Filter:</b> Variation cluster not computed due to low depth in this region in the PacBio HiFi population dataset used to generate variation clusters']
+                        : reason === 'EXTENSION'
+                            ? ['darkred', '<b>Size Filter:</b> Variation cluster filtered out because its width exceeded the maximum variation cluster size threshold']
+                            : ['darkorange', escapeHtmlText(reason)]
+                    return buildCellValueWithPopup(`<i class="times circle outline icon" style="color:${iconColor}"></i>`, reasonHtml)
                 }
                 return ''
             },
@@ -5307,7 +5307,8 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256_BiallelicHistogram',
         'HPRC256_AlleleSizeAndPurityDistribution',
         'HPRC256_AlleleSizeAndMethylationDistribution',
-        // The interval the HPRC256 columns above describe, which the stratified population and sex queries are pinned to
+        // The interval the HPRC256 LPS and purity columns above describe, which their stratified population and sex
+        // queries are pinned to
         'HPRC256_NarrowestInterval',
         // Where the LPS charts mark the reference, and the interval of the methylation distribution
         'HPRC256_ReferenceLPSRepeatCount',
@@ -5949,7 +5950,9 @@ gtag('config', 'G-6R8FPBQRFH');
             // into a data: URI so the link downloads without any event wiring.
             // encodeURIComponent leaves single quotes as they are, so they're encoded too, to keep the link safe inside
             // the single-quoted data-html attribute below.
-            const allMotifsTsv = 'motif\tHPRC256_count\n' + Object.keys(motifCounts)
+            // The counts are of occurrences in the distinct allele sequences, not weighted by how many haplotypes have each
+            // (see buildMotifColorMap)
+            const allMotifsTsv = 'motif\toccurrences_in_distinct_HPRC256_alleles\n' + Object.keys(motifCounts)
                 .sort((a, b) => motifCounts[b] - motifCounts[a] || (a < b ? -1 : a > b ? 1 : 0))
                 .map(m => `${m}\t${motifCounts[m]}`)
                 .join('\n')
@@ -5960,7 +5963,7 @@ gtag('config', 'G-6R8FPBQRFH');
             // column (horizontal scroll) instead of scrolling down. The Download link
             // sits after the columns (full-width, past a blank-line gap) so it appears
             // at the very bottom of the scroll.
-            const popupHtml = `<div style="min-width:240px; max-width:min(90vw, 640px);"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="max-height:50vh; overflow-y:auto; overflow-x:hidden;"><div style="column-width:${rareColCh}ch; column-gap:18px; font-size:0.9em; line-height:1.5;">${rareHtml}</div><div style="margin-top:1.4em; font-size:0.9em;"><a href="${downloadHref}" download="HPRC256_motif_counts.tsv" style="color:#4183c4; text-decoration:underline;">Download</a></div></div></div>`
+            const popupHtml = `<div style="min-width:240px; max-width:min(90vw, 640px);"><div style="font-size:0.9em; font-weight:700; color:#333; margin-bottom:6px;">Rare motif units</div><div style="max-height:50vh; overflow-y:auto; overflow-x:hidden;"><div style="column-width:${rareColCh}ch; column-gap:18px; font-size:0.9em; line-height:1.5;">${rareHtml}</div><div style="margin-top:1.4em; font-size:0.9em;"><a href="${downloadHref}" download="HPRC256_motif_occurrences_in_distinct_alleles.tsv" style="color:#4183c4; text-decoration:underline;">Download</a></div></div></div>`
             items.push(`<span class="show-popup action-link" data-position="top center" data-html='${popupHtml}'
                 style="display:inline-flex; align-items:center; margin:0 12px 4px 0;">
                 <span style="display:inline-block; width:14px; height:14px; background:${OTHER_MOTIFS_COLOR}; margin-right:5px; border:1px solid #ccc;"></span>
@@ -6834,15 +6837,12 @@ gtag('config', 'G-6R8FPBQRFH');
 
         $("#locus-page-row1-box2").html(locusPageRow1Box2)
 
-        let locusPageRow2Box1 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box1 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Left flank:</div>${showTruncatedSequence(row['ReferenceLeftFlank'], 58, true, true, true)}`
-        locusPageRow2Box1 += `</div>`
-        $("#locus-page-row2-box1").html(locusPageRow2Box1)
-
-        let locusPageRow2Box2 = `<div style="padding: 40px 12px 0px 12px">`
-        locusPageRow2Box2 += `<div class="locus-info-label info-font-size" style="padding-bottom: 10px">Right flank:</div>${showTruncatedSequence(row['ReferenceRightFlank'], 58, true, false, true)}`
-        locusPageRow2Box2 += `</div>`
-        $("#locus-page-row2-box2").html(locusPageRow2Box2)
+        for (const [boxId, label, columnName, isLeftFlank] of [
+            ['#locus-page-row2-box1', 'Left flank', 'ReferenceLeftFlank', true],
+            ['#locus-page-row2-box2', 'Right flank', 'ReferenceRightFlank', false],
+        ]) {
+            $(boxId).html(`<div style="padding: 40px 12px 0px 12px"><div class="locus-info-label info-font-size" style="padding-bottom: 10px">${label}:</div>${showTruncatedSequence(row[columnName], 58, true, isLeftFlank, true)}</div>`)
+        }
 
 
         // Generate summary stats table (above motif variability). Skip the
@@ -7074,8 +7074,9 @@ gtag('config', 'G-6R8FPBQRFH');
 
     initHeaderDialogLinks()
 
-    // The back link carries the URL parameters as they are when it's clicked, including changes made on this page
-    $('#back-to-search-link').on('click', function() {
+    // The back link carries the URL parameters as they are when it's used, including changes made on this page. It's
+    // updated before any way of following or copying it: a click, a middle click, the context menu, or Enter after Tab.
+    $('#back-to-search-link').on('mousedown focus contextmenu click', function() {
         this.href = `index.html?#${window.location.hash.substring(1)}`
     })
 

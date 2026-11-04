@@ -741,11 +741,11 @@
     }
 
     // Columns that can be used for filtering in the UI, with their display names and group
-    const CUSTOM_FILTER_COLUMNS = {{ custom_filter_columns_json }}
+    const CUSTOM_FILTER_COLUMNS = {{ custom_filter_columns | tojson }}
 
     // Columns available for TSV/JSON export with their display names and group
     // Generated from MAIN_BIGQUERY_TABLE_COLUMNS in global_constants.py
-    const EXPORT_COLUMN_OPTIONS = {{ exportable_columns_json }}
+    const EXPORT_COLUMN_OPTIONS = {{ exportable_columns | tojson }}
 
     const generateDiseaseAssociatedIcon = (row, linkText) => {
         if (row.DiseaseInfo == null) {
@@ -794,7 +794,7 @@
         searchSeq++
         // Marks the form as being filled in from the URL, so that its dropdowns' onChange handlers don't treat the
         // changes as the user's. The flag is reset either explicitly (after the form is filled in, before the search at
-        // the end) or in the finally block (if an earlier await rejects).
+        // the end) or in the finally block (if filling in the form throws).
         isFormBeingFilledInFromUrl = true
         try {
 
@@ -809,6 +809,24 @@
         GLOBAL_PAGE_STATE['showColumns'] = shownColumnNames.length > 0 || GLOBAL_PAGE_STATE['showColumns'] === ''
             ? shownColumnNames.join(SHOW_COLUMNS_VALUE_DELIMITER)
             : DEFAULT_GLOBAL_PAGE_STATE['showColumns']
+        // A catalog the dropdown doesn't offer would leave it empty and search the whole table, so links from before
+        // the current catalog choices get the closest choice, and any other unknown value the default one. The old
+        // known disease loci catalog kept the loci that overlap a known disease locus, which a custom filter group
+        // still does. The old Illumina 174k catalog kept the loci flagged as found in it, which can only be
+        // approximated by the loci whose source is that catalog (a few dozen fewer).
+        const sourceCatalog = GLOBAL_PAGE_STATE['sourceCatalog']
+        if (sourceCatalog === 'known_disease_loci') {
+            const existingCustomFilters = `${GLOBAL_PAGE_STATE['customFilters']}`
+            const knownDiseaseLocusFilterGroup = 'KnownDiseaseAssociatedLocus|IS NOT NULL||AND'
+            GLOBAL_PAGE_STATE['customFilters'] = existingCustomFilters
+                ? `${existingCustomFilters};${CUSTOM_FILTER_GROUP_SEPARATOR_IN_URL};${knownDiseaseLocusFilterGroup}`
+                : knownDiseaseLocusFilterGroup
+        }
+        if (!SOURCE_CATALOGS.some(catalog => catalog.value === sourceCatalog)) {
+            GLOBAL_PAGE_STATE['sourceCatalog'] = sourceCatalog === 'illumina_174k_catalog'
+                ? 'source_Illumina174kPolymorphicTRs'
+                : DEFAULT_GLOBAL_PAGE_STATE['sourceCatalog']
+        }
         for (const key of ['customFilters', 'extraPolymorphismFilters', 'plots']) {
             GLOBAL_PAGE_STATE[key] = `${GLOBAL_PAGE_STATE[key]}` // convert to string
         }
@@ -876,7 +894,7 @@
         // link back here carries, and with the filters as the form normalized them), so the writes after the search below
         // find the same hash and add no history entry. Otherwise each visit to this entry would add a new one, and the
         // Back button couldn't leave the page.
-        copySearchFormStateToPageState()
+        Object.assign(GLOBAL_PAGE_STATE, readSearchFormState())
         writePersistentPageStateToUrl(true)
 
         isFormBeingFilledInFromUrl = false
@@ -894,19 +912,15 @@
             await performSearch(false)
         } else {
             // e.g. after Back to the page as it was before the first search: clear the previous results
-            destroyResultsTableCharts()
-            $('#results-table').empty()
-            $('.pagination-container, #loading-container, #search-results-plots-area, #error-message, #search-warning-message, #igv-nav-container').hide()
+            clearDisplayedSearchResults()
+            $('#loading-container, #search-results-plots-area, #error-message, #search-warning-message').hide()
             $('body').css('cursor', 'default')
-            // So the IGV result navigation (updateIgvNavButtons) stays hidden
-            window.searchResults = null
-            window.igvNavActive = false
             if (isUploadedFileMissing) {
                 displayError('This search used an uploaded file, which the page no longer has (uploaded files are not kept after a page reload, and are not part of shared links). Please upload the file again.')
             }
         }
         } finally {
-            // Reset even if an earlier await (e.g. updateIgv) rejected before the explicit reset above
+            // Reset even if filling in the form threw before the explicit reset above
             isFormBeingFilledInFromUrl = false
         }
     }
@@ -989,7 +1003,7 @@
                 </div>
                 <div class="export-selector">
                     <span class="export-label"><b>Export to:</b></span>
-                    <div class="ui selection dropdown export-dropdown" id="export-dropdown" style="min-width: 160px">
+                    <div class="ui selection dropdown export-dropdown" style="min-width: 160px">
                         <input type="hidden" name="export-format">
                         <i class="dropdown icon"></i>
                         <div class="default text">Select format</div>
@@ -1157,9 +1171,9 @@
     }
 
     // Fills $container with a box of checkboxes for each column group, laid out in groupRows (a list of rows of group
-    // names), and sets up the checkboxes. Each checkbox is named inputNamePrefix followed by its column name, and starts
-    // checked when isColumnChecked(column name) is true.
-    const buildGroupedColumnCheckboxes = ($container, columnsByGroup, groupRows, inputNamePrefix, isColumnChecked) => {
+    // names), and sets up the checkboxes. Each checkbox holds its column name in data-column-name, and starts checked
+    // when isColumnChecked(column name) is true.
+    const buildGroupedColumnCheckboxes = ($container, columnsByGroup, groupRows, isColumnChecked) => {
         $container.empty()
         groupRows.forEach(groupRow => {
             const rowDiv = $('<div class="export-column-group-row"></div>')
@@ -1178,7 +1192,7 @@
                     itemsContainer.append(`
                         <div class="export-column-checkbox-item">
                             <div class="ui checkbox">
-                                <input type="checkbox" name="${inputNamePrefix}${col.name}" data-column-name="${col.name}" ${isColumnChecked(col.name) ? 'checked' : ''}>
+                                <input type="checkbox" data-column-name="${col.name}" ${isColumnChecked(col.name) ? 'checked' : ''}>
                                 <label>${col.displayName}</label>
                             </div>
                             ${helpIcon}
@@ -1233,7 +1247,7 @@
                     TABLE_COLUMNS[columnName] ? TABLE_COLUMNS[columnName].getRequiredColumns() : []))
 
             buildGroupedColumnCheckboxes($('#export-column-checkboxes'), groupColumnsByGroup(EXPORT_COLUMN_OPTIONS),
-                BIGQUERY_COLUMN_GROUP_ROWS, 'export_col_', (columnName) => preSelectedExportColumns.has(columnName))
+                BIGQUERY_COLUMN_GROUP_ROWS, (columnName) => preSelectedExportColumns.has(columnName))
         }
 
         // Initialize Semantic UI radio buttons
@@ -1526,34 +1540,39 @@
     let isFormBeingFilledInFromUrl = true
 
     // Whether the advanced search panel is open. Its settings apply to a search only while it is. GLOBAL_PAGE_STATE's
-    // showAdvFilters is the value for the search on screen, and is set from this one when the next search starts.
+    // showAdvFilters is the value for the search on screen, and is set from this one when the next search's results
+    // arrive.
     let isAdvancedSearchPanelOpen = false
 
-    // Copies the search box and the advanced search form's settings into GLOBAL_PAGE_STATE. This happens only when a
-    // search starts, so GLOBAL_PAGE_STATE and the URL describe the search on screen, never form edits not yet searched.
-    const copySearchFormStateToPageState = () => {
-        GLOBAL_PAGE_STATE['showAdvFilters'] = isAdvancedSearchPanelOpen ? 1 : 0
-        GLOBAL_PAGE_STATE['uploadedFileId'] = UPLOADED_FILE ? UPLOADED_FILE.id : 0
-        GLOBAL_PAGE_STATE['searchQuery'] = $('#search-query').val()
-        GLOBAL_PAGE_STATE['sourceCatalog'] = $('#source-catalog-dropdown').dropdown('get value')
-        GLOBAL_PAGE_STATE['keepMotifSize'] = $('#motif-size-input').val()
-        GLOBAL_PAGE_STATE['keepMotif'] = $('#motif-input').val()
-        for (const checkboxName of ADVANCED_SEARCH_CHECKBOX_NAMES) {
-            GLOBAL_PAGE_STATE[checkboxName] = $(`input[name="${checkboxName}"]`).prop('checked') ? 1 : 0
+    // Reads the search box and the advanced search form's settings, keyed like GLOBAL_PAGE_STATE (see
+    // ADVANCED_SEARCH_PAGE_STATE_KEYS). They're copied into GLOBAL_PAGE_STATE only when a search's results arrive, so
+    // GLOBAL_PAGE_STATE and the URL describe the search on screen, never form edits not yet searched.
+    const readSearchFormState = () => {
+        const searchFormState = {
+            showAdvFilters: isAdvancedSearchPanelOpen ? 1 : 0,
+            uploadedFileId: UPLOADED_FILE ? UPLOADED_FILE.id : 0,
+            searchQuery: $('#search-query').val(),
+            sourceCatalog: $('#source-catalog-dropdown').dropdown('get value'),
+            keepMotifSize: $('#motif-size-input').val(),
+            keepMotif: $('#motif-input').val(),
+            keepLociThatOverlapLocusSetSelection: $('#overlap-locus-set-dropdown').dropdown('get value'),
+            polymorphismFilterType: $('#polymorphism-filter-dropdown').dropdown('get value'),
+            polymorphismThreshold: $('input[name="polymorphismThreshold"]').val(),
+            vcFilterType: $('#variation-cluster-filter-dropdown').dropdown('get value'),
+            customFilters: serializeCustomFilterGroups(customFilterGroups),
+            extraPolymorphismFilters: serializeExtraPolymorphismFilters(),
         }
-        GLOBAL_PAGE_STATE['keepLociThatOverlapLocusSetSelection'] = $('#overlap-locus-set-dropdown').dropdown('get value')
-        GLOBAL_PAGE_STATE['polymorphismFilterType'] = $('#polymorphism-filter-dropdown').dropdown('get value')
-        GLOBAL_PAGE_STATE['polymorphismThreshold'] = $('input[name="polymorphismThreshold"]').val()
-        GLOBAL_PAGE_STATE['vcFilterType'] = $('#variation-cluster-filter-dropdown').dropdown('get value')
-        GLOBAL_PAGE_STATE['customFilters'] = serializeCustomFilterGroups(customFilterGroups)
-        GLOBAL_PAGE_STATE['extraPolymorphismFilters'] = serializeExtraPolymorphismFilters()
+        for (const checkboxName of ADVANCED_SEARCH_CHECKBOX_NAMES) {
+            searchFormState[checkboxName] = $(`input[name="${checkboxName}"]`).prop('checked') ? 1 : 0
+        }
+        return searchFormState
     }
 
     // Opens the column dialog, which makes a filter for each column checked in it and passes them to onAddFilters
     // (see addNewCustomFiltersToGroups)
     const showCustomFilterColumnDialog = (onAddFilters) => {
         buildGroupedColumnCheckboxes($('#custom-filter-column-checkboxes'), groupCustomFilterColumnsByGroup(CUSTOM_FILTER_COLUMNS),
-            CUSTOM_FILTER_GROUP_ROWS, 'cf_col_', () => false)
+            CUSTOM_FILTER_GROUP_ROWS, () => false)
 
         // The help text popups are set up after the dialog opens, because opening a modal the first time clears
         // popups set up on its contents. allowMultiple keeps the plot dialog open when its filters open this dialog,
@@ -1615,9 +1634,6 @@
         'polymorphismFilterType', 'polymorphismThreshold', 'vcFilterType', 'customFilters', 'extraPolymorphismFilters',
         ...ADVANCED_SEARCH_CHECKBOX_NAMES,
     ]
-
-    // The GLOBAL_PAGE_STATE keys that decide which loci a search returns
-    const SEARCH_PAGE_STATE_KEYS = ['searchQuery', 'uploadedFileId', 'showAdvFilters', ...ADVANCED_SEARCH_PAGE_STATE_KEYS]
 
     // Adds custom filter groups (which are ANDed with each other and with the other filters) to the search that
     // produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new results
@@ -1692,7 +1708,8 @@
         const colInfo = getCustomFilterColumnInfo(filter.column)
         if (!colInfo || !getOperatorsForType(colInfo.type).some(op => op.value === filter.operator)) return null
         if (isNullCheckOperator(filter.operator)) return `${filter.column} ${filter.operator}`
-        if (filter.operator === 'LIKE' || filter.operator === 'NOT LIKE' || colInfo.type === 'STRING') {
+        // String values are quoted for exactly the column types that getOperatorsForType offers the string operators for
+        if (colInfo.type !== 'INTEGER' && colInfo.type !== 'FLOAT') {
             return `${filter.column} ${filter.operator} '${escapeTextForSqlStringLiteral(filter.value)}'`
         }
         return `${filter.column} ${filter.operator} ${Number(filter.value)}`
@@ -1763,20 +1780,15 @@
 
     // Synchronize all polymorphism-filter conjunction dropdowns to the same value.
     // Mixing AND/OR across rows is not allowed — toggling one toggles all.
-    let suppressPolymorphismConjunctionSync = false
+    // Only the rows whose value differs are set, so the onChange that setting a row fires (which calls this again) finds
+    // nothing more to set
     const syncPolymorphismFilterConjunctions = (value) => {
-        if (suppressPolymorphismConjunctionSync) return
         const newConj = value === 'AND' ? 'AND' : 'OR'
-        suppressPolymorphismConjunctionSync = true
-        try {
-            $('#polymorphism-filter-rows .polymorphism-filter-conjunction').each(function() {
-                if ($(this).dropdown('get value') !== newConj) {
-                    $(this).dropdown('set selected', newConj)
-                }
-            })
-        } finally {
-            suppressPolymorphismConjunctionSync = false
-        }
+        $('#polymorphism-filter-rows .polymorphism-filter-conjunction').each(function() {
+            if ($(this).dropdown('get value') !== newConj) {
+                $(this).dropdown('set selected', newConj)
+            }
+        })
     }
 
     const addPolymorphismFilterRow = (conjunction, sigmaType, threshold, enabled) => {
@@ -2234,11 +2246,20 @@
         $('#results-table canvas').each(function() { destroyExistingChart(this) })
     }
 
+    // Removes the displayed results. The pagination bars and the IGV result navigation (updateIgvNavButtons) are hidden
+    // with them, since they describe or step through them.
+    const clearDisplayedSearchResults = () => {
+        destroyResultsTableCharts()
+        $('#results-table').empty()
+        window.searchResults = null
+        window.igvNavActive = false
+        $('.pagination-container, #igv-nav-container').hide()
+    }
+
     const displayError = (message) => {
         $('#error-text').text(message)
         $('#error-message').show()
-        destroyResultsTableCharts()
-        $('#results-table').empty()
+        clearDisplayedSearchResults()
     }
 
     const displaySearchResults = () => {
@@ -2745,6 +2766,11 @@
     const handleUploadedFiles = async (fileList) => {
         const $err = $('#tr-file-upload-error')
         $err.hide().empty()
+        // The modal is shown so the message is visible even for a drop on the main search box, which leaves it closed
+        const showUploadErrorInModal = (html) => {
+            $err.html(html).show()
+            $('#tr-file-upload-modal').modal('show')
+        }
         const files = fileList ? Array.from(fileList) : []
         if (!files.length) return
         const mySeq = ++uploadSeq  // guards against a stale slow read overwriting a newer upload/clear
@@ -2795,8 +2821,7 @@
             if (rejected.length) parts.push(`<b>Unsupported file type${rejected.length > 1 ? 's' : ''}:</b> ${escapeHtmlText(rejected.join(', '))}. Accepted: .txt, .tsv, .bed (optionally compressed with .gz).`)
             if (failed.length) parts.push(`<b>Could not read the file${failed.length > 1 ? 's' : ''}:</b> ${escapeHtmlText(failed.join(', '))}`)
             if (!parts.length) parts.push('<b>Nothing to search.</b> The first column should contain TR LocusIds, hg38 regions, or gene/transcript identifiers (or upload a BED file).')
-            $err.html(parts.join('<br>')).show()
-            $('#tr-file-upload-modal').modal('show')  // make the message visible even for a main-search-box drop
+            showUploadErrorInModal(parts.join('<br>'))
             return
         }
 
@@ -2804,8 +2829,7 @@
         // More names than a query can hold are refused before they're looked up, since the lookup takes at most 10,000
         // names per request
         if (searchTokens.filter(isNameSearchTerm).length > MAX_NAMES_PER_UPLOADED_FILE) {
-            $err.html(tooManyItemsMessage).show()
-            $('#tr-file-upload-modal').modal('show')
+            showUploadErrorInModal(tooManyItemsMessage)
             return
         }
         // The files' gene and transcript names are looked up now (see lookUpLocusIntervalsOfNames), since the panel's
@@ -2814,16 +2838,14 @@
             await lookUpLocusIntervalsOfNames(searchTokens)
         } catch (error) {
             if (mySeq !== uploadSeq) return
-            $err.html(`<b>Could not look up the gene and transcript names in the file:</b> ${escapeHtmlText(error.message)}`).show()
-            $('#tr-file-upload-modal').modal('show')
+            showUploadErrorInModal(`<b>Could not look up the gene and transcript names in the file:</b> ${escapeHtmlText(error.message)}`)
             return
         }
         if (mySeq !== uploadSeq) return
         // A panel whose items are all names that no locus has would find nothing. One with only some of them is
         // searched, and the search lists the others (see performSearch).
         if (!bedRegions.length && searchTokens.every(isUnrecognizedName)) {
-            $err.html(`<b>Nothing to search.</b> ${escapeHtmlText(describeUnrecognizedNames(searchTokens))}`).show()
-            $('#tr-file-upload-modal').modal('show')
+            showUploadErrorInModal(`<b>Nothing to search.</b> ${escapeHtmlText(describeUnrecognizedNames(searchTokens))}`)
             return
         }
 
@@ -2833,8 +2855,7 @@
             bedRegions,
         }
         if (buildUploadedFileClause(uploadedFile).length > MAX_UPLOADED_FILE_SQL_CONDITION_LENGTH) {
-            $err.html(tooManyItemsMessage).show()
-            $('#tr-file-upload-modal').modal('show')
+            showUploadErrorInModal(tooManyItemsMessage)
             return
         }
         // The upload time in milliseconds, so that an id is never reused after a reload or in another tab, where a link
@@ -2845,14 +2866,12 @@
         renderUploadedFileChip()
 
         if (failed.length || rejected.length) {
-            // Keep the readable files' union, but surface a notice for the skipped ones. Show the modal so
-            // the notice is visible even when the drop landed on the main search box (modal was closed).
+            // Keep the readable files' union, but surface a notice for the skipped ones
             const parts = []
             if (rejected.length) parts.push(`unsupported type: ${escapeHtmlText(rejected.join(', '))}`)
             if (failed.length) parts.push(`could not read: ${escapeHtmlText(failed.join(', '))}`)
             const nSkipped = rejected.length + failed.length
-            $err.html(`<b>Skipped ${nSkipped} file${nSkipped > 1 ? 's' : ''}:</b> ${parts.join('; ')}`).show()
-            $('#tr-file-upload-modal').modal('show')
+            showUploadErrorInModal(`<b>Skipped ${nSkipped} file${nSkipped > 1 ? 's' : ''}:</b> ${parts.join('; ')}`)
         } else {
             $('#tr-file-upload-modal').modal('hide')
         }
@@ -2869,17 +2888,11 @@
     // Build the WHERE clause restricting results to the uploaded file's tokens and/or BED regions
     // (a token match OR a region overlap). BED coords are 0-based half-open, matching start_0based /
     // end_1based, so a locus overlaps iff start_0based < end1 AND end_1based > start0.
-    const buildUploadedFileClause = (uploadedFile) => {
-        const parts = []
-        for (const token of uploadedFile.searchTokens) {
-            const c = buildSearchTokenClause(token)
-            if (c) parts.push(c)
-        }
-        for (const r of uploadedFile.bedRegions) {
-            parts.push(`(chrom_index = ${r.chromIndex} AND start_0based < ${r.end1} AND end_1based > ${r.start0})`)
-        }
-        return parts.length ? `(${parts.join(' OR ')})` : ''
-    }
+    // An uploaded file has at least one item, since one with none is refused (handleUploadedFiles)
+    const buildUploadedFileClause = (uploadedFile) => `(${[
+        ...uploadedFile.searchTokens.map(buildSearchTokenClause),
+        ...uploadedFile.bedRegions.map(r => `(chrom_index = ${r.chromIndex} AND start_0based < ${r.end1} AND end_1based > ${r.start0})`),
+    ].join(' OR ')})`
 
     // The choices in the "Search TR Catalog" dropdown, in menu order: each one's dropdown value, label, number of loci and
     // SQL condition (the full v2.1 catalog needs none). A choice with a section starts a new section of the menu. The
@@ -2905,10 +2918,9 @@
         const conditions = []
 
         // Uploaded panel file (TXT/TSV/BED): restrict to its loci/regions. ANDed with any typed
-        // query and advanced filters. A present-but-empty file matches zero rows rather than
-        // falling through to an unrestricted whole-table query.
+        // query and advanced filters.
         if (UPLOADED_FILE) {
-            conditions.push(buildUploadedFileClause(UPLOADED_FILE) || 'FALSE')
+            conditions.push(buildUploadedFileClause(UPLOADED_FILE))
         }
 
         let searchQuery = $('#search-query').val()
@@ -3035,8 +3047,6 @@
         // Guard against out-of-order responses: rapid actions (upload, chip-remove, sort, paginate)
         // can leave two queries in flight, and a slower older one must not overwrite the newer results.
         const mySeq = ++searchSeq
-        // Read before the names are looked up below, during which it can change
-        const isCalledWhileFormIsBeingFilledInFromUrl = isFormBeingFilledInFromUrl
         // Remove any error messages and no results message
         $('#error-message').hide()
         $('.no-results').hide()
@@ -3151,15 +3161,15 @@
             window.lastSearchSortClause = sortClause
             // The settings that produce these results: the displayed search's for a re-run of it, or else read from the
             // form now, since it can be edited while the query runs. Clicking a plot's bar or box narrows them down.
-            if (!isRerunOfDisplayedSearch && !isCalledWhileFormIsBeingFilledInFromUrl) copySearchFormStateToPageState()
-            const searchPageState = isRerunOfDisplayedSearch
-                ? window.lastSearchPageState
-                : Object.fromEntries(SEARCH_PAGE_STATE_KEYS.map(key => [key, GLOBAL_PAGE_STATE[key]]))
+            const searchPageState = isRerunOfDisplayedSearch ? window.lastSearchPageState : readSearchFormState()
 
             const results = await queryBigQuery(query, startIndex, pageSize, null, null)
             // A newer search started while this query was in flight -> discard this stale result so it
             // can't overwrite the newer search's rows (e.g. rapid upload then chip-remove).
             if (mySeq !== searchSeq) return
+
+            // Only now, so that a search that fails leaves GLOBAL_PAGE_STATE describing the search still on screen
+            Object.assign(GLOBAL_PAGE_STATE, searchPageState)
 
             // Mark the URL as a search, so reopening it reruns the search, even one that found nothing
             GLOBAL_PAGE_STATE['showRs'] = 1
@@ -3219,7 +3229,7 @@
     $('#search-warning-message .close').click(() => $('#search-warning-message').hide())
 
 
-    // Opening or closing the panel is a form edit, which goes into the URL when the next search starts. The panel's
+    // Opening or closing the panel is a form edit, which goes into the URL when the next search's results arrive. The panel's
     // controls keep their values while it's closed.
     const toggleAdvancedSearch = () => {
         isAdvancedSearchPanelOpen = !isAdvancedSearchPanelOpen

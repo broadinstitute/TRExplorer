@@ -21,9 +21,9 @@ import pytest
 # A region search with a few results (around the HTT locus)
 REGION_QUERY = "chr4:3074000-3075000"
 
-# Queries from the example links on the page, with expected minimum result counts. Each one is searched once.
+# Queries from the example links on the page, with expected minimum result counts. Each one is searched once
+# (REGION_QUERY is searched by test_search_chr4_region_has_htt_disease_locus).
 SEARCH_QUERIES = [
-    (REGION_QUERY, 1),
     ("ATXN1", 1),
     ("ENSG00000165060", 1),
     ("ENST00000370475", 1),
@@ -67,8 +67,7 @@ def real_errors(console_errors):
     """
     return [
         e for e in console_errors
-        if "failed to load resource" not in e.lower()
-        and "google-analytics" not in e.lower()
+        if "google-analytics" not in e.lower()
         and "googletagmanager" not in e.lower()
         and "net::err" not in e.lower()
     ]
@@ -82,6 +81,13 @@ def assert_no_errors(page, console_errors, context):
     assert real_errors(console_errors) == [], (
         f"JavaScript errors ({context}): {real_errors(console_errors)}"
     )
+
+
+def select_dropdown_item(container, dropdown_selector, value):
+    """Opens the dropdown that dropdown_selector finds in container (a page or a locator) and clicks its item with the
+    given value."""
+    container.locator(dropdown_selector).click()
+    container.locator(f"{dropdown_selector} .item[data-value='{value}']").click()
 
 
 def enable_all_columns(page):
@@ -155,9 +161,8 @@ def test_search_with_an_unrecognized_name_searches_the_other_terms_and_lists_it(
 
 
 def test_search_chr4_region_has_htt_disease_locus(index_page, console_errors):
-    """Search chr4:3074000-3075000 and verify it contains the HTT disease-associated locus."""
-    query = "chr4:3074000-3075000"
-    do_search(index_page, query)
+    """Search REGION_QUERY and verify it contains the HTT disease-associated locus."""
+    do_search(index_page, REGION_QUERY)
 
     disease_rows = index_page.query_selector_all("#results-table tbody tr.disease-associated-row")
     assert len(disease_rows) == 1, (
@@ -169,7 +174,7 @@ def test_search_chr4_region_has_htt_disease_locus(index_page, console_errors):
     assert "4:3074876-3074933" in row_text, (
         f"Expected region '4:3074876-3074933' in disease row, got: {row_text}"
     )
-    assert_no_errors(index_page, console_errors, f"search '{query}'")
+    assert_no_errors(index_page, console_errors, f"search '{REGION_QUERY}'")
 
 
 def test_all_columns_and_sorting(index_page, console_errors):

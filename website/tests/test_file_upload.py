@@ -12,7 +12,7 @@ import zlib
 
 import pytest
 
-from test_basic_search import MULTI_PAGE_REGION_QUERY, assert_no_errors, do_search, click_next_page, get_total_pages
+from test_basic_search import MULTI_PAGE_REGION_QUERY, REGION_QUERY, assert_no_errors, do_search, click_next_page, get_total_pages
 
 
 def wait_for_results(page):
@@ -68,7 +68,7 @@ def test_upload_locus_id(index_page, console_errors, tmp_path, locus_id_prefix):
     pasted or exported, e.g. chr4-...-CAG) matches too, even though catalog LocusIds have no "chr" prefix."""
     page = index_page
     # First find a real LocusId by running a region search and reading a result row.
-    do_search(page, "chr4:3074000-3075000")
+    do_search(page, REGION_QUERY)
     locus_id = page.get_attribute(".row-locus-page-link", "data-locus-id")
     assert locus_id and "-" in locus_id
     assert not locus_id.lower().startswith("chr")
@@ -173,20 +173,20 @@ def test_upload_bgzip(index_page, console_errors, tmp_path):
 
 
 def test_upload_after_paging_shows_results(index_page, tmp_path):
-    """Regression: uploading a panel after navigating to page >=2 must reset to page 1 and still
-    show the panel's matches, not an empty page (currentPage was left stale before the fix)."""
+    """Uploading a panel after going to page 2 of a search shows page 1 of the panel's matches."""
     page = index_page
     do_search(page, MULTI_PAGE_REGION_QUERY)
     assert get_total_pages(page) > 1
     click_next_page(page)
 
+    # A panel with more than one page of matches, so that staying on page 2 would also show rows
     f = tmp_path / "panel.txt"
-    f.write_text("chr4:3074000-3075000\n")  # HTT region: far fewer rows than a page-2 offset
+    f.write_text(f"{MULTI_PAGE_REGION_QUERY}\n")
     upload_files(page, [f])
     wait_for_results(page)
-    # Uploading clears the leftover query from the search box (panel is the query) and resets to
-    # page 1, so the panel's matches are shown instead of an empty page-2 offset.
+    # Uploading clears the leftover query from the search box (the panel is the query)
     assert page.input_value("#search-query") == ""
+    assert page.evaluate("GLOBAL_PAGE_STATE.currentPage") == 1
     assert len(page.query_selector_all("#results-table tbody tr")) > 0
 
 
@@ -216,9 +216,6 @@ def test_upload_bed_empty_interval_ignored(index_page, tmp_path):
     page = index_page
     f = tmp_path / "empty.bed"
     f.write_text("chr4\t3074000\t3074000\n")  # empty half-open interval -> no regions parsed
-    # Open the modal first so its inline error message is visible when the parse yields nothing.
-    page.click("#tr-file-upload-button")
-    page.wait_for_selector("#tr-file-upload-modal", state="visible", timeout=5000)
     page.set_input_files("#tr-file-input", str(f))
     # No valid regions -> the "Nothing to search" error is shown and no chip appears.
     page.wait_for_selector("#tr-file-upload-error", state="visible", timeout=10000)
