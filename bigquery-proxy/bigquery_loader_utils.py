@@ -314,3 +314,142 @@ def is_smallest_trid_row(fields, col_idx, smallest_trid_by_key, locus_id_column=
         return True
     key = f"{fields[col_idx[locus_id_column]]}\t{fields[col_idx[interval_column]]}"
     return fields[col_idx[trid_column]] == smallest_trid_by_key[key]
+
+
+def compute_interval_span(interval_str):
+    """Returns ``end - start`` for an "{chrom}:{start}-{end}" interval, or a large
+    sentinel for malformed/missing values so they sort last when picking narrowest."""
+    if not isinstance(interval_str, str) or not interval_str or ":" not in interval_str:
+        return float("inf")
+    _, range_part = interval_str.split(":", 1)
+    if "-" not in range_part:
+        return float("inf")
+    start_s, end_s = range_part.split("-", 1)
+    try:
+        return int(end_s) - int(start_s)
+    except ValueError:
+        return float("inf")
+
+
+def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_interval_by_locus=None):
+    """Read the bare 'All samples' distribution column (named `expected_column`) from a
+    stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py.
+
+    The TSV emits multiple rows per locus_id (one per TRGT interval). When
+    ``narrowest_interval_by_locus`` is provided (a ``{locus_id: interval}`` map
+    typically built from the LPS stratified TSV), this function pins each locus to
+    that interval so the main catalog row's HPRC256_NarrowestInterval,
+    HPRC256_AlleleHistogram, HPRC256_AlleleSizeAndPurityDistribution, and
+    HPRC256_AlleleSizeAndMethylationDistribution all reflect the same TRGT
+    interval. If the map is missing a locus, or the locus's narrowest interval is
+    absent from this TSV, the function falls back to picking the narrowest
+    interval present in this TSV (deterministic tie-break on interval string).
+
+    Returns a {locus_id: {"distribution": distribution_string, "interval": interval_string}} dict (skipping rows where
+    the column is empty), where "interval" is the TRGT interval the distribution came from.
+    """
+    print(f"Parsing {expected_column} from {tsv_path}")
+    result = {}
+    best_key = {}  # locus_id -> (preference_rank, span, interval_str) for deterministic tie-break
+    pinned_count = 0
+    fallback_count = 0
+    with gzip.open(os.path.expanduser(tsv_path), "rt") as f:
+        header = f.readline().rstrip("\n").split("\t")
+        if expected_column not in header:
+            raise ValueError(
+                f"Column '{expected_column}' not found in {tsv_path}. "
+                f"Header: {header[:5]}..."
+            )
+        col_idx = header.index(expected_column)
+        # The compute_allele_size_purity script writes columns in order:
+        # locus_id, interval, vc, trid, AlleleSizeAndPurityDistribution, ...
+        # Fall back to col 0 if 'interval' isn't present (older format).
+        interval_col_idx = header.index("interval") if "interval" in header else None
+        # Same tie-break as the LPS table: two records can share an interval and differ only in TRID.
+        trid_col_idx = header.index("trid") if "trid" in header else None
+        for line in f:
+            fields = line.rstrip("\n").split("\t")
+            value = fields[col_idx] if col_idx < len(fields) else ""
+            if not value:
+                continue
+            locus_id = fields[0]
+            interval_str = ""
+            if interval_col_idx is not None and interval_col_idx < len(fields):
+                interval_str = fields[interval_col_idx]
+            # Preference rank: 0 = matches the LPS narrowest pin; 1 = pinned but
+            # we haven't matched the exact interval yet (treat like fallback);
+            # 2 = no pin provided. Lower rank wins.
+            preferred = (
+                narrowest_interval_by_locus is not None
+                and locus_id in narrowest_interval_by_locus
+                and interval_str == narrowest_interval_by_locus[locus_id]
+            )
+            if preferred:
+                preference_rank = 0
+            elif narrowest_interval_by_locus is not None and locus_id in narrowest_interval_by_locus:
+                preference_rank = 1
+            else:
+                preference_rank = 2
+            trid_str = ""
+            if trid_col_idx is not None and trid_col_idx < len(fields):
+                trid_str = fields[trid_col_idx]
+            # Deterministic tie-break: (rank, span, interval_str, trid_str) ascending.
+            key = (preference_rank, compute_interval_span(interval_str), interval_str, trid_str)
+            current = best_key.get(locus_id)
+            if current is None or key < current:
+                result[locus_id] = {"distribution": value, "interval": interval_str}
+                best_key[locus_id] = key
+        # Count which loci ended up pinned (rank 0) vs fallback for telemetry.
+        for locus_id, key in best_key.items():
+            if key[0] == 0:
+                pinned_count += 1
+            else:
+                fallback_count += 1
+    print(
+        f"Parsed {len(result):,d} records from {tsv_path}"
+        + (f" ({pinned_count:,d} pinned to LPS narrowest, {fallback_count:,d} fell back)"
+           if narrowest_interval_by_locus is not None else "")
+    )
+    return result
+
+
+def compute_longest_pure_segment_repeat_count(sequence, motif):
+    """Returns the longest pure segment (LPS) of a motif in a sequence: the largest number of consecutive copies of the
+    motif, starting at any position. This is how trgt-lps measures each allele of the HPRC256 data. Case is ignored,
+    since the reference genome writes repeats in lowercase.
+
+    Args:
+        sequence (str): the sequence to search
+        motif (str): the repeat motif
+
+    Returns:
+        int: the number of copies, 0 if the motif doesn't occur
+    """
+    sequence = sequence.upper()
+    motif = motif.upper()
+    motif_size = len(motif)
+    longest_run = 0
+    for offset in range(motif_size):
+        run = 0
+        for i in range(offset, len(sequence) - motif_size + 1, motif_size):
+            if sequence[i:i + motif_size] == motif:
+                run += 1
+                longest_run = max(longest_run, run)
+            else:
+                run = 0
+    return longest_run
+
+
+def compute_reference_lps_repeat_count_in_interval(chrom_sequence, interval, motif):
+    """Returns the longest pure segment of a motif in the reference sequence of a TRGT interval.
+
+    Args:
+        chrom_sequence (str): the reference sequence of the interval's chromosome
+        interval (str): "{chrom}:{start_0based}-{end_1based}", as in HPRC256_NarrowestInterval
+        motif (str): the repeat motif
+
+    Returns:
+        int: the number of copies (see compute_longest_pure_segment_repeat_count)
+    """
+    start_0based, end_1based = map(int, interval.split(":", 1)[1].split("-"))
+    return compute_longest_pure_segment_repeat_count(chrom_sequence[start_0based:end_1based], motif)

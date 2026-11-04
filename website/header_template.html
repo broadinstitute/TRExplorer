@@ -336,6 +336,12 @@ gtag('config', 'G-6R8FPBQRFH');
     // The interval the HPRC256 (LPS), purity and methylation charts show: the locus page's interval selection, if any
     const getSelectedHprc256Interval = (mainCatalogRow) => GLOBAL_PAGE_STATE['hprc256_interval']
         || getHprc256CatalogInterval(mainCatalogRow)
+    // The interval the catalog row's methylation distribution describes. The methylation table has no row at the
+    // narrowest interval of some loci, whose distribution comes from another interval.
+    const getHprc256MethylationCatalogInterval = (mainCatalogRow) => mainCatalogRow['HPRC256_MethylationInterval']
+        || getHprc256CatalogInterval(mainCatalogRow)
+    const getSelectedHprc256MethylationInterval = (mainCatalogRow) => GLOBAL_PAGE_STATE['hprc256_interval']
+        || getHprc256MethylationCatalogInterval(mainCatalogRow)
     // The total allele length table has one interval per locus (its variation cluster's, or its own), so its charts
     // don't follow the interval selector
     const getHprc256TotalLengthInterval = (mainCatalogRow) => mainCatalogRow['HPRC256TotalLength_Interval'] || null
@@ -433,8 +439,8 @@ gtag('config', 'G-6R8FPBQRFH');
             chartType:           'sizeAndValueHeatmap',
             locusIdColumn:       'locus_id',
             intervalColumn:      'interval',
-            getSelectedInterval: getSelectedHprc256Interval,
-            getCatalogInterval:  getHprc256CatalogInterval,
+            getSelectedInterval: getSelectedHprc256MethylationInterval,
+            getCatalogInterval:  getHprc256MethylationCatalogInterval,
         },
     }
 
@@ -443,8 +449,8 @@ gtag('config', 'G-6R8FPBQRFH');
         Object.entries(HPRC256_STRATIFIED_CHARTS).map(([chartKind, cfg]) => [cfg.mainColumn, chartKind]))
 
     // Whether a stratified-chart kind shows the locus page's interval selection (the total allele length charts don't)
-    const chartFollowsHprc256IntervalSelector = (chartKind) =>
-        HPRC256_STRATIFIED_CHARTS[chartKind].getSelectedInterval === getSelectedHprc256Interval
+    const chartFollowsHprc256IntervalSelector = (chartKind) => [getSelectedHprc256Interval,
+        getSelectedHprc256MethylationInterval].includes(HPRC256_STRATIFIED_CHARTS[chartKind].getSelectedInterval)
 
     const renderHprc256StratumControls = (chartKind) => {
         const cfg     = HPRC256_STRATIFIED_CHARTS[chartKind]
@@ -1254,6 +1260,11 @@ gtag('config', 'G-6R8FPBQRFH');
     const getReferenceAlleleSizeForColumn = (row, columnName) => {
         if (columnName.startsWith('HPRC256TotalLength_') && row['HPRC256TotalLength_Interval']) {
             return Math.floor(computeIntervalSize(row['HPRC256TotalLength_Interval']) / row['ReferenceMotif'].length)
+        }
+        // The HPRC256 (LPS) alleles are each one's longest pure segment, so the reference is measured the same way
+        if (['HPRC256_AlleleHistogram', 'HPRC256_BiallelicHistogram'].includes(columnName)
+                && row['HPRC256_ReferenceLPSRepeatCount'] != null) {
+            return row['HPRC256_ReferenceLPSRepeatCount']
         }
         return row['NumRepeatsInReference']
     }
@@ -3071,6 +3082,9 @@ gtag('config', 'G-6R8FPBQRFH');
         'HPRC256_AlleleSizeAndMethylationDistribution',
         // The interval the HPRC256 columns above describe, which the stratified population and sex queries are pinned to
         'HPRC256_NarrowestInterval',
+        // Where the LPS charts mark the reference, and the interval of the methylation distribution
+        'HPRC256_ReferenceLPSRepeatCount',
+        'HPRC256_MethylationInterval',
         'HPRC256TotalLength_Stdev',
         'HPRC256TotalLength_AlleleHistogram',
         'HPRC256TotalLength_BiallelicHistogram',

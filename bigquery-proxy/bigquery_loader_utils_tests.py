@@ -1,9 +1,79 @@
+import gzip
 import json
+import os
+import tempfile
 import unittest
 
-from bigquery_loader_utils import build_fill_sql, build_staging_rows, get_catalog_column_schema_fields, \
-    get_garg_2019_and_2020_column_values, get_zhang_2025_column_values
+from bigquery_loader_utils import build_fill_sql, build_staging_rows, compute_interval_span, \
+    compute_longest_pure_segment_repeat_count, compute_reference_lps_repeat_count_in_interval, \
+    get_catalog_column_schema_fields, get_garg_2019_and_2020_column_values, get_zhang_2025_column_values, \
+    parse_all_samples_distribution_column
 from global_constants import GARG_2019_AND_2020_COLUMN_NAMES, ZHANG_2025_COLUMN_NAMES
+
+
+class ComputeLongestPureSegmentRepeatCountTests(unittest.TestCase):
+
+    def test_pure_repeat(self):
+        self.assertEqual(compute_longest_pure_segment_repeat_count("CAGCAGCAG", "CAG"), 3)
+
+    def test_interrupted_repeat_counts_the_longest_run(self):
+        # The ATXN1 locus 6-16358840-16358859-CAGCTG: CAGGTG interrupts the run, leaving 2 pure copies
+        self.assertEqual(compute_longest_pure_segment_repeat_count("CAGGTGCAGCTGCAGCTGC", "CAGCTG"), 2)
+
+    def test_run_can_start_at_any_offset(self):
+        self.assertEqual(compute_longest_pure_segment_repeat_count("TTCAGCAGCAGCAGT", "CAG"), 4)
+
+    def test_lowercase_reference_bases_count(self):
+        self.assertEqual(compute_longest_pure_segment_repeat_count("cagCAGcag", "CAG"), 3)
+
+    def test_motif_absent(self):
+        self.assertEqual(compute_longest_pure_segment_repeat_count("AAAAAA", "CAG"), 0)
+
+    def test_reference_lps_uses_the_interval_coordinates(self):
+        chrom_sequence = "NNNN" + "AC" * 5 + "GG" + "AC" * 2
+        self.assertEqual(compute_reference_lps_repeat_count_in_interval(chrom_sequence, "1:4-14", "AC"), 5)
+        self.assertEqual(compute_reference_lps_repeat_count_in_interval(chrom_sequence, "1:4-10", "AC"), 3)
+
+
+class ComputeIntervalSpanTests(unittest.TestCase):
+
+    def test_span(self):
+        self.assertEqual(compute_interval_span("1:100-150"), 50)
+
+    def test_malformed_interval_sorts_last(self):
+        self.assertEqual(compute_interval_span(""), float("inf"))
+        self.assertEqual(compute_interval_span("1:100"), float("inf"))
+
+
+class ParseAllSamplesDistributionColumnTests(unittest.TestCase):
+
+    def write_tsv(self, lines):
+        path = os.path.join(self.temp_dir.name, "distributions.tsv.gz")
+        with gzip.open(path, "wt") as f:
+            f.write("\n".join(lines) + "\n")
+        return path
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_pins_to_the_narrowest_interval_and_reports_the_interval_used(self):
+        path = self.write_tsv([
+            "locus_id\tinterval\tvc\ttrid\tAlleleSizeAndMethylationDistribution",
+            "L1\t1:100-200\t\tT1\twide",
+            "L1\t1:100-150\t\tT2\tnarrow",
+            # L2 has no row at its pinned interval 1:300-320, so it falls back to the narrowest one it has
+            "L2\t1:300-400\t\tT3\tfallback",
+        ])
+        lookup = parse_all_samples_distribution_column(
+            path, "AlleleSizeAndMethylationDistribution",
+            narrowest_interval_by_locus={"L1": "1:100-150", "L2": "1:300-320"})
+        self.assertEqual(lookup, {
+            "L1": {"distribution": "narrow", "interval": "1:100-150"},
+            "L2": {"distribution": "fallback", "interval": "1:300-400"},
+        })
 
 
 class BuildStagingRowsTests(unittest.TestCase):

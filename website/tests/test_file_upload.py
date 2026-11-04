@@ -191,20 +191,23 @@ def test_upload_after_paging_shows_results(index_page, tmp_path):
 
 
 def test_upload_token_is_sql_injection_safe(index_page, console_errors, tmp_path):
-    """A backslash-quote payload must stay contained in the SQL literal, not inject `OR TRUE`.
+    """A backslash-quote payload, which could break out of an SQL string literal, never reaches a query.
 
-    If the escaping were unsafe, the payload would break out of the string literal and match the
-    whole catalog (a full page of rows); safely escaped it matches nothing.
+    A name in an uploaded file is first looked up among the catalog's gene and transcript names and ids, and only
+    the intervals of the loci it names go into the query. So this payload is reported as an unrecognized name, and no
+    query is sent.
     """
     page = index_page
+    queries_sent = []
+    page.on("request", lambda request: queries_sent.append(request.url) if "query_db" in request.url else None)
     f = tmp_path / "evil.txt"
     f.write_text("x\\') OR TRUE--\n")
-    upload_files(page, [f])
-    # The search sets the cursor back to default when it finishes
-    page.wait_for_function("() => document.body.style.cursor === 'default'", timeout=30000)
+    page.set_input_files("#tr-file-input", str(f))
+    page.wait_for_selector("#tr-file-upload-error", state="visible", timeout=30000)
 
-    # Injection would return unfiltered rows; a safely-escaped token matches nothing.
-    assert page.evaluate("window.searchResults.total_results") == 0
+    assert "Name not recognized: x\\') OR TRUE--" in page.inner_text("#tr-file-upload-error")
+    assert not page.is_visible("#tr-file-chip-container .ui.label")
+    assert queries_sent == []
     assert_no_errors(page, console_errors, "upload of an SQL injection token")
 
 

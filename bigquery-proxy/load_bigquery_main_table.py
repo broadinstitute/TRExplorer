@@ -25,8 +25,9 @@ from str_analysis.utils.misc_utils import parse_interval
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
-from bigquery_loader_utils import create_or_replace_keep_best_non_overlapping_loci_function, \
-    get_garg_2019_and_2020_column_values, get_zhang_2025_column_values
+from bigquery_loader_utils import compute_interval_span, compute_reference_lps_repeat_count_in_interval, \
+    create_or_replace_keep_best_non_overlapping_loci_function, get_garg_2019_and_2020_column_values, \
+    get_zhang_2025_column_values, parse_all_samples_distribution_column
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -156,20 +157,6 @@ def population_data_sanity_check(row, dataset_name):
 
     return errors
 
-def _interval_span(interval_str):
-    """Returns ``end - start`` for an "{chrom}:{start}-{end}" interval, or a large
-    sentinel for malformed/missing values so they sort last when picking narrowest."""
-    if not isinstance(interval_str, str) or not interval_str or ":" not in interval_str:
-        return float("inf")
-    _, range_part = interval_str.split(":", 1)
-    if "-" not in range_part:
-        return float("inf")
-    start_s, end_s = range_part.split("-", 1)
-    try:
-        return int(end_s) - int(start_s)
-    except ValueError:
-        return float("inf")
-
 
 _PASCALCASE_TO_SNAKE_CASE = {
     "LocusId": "locus_id",
@@ -226,7 +213,7 @@ def parse_allele_histograms_from_tsv(tsv_path, dataset_name):
               .size()
               .to_dict()
         )
-        df["_interval_span"] = df["interval"].apply(_interval_span)
+        df["_interval_span"] = df["interval"].apply(compute_interval_span)
         # Narrowest span first; ties broken by interval string for determinism.
         # The same (span, interval) ordering is used by parse_all_samples_distribution_column
         # so the LPS / purity / methylation loaders pick the *same* row per locus.
@@ -431,88 +418,6 @@ if args.hprc256_total_length_tsv:
 
 hprc256_purity_methylation_lookup = {}
 
-
-def parse_all_samples_distribution_column(tsv_path, expected_column, narrowest_interval_by_locus=None):
-    """Read the bare 'All samples' distribution column (named `expected_column`) from a
-    stratified TSV produced by compute_allele_size_purity_and_methylation_distributions_from_TRGT_vcf.py.
-
-    The TSV emits multiple rows per locus_id (one per TRGT interval). When
-    ``narrowest_interval_by_locus`` is provided (a ``{locus_id: interval}`` map
-    typically built from the LPS stratified TSV), this function pins each locus to
-    that interval so the main catalog row's HPRC256_NarrowestInterval,
-    HPRC256_AlleleHistogram, HPRC256_AlleleSizeAndPurityDistribution, and
-    HPRC256_AlleleSizeAndMethylationDistribution all reflect the same TRGT
-    interval. If the map is missing a locus, or the locus's narrowest interval is
-    absent from this TSV, the function falls back to picking the narrowest
-    interval present in this TSV (deterministic tie-break on interval string).
-
-    Returns a {locus_id: distribution_string} dict (skipping rows where the column is empty).
-    """
-    print(f"Parsing {expected_column} from {tsv_path}")
-    result = {}
-    best_key = {}  # locus_id -> (preference_rank, span, interval_str) for deterministic tie-break
-    pinned_count = 0
-    fallback_count = 0
-    with gzip.open(os.path.expanduser(tsv_path), "rt") as f:
-        header = f.readline().rstrip("\n").split("\t")
-        if expected_column not in header:
-            raise ValueError(
-                f"Column '{expected_column}' not found in {tsv_path}. "
-                f"Header: {header[:5]}..."
-            )
-        col_idx = header.index(expected_column)
-        # The compute_allele_size_purity script writes columns in order:
-        # locus_id, interval, vc, trid, AlleleSizeAndPurityDistribution, ...
-        # Fall back to col 0 if 'interval' isn't present (older format).
-        interval_col_idx = header.index("interval") if "interval" in header else None
-        # Same tie-break as the LPS table: two records can share an interval and differ only in TRID.
-        trid_col_idx = header.index("trid") if "trid" in header else None
-        for line in f:
-            fields = line.rstrip("\n").split("\t")
-            value = fields[col_idx] if col_idx < len(fields) else ""
-            if not value:
-                continue
-            locus_id = fields[0]
-            interval_str = ""
-            if interval_col_idx is not None and interval_col_idx < len(fields):
-                interval_str = fields[interval_col_idx]
-            # Preference rank: 0 = matches the LPS narrowest pin; 1 = pinned but
-            # we haven't matched the exact interval yet (treat like fallback);
-            # 2 = no pin provided. Lower rank wins.
-            preferred = (
-                narrowest_interval_by_locus is not None
-                and locus_id in narrowest_interval_by_locus
-                and interval_str == narrowest_interval_by_locus[locus_id]
-            )
-            if preferred:
-                preference_rank = 0
-            elif narrowest_interval_by_locus is not None and locus_id in narrowest_interval_by_locus:
-                preference_rank = 1
-            else:
-                preference_rank = 2
-            trid_str = ""
-            if trid_col_idx is not None and trid_col_idx < len(fields):
-                trid_str = fields[trid_col_idx]
-            # Deterministic tie-break: (rank, span, interval_str, trid_str) ascending.
-            key = (preference_rank, _interval_span(interval_str), interval_str, trid_str)
-            current = best_key.get(locus_id)
-            if current is None or key < current:
-                result[locus_id] = value
-                best_key[locus_id] = key
-        # Count which loci ended up pinned (rank 0) vs fallback for telemetry.
-        for locus_id, key in best_key.items():
-            if key[0] == 0:
-                pinned_count += 1
-            else:
-                fallback_count += 1
-    print(
-        f"Parsed {len(result):,d} records from {tsv_path}"
-        + (f" ({pinned_count:,d} pinned to LPS narrowest, {fallback_count:,d} fell back)"
-           if narrowest_interval_by_locus is not None else "")
-    )
-    return result
-
-
 # Build a {locus_id: narrowest_interval} map from the LPS lookup so the purity
 # and methylation parsers pin to the same interval per locus. This guarantees
 # HPRC256_NarrowestInterval and the embedded AlleleSize* / purity / methylation
@@ -538,8 +443,11 @@ else:
     methylation_lookup = {}
 for locus_id in set(purity_lookup) | set(methylation_lookup):
     hprc256_purity_methylation_lookup[locus_id] = {
-        "AlleleSizeAndPurityDistribution": purity_lookup.get(locus_id, ""),
-        "AlleleSizeAndMethylationDistribution": methylation_lookup.get(locus_id, ""),
+        "AlleleSizeAndPurityDistribution": purity_lookup.get(locus_id, {}).get("distribution", ""),
+        "AlleleSizeAndMethylationDistribution": methylation_lookup.get(locus_id, {}).get("distribution", ""),
+        # The methylation table has no row at the LPS narrowest interval of some loci, so their methylation
+        # distribution comes from another interval
+        "MethylationInterval": methylation_lookup.get(locus_id, {}).get("interval", ""),
     }
 
 aou1027_lookup = {}
@@ -1088,6 +996,10 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
         narrowest = hprc256_record.get("narrowest_interval")
         if narrowest:
             record["HPRC256_NarrowestInterval"] = narrowest
+            # The reference allele's value on the HPRC256 LPS histograms, measured in the same interval as them.
+            # chrom_fasta_obj holds this locus's chromosome, which is also the interval's.
+            record["HPRC256_ReferenceLPSRepeatCount"] = compute_reference_lps_repeat_count_in_interval(
+                chrom_fasta_obj, narrowest, record["LocusId"].split("-")[-1])
 
     if record["LocusId"] in hprc256_total_length_lookup:
         counters["rows_with_hprc256_total_length_data"] += 1
@@ -1120,6 +1032,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
             record["HPRC256_AlleleSizeAndPurityDistribution"] = pm_record["AlleleSizeAndPurityDistribution"]
         if pm_record["AlleleSizeAndMethylationDistribution"]:
             record["HPRC256_AlleleSizeAndMethylationDistribution"] = pm_record["AlleleSizeAndMethylationDistribution"]
+            record["HPRC256_MethylationInterval"] = pm_record["MethylationInterval"]
 
     # The catalog's annotation step embeds AoU1027_* values of its own, from an older AoU1027 table. The --aou1027-tsv
     # table replaces them, so a locus it leaves out (e.g. one with no row covering most of its alleles) gets none.

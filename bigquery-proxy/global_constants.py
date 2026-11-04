@@ -835,6 +835,14 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "group": GROUP_POLYMORPHISM_HPRC256,
     },
     {
+        "type": "INTEGER",
+        "name": "HPRC256_ReferenceLPSRepeatCount",
+        "description": "Longest pure segment (LPS) of the motif in the hg38 reference sequence of HPRC256_NarrowestInterval: the largest number of consecutive copies of the motif, measured the same way as the HPRC256 alleles. This is where the HPRC256:LPS allele histograms mark the reference allele.",
+        "displayName": "HPRC256:LPS Reference Repeat Count",
+        "allowExport": True,
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
         "type": "STRING",
         "name": "HPRC256_AlleleSizeAndPurityDistribution",
         "description": "Joint distribution of allele size (repeat count) and allele purity from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/purity:count pairs.",
@@ -844,6 +852,14 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "type": "STRING",
         "name": "HPRC256_AlleleSizeAndMethylationDistribution",
         "description": "Joint distribution of allele size (repeat count) and methylation from TRGT calls in 256 HPRC PacBio HiFi samples. Format: repeat_count/methylation:count pairs.",
+        "group": GROUP_POLYMORPHISM_HPRC256,
+    },
+    {
+        "type": "STRING",
+        "name": "HPRC256_MethylationInterval",
+        "description": "The TRGT catalog interval (chrom:vcf_start_0based-vcf_end_1based) that HPRC256_AlleleSizeAndMethylationDistribution comes from. This is HPRC256_NarrowestInterval, except for loci with no methylation data at that interval, whose distribution comes from the narrowest interval that has it.",
+        "displayName": "HPRC256 Methylation Interval",
+        "allowExport": True,
         "group": GROUP_POLYMORPHISM_HPRC256,
     },
 
@@ -1489,6 +1505,11 @@ ZHANG_2025_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["
 # fills in an existing table
 GARG_2019_AND_2020_COLUMN_NAMES = [
     c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith(("Garg2019_", "Garg2020_"))]
+
+# The HPRC256 columns that add_or_update_hprc256_reference_lps_and_methylation_interval_columns_in_catalog_table.py
+# fills in an existing table
+HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES = [
+    "HPRC256_ReferenceLPSRepeatCount", "HPRC256_MethylationInterval"]
 
 
 # HPRC256 stratification labels — must match the labels emitted by the upstream scripts when
