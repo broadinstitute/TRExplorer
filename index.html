@@ -9503,14 +9503,10 @@ gtag('config', 'G-6R8FPBQRFH');
     // arrive.
     let isAdvancedSearchPanelOpen = false
 
-    // Reads the search box and the advanced search form's settings, keyed like GLOBAL_PAGE_STATE (see
-    // ADVANCED_SEARCH_PAGE_STATE_KEYS). They're copied into GLOBAL_PAGE_STATE only when a search's results arrive, so
-    // GLOBAL_PAGE_STATE and the URL describe the search on screen, never form edits not yet searched.
-    const readSearchFormState = () => {
-        const searchFormState = {
-            showAdvFilters: isAdvancedSearchPanelOpen ? 1 : 0,
-            uploadedFileId: UPLOADED_FILE ? UPLOADED_FILE.id : 0,
-            searchQuery: $('#search-query').val(),
+    // Reads the settings in the advanced search panel, keyed like GLOBAL_PAGE_STATE. Its keys are also the list of
+    // advanced settings that addCustomFilterGroupsAndSearch resets.
+    const readAdvancedSearchFormState = () => {
+        const advancedSearchFormState = {
             sourceCatalog: $('#source-catalog-dropdown').dropdown('get value'),
             keepMotifSize: $('#motif-size-input').val(),
             keepMotif: $('#motif-input').val(),
@@ -9522,10 +9518,20 @@ gtag('config', 'G-6R8FPBQRFH');
             extraPolymorphismFilters: serializeExtraPolymorphismFilters(),
         }
         for (const checkboxName of ADVANCED_SEARCH_CHECKBOX_NAMES) {
-            searchFormState[checkboxName] = $(`input[name="${checkboxName}"]`).prop('checked') ? 1 : 0
+            advancedSearchFormState[checkboxName] = $(`input[name="${checkboxName}"]`).prop('checked') ? 1 : 0
         }
-        return searchFormState
+        return advancedSearchFormState
     }
+
+    // Reads the search box and the advanced search form's settings, keyed like GLOBAL_PAGE_STATE. They're copied into
+    // GLOBAL_PAGE_STATE only when a search's results arrive, so GLOBAL_PAGE_STATE and the URL describe the search on
+    // screen, never form edits not yet searched.
+    const readSearchFormState = () => ({
+        showAdvFilters: isAdvancedSearchPanelOpen ? 1 : 0,
+        uploadedFileId: UPLOADED_FILE ? UPLOADED_FILE.id : 0,
+        searchQuery: $('#search-query').val(),
+        ...readAdvancedSearchFormState(),
+    })
 
     // Opens the column dialog, which makes a filter for each column checked in it and passes them to onAddFilters
     // (see addNewCustomFiltersToGroups)
@@ -9587,13 +9593,6 @@ gtag('config', 'G-6R8FPBQRFH');
         keepNonCodingExonLoci: 'exon',
     }
 
-    // The GLOBAL_PAGE_STATE keys of the settings in the advanced search panel
-    const ADVANCED_SEARCH_PAGE_STATE_KEYS = [
-        'sourceCatalog', 'keepMotifSize', 'keepMotif', 'keepLociThatOverlapLocusSetSelection',
-        'polymorphismFilterType', 'polymorphismThreshold', 'vcFilterType', 'customFilters', 'extraPolymorphismFilters',
-        ...ADVANCED_SEARCH_CHECKBOX_NAMES,
-    ]
-
     // Adds custom filter groups (which are ANDed with each other and with the other filters) to the search that
     // produced the current results (window.lastSearchPageState), and reruns it from its first page. So the new results
     // are the current results that pass the new filters, even if the form was edited since the last search. Groups
@@ -9604,7 +9603,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // it's hidden either, so they're reset to their defaults before it opens: otherwise settings left in the
         // hidden panel would start applying too. The browser's Back button brings them back.
         if (GLOBAL_PAGE_STATE['showAdvFilters'] !== 1) {
-            ADVANCED_SEARCH_PAGE_STATE_KEYS.forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
+            Object.keys(readAdvancedSearchFormState()).forEach(key => { GLOBAL_PAGE_STATE[key] = DEFAULT_GLOBAL_PAGE_STATE[key] })
         }
         const existingGroups = parseCustomFilterGroups(GLOBAL_PAGE_STATE['customFilters'])
         const serializedExistingGroups = new Set(existingGroups.map(group => serializeCustomFilterGroups([group])))
