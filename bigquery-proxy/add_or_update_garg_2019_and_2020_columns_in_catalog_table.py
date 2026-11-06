@@ -38,27 +38,6 @@ DEFAULT_GARG_2019_AND_2020_DMR_LOOKUP_JSON = \
     "../data-prep/literature_review/Garg_2019_and_2020/Garg_2019_and_2020_DMR_lookup.json.gz"
 
 
-def count_rows_with_a_value_in_each_column(rows):
-    """Returns {column name: number of rows with a value} for the GARG_2019_AND_2020_COLUMN_NAMES columns of the
-    staging rows."""
-    return {c: sum(row[c] is not None for row in rows) for c in GARG_2019_AND_2020_COLUMN_NAMES}
-
-
-def count_table_rows_with_a_value_in_each_column(client, catalog_table):
-    """Returns {column name: number of rows with a value} for the GARG_2019_AND_2020_COLUMN_NAMES columns of the
-    catalog table."""
-    counts = ", ".join(f"COUNTIF({c} IS NOT NULL) AS {c}" for c in GARG_2019_AND_2020_COLUMN_NAMES)
-    row = list(client.query(f"SELECT {counts} FROM `{catalog_table}`").result())[0]
-    return {c: row[c] for c in GARG_2019_AND_2020_COLUMN_NAMES}
-
-
-def print_counts(title, counts):
-    """Prints {column name: count}."""
-    print(f"{title}:")
-    for column_name, n in counts.items():
-        print(f"  {n:10,d}  {column_name}")
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--garg-2019-and-2020-dmr-lookup-json", default=DEFAULT_GARG_2019_AND_2020_DMR_LOOKUP_JSON,
@@ -73,8 +52,7 @@ def main():
 
     add_or_update_catalog_table_columns_from_lookup_json(
         args.garg_2019_and_2020_dmr_lookup_json, args.table_id, args.check_only, GARG_2019_AND_2020_COLUMN_NAMES,
-        get_garg_2019_and_2020_column_values, "garg_2019_and_2020_staging", count_rows_with_a_value_in_each_column,
-        count_table_rows_with_a_value_in_each_column, print_counts)
+        get_garg_2019_and_2020_column_values, "garg_2019_and_2020_staging")
 
 
 if __name__ == "__main__":

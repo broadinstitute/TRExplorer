@@ -38,6 +38,7 @@ import tqdm
 from google.cloud import bigquery
 
 from bigquery_loader_utils import DATASET_ID, PROJECT_ID, compute_reference_lps_repeat_count_in_interval, \
+    count_catalog_table_rows_with_a_value_in_each_column, count_staging_rows_with_a_value_in_each_column, \
     fill_catalog_table_columns, parse_all_samples_distribution_column, read_website_table_id
 from global_constants import HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES
 
@@ -69,13 +70,6 @@ def compute_reference_lps_by_locus(hprc256_loci, reference_fasta):
     return reference_lps_by_locus
 
 
-def count_table_rows_with_a_value_in_each_column(client, catalog_table):
-    """Returns {column name: number of rows with a value} for the two columns in the catalog table."""
-    counts = ", ".join(f"COUNTIF({c} IS NOT NULL) AS {c}" for c in HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES)
-    row = list(client.query(f"SELECT {counts} FROM `{catalog_table}`").result())[0]
-    return {c: row[c] for c in HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES}
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reference-fasta", default="~/hg38.fa", help="hg38 reference genome FASTA, indexed")
@@ -105,8 +99,8 @@ def main():
         "HPRC256_ReferenceLPSRepeatCount": reference_lps_by_locus.get(locus_id),
         "HPRC256_MethylationInterval": methylation_lookup[locus_id]["interval"] if locus_id in methylation_lookup else None,
     } for locus_id in sorted(set(reference_lps_by_locus) | set(methylation_lookup))]
-    staging_counts = {c: sum(row[c] is not None for row in rows)
-                      for c in HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES}
+    staging_counts = count_staging_rows_with_a_value_in_each_column(
+        rows, HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES)
     print(f"Counts to write: {staging_counts}")
 
     # Where most samples carry the reference allele, the mode allele should equal the reference LPS
@@ -124,7 +118,8 @@ def main():
 
     fill_catalog_table_columns(client, catalog_table, rows, HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES,
                                "hprc256_reference_lps_and_methylation_interval_staging")
-    table_counts = count_table_rows_with_a_value_in_each_column(client, catalog_table)
+    table_counts = count_catalog_table_rows_with_a_value_in_each_column(
+        client, catalog_table, HPRC256_REFERENCE_LPS_AND_METHYLATION_INTERVAL_COLUMN_NAMES)
     print(f"Counts in {table_id} after the update: {table_counts}")
     if table_counts != staging_counts:
         print("WARNING: these differ from the counts that were written")

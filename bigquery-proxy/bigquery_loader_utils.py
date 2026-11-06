@@ -126,9 +126,29 @@ def fill_catalog_table_columns(client, catalog_table, rows, column_names, stagin
         client.delete_table(staging_table, not_found_ok=True)
 
 
+def count_staging_rows_with_a_value_in_each_column(rows, column_names):
+    """Returns {column name: number of staging rows with a value in that column} for these columns."""
+    return {c: sum(row[c] is not None for row in rows) for c in column_names}
+
+
+def count_catalog_table_rows_with_a_value_in_each_column(client, catalog_table, column_names):
+    """Returns {column name: number of rows of the catalog table with a value in that column} for these columns."""
+    counts = ", ".join(f"COUNTIF({c} IS NOT NULL) AS {c}" for c in column_names)
+    row = list(client.query(f"SELECT {counts} FROM `{catalog_table}`").result())[0]
+    return {c: row[c] for c in column_names}
+
+
+def print_counts_of_rows_with_a_value_in_each_column(title, counts):
+    """Prints {column name: number of rows with a value in that column}."""
+    print(f"{title}:")
+    for column_name, n in counts.items():
+        print(f"  {n:10,d}  {column_name}")
+
+
 def add_or_update_catalog_table_columns_from_lookup_json(
         lookup_path, table_id, check_only, column_names, get_column_values, staging_table_prefix,
-        count_values_in_staging_rows, count_values_in_catalog_table, print_counts, max_locus_ids_to_check=None):
+        count_values_in_staging_rows=None, count_values_in_catalog_table=None, print_counts=None,
+        max_locus_ids_to_check=None):
     """The steps of the add_or_update_*_columns_in_catalog_table.py scripts: fills these columns of a catalog table from
     a lookup JSON with fill_catalog_table_columns, then checks that the table's counts match the lookup's. With
     check_only, nothing is changed: it only reports how many of the lookup's LocusIds are in the table, and the table's
@@ -141,12 +161,22 @@ def add_or_update_catalog_table_columns_from_lookup_json(
         column_names (list): the columns to fill
         get_column_values (function): returns {column name: value} for a lookup entry
         staging_table_prefix (str): name of the staging table, before the timestamp that makes it unique
-        count_values_in_staging_rows (function): returns a dict of counts that summarizes the staging rows
+        count_values_in_staging_rows (function): returns a dict of counts that summarizes the staging rows (default:
+            the number of rows with a value in each column)
         count_values_in_catalog_table (function): (client, catalog_table) -> the same counts for the table's values
-        print_counts (function): (title, counts) -> prints the counts
+            (default: the number of rows with a value in each column)
+        print_counts (function): (title, counts) -> prints the counts (default: one line per column)
         max_locus_ids_to_check (int): with check_only, how many of the lookup's LocusIds to look for in the table
             (default: all of them)
     """
+    if count_values_in_staging_rows is None:
+        count_values_in_staging_rows = lambda rows: count_staging_rows_with_a_value_in_each_column(rows, column_names)
+    if count_values_in_catalog_table is None:
+        count_values_in_catalog_table = lambda client, catalog_table: \
+            count_catalog_table_rows_with_a_value_in_each_column(client, catalog_table, column_names)
+    if print_counts is None:
+        print_counts = print_counts_of_rows_with_a_value_in_each_column
+
     lookup_path = os.path.expanduser(lookup_path)
     with (gzip.open if lookup_path.endswith("gz") else open)(lookup_path, "rt") as f:
         lookup = json.load(f)
@@ -210,6 +240,28 @@ def create_or_replace_keep_best_non_overlapping_loci_function(client, project_id
             return kept.map(k => k.id);
         """
     ''').result()
+
+
+def get_tanudisastro_2024_column_values(tanudisastro_2024_lookup_entry):
+    """Returns the Tanudisastro2024_* column values for one locus of the Tanudisastro lookup JSON.
+
+    Both load_bigquery_main_table.py and add_or_update_tanudisastro_2024_columns_in_catalog_table.py use this, so a
+    table filled either way holds the same values.
+
+    Args:
+        tanudisastro_2024_lookup_entry (dict): the lookup's entry for the locus, written by
+            ../data-prep/literature_review/Tanudisastro_2024/generate_Tanudisastro_2024_lookup_json.py
+
+    Returns:
+        dict: column name -> value, with Tanudisastro2024_Details as a JSON string
+    """
+    return {
+        "Tanudisastro2024_SignificantCellTypes": tanudisastro_2024_lookup_entry["SignificantCellTypes"],
+        "Tanudisastro2024_MinPvalue": tanudisastro_2024_lookup_entry["MinPvalue"],
+        "Tanudisastro2024_Details": json.dumps(tanudisastro_2024_lookup_entry["Details"]),
+        "Tanudisastro2024_FineMappingMaxPIP": tanudisastro_2024_lookup_entry["FineMappingMaxPIP"],
+        "Tanudisastro2024_ChromatinAccessibilityCellTypes": tanudisastro_2024_lookup_entry["ChromatinAccessibilityCellTypes"],
+    }
 
 
 def get_zhang_2025_column_values(zhang_2025_lookup_entry):

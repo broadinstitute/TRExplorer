@@ -22,7 +22,8 @@ GROUP_POLYMORPHISM_HPRC256_TOTAL_LENGTH = "Polymorphism (HPRC256:Length)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027:LPS)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
 # The columns added in October and November 2026 (CentromereAndSatelliteRegion, the Zhang 2025 STR MPRA, ENCODE4/IGVF
-# and SpliceAI columns, and the Garg 2019 and Garg 2020 DMR columns), grouped together so they're easy to find
+# and SpliceAI columns, the Garg 2019 and Garg 2020 DMR columns, and the sc-eTR fine-mapping and caQTL columns),
+# grouped together so they're easy to find
 GROUP_COLUMNS_ADDED_2026_10 = "New Columns (10-11/2026)"
 
 # The export and custom filter dialogs show the column groups as boxes; each inner list is one row of boxes
@@ -1201,12 +1202,13 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "group": GROUP_ADDITIONAL_LAYERS2,
     },
 
-    # Tanudisastro 2024 sc-eTR data
+    # sc-eTRs from Tanudisastro et al. 2026 (Nature), from ../data-prep/literature_review/Tanudisastro_2024/. The column
+    # names keep the year of the paper's first preprint (2024) so that existing links, filters and exports still work.
     {
         "type": "STRING",
         "name": "Tanudisastro2024_SignificantCellTypes",
         "plotAxisType": None,
-        "description": "Comma-separated list of immune cell types with significant sc-eTR associations (p < 0.05) from Tanudisastro et al. 2024.",
+        "description": "Comma-separated list of the immune cell types in which this TR's length is associated with the expression of a nearby gene (a single-cell expression TR locus, or sc-eTR), most significant first, from Tanudisastro et al. 2026 (Nature), which tested 28 immune cell types from 1,925 individuals in the TenK10K cohort. Includes the associations with gene-level FDR < 5% in the paper's Supplementary Table 1, and the fine-mapped associations in its Supplementary Table 6.",
         "displayName": "sc-eTRs: Cell Types",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1215,7 +1217,7 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "FLOAT",
         "name": "Tanudisastro2024_MinPvalue",
-        "description": "Minimum (most significant) p-value across all cell types for this locus from Tanudisastro et al. 2024.",
+        "description": "Smallest nominal p-value among this TR's sc-eTR associations (across cell types and genes) from Tanudisastro et al. 2026.",
         "displayName": "sc-eTRs: Min P-value",
         "allowCustomFilter": True,
         "allowExport": True,
@@ -1224,8 +1226,9 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
     {
         "type": "STRING",
         "name": "Tanudisastro2024_Details",
-        "description": "JSON with per-cell-type sc-eTR details (p-value, effect size, eGene, rank) from Tanudisastro et al. 2024.",
+        "description": "JSON with this TR's sc-eTR associations from Tanudisastro et al. 2026: an associations list, most significant first, where each item has the cellType, eGene (gene symbol, or Ensembl ID for genes without one), nominal pvalue, effectSize, and for fine-mapped associations their fineMappingPIP. Also tanudisastroLocusId, the paper's locus (chrom-start-end-motif, or chrom-start-motif for loci that are only in the paper's fine-mapping table, which gives no end), when it differs from this TR's locus (matched by overlap).",
     },
+    # Tanudisastro2024_FineMappingMaxPIP and Tanudisastro2024_ChromatinAccessibilityCellTypes are at the end of this list
 
     # Manigbas 2024 PheWAS data
     {
@@ -1492,10 +1495,38 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
         "allowExport": True,
         "group": GROUP_COLUMNS_ADDED_2026_10,
     },
+
+    # sc-eTR fine-mapping and caQTL columns from Tanudisastro et al. 2026 (see the other Tanudisastro2024_* columns
+    # above). They come last so that they're listed after the earlier additions in GROUP_COLUMNS_ADDED_2026_10's box in
+    # the column dialogs.
+    {
+        "type": "FLOAT",
+        "name": "Tanudisastro2024_FineMappingMaxPIP",
+        "description": "Largest posterior inclusion probability (PIP) among this TR's fine-mapped sc-eTR associations in Tanudisastro et al. 2026 (Supplementary Table 6): the probability, from SuSiE fine-mapping, that this TR is the variant causing the expression change. The paper calls TRs with PIP ≥ 0.7 candidate causal. NULL for TRs without a PIP ≥ 0.7.",
+        "displayName": "sc-eTRs: Fine-mapping Max PIP",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "STRING",
+        "name": "Tanudisastro2024_ChromatinAccessibilityCellTypes",
+        "plotAxisType": None,
+        "description": "Comma-separated list of the immune cell types in which this sc-eTR's length is also associated with chromatin accessibility at a scATAC-seq peak within 10 kb (a chromatin accessibility QTL, or caQTL, at FDR < 5%), most significant first, from Tanudisastro et al. 2026 (Supplementary Table 4, based on 922 individuals).",
+        "displayName": "sc-eTRs: caQTL Cell Types",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
 ]
 
 # The names of the SpliceAI_* columns, which add_spliceai_columns_to_catalog_table.py fills in an existing table
 SPLICEAI_COLUMN_NAMES = [c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("SpliceAI_")]
+
+# The names of the Tanudisastro2024_* columns, which add_or_update_tanudisastro_2024_columns_in_catalog_table.py fills
+# in an existing table
+TANUDISASTRO_2024_COLUMN_NAMES = [
+    c["name"] for c in MAIN_BIGQUERY_TABLE_COLUMNS if c["name"].startswith("Tanudisastro2024_")]
 
 # The names of the Zhang2025_* columns, which add_or_update_zhang_2025_columns_in_catalog_table.py fills in an
 # existing table

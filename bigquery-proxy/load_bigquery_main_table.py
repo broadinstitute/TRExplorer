@@ -27,7 +27,7 @@ from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
 from bigquery_loader_utils import compute_interval_span, compute_reference_lps_repeat_count_in_interval, \
     create_or_replace_keep_best_non_overlapping_loci_function, get_garg_2019_and_2020_column_values, \
-    get_zhang_2025_column_values, parse_all_samples_distribution_column
+    get_tanudisastro_2024_column_values, get_zhang_2025_column_values, parse_all_samples_distribution_column
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -73,7 +73,8 @@ parser.add_argument("--repeat-masker-lookup-json", default="../data-prep/hg38.Re
 parser.add_argument("--non-coding-annotations-bed", default="../data-prep/ncAnnot.v0.14.jul2024.filtered.bed.gz")
 parser.add_argument("--tanudisastro-2024-lookup-json",
                     default="../data-prep/literature_review/Tanudisastro_2024/Tanudisastro_2024_lookup.json.gz",
-                    help="JSON lookup with sc-eTR data from Tanudisastro et al. 2024")
+                    help="JSON lookup with sc-eTR data from Tanudisastro et al. 2026 (Nature), written by "
+                         "../data-prep/literature_review/Tanudisastro_2024/generate_Tanudisastro_2024_lookup_json.py")
 parser.add_argument("--manigbas-2024-lookup-json",
                     default="../data-prep/literature_review/Manigbas_2024/Manigbas_2024_lookup.json.gz",
                     help="JSON lookup with PheWAS data from Manigbas et al. 2024")
@@ -1106,10 +1107,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
 
     if record["LocusId"] in tanudisastro_2024_lookup:
         counters["rows_with_tanudisastro_2024_data"] += 1
-        t2024_data = tanudisastro_2024_lookup[record["LocusId"]]
-        record["Tanudisastro2024_SignificantCellTypes"] = t2024_data["SignificantCellTypes"]
-        record["Tanudisastro2024_MinPvalue"] = t2024_data["MinPvalue"]
-        record["Tanudisastro2024_Details"] = json.dumps(t2024_data["Details"])
+        record.update(get_tanudisastro_2024_column_values(tanudisastro_2024_lookup[record["LocusId"]]))
 
     if record["LocusId"] in manigbas_2024_lookup:
         counters["rows_with_manigbas_2024_data"] += 1

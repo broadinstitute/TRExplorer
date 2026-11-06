@@ -1657,20 +1657,38 @@ gtag('config', 'G-6R8FPBQRFH');
         }
     }
 
-    // The rows of a table of Tanudisastro 2024 sc-eTR associations, one per cell type, most significant first. Used by
-    // the results table popup and the locus page, which pass alignNumbersRight = true and false.
-    const buildScEtrTableRowsHtml = (cellTypes, details, alignNumbersRight) => {
-        const numberCellStyle = alignNumbersRight ? ' style="text-align: right;"' : ''
-        return sortNamesByDetailPvalue(cellTypes, details).filter(cellType => details[cellType]).map(cellType => {
-            const d = details[cellType]
-            return `<tr>
-                <td>${cellType}</td>
-                <td>${d.eGene || ''}</td>
-                <td${numberCellStyle}>${d.pvalue != null ? d.pvalue.toExponential(2) : ''}</td>
-                <td${numberCellStyle}>${d.effectSize != null ? d.effectSize.toFixed(3) : ''}</td>
-                <td${numberCellStyle}>${d.rank || ''} / ${d.totalInCellType || ''}</td>
-            </tr>`
-        }).join('')
+    // The source of the Tanudisastro2024_* sc-eTR columns, as a link
+    const TANUDISASTRO_2026_LINK_HTML = '<a href="https://doi.org/10.1038/s41586-026-10438-2" target="_blank">Tanudisastro et al. 2026</a>'
+
+    // The paper's tables give p = 0 for p-values too small for a double-precision number
+    const formatScEtrPvalue = (pvalue) => pvalue === 0 ? '< 1e-300' : pvalue.toExponential(2)
+
+    // A table of a locus's sc-eTR associations (the associations list in Tanudisastro2024_Details, one per cell type and
+    // eGene, most significant first), followed by notes on the fine-mapping PIP (only when an association was
+    // fine-mapped) and on the cell types in which the TR is also a caQTL. Used by the results table popup
+    // (isCompactTable = true, which right-aligns the numbers) and the locus page.
+    const buildScEtrTableHtml = (associations, caqtlCellTypes, isCompactTable) => {
+        const numberCellStyle = isCompactTable ? ' style="text-align: right;"' : ''
+        const showPipColumn = associations.some(a => a.fineMappingPIP != null)
+        const rowsHtml = associations.map(a => `<tr>
+                <td>${a.cellType}</td>
+                <td>${a.eGene}</td>
+                <td${numberCellStyle}>${formatScEtrPvalue(a.pvalue)}</td>
+                <td${numberCellStyle}>${a.effectSize.toFixed(3)}</td>
+                ${showPipColumn ? `<td${numberCellStyle}>${a.fineMappingPIP != null ? a.fineMappingPIP.toFixed(2) : ''}</td>` : ''}
+            </tr>`).join('')
+        let html = `<table class="ui compact${isCompactTable ? '' : ' striped'} table"${isCompactTable ? ' style="white-space: nowrap;"' : ''}>
+            <thead><tr>
+                <th>Cell Type</th><th>eGene</th><th${numberCellStyle}>P-value</th><th${numberCellStyle}>Effect Size</th>${showPipColumn ? `<th${numberCellStyle}>Fine-mapping PIP</th>` : ''}
+            </tr></thead><tbody>${rowsHtml}</tbody></table>`
+        const noteStyle = 'font-size: 0.9em; color: #666; margin-top: 8px;'
+        if (showPipColumn) {
+            html += `<div style="${noteStyle}">PIP: posterior inclusion probability from fine-mapping, i.e. the probability that this TR is the variant causing the expression change. The paper calls TRs with PIP ≥ 0.7 candidate causal.</div>`
+        }
+        if (caqtlCellTypes) {
+            html += `<div style="${noteStyle}">Also a chromatin accessibility QTL (its length is associated with accessibility at a scATAC-seq peak within 10 kb) in: ${caqtlCellTypes.split(',').join(', ')}</div>`
+        }
+        return html
     }
 
     // The rows of a table of Manigbas 2024 PheWAS trait associations, one per trait, most significant first. The results
@@ -1701,31 +1719,22 @@ gtag('config', 'G-6R8FPBQRFH');
     }
 
     function buildScEtrPopupContent(row) {
-        const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
         const details = parseJsonColumn(row, 'Tanudisastro2024_Details')
         if (!details) return '<div>Error loading details</div>'
-        const tanudisastroLocusId = details.Tanudisastro2024_LocusId
-        const trexplorerLocusId = row['LocusId']
 
         let html = '<div style="overflow-x: auto;">'
 
-        // Add note if locus IDs differ (fuzzy match) - only if tanudisastroLocusId exists
-        if (tanudisastroLocusId && tanudisastroLocusId !== trexplorerLocusId) {
+        // tanudisastroLocusId is only there when the paper's locus differs from this one (matched by overlap)
+        if (details.tanudisastroLocusId) {
             html += `<div style="background: #fff3cd; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
                 <i class="info circle icon"></i>
-                <b>Note:</b> Matched via coordinate overlap (Jaccard >= 0.2).<br/>
-                Original locus in Tanudisastro et al.: <code>${tanudisastroLocusId}</code>
+                <b>Note:</b> Matched via coordinate overlap.<br/>
+                Original locus in Tanudisastro et al.: <code>${details.tanudisastroLocusId}</code>
             </div>`
         }
 
-        // Table with details sorted by p-value
-        html += `<table class="ui compact table" style="white-space: nowrap;">
-            <thead><tr>
-                <th>Cell Type</th><th>eGene</th><th style="text-align: right;">P-value</th><th style="text-align: right;">Effect Size</th><th style="text-align: right;">P-value Rank</th>
-            </tr></thead><tbody>`
-        html += buildScEtrTableRowsHtml(cellTypes, details, true)
-        html += '</tbody></table>'
-        html += '<div style="font-size: 0.9em; color: #666; margin-top: 8px;">Source: <a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro et al. 2024</a></div>'
+        html += buildScEtrTableHtml(details.associations, row['Tanudisastro2024_ChromatinAccessibilityCellTypes'], true)
+        html += `<div style="font-size: 0.9em; color: #666; margin-top: 8px;">Source: ${TANUDISASTRO_2026_LINK_HTML}</div>`
         html += '</div>'
 
         return html
@@ -2878,9 +2887,9 @@ gtag('config', 'G-6R8FPBQRFH');
             getRequiredColumns: () => ['ReferenceRepeatSequence', 'ReferenceLeftFlank', 'ReferenceRightFlank', 'ReferenceRegion', 'NumRepeatsInReference', 'ReferenceMotif', 'ReferenceRegionSize'],
         },
         Tanudisastro2024_SignificantCellTypes: {
-            displayName: 'sc-eTRs 2024',
+            displayName: 'sc-eTRs 2026',
             defaultSortDirection: 'ASC',  // lowest p-value (most significant) first; untested loci stay last (NULLS LAST)
-            helpText: 'Immune cell types with significant sc-eTR associations from [<a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro 2024</a>]',
+            helpText: `Immune cell types in which the TR's length is associated with the expression of a nearby gene (sc-eTRs), from [${TANUDISASTRO_2026_LINK_HTML}]`,
             getValue: (row) => {
                 if (!row['Tanudisastro2024_SignificantCellTypes']) return ''
                 const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
@@ -2892,7 +2901,7 @@ gtag('config', 'G-6R8FPBQRFH');
                 'Tanudisastro2024_SignificantCellTypes',
                 'Tanudisastro2024_Details',
                 'Tanudisastro2024_MinPvalue',
-                'LocusId'
+                'Tanudisastro2024_ChromatinAccessibilityCellTypes',
             ]
         },
         Manigbas2024_AssociatedTraits: {

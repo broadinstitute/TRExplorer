@@ -6,9 +6,9 @@ import unittest
 
 from bigquery_loader_utils import build_fill_sql, build_staging_rows, compute_interval_span, \
     compute_longest_pure_segment_repeat_count, compute_reference_lps_repeat_count_in_interval, \
-    get_catalog_column_schema_fields, get_garg_2019_and_2020_column_values, get_zhang_2025_column_values, \
-    parse_all_samples_distribution_column
-from global_constants import GARG_2019_AND_2020_COLUMN_NAMES, ZHANG_2025_COLUMN_NAMES
+    get_catalog_column_schema_fields, get_garg_2019_and_2020_column_values, get_tanudisastro_2024_column_values, \
+    get_zhang_2025_column_values, parse_all_samples_distribution_column
+from global_constants import GARG_2019_AND_2020_COLUMN_NAMES, TANUDISASTRO_2024_COLUMN_NAMES, ZHANG_2025_COLUMN_NAMES
 
 
 class ComputeLongestPureSegmentRepeatCountTests(unittest.TestCase):
@@ -97,6 +97,31 @@ class BuildStagingRowsTests(unittest.TestCase):
         self.assertEqual(rows[1]["LocusId"], "1-200-230-A")
         self.assertEqual((rows[1]["Zhang2025_LengthEffectSlope"], rows[1]["Zhang2025_LengthEffectFDR"]), (None, None))
         self.assertEqual(set(rows[1]), {"LocusId"} | set(ZHANG_2025_COLUMN_NAMES))
+
+    def test_tanudisastro_2024_rows_have_details_as_a_json_string_and_nulls_for_missing_values(self):
+        details = {"associations": [
+            {"cellType": "B_naive", "eGene": "CAMK4", "pvalue": 2.81e-28, "effectSize": -0.1883},
+            {"cellType": "CD4_Naive", "eGene": "ENSG00000288965", "pvalue": 2.2e-20, "effectSize": 0.1449,
+             "fineMappingPIP": 0.991}]}
+        lookup = {
+            "5-111240306-111240319-A": {"SignificantCellTypes": "B_naive,CD4_Naive", "MinPvalue": 2.81e-28,
+                                        "FineMappingMaxPIP": 0.991, "ChromatinAccessibilityCellTypes": "B_naive",
+                                        "Details": details},
+            "1-200-230-A": {"SignificantCellTypes": "NK", "MinPvalue": 1e-5, "FineMappingMaxPIP": None,
+                            "ChromatinAccessibilityCellTypes": None, "Details": {"associations": []}},
+        }
+        rows = build_staging_rows(lookup, TANUDISASTRO_2024_COLUMN_NAMES, get_tanudisastro_2024_column_values)
+        self.assertEqual(rows[0], {
+            "LocusId": "5-111240306-111240319-A",
+            "Tanudisastro2024_SignificantCellTypes": "B_naive,CD4_Naive",
+            "Tanudisastro2024_MinPvalue": 2.81e-28,
+            "Tanudisastro2024_Details": json.dumps(details),
+            "Tanudisastro2024_FineMappingMaxPIP": 0.991,
+            "Tanudisastro2024_ChromatinAccessibilityCellTypes": "B_naive",
+        })
+        self.assertEqual((rows[1]["Tanudisastro2024_FineMappingMaxPIP"],
+                          rows[1]["Tanudisastro2024_ChromatinAccessibilityCellTypes"]), (None, None))
+        self.assertEqual(set(rows[1]), {"LocusId"} | set(TANUDISASTRO_2024_COLUMN_NAMES))
 
     def test_garg_2019_and_2020_rows_have_details_as_json_strings_and_nulls_for_unmatched_datasets(self):
         autism_dmrs = [{"dmrHg38": "chr1:100-200", "methylationChange": "hypomethylated", "numProbandsWithDMR": 1}]

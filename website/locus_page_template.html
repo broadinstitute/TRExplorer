@@ -223,6 +223,7 @@
 
         "Tanudisastro2024_SignificantCellTypes",
         "Tanudisastro2024_Details",
+        "Tanudisastro2024_ChromatinAccessibilityCellTypes",
 
         "Manigbas2024_Details",
 
@@ -327,29 +328,21 @@
         const cellTypes = row['Tanudisastro2024_SignificantCellTypes'].split(',')
         const details = parseJsonColumn(row, 'Tanudisastro2024_Details')
         if (!details) return '<div class="ui error message">Error loading sc-eTR details</div>'
-        const tanudisastroLocusId = details.Tanudisastro2024_LocusId
-        const isFuzzyMatch = tanudisastroLocusId && tanudisastroLocusId !== row['LocusId']
 
-        let html = '<h4>sc-eTRs (Tanudisastro et al. 2024)</h4>'
+        let html = '<h4>sc-eTRs (Tanudisastro et al. 2026)</h4>'
 
-        if (isFuzzyMatch) {
+        // tanudisastroLocusId is only there when the paper's locus differs from this one (matched by overlap)
+        if (details.tanudisastroLocusId) {
             html += `<div class="ui warning message" style="padding: 10px;">
                 <i class="info circle icon"></i>
-                Matched to Tanudisastro et al. locus <code>${tanudisastroLocusId}</code>
-                via coordinate overlap (Jaccard >= 0.2).
+                Matched to Tanudisastro et al. locus <code>${details.tanudisastroLocusId}</code>
+                via coordinate overlap.
             </div>`
         }
 
-        html += `<p>Significant expression associations in <b>${cellTypes.length}</b> immune cell type(s):</p>`
-
-        html += `<table class="ui compact striped table">
-            <thead><tr>
-                <th>Cell Type</th><th>eGene</th><th>P-value</th><th>Effect Size</th><th>Rank / Total</th>
-            </tr></thead><tbody>`
-        html += buildScEtrTableRowsHtml(cellTypes, details, false)
-        html += '</tbody></table>'
-
-        html += '<p style="font-size: 0.9em; color: #666;">Source: <a href="https://www.biorxiv.org/content/10.1101/2024.11.02.621562" target="_blank">Tanudisastro et al. 2024</a></p>'
+        html += `<p>The TR's length is associated with the expression of a nearby gene in <b>${cellTypes.length}</b> immune cell type(s):</p>`
+        html += buildScEtrTableHtml(details.associations, row['Tanudisastro2024_ChromatinAccessibilityCellTypes'], false)
+        html += `<p style="font-size: 0.9em; color: #666; margin-top: 8px;">Source: ${TANUDISASTRO_2026_LINK_HTML}</p>`
 
         return html
     }
