@@ -39,9 +39,8 @@ from global_constants import HPRC256_LPS_STRATIFIED_BIGQUERY_TABLE_COLUMNS, HPRC
 PROJECT_ID = "cmg-analysis"
 DATASET_ID = "tandem_repeat_explorer"
 
-# For each --allele-size-measure: the new table's name prefix, the website constant that gets its table id, and the
-# default input. The prefixes must not start with one another, since delete_previous_bigquery_tables.py groups
-# tables by prefix.
+# For each --allele-size-measure: the new table's name prefix (also listed in TABLE_ID_PREFIXES in
+# delete_previous_bigquery_tables.py), the website constant that gets its table id, and the default input.
 TABLE_SETTINGS_BY_ALLELE_SIZE_MEASURE = {
     "lps": {
         "table_id_prefix": "hprc256_stratified_lps",
