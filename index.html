@@ -6610,7 +6610,7 @@ gtag('config', 'G-6R8FPBQRFH');
                         <input type="checkbox" id="export-set-pseudoautosomal-region-flag-checkbox">
                         <label>Set IsInsidePseudoautosomalRegion flag</label>
                     </div>
-                    <span class="export-column-help-icon" id="export-pseudoautosomal-region-flag-help-icon" data-html="Adds &quot;IsInsidePseudoautosomalRegion&quot;: true to the exported loci that lie inside a chrX pseudoautosomal region (PAR1 or PAR2), so that ExpansionHunter genotypes them with two alleles in male samples, like autosomal loci, rather than with one allele like the rest of chrX. This assumes that the reads were aligned to a reference genome whose chrY PARs are masked with Ns. The field is supported by <a href='https://github.com/bw2/ExpansionHunter' target='_blank'>bw2/ExpansionHunter</a> (see its <a href='https://github.com/bw2/ExpansionHunter/blob/master/docs/04_VariantCatalogFiles.md' target='_blank'>catalog file docs</a>). Other versions of ExpansionHunter ignore it.">(?)</span>
+                    <span class="export-column-help-icon" id="export-pseudoautosomal-region-flag-help-icon" data-html="Adds &quot;IsInsidePseudoautosomalRegion&quot;: true to the exported loci that lie inside a chrX pseudoautosomal region (PAR1 or PAR2). <a href='https://github.com/bw2/ExpansionHunter' target='_blank'>bw2/ExpansionHunter</a> then computes biallelic genotypes for these loci in both male and female samples (see its <a href='https://github.com/bw2/ExpansionHunter/blob/master/docs/04_VariantCatalogFiles.md' target='_blank'>catalog file docs</a>), while the original <a href='https://github.com/Illumina/ExpansionHunter' target='_blank'>Illumina/ExpansionHunter</a> ignores the field. This assumes that the reads were aligned to a reference genome whose chrY PARs are masked with Ns.">(?)</span>
                 </div>
             </div>
             <!-- TRGT catalog type options -->
@@ -9990,8 +9990,8 @@ gtag('config', 'G-6R8FPBQRFH');
             fileFormat = 'JSON'
             selectClause = `LocusId, ReferenceRegion, CONCAT('(', ReferenceMotif, ')*') AS LocusStructure, 'Repeat' AS VariantType`
             if (setPseudoautosomalRegionFlag) {
-                // bw2/ExpansionHunter genotypes the loci with this flag with two alleles in male samples, and rejects the
-                // flag on any chromosome other than chrX. A JSON export leaves out NULL fields, so only these loci get it.
+                // bw2/ExpansionHunter computes biallelic genotypes for the loci with this flag in both male and female
+                // samples, and rejects the flag on any chromosome other than chrX. A JSON export leaves out NULL fields, so only these loci get it.
                 selectClause += `, IF(chrom = 'X' AND PseudoautosomalRegion IS NOT NULL, TRUE, NULL) AS IsInsidePseudoautosomalRegion`
             }
             conditions.push(...EXPANSION_HUNTER_EXPORT_CONDITIONS)
