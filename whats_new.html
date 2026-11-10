@@ -13,6 +13,15 @@
 <table class="ui very basic table" style="width: 100%; border: 0px !important; font-weight: 400 !important">
   <tbody class="ui table body">
         <tr class="ui table row" style="border: 0px !important;">
+          <td style="vertical-align: top; font-size: 1.1em;"><b>11/10/2026</b></td>
+          <td style="vertical-align: top; font-size: 1.1em;">
+            <ul>
+		<li>Added an optional <b>Pseudoautosomal Region</b> column that marks the 11,064 TR loci inside the two pseudoautosomal regions of chrX (10,535 in PAR1 and 529 in PAR2). Unlike TRs in the rest of chrX, these have two copies in male genomes. The column can be used in custom filters and exports.<br />When some of the loci being exported to ExpansionHunter are in a pseudoautosomal region, the export options dialog now has a <b>Set IsInsidePseudoautosomalRegion flag</b> checkbox (off by default) that marks them in the exported catalog, so that <a href="https://github.com/bw2/ExpansionHunter" target="_blank">bw2/ExpansionHunter</a> genotypes them with two alleles in male samples.<br />Added two optional columns with the highest sequence identity among the segmental duplications (segdups) that overlap each TR locus: <b>UCSC SegDups</b>, from UCSC's genomicSuperDups track (342,486 TR loci), and <b>Vollger 2022 SegDups</b>, from the segdups that [<a href="https://doi.org/10.1126/science.abj6965" target="_blank">Vollger 2022</a>] found with a different method (339,434 TR loci). 316,492 loci overlap a segdup in both. The closer the value is to 1, the harder it is to tell which copy a sequencing read came from, especially for short reads. Locus pages show both, and both columns can be used in custom filters and exports.</li>
+		<li>Corrected the descriptions of the har, zooHAR and zooCHAR values in the <b>Non-coding Annotations</b> column, which now give their sources: har is the HARsv2 list of human accelerated regions (Girskis 2021), not an hg18 liftover, and zooHAR and zooCHAR are the human and chimpanzee accelerated regions from Keough 2023.</li>
+              </ul>
+          </td>
+        </tr>
+        <tr class="ui table row" style="border: 0px !important;">
           <td style="vertical-align: top; font-size: 1.1em;"><b>11/6/2026</b></td>
           <td style="vertical-align: top; font-size: 1.1em;">
             <ul>

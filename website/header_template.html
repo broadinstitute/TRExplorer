@@ -121,7 +121,10 @@ gtag('config', 'G-6R8FPBQRFH');
 
     const REFERENCE_TRACKS = [
         ["igv_gencode", "Gencode v50 basic", `${REFERENCE_BASE_URL}/gencode_v50/gencode.v50.GRCh38.sorted.txt.gz`],
-        ["igv_segdups", "SegDups > 1000bp", `${REFERENCE_BASE_URL}/segdups/segdups.gtf.gz`],
+        // Made by data-prep/segdup_igv_tracks/generate_segdup_igv_track_bed_files.py. The UCSC track keeps the id
+        // igv_segdups that it had as TRExplorer's only segdup track, so that links which turn it on still work.
+        ["igv_segdups", "UCSC SegDups", `${REFERENCE_BASE_URL}/segdups/UCSC_genomicSuperDups.hg38.bed.gz`],
+        ["igv_vollger2022_segdups", "Vollger 2022 SegDups", `${REFERENCE_BASE_URL}/segdups/Vollger2022_SDs.hg38.bed.gz`],
         ["igv_36k_map", "36-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k36_m2.bw`],
         ["igv_100k_map", "100-mer mappability", `${REFERENCE_BASE_URL}/mappability/GRCh38_no_alt_analysis_set_GCA_000001405.15-k100_m2.bw`],
         ["igv_haploinsuf", "ClinGen haploinsufficiency track", `${REFERENCE_BASE_URL}/clingen/ClinGen_haploinsufficiency_gene_GRCh38.sorted.bed.gz`],
@@ -1013,10 +1016,10 @@ gtag('config', 'G-6R8FPBQRFH');
         const descriptions = {'uce': 'original UCE defined list (human-mouse-rat 100% sequence identity  >= 200bp), lifted over from hg19',
             'cFootprint_primate': 'evidence for TF binding for constrained primate elements (should be more constrained than mammals)',
             'uce_primate': 'ultra conserved in primates at least 20 bp',
-            'har': 'elements conserved in mammals but enriched for fixed changes in human only - could be either depleted or enriched for SVs in humans; liftover hg18 -> hg38',
+            'har': 'HARsv2 human accelerated regions (Girskis et al. 2021): 3,167 regions that are conserved across mammals but changed quickly in the human lineage, merged from earlier HAR screens',
             'zoonomia_tfbs': 'zoonomia constrained tfbs',
-            'zooHAR': 'zoonomia human accelerated regions',
-            'zooCHAR': 'zoonomia chimp-human accelerated regions',
+            'zooHAR': 'Zoonomia human accelerated regions (Keough et al. 2023): 312 regions conserved across 241 mammals that changed quickly in the human lineage',
+            'zooCHAR': 'Zoonomia chimpanzee accelerated regions (Keough et al. 2023): 141 regions conserved across 241 mammals that changed quickly in the chimpanzee lineage',
             'ucne': '18 species conserved, more permissive than UCE.481',
             'fetal_cortex_enh_gw18': '24,218 enhancers in GW18 cortex MPRA (psychencode2)',
             'fetal_cortex_sil_gw18': '2,783 silencers in GW18 cortex MPRA (psychencode2)',
@@ -2666,6 +2669,17 @@ gtag('config', 'G-6R8FPBQRFH');
         ['ExtendedLocusBoundaries', 'v2.1', 'TRExplorer v2 loci whose boundaries were extended beyond their v2.0 definitions', null, null],
     ]
 
+    // The TABLE_COLUMNS entry of a segdup identity column (UCSC_SegDupMaxSequenceIdentity or
+    // Vollger2022_SegDupMaxSequenceIdentity), which shows the value with up to 4 decimals and without trailing zeros
+    // (eg. 0.992918 => 0.9929, 1.0 => 1)
+    const buildSegDupMaxSequenceIdentityColumn = (columnName, displayName) => ({
+        displayName: displayName,
+        helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS[columnName],
+        getValue: (row) => row[columnName] != null ? String(Number(row[columnName].toFixed(4))) : '',
+        getSortColumns: () => [columnName],
+        getRequiredColumns: () => [columnName],
+    })
+
     let TABLE_COLUMNS = {
         LocusId: {
             displayName: 'LocusId',
@@ -3076,6 +3090,17 @@ gtag('config', 'G-6R8FPBQRFH');
             },
             getSortColumns: () => ['CentromereAndSatelliteRegion'],
             getRequiredColumns: () => ['CentromereAndSatelliteRegion'],
+        },
+        UCSC_SegDupMaxSequenceIdentity: buildSegDupMaxSequenceIdentityColumn('UCSC_SegDupMaxSequenceIdentity', 'UCSC SegDups'),
+        Vollger2022_SegDupMaxSequenceIdentity: buildSegDupMaxSequenceIdentityColumn(
+            'Vollger2022_SegDupMaxSequenceIdentity', 'Vollger 2022 SegDups'),
+        PseudoautosomalRegion: {
+            displayName: 'Pseudoautosomal Region',
+            resultsTableHeaderName: 'PAR',
+            helpText: RESULTS_TABLE_COLUMN_HELP_TEXTS['PseudoautosomalRegion'],
+            getValue: (row) => row['PseudoautosomalRegion'] || '',
+            getSortColumns: () => ['PseudoautosomalRegion'],
+            getRequiredColumns: () => ['PseudoautosomalRegion'],
         },
     }
 

@@ -149,6 +149,9 @@
         "TRsInRegion",
         "Source",
         "FlanksAndLocusMappability",
+        "UCSC_SegDupMaxSequenceIdentity",
+        "Vollger2022_SegDupMaxSequenceIdentity",
+        "PseudoautosomalRegion",
         "VariationCluster",
         "VariationClusterSizeDiff",
         "VariationClusterFilterReason",
@@ -445,6 +448,15 @@
         locusPageRow1Box1 += buildLocusInfoRowHtml('Other TRs Nearby',
             row['TRsInRegion'] > 1 ? TABLE_COLUMNS['TRsInRegion'].getValue(row) : 'no', 'TRsInRegion')
         locusPageRow1Box1 += buildLocusInfoRowHtml('Mappability', TABLE_COLUMNS['FlanksAndLocusMappability'].getValue(row), 'FlanksAndLocusMappability')
+        for (const segDupColumnName of ['UCSC_SegDupMaxSequenceIdentity', 'Vollger2022_SegDupMaxSequenceIdentity']) {
+            locusPageRow1Box1 += buildLocusInfoRowHtml(TABLE_COLUMNS[segDupColumnName].displayName,
+                TABLE_COLUMNS[segDupColumnName].getValue(row) || 'not in a segdup', segDupColumnName)
+        }
+        // Only loci in the chrX pseudoautosomal regions have this row
+        if (row['PseudoautosomalRegion']) {
+            locusPageRow1Box1 += buildLocusInfoRowHtml('Pseudoautosomal Region',
+                TABLE_COLUMNS['PseudoautosomalRegion'].getValue(row), 'PseudoautosomalRegion')
+        }
         locusPageRow1Box1 += buildLocusInfoRowHtml('Variation Cluster', TABLE_COLUMNS['variationCluster'].getValue(row) || 'no', 'variationCluster')
         // The Locus Id row has a smaller font
         locusPageRow1Box1 += `<tr><td class="locus-info-label">Locus Id:</td><td style="font-size:0.9em !important">${showTruncatedSequence(row['LocusId'], 30, false)}</td><td>${getHelpIcon('LocusId')}</td></tr>`

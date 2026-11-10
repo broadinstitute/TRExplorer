@@ -1,11 +1,14 @@
 """Helpers shared by the scripts that load or fill tables in BigQuery."""
 
+import argparse
+import collections
 import datetime
 import gzip
 import json
 import os
 import re
 
+import ijson
 import tqdm
 from google.cloud import bigquery
 
@@ -23,6 +26,57 @@ def read_website_table_id():
     if not match:
         raise SystemExit(f"No TABLE_ID constant found in {header_template}; pass --table-id")
     return match.group(1)
+
+
+def read_lookup_json(lookup_path):
+    """Returns a lookup JSON (LocusId -> lookup entry) such as those in ../data-prep/literature_review/, which can be
+    gzipped, and prints its number of loci."""
+    lookup_path = os.path.expanduser(lookup_path)
+    with (gzip.open if lookup_path.endswith("gz") else open)(lookup_path, "rt") as f:
+        lookup = json.load(f)
+    print(f"Read {len(lookup):,d} loci from {lookup_path}")
+    return lookup
+
+
+def read_staging_rows_from_annotated_catalog_field(catalog_json_path, field_name):
+    """Returns one staging table row for each annotated catalog locus where a field has a value: its LocusId and that
+    value, under the field's name.
+
+    Args:
+        catalog_json_path (str): path of the annotated catalog JSON file, which can be gzipped
+        field_name (str): the field, which every record must have (with None for loci without a value), and the name
+            of the catalog table column it fills
+
+    Returns:
+        list: {"LocusId": ..., field_name: value} dicts, in catalog order, with decimal numbers read as floats
+
+    Raises:
+        SystemExit: if some records lack the field, or a LocusId with a value appears more than once
+    """
+    rows = []
+    num_records = 0
+    num_records_with_field = 0
+    with (gzip.open if catalog_json_path.endswith("gz") else open)(catalog_json_path, "rb") as f:
+        for record in ijson.items(f, "item", use_float=True):
+            num_records += 1
+            if field_name not in record:
+                continue
+            num_records_with_field += 1
+            if record[field_name] is not None and record[field_name] != "":
+                rows.append({"LocusId": record["LocusId"], field_name: record[field_name]})
+
+    if num_records_with_field < num_records:
+        raise SystemExit(f"{num_records - num_records_with_field:,} of the {num_records:,} records in "
+                         f"{catalog_json_path} have no {field_name} field. Pass an annotated catalog built after "
+                         f"the field was added.")
+
+    duplicate_locus_ids = [locus_id for locus_id, count in collections.Counter(
+        row["LocusId"] for row in rows).items() if count > 1]
+    if duplicate_locus_ids:
+        raise SystemExit(f"{len(duplicate_locus_ids):,} LocusIds appear more than once in {catalog_json_path}, "
+                         f"eg. {duplicate_locus_ids[:3]}")
+
+    return rows
 
 
 def get_catalog_column_schema_fields(column_names):
@@ -105,7 +159,8 @@ def fill_catalog_table_columns(client, catalog_table, rows, column_names, stagin
     Args:
         client (google.cloud.bigquery.Client): the BigQuery client
         catalog_table (str): the catalog table to fill, as project.dataset.table
-        rows (list): staging rows returned by build_staging_rows
+        rows (list): staging rows (dicts with LocusId and every column in column_names), eg. returned by
+            build_staging_rows or read_staging_rows_from_annotated_catalog_field
         column_names (list): the columns to fill
         staging_table_prefix (str): name of the staging table, before the timestamp that makes it unique
     """
@@ -150,23 +205,46 @@ def add_or_update_catalog_table_columns_from_lookup_json(
         count_values_in_staging_rows=None, count_values_in_catalog_table=None, print_counts=None,
         max_locus_ids_to_check=None):
     """The steps of the add_or_update_*_columns_in_catalog_table.py scripts: fills these columns of a catalog table from
-    a lookup JSON with fill_catalog_table_columns, then checks that the table's counts match the lookup's. With
-    check_only, nothing is changed: it only reports how many of the lookup's LocusIds are in the table, and the table's
-    current counts.
+    a lookup JSON with add_or_update_catalog_table_columns_from_staging_rows.
 
     Args:
         lookup_path (str): the lookup JSON (LocusId -> lookup entry), which can be gzipped
+        table_id (str): see add_or_update_catalog_table_columns_from_staging_rows
+        check_only (bool): see add_or_update_catalog_table_columns_from_staging_rows
+        column_names (list): the columns to fill
+        get_column_values (function): returns {column name: value} for a lookup entry
+        staging_table_prefix (str): name of the staging table, before the timestamp that makes it unique
+        count_values_in_staging_rows (function): see add_or_update_catalog_table_columns_from_staging_rows
+        count_values_in_catalog_table (function): see add_or_update_catalog_table_columns_from_staging_rows
+        print_counts (function): see add_or_update_catalog_table_columns_from_staging_rows
+        max_locus_ids_to_check (int): see add_or_update_catalog_table_columns_from_staging_rows
+    """
+    add_or_update_catalog_table_columns_from_staging_rows(
+        build_staging_rows(read_lookup_json(lookup_path), column_names, get_column_values), table_id, check_only,
+        column_names, staging_table_prefix, count_values_in_staging_rows=count_values_in_staging_rows,
+        count_values_in_catalog_table=count_values_in_catalog_table, print_counts=print_counts,
+        max_locus_ids_to_check=max_locus_ids_to_check)
+
+
+def add_or_update_catalog_table_columns_from_staging_rows(
+        rows, table_id, check_only, column_names, staging_table_prefix, count_values_in_staging_rows=None,
+        count_values_in_catalog_table=None, print_counts=None, max_locus_ids_to_check=None):
+    """Fills these columns of a catalog table from staging rows with fill_catalog_table_columns, then checks that the
+    table's counts match the input file's. With check_only, nothing is changed: it only reports how many of the input
+    file's LocusIds are in the table, and the table's current counts.
+
+    Args:
+        rows (list): staging rows (dicts with LocusId and every column in column_names) read from the input file
         table_id (str): the catalog table to fill, or None for the one the website queries (read_website_table_id)
         check_only (bool): only report on the table, without changing it
         column_names (list): the columns to fill
-        get_column_values (function): returns {column name: value} for a lookup entry
         staging_table_prefix (str): name of the staging table, before the timestamp that makes it unique
         count_values_in_staging_rows (function): returns a dict of counts that summarizes the staging rows (default:
             the number of rows with a value in each column)
         count_values_in_catalog_table (function): (client, catalog_table) -> the same counts for the table's values
             (default: the number of rows with a value in each column)
         print_counts (function): (title, counts) -> prints the counts (default: one line per column)
-        max_locus_ids_to_check (int): with check_only, how many of the lookup's LocusIds to look for in the table
+        max_locus_ids_to_check (int): with check_only, how many of the input file's LocusIds to look for in the table
             (default: all of them)
     """
     if count_values_in_staging_rows is None:
@@ -177,13 +255,8 @@ def add_or_update_catalog_table_columns_from_lookup_json(
     if print_counts is None:
         print_counts = print_counts_of_rows_with_a_value_in_each_column
 
-    lookup_path = os.path.expanduser(lookup_path)
-    with (gzip.open if lookup_path.endswith("gz") else open)(lookup_path, "rt") as f:
-        lookup = json.load(f)
-    rows = build_staging_rows(lookup, column_names, get_column_values)
-    lookup_counts = count_values_in_staging_rows(rows)
-    print(f"Read {len(rows):,} loci from {lookup_path}")
-    print_counts("Counts in the lookup", lookup_counts)
+    input_file_counts = count_values_in_staging_rows(rows)
+    print_counts("Counts in the input file", input_file_counts)
 
     client = bigquery.Client(project=PROJECT_ID)
     table_id = table_id or read_website_table_id()
@@ -193,7 +266,7 @@ def add_or_update_catalog_table_columns_from_lookup_json(
     if check_only:
         locus_ids = [row["LocusId"] for row in rows[:max_locus_ids_to_check]]
         n_found, gb_scanned = count_locus_ids_in_catalog_table(client, catalog_table, locus_ids)
-        print(f"{n_found:,} of the lookup's first {len(locus_ids):,} LocusIds are in {table_id} "
+        print(f"{n_found:,} of the input file's first {len(locus_ids):,} LocusIds are in {table_id} "
               f"({gb_scanned:.2f} GB scanned)")
         if set(column_names) <= {field.name for field in client.get_table(catalog_table).schema}:
             print_counts(f"Current counts in {table_id}", count_values_in_catalog_table(client, catalog_table))
@@ -205,9 +278,37 @@ def add_or_update_catalog_table_columns_from_lookup_json(
     fill_catalog_table_columns(client, catalog_table, rows, column_names, staging_table_prefix)
     table_counts = count_values_in_catalog_table(client, catalog_table)
     print_counts(f"Counts in {table_id} after the update", table_counts)
-    if table_counts != lookup_counts:
-        print(f"WARNING: these differ from the counts in the lookup, which means some of its LocusIds are not in "
-              f"{table_id}")
+    if table_counts != input_file_counts:
+        print(f"WARNING: these differ from the counts in the input file, which means some of its LocusIds are not "
+              f"in {table_id}")
+
+
+def run_script_that_fills_catalog_table_column_from_annotated_catalog_field(
+        script_docstring, column_name, staging_table_prefix, **fill_options):
+    """The command line of the add_*_column_to_catalog_table.py scripts that fill one catalog table column from the field
+    of the same name in an annotated catalog: parses the arguments (the annotated catalog, --table-id and --check-only),
+    reads the loci that have a value with read_staging_rows_from_annotated_catalog_field, and fills the column with
+    add_or_update_catalog_table_columns_from_staging_rows.
+
+    Args:
+        script_docstring (str): the script's docstring, shown by --help
+        column_name (str): the annotated catalog field, and the catalog table column it fills
+        staging_table_prefix (str): name of the staging table, before the timestamp that makes it unique
+        **fill_options: passed on to add_or_update_catalog_table_columns_from_staging_rows (count_values_in_staging_rows,
+            count_values_in_catalog_table, print_counts, max_locus_ids_to_check)
+    """
+    parser = argparse.ArgumentParser(description=script_docstring, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("catalog_json", help=f"Annotated catalog JSON file that has the {column_name} field")
+    parser.add_argument("--table-id", help="catalog table to fill (default: the one the website queries, i.e. the "
+                                           "TABLE_ID in ../website/header_template.html)")
+    parser.add_argument("--check-only", action="store_true",
+                        help="Only report how many of the catalog's LocusIds that have a value are in the table")
+    args = parser.parse_args()
+
+    rows = read_staging_rows_from_annotated_catalog_field(os.path.expanduser(args.catalog_json), column_name)
+    print(f"Read {len(rows):,} loci that have a {column_name} value from {args.catalog_json}")
+    add_or_update_catalog_table_columns_from_staging_rows(
+        rows, args.table_id, args.check_only, [column_name], staging_table_prefix, **fill_options)
 
 
 def create_or_replace_keep_best_non_overlapping_loci_function(client, project_id, dataset_id):

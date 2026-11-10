@@ -8,6 +8,7 @@ import gzip
 import json
 import ijson
 import intervaltree
+import itertools
 import os
 from pprint import pformat
 import re
@@ -27,7 +28,8 @@ from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
 from str_analysis.utils.file_utils import tee_stdout_and_stderr_to_log_file
 from bigquery_loader_utils import compute_interval_span, compute_reference_lps_repeat_count_in_interval, \
     create_or_replace_keep_best_non_overlapping_loci_function, get_garg_2019_and_2020_column_values, \
-    get_tanudisastro_2024_column_values, get_zhang_2025_column_values, parse_all_samples_distribution_column
+    get_tanudisastro_2024_column_values, get_zhang_2025_column_values, parse_all_samples_distribution_column, \
+    read_lookup_json
 from global_constants import MAIN_BIGQUERY_TABLE_COLUMNS, SPLICEAI_COLUMN_NAMES
 
 PROJECT_ID = "cmg-analysis"
@@ -398,6 +400,38 @@ for name in "reference_fasta", "tenk10k_tsv", "hprc256_tsv", "hprc256_total_leng
         parser.error(f"ERROR: {name} not found: {path}")
 
 
+## Open the TRExplorer catalog, and check that it has the fields the website needs before the slow parsing below and
+## before anything is written to BigQuery
+print(f"Reading catalog from {args.catalog_path}")
+is_gzipped = args.catalog_path.endswith("gz")
+if args.catalog_path.startswith("http"):
+    response = requests.get(args.catalog_path)
+    catalog = get_json_iterator(response.content, is_gzipped)
+elif os.path.isfile(os.path.expanduser(args.catalog_path)):
+    catalog = get_json_iterator(os.path.expanduser(args.catalog_path), is_gzipped)
+else:
+    parser.error(f"Invalid catalog path: {args.catalog_path}")
+
+# The website shows these fields for every locus, and only these annotation scripts from the tandem-repeat-catalogs
+# repo add them to the catalog, giving every record the field (None for loci without a value). A catalog that wasn't
+# run through one of them would load a column that is NULL for every locus, so the loader stops instead.
+ANNOTATED_CATALOG_FIELDS_AND_THE_SCRIPTS_THAT_ADD_THEM = {
+    "CentromereAndSatelliteRegion": "add_centromere_and_satellite_region_annotations.py",
+    "UCSC_SegDupMaxSequenceIdentity": "add_segdup_max_sequence_identity_annotations.py --segdups-source ucsc",
+    "Vollger2022_SegDupMaxSequenceIdentity": "add_segdup_max_sequence_identity_annotations.py --segdups-source vollger2022",
+    "PseudoautosomalRegion": "add_pseudoautosomal_region_annotations.py",
+}
+first_catalog_record = next(catalog)
+missing_fields = [field for field in ANNOTATED_CATALOG_FIELDS_AND_THE_SCRIPTS_THAT_ADD_THEM
+                  if field not in first_catalog_record]
+if missing_fields:
+    annotation_scripts = ", ".join(f"tandem-repeat-catalogs/scripts/{ANNOTATED_CATALOG_FIELDS_AND_THE_SCRIPTS_THAT_ADD_THEM[field]}"
+                                   for field in missing_fields)
+    parser.error(f"The catalog {args.catalog_path} is missing these fields: {', '.join(missing_fields)}. Add them "
+                 f"with {annotation_scripts}")
+catalog = itertools.chain([first_catalog_record], catalog)
+
+
 tenk10k_lookup = {}
 if args.tenk10k_tsv:
     print(f"Parsing Tenk10k data from {args.tenk10k_tsv}")
@@ -652,41 +686,13 @@ if args.repeat_masker_lookup_json:
         repeat_masker_lookup[locus_id] = ", ".join([f"{interval['repFamily']}:{interval['repName']}" for interval in repeat_masker_intervals])  # {interval['repClass']}:
     print(f"Done converting {len(repeat_masker_lookup):,d} repeat masker lookup entries to string format")
 
-## Parse Tanudisastro 2024 sc-eTR lookup
-tanudisastro_2024_lookup = {}
-if args.tanudisastro_2024_lookup_json:
-    print(f"Parsing Tanudisastro 2024 lookup from {args.tanudisastro_2024_lookup_json}")
-    fopen = gzip.open if args.tanudisastro_2024_lookup_json.endswith('gz') else open
-    with fopen(args.tanudisastro_2024_lookup_json, 'rt') as f:
-        tanudisastro_2024_lookup = json.load(f)
-    print(f"Parsed {len(tanudisastro_2024_lookup):,d} records from Tanudisastro 2024 lookup")
-
-## Parse Manigbas 2024 PheWAS lookup
-manigbas_2024_lookup = {}
-if args.manigbas_2024_lookup_json:
-    print(f"Parsing Manigbas 2024 lookup from {args.manigbas_2024_lookup_json}")
-    fopen = gzip.open if args.manigbas_2024_lookup_json.endswith('gz') else open
-    with fopen(args.manigbas_2024_lookup_json, 'rt') as f:
-        manigbas_2024_lookup = json.load(f)
-    print(f"Parsed {len(manigbas_2024_lookup):,d} records from Manigbas 2024 lookup")
-
-## Parse Zhang 2025 STR MPRA lookup
-zhang_2025_lookup = {}
-if args.zhang_2025_lookup_json:
-    print(f"Parsing Zhang 2025 lookup from {args.zhang_2025_lookup_json}")
-    fopen = gzip.open if args.zhang_2025_lookup_json.endswith('gz') else open
-    with fopen(args.zhang_2025_lookup_json, 'rt') as f:
-        zhang_2025_lookup = json.load(f)
-    print(f"Parsed {len(zhang_2025_lookup):,d} records from Zhang 2025 lookup")
-
-## Parse Garg 2019 and Garg 2020 DMR lookup
-garg_2019_and_2020_dmr_lookup = {}
-if args.garg_2019_and_2020_dmr_lookup_json:
-    print(f"Parsing Garg 2019 and Garg 2020 DMR lookup from {args.garg_2019_and_2020_dmr_lookup_json}")
-    fopen = gzip.open if args.garg_2019_and_2020_dmr_lookup_json.endswith('gz') else open
-    with fopen(args.garg_2019_and_2020_dmr_lookup_json, 'rt') as f:
-        garg_2019_and_2020_dmr_lookup = json.load(f)
-    print(f"Parsed {len(garg_2019_and_2020_dmr_lookup):,d} records from Garg 2019 and Garg 2020 DMR lookup")
+## Parse the lookups of loci from published studies: the Tanudisastro 2024 sc-eTRs, Manigbas 2024 PheWAS, Zhang 2025
+## STR MPRA, and Garg 2019 and Garg 2020 DMRs. An empty argument leaves out that study.
+tanudisastro_2024_lookup = read_lookup_json(args.tanudisastro_2024_lookup_json) if args.tanudisastro_2024_lookup_json else {}
+manigbas_2024_lookup = read_lookup_json(args.manigbas_2024_lookup_json) if args.manigbas_2024_lookup_json else {}
+zhang_2025_lookup = read_lookup_json(args.zhang_2025_lookup_json) if args.zhang_2025_lookup_json else {}
+garg_2019_and_2020_dmr_lookup = read_lookup_json(
+    args.garg_2019_and_2020_dmr_lookup_json) if args.garg_2019_and_2020_dmr_lookup_json else {}
 
 ## Parse ENCODE4 and IGVF validated elements
 encode4_and_igvf_validated_elements_lookup = {}
@@ -768,17 +774,7 @@ new_table.clustering_fields = ["start_0based"]
 client.create_table(new_table)
 print(f"Created table {new_table_id}")
 
-## Read and load TRExplorer catalog
-print(f"Reading catalog from {args.catalog_path}")
-is_gzipped = args.catalog_path.endswith("gz")
-if args.catalog_path.startswith("http"):
-    response = requests.get(args.catalog_path)
-    catalog = get_json_iterator(response.content, is_gzipped)
-elif os.path.isfile(os.path.expanduser(args.catalog_path)):
-    catalog = get_json_iterator(os.path.expanduser(args.catalog_path), is_gzipped)
-else:
-    parser.error(f"Invalid catalog path: {args.catalog_path}")
-
+## Load the TRExplorer catalog, opened and checked above
 
 # vamos does not support overlapping loci - double-check that none of the loci with IncludeInVamosCatalog=1 overlap each other
 vamos_overlap_detector_last_end_coord = collections.defaultdict(int)
@@ -1141,7 +1137,7 @@ for record_i, record in tqdm.tqdm(enumerate(catalog), unit=" records", unit_scal
     non_coding_annotations_catalog_overlap = non_coding_annotations_interval_tree.overlap(record["start_0based"], record["end_1based"])
     for non_coding_annotations_interval in non_coding_annotations_catalog_overlap:
         non_coding_annotations_category = non_coding_annotations_interval.data
-        
+
         if "NonCodingAnnotations" not in record:
             record["NonCodingAnnotations"] = non_coding_annotations_category
         else:

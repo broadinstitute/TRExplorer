@@ -7,7 +7,7 @@ import unittest
 from bigquery_loader_utils import build_fill_sql, build_staging_rows, compute_interval_span, \
     compute_longest_pure_segment_repeat_count, compute_reference_lps_repeat_count_in_interval, \
     get_catalog_column_schema_fields, get_garg_2019_and_2020_column_values, get_tanudisastro_2024_column_values, \
-    get_zhang_2025_column_values, parse_all_samples_distribution_column
+    get_zhang_2025_column_values, parse_all_samples_distribution_column, read_staging_rows_from_annotated_catalog_field
 from global_constants import GARG_2019_AND_2020_COLUMN_NAMES, TANUDISASTRO_2024_COLUMN_NAMES, ZHANG_2025_COLUMN_NAMES
 
 
@@ -201,6 +201,61 @@ class GetCatalogColumnSchemaFieldsTests(unittest.TestCase):
             ("Garg2020_NumIndividualsWithDMR", "INTEGER"),
             ("Garg2020_DMRDetails", "STRING"),
         ])
+
+
+class ReadStagingRowsFromAnnotatedCatalogFieldTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.catalog_path = os.path.join(self.temp_dir.name, "catalog.json.gz")
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def write_catalog(self, records):
+        with gzip.open(self.catalog_path, "wt") as f:
+            json.dump(records, f)
+
+    def test_returns_the_loci_that_have_a_value(self):
+        self.write_catalog([
+            {"LocusId": "1-100-130-CAG", "CentromereAndSatelliteRegion": "HSat3", "Source": "Some source"},
+            {"LocusId": "1-200-230-CAG", "CentromereAndSatelliteRegion": None},
+            {"LocusId": "1-300-330-CAG", "CentromereAndSatelliteRegion": "GAP,HSat3"},
+        ])
+        self.assertEqual(read_staging_rows_from_annotated_catalog_field(
+            self.catalog_path, "CentromereAndSatelliteRegion"), [
+            {"LocusId": "1-100-130-CAG", "CentromereAndSatelliteRegion": "HSat3"},
+            {"LocusId": "1-300-330-CAG", "CentromereAndSatelliteRegion": "GAP,HSat3"},
+        ])
+
+    def test_reads_decimal_numbers_as_floats(self):
+        # the BigQuery client can't serialize the Decimal values that ijson returns by default
+        self.write_catalog([
+            {"LocusId": "1-100-130-CAG", "UCSC_SegDupMaxSequenceIdentity": 0.992918},
+            {"LocusId": "1-200-230-CAG", "UCSC_SegDupMaxSequenceIdentity": None},
+            {"LocusId": "1-300-330-CAG", "UCSC_SegDupMaxSequenceIdentity": 1.0},
+        ])
+        rows = read_staging_rows_from_annotated_catalog_field(self.catalog_path, "UCSC_SegDupMaxSequenceIdentity")
+        self.assertEqual(rows, [
+            {"LocusId": "1-100-130-CAG", "UCSC_SegDupMaxSequenceIdentity": 0.992918},
+            {"LocusId": "1-300-330-CAG", "UCSC_SegDupMaxSequenceIdentity": 1.0},
+        ])
+        self.assertEqual([type(row["UCSC_SegDupMaxSequenceIdentity"]) for row in rows], [float, float])
+
+    def test_exits_when_records_lack_the_field(self):
+        self.write_catalog([
+            {"LocusId": "1-100-130-CAG", "CentromereAndSatelliteRegion": "HSat3"},
+            {"LocusId": "1-200-230-CAG"},
+        ])
+        with self.assertRaises(SystemExit):
+            read_staging_rows_from_annotated_catalog_field(self.catalog_path, "CentromereAndSatelliteRegion")
+
+    def test_exits_when_a_locus_id_appears_twice(self):
+        self.write_catalog([
+            {"LocusId": "1-100-130-CAG", "CentromereAndSatelliteRegion": "HSat3"},
+            {"LocusId": "1-100-130-CAG", "CentromereAndSatelliteRegion": "ct"},
+        ])
+        with self.assertRaises(SystemExit):
+            read_staging_rows_from_annotated_catalog_field(self.catalog_path, "CentromereAndSatelliteRegion")
 
 
 if __name__ == "__main__":

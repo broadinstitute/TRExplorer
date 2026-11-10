@@ -21,9 +21,9 @@ GROUP_POLYMORPHISM_HPRC256 = "Polymorphism (HPRC256:LPS)"
 GROUP_POLYMORPHISM_HPRC256_TOTAL_LENGTH = "Polymorphism (HPRC256:Length)"
 GROUP_POLYMORPHISM_AOU1027 = "Polymorphism (AoU1027:LPS)"
 GROUP_POLYMORPHISM_TENK10K = "Polymorphism (TenK10K)"
-# The columns added in October and November 2026 (CentromereAndSatelliteRegion, the Zhang 2025 STR MPRA, ENCODE4/IGVF
-# and SpliceAI columns, the Garg 2019 and Garg 2020 DMR columns, and the sc-eTR fine-mapping and caQTL columns),
-# grouped together so they're easy to find
+# The columns added in October and November 2026 (CentromereAndSatelliteRegion, the UCSC and Vollger 2022 SegDup
+# columns, PseudoautosomalRegion, the Zhang 2025 STR MPRA, ENCODE4/IGVF and SpliceAI columns, the Garg 2019 and Garg 2020 DMR
+# columns, and the sc-eTR fine-mapping and caQTL columns), grouped together so they're easy to find
 GROUP_COLUMNS_ADDED_2026_10 = "New Columns (10-11/2026)"
 
 # The export and custom filter dialogs show the column groups as boxes; each inner list is one row of boxes
@@ -59,6 +59,13 @@ SPLICEAI_SIMULATED_ALLELES_DESCRIPTION = (
     "times the motif's range (the 75th percentile, across loci with the same motif, of the 97.5th minus 2.5th "
     "percentile length). Sizes in increasing order: 2.5pct, 97.5pct, 99.5pct, 99.5pct+1xMotifRange, "
     "99.5pct+2xMotifRange, 99.5pct+3xMotifRange.")
+
+# The part of the UCSC_SegDupMaxSequenceIdentity and Vollger2022_SegDupMaxSequenceIdentity descriptions that is the
+# same for both
+SEGDUP_MAX_SEQUENCE_IDENTITY_DEFINITION = (
+    "Segdups are duplicated regions, mostly 1 kb or longer, whose copies are at least 90% identical. The identity is the fraction of aligned bases that match between the two copies, not counting indels. "
+    "The closer it is to 1, the harder it is to tell which copy a sequencing read came from, especially for short "
+    "reads. NULL if the TR locus doesn't overlap a segdup. Range: 0.9 to 1.")
 
 MAIN_BIGQUERY_TABLE_COLUMNS = [
     # Core locus identifiers
@@ -1289,6 +1296,61 @@ MAIN_BIGQUERY_TABLE_COLUMNS = [
             "</ul>"
             "If the TR locus doesn't overlap any of these regions, its value is NULL or empty."),
         "displayName": "Centromere and Satellite Regions",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+
+    # Added to the catalog by tandem-repeat-catalogs/scripts/add_segdup_max_sequence_identity_annotations.py, and to an
+    # existing BigQuery table by add_ucsc_segdup_max_sequence_identity_column_to_catalog_table.py and
+    # add_vollger2022_segdup_max_sequence_identity_column_to_catalog_table.py. The locus page selects these columns for
+    # every locus, so the table the website queries must have them before the website pages that show them are
+    # published.
+    {
+        "type": "FLOAT",
+        "name": "UCSC_SegDupMaxSequenceIdentity",
+        "description": (
+            "The highest sequence identity among the segmental duplications (segdups) in UCSC's genomicSuperDups track "
+            "(WGAC method), the track that IGV shows as SegDups, that overlap the TR locus by at least 1 bp. Unlike "
+            "the Vollger et al. 2022 segdups, they include duplications whose other copy is on an unplaced contig "
+            "(chrUn or _random). hg38 only, since UCSC's CHM13 segdups are the Vollger et al. 2022 set. "
+            + SEGDUP_MAX_SEQUENCE_IDENTITY_DEFINITION),
+        "displayName": "UCSC SegDups",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+    {
+        "type": "FLOAT",
+        "name": "Vollger2022_SegDupMaxSequenceIdentity",
+        "description": (
+            "The highest sequence identity among the segmental duplications (segdups) from Vollger et al. 2022 (SEDEF "
+            "method) that overlap the TR locus by at least 1 bp. They were made the same way for hg38 and CHM13, so "
+            "this column can be compared between the two genomes. For hg38 they cover only the main chromosomes. "
+            "Pairs whose other copy overlaps a chrY pseudoautosomal region are left out, since the reference masks "
+            "those regions. " + SEGDUP_MAX_SEQUENCE_IDENTITY_DEFINITION),
+        "displayName": "Vollger 2022 SegDups",
+        "allowCustomFilter": True,
+        "allowExport": True,
+        "group": GROUP_COLUMNS_ADDED_2026_10,
+    },
+
+    # Added to the catalog by tandem-repeat-catalogs/scripts/add_pseudoautosomal_region_annotations.py, and to an
+    # existing BigQuery table by add_pseudoautosomal_region_column_to_catalog_table.py. The locus page and the
+    # ExpansionHunter export dialog select this column, so the table the website queries must have it before the
+    # website pages that use it are published.
+    {
+        "type": "STRING",
+        "name": "PseudoautosomalRegion",
+        "description": (
+            "The pseudoautosomal region (PAR) that contains the TR locus: <b>PAR1</b> at the start of chrX and chrY, or "
+            "<b>PAR2</b> at their end. The PARs have the same sequence on chrX and chrY, so male genomes have two "
+            "copies of the TRs in them, like autosomal TRs, while the TRs in the rest of chrX have one copy in male "
+            "genomes. The PAR coordinates come from the Genome Reference Consortium for hg38 and from the T2T "
+            "consortium for CHM13. Only chrX loci have a value, since the chrY PARs are masked with Ns in the "
+            "reference genome the catalog is based on. NULL if the TR locus lies outside the PARs, including a locus "
+            "that crosses a PAR boundary."),
+        "displayName": "Pseudoautosomal Region",
         "allowCustomFilter": True,
         "allowExport": True,
         "group": GROUP_COLUMNS_ADDED_2026_10,
