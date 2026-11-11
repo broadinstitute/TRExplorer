@@ -23,7 +23,7 @@ https://github.com/broadinstitute/TRExplorer-catalog
 <b>Publication:</b><br />
 <br />
 <b>Defining a tandem repeat catalog and variation clusters for genome-wide analyses and population databases</b><br />
-Ben Weisburd, Egor Dolzhenko, Mark F. Bennett, Matt C. Danzi, Adam English, Laurel Hiatt, Hope Tanudisastro, Nehir Edibe Kurtas, Helyaneh Ziaei Jam, Harrison Brand, Fritz J. Sedlazeck, Melissa Gymrek, Harriet Dashnow, Michael A. Eberle, Heidi L. Rehm bioRxiv 2024.10.04.615514; doi: https://www.biorxiv.org/content/10.1101/2024.10.04.615514v6
+Ben Weisburd, Egor Dolzhenko, Mark F. Bennett, Matt C. Danzi, Isaac R. L. Xu, Hope Tanudisastro, Bida Gu, Adam English, Laurel Hiatt, Tom Mokveld, Guilherme De Sena Brandine, Readman Chiu, Nehir Edibe Kurtas, Helyaneh Ziaei Jam, Harrison Brand, Indhu Shree Rajan Babu, Melanie Bahlo, Mark J. P. Chaisson, Stephan Züchner, Melissa Gymrek, Harriet Dashnow, Michael A. Eberle, Heidi L. Rehm bioRxiv 2024.10.04.615514; doi: https://www.biorxiv.org/content/10.1101/2024.10.04.615514v6
 
 
 
