@@ -38,7 +38,7 @@ TABLE_ID = "catalog"
 
 parser = argparse.ArgumentParser(description="Load data into BigQuery from the annotated catalog JSON file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-c", "--catalog-path", help="Path to the annotated catalog JSON file",
-                    default="~/code/tandem-repeat-catalogs/results__2026-02-01/release_draft_2026-02-01/TRExplorer.repeat_catalog_v2.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
+                    default="~/code/tandem-repeat-catalogs/results__2026-10-29/release_draft_2026-10-29/TRExplorer.repeat_catalog_v2.1.hg38.1_to_1000bp_motifs.EH.with_annotations.json.gz")
 parser.add_argument("-n", type=int, help="Number of records to read from the catalog")
 parser.add_argument("-d", "--known-disease-associated-loci",
                     action="append",
