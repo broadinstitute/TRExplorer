@@ -22,8 +22,11 @@ Inputs (see run.sh):
     coordinates (str_pos is 1-based) and motif of every STR in the library (30,516)
 
 Each STR is matched to the TRExplorer catalog the same way as in the Manigbas 2024 script (by exact
-locus ID, or else by interval overlap with the same canonical motif and the highest Jaccard similarity),
-but with the Tanudisastro 2024 script's lower Jaccard cutoff of 0.2 (see MIN_JACCARD_SIMILARITY).
+locus ID, or else by interval overlap with the same canonical motif and the highest Jaccard similarity, using
+../trexplorer_catalog_matching.find_exact_or_best_jaccard_match), but with the Tanudisastro 2024 script's lower
+Jaccard cutoff of 0.2 (see MIN_JACCARD_SIMILARITY). A match with the same interval and canonical motif is
+"exact" too: Zhang et al. write each motif starting at its alphabetically first base, so the same locus can
+have a motif that starts at a different base than in its TRExplorer locus ID.
 
 Output is a JSON lookup table keyed by TRExplorer locus ID. It has an entry for every TRExplorer locus
 that matched an STR in the library. A locus without an entry was either not tested by this study, or was
@@ -41,17 +44,16 @@ unmatched STRs are printed when the script runs.
 """
 
 import argparse
-import bisect
 import collections
 import gzip
 import json
-import re
+from pathlib import Path
+import sys
 
 import pandas as pd
 
-from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
-from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
-from str_analysis.utils.misc_utils import parse_interval
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from trexplorer_catalog_matching import build_catalog_interval_trees, find_exact_or_best_jaccard_match  # noqa: E402
 
 SIGNIFICANCE_FDR_THRESHOLD = 0.1
 # Same cutoff as the Tanudisastro 2024 script. Zhang's HipSTR intervals are often about twice as long as
@@ -183,112 +185,6 @@ def build_lookup_entry(results_by_library, details):
     }
 
 
-def collect_catalog_candidates(catalog_path, str_intervals_by_chrom, max_str_length):
-    """Returns the TRExplorer loci that overlap at least one Zhang STR.
-
-    Only these loci are kept, so memory stays small even though the catalog has millions of loci.
-
-    Args:
-        catalog_path: path of the TRExplorer JSON catalog.
-        str_intervals_by_chrom: {chrom: sorted list of (start_0based, end_1based)} of the Zhang STRs.
-        max_str_length: length of the longest Zhang STR, which bounds the search window.
-
-    Returns:
-        (locus_ids, candidates_by_chrom) where locus_ids is the set of candidate TRExplorer locus IDs and
-        candidates_by_chrom is {chrom: [dict(locus_id, start_0based, end_1based, canonical_motif, motif_length)]}.
-    """
-    locus_structure_regex = re.compile(r"^[(]([A-Z]+)[)][+*]")
-    str_starts_by_chrom = {chrom: [start for start, _ in intervals] for chrom, intervals in str_intervals_by_chrom.items()}
-
-    locus_ids = set()
-    candidates_by_chrom = collections.defaultdict(list)
-    for record in get_variant_catalog_iterator(catalog_path, show_progress_bar=False):
-        reference_region = record["ReferenceRegion"]
-        if isinstance(reference_region, list):
-            reference_region = reference_region[0]
-        chrom, start_0based, end_1based = parse_interval(reference_region)
-        chrom = chrom.replace("chr", "")
-        if chrom not in str_starts_by_chrom:
-            continue
-
-        # STRs that can overlap this locus start in (start_0based - max_str_length, end_1based).
-        starts = str_starts_by_chrom[chrom]
-        i = bisect.bisect_right(starts, start_0based - max_str_length)
-        j = bisect.bisect_left(starts, end_1based)
-        if not any(str_end > start_0based for _, str_end in str_intervals_by_chrom[chrom][i:j]):
-            continue
-
-        if "ReferenceMotif" in record:
-            motif = record["ReferenceMotif"]
-        else:
-            match = locus_structure_regex.match(record["LocusStructure"])
-            if not match:
-                continue
-            motif = match.group(1)
-
-        locus_ids.add(record["LocusId"])
-        candidates_by_chrom[chrom].append({
-            "locus_id": record["LocusId"],
-            "start_0based": start_0based,
-            "end_1based": end_1based,
-            "canonical_motif": compute_canonical_motif(motif),
-            "motif_length": len(motif),
-        })
-    return locus_ids, candidates_by_chrom
-
-
-def find_trexplorer_match(chrom, start_0based, end_1based, motif, catalog_locus_ids, candidates_by_chrom):
-    """Returns (trexplorer_locus_id, match_type) for a Zhang STR, or (None, None) if nothing matches.
-
-    Uses the same rules as the Manigbas 2024 script, apart from the Jaccard cutoff: an exact locus ID match, or else the overlapping
-    locus with the same canonical motif (or the same motif length for motifs over 6 bp) and the highest
-    Jaccard similarity, if that similarity is at least MIN_JACCARD_SIMILARITY. Unlike the Manigbas 2024 script, a
-    match with the same interval and the same canonical motif is "exact" too, since it's the same locus with its
-    motif written starting at a different base.
-
-    Args:
-        chrom: chromosome without "chr".
-        start_0based: 0-based start.
-        end_1based: 1-based end.
-        motif: repeat motif.
-        catalog_locus_ids: set of TRExplorer locus IDs to check for an exact match.
-        candidates_by_chrom: {chrom: [candidate dict]} returned by collect_catalog_candidates.
-
-    Returns:
-        (locus ID, "exact" or "fuzzy"), or (None, None).
-    """
-    zhang_locus_id = f"{chrom}-{start_0based}-{end_1based}-{motif}"
-    if zhang_locus_id in catalog_locus_ids:
-        return zhang_locus_id, "exact"
-
-    canonical_motif = compute_canonical_motif(motif)
-    best_match = None
-    best_jaccard = 0
-    for candidate in candidates_by_chrom.get(chrom, []):
-        intersection = min(end_1based, candidate["end_1based"]) - max(start_0based, candidate["start_0based"])
-        if intersection <= 0:
-            continue
-        if len(motif) <= 6:
-            if canonical_motif != candidate["canonical_motif"]:
-                continue
-        elif len(motif) != candidate["motif_length"]:
-            continue
-
-        union = (end_1based - start_0based) + (candidate["end_1based"] - candidate["start_0based"]) - intersection
-        jaccard = intersection / union
-        if jaccard >= MIN_JACCARD_SIMILARITY and jaccard > best_jaccard:
-            best_jaccard = jaccard
-            best_match = candidate
-
-    if best_match is None:
-        return None, None
-    # Zhang et al. write each motif starting at its alphabetically first base, so the same locus can have a motif that
-    # starts at a different base than in its TRExplorer locus ID
-    is_same_locus = (best_match["start_0based"], best_match["end_1based"], best_match["canonical_motif"]) == (
-        start_0based, end_1based, canonical_motif)
-    return best_match["locus_id"], "exact" if is_same_locus else "fuzzy"
-
-
 def pick_best_entry(entries):
     """Returns the entry to keep when several Zhang STRs match the same TRExplorer locus.
 
@@ -322,14 +218,11 @@ def main():
         print(f"Read {library} regression results for {len(results):,d} STRs from {results_path}")
         strs = merge_regression_results(strs, results, library)
 
-    str_intervals_by_chrom = {
-        chrom: sorted(zip(group["start_0based"], group["end_1based"])) for chrom, group in strs.groupby("chrom")
-    }
-    max_str_length = int((strs["end_1based"] - strs["start_0based"]).max())
     print(f"Reading TRExplorer catalog: {args.trexplorer_catalog}")
-    catalog_locus_ids, candidates_by_chrom = collect_catalog_candidates(
-        args.trexplorer_catalog, str_intervals_by_chrom, max_str_length)
-    print(f"  Kept {len(catalog_locus_ids):,d} TRExplorer loci that overlap a Zhang STR")
+    # Only the catalog loci that overlap a Zhang STR are kept, so memory stays small
+    catalog_interval_trees = build_catalog_interval_trees(
+        args.trexplorer_catalog, only_loci_that_overlap=zip(strs["chrom"], strs["start_0based"], strs["end_1based"]),
+        show_progress_bar=False)
 
     entries_by_trexplorer_locus = collections.defaultdict(list)
     match_type_counts = collections.Counter()
@@ -346,8 +239,9 @@ def main():
                 "pearsonR": float(getattr(row, f"{library}_pearson_r")),
             }
 
-        trexplorer_locus_id, match_type = find_trexplorer_match(
-            row.chrom, row.start_0based, row.end_1based, row.motif, catalog_locus_ids, candidates_by_chrom)
+        trexplorer_locus_id, match_type = find_exact_or_best_jaccard_match(
+            catalog_interval_trees, row.chrom, row.start_0based, row.end_1based, row.motif,
+            MIN_JACCARD_SIMILARITY)
         entry = build_lookup_entry(results_by_library, {
             "zhangLocusId": row.zhang_locus_id,
             "zhangInterval": f"chr{row.chrom}:{row.start_0based}-{row.end_1based}",

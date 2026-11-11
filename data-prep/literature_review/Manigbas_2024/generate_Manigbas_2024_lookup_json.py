@@ -1,8 +1,8 @@
 """Process PheWAS data from Manigbas et al. 2024 and create a lookup JSON for TRExplorer.
 
 This script reads the supplementary data from Manigbas et al. 2024 and matches each locus
-to the TRExplorer catalog using exact matching (by locus ID) or fuzzy matching (by interval
-overlap and motif similarity).
+to the TRExplorer catalog using exact matching (by locus ID, or the same interval and canonical motif) or
+fuzzy matching (by interval overlap and motif similarity).
 
 Output is a JSON lookup table keyed by TRExplorer locus ID containing:
 - AssociatedTraits: comma-separated list of traits, ordered by p-value (most significant first)
@@ -21,16 +21,17 @@ import collections
 import gzip
 import json
 from pathlib import Path
-import re
 import sys
 
-import intervaltree
 import pandas as pd
 import tqdm
 
-from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
-from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
-from str_analysis.utils.misc_utils import parse_interval
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from trexplorer_catalog_matching import build_catalog_interval_trees, find_exact_or_best_jaccard_match  # noqa: E402
+
+# A Manigbas locus that isn't in the catalog with the same ID matches the overlapping catalog locus with the same motif
+# and the highest Jaccard similarity, if at least this
+MIN_JACCARD_SIMILARITY = 0.66
 
 
 def parse_args():
@@ -42,120 +43,6 @@ def parse_args():
     parser.add_argument("-o", "--output", default="Manigbas_2024_lookup.json.gz",
                         help="Output JSON path (default: Manigbas_2024_lookup.json.gz)")
     return parser.parse_args()
-
-
-def build_trexplorer_lookups(catalog_path):
-    """Build exact lookup dict and interval trees from TRExplorer catalog.
-
-    Args:
-        catalog_path: Path to TRExplorer catalog JSON
-
-    Returns:
-        tuple: (exact_lookup dict, interval_trees dict)
-            - exact_lookup: {locus_id: record}
-            - interval_trees: {chrom: IntervalTree}
-    """
-    exact_lookup = {}
-    interval_trees = collections.defaultdict(intervaltree.IntervalTree)
-
-    locus_structure_regex = re.compile(r"^[(]([A-Z]+)[)][+*]")
-
-    print(f"Building lookup structures from TRExplorer catalog: {catalog_path}")
-    for record in tqdm.tqdm(get_variant_catalog_iterator(catalog_path, show_progress_bar=False),
-                            unit=" records", unit_scale=True):
-        locus_id = record["LocusId"]
-        reference_region = record["ReferenceRegion"]
-        if isinstance(reference_region, list):
-            reference_region = reference_region[0]
-
-        chrom, start_0based, end_1based = parse_interval(reference_region)
-        chrom = chrom.replace("chr", "")
-
-        # Extract motif from ReferenceMotif field, or parse from LocusStructure
-        if "ReferenceMotif" in record:
-            motif = record["ReferenceMotif"]
-        else:
-            match = locus_structure_regex.match(record["LocusStructure"])
-            if match:
-                motif = match.group(1)
-            else:
-                # Skip complex locus structures
-                continue
-
-        canonical_motif = compute_canonical_motif(motif)
-
-        exact_lookup[locus_id] = record
-
-        interval_trees[chrom].add(intervaltree.Interval(
-            start_0based, end_1based,
-            data={
-                "locus_id": locus_id,
-                "start_0based": start_0based,
-                "end_1based": end_1based,
-                "canonical_motif": canonical_motif,
-                "motif_length": len(motif),
-            }
-        ))
-
-    print(f"  Built exact lookup with {len(exact_lookup):,d} loci")
-    print(f"  Built interval trees for {len(interval_trees):,d} chromosomes")
-
-    return exact_lookup, interval_trees
-
-
-def find_trexplorer_match(chrom, start_0based, end_1based, motif, exact_lookup, interval_trees):
-    """Find matching TRExplorer locus for a Manigbas locus.
-
-    Args:
-        chrom: Chromosome (without 'chr' prefix)
-        start_0based: 0-based start coordinate
-        end_1based: 1-based end coordinate
-        motif: Repeat motif
-        exact_lookup: Dict of {locus_id: record}
-        interval_trees: Dict of {chrom: IntervalTree}
-
-    Returns:
-        tuple: (trexplorer_locus_id, match_type) or (None, None)
-    """
-    manigbas_locus_id = f"{chrom}-{start_0based}-{end_1based}-{motif}"
-
-    # Exact match first (O(1))
-    if manigbas_locus_id in exact_lookup:
-        return manigbas_locus_id, "exact"
-
-    # Fuzzy match via interval tree
-    if chrom not in interval_trees:
-        return None, None
-
-    candidates = interval_trees[chrom].overlap(start_0based, end_1based)
-    manigbas_canonical = compute_canonical_motif(motif)
-    manigbas_motif_len = len(motif)
-
-    best_match = None
-    best_jaccard = 0
-
-    for interval in candidates:
-        data = interval.data
-        # Motif check: canonical match for 1-6bp, length match for >6bp
-        if manigbas_motif_len <= 6:
-            if manigbas_canonical != data['canonical_motif']:
-                continue
-        else:
-            if manigbas_motif_len != data['motif_length']:
-                continue
-
-        # Jaccard similarity
-        intersection = max(0, min(end_1based, data['end_1based']) - max(start_0based, data['start_0based']))
-        union = (end_1based - start_0based) + (data['end_1based'] - data['start_0based']) - intersection
-        jaccard = intersection / union if union > 0 else 0
-
-        if jaccard >= 0.66 and jaccard > best_jaccard:
-            best_jaccard = jaccard
-            best_match = data['locus_id']
-
-    if best_match:
-        return best_match, "fuzzy"
-    return None, None
 
 
 def main():
@@ -172,7 +59,8 @@ def main():
         sys.exit(f"ERROR: Excel file not found: {excel_path}")
 
     # Build lookup structures from TRExplorer catalog
-    exact_lookup, interval_trees = build_trexplorer_lookups(args.trexplorer_catalog)
+    print(f"Building lookup structures from TRExplorer catalog: {args.trexplorer_catalog}")
+    interval_trees = build_catalog_interval_trees(args.trexplorer_catalog)
 
     # Read Data S1: All genotyped TRs
     print(f"\nReading Data S1 (genotyped TRs) from: {excel_path}")
@@ -276,13 +164,15 @@ def main():
     stats = {"exact": 0, "fuzzy": 0, "no_match": 0}
     unmatched_with_associations = []
 
-    for locus_key in tqdm.tqdm(phewas_loci, unit=" loci"):
+    # Sorted, since a set's order changes from run to run, and the order of the output, of its warnings and of the
+    # associations merged into a TRExplorer locus that several Manigbas loci match all follow this loop's order
+    for locus_key in tqdm.tqdm(sorted(phewas_loci), unit=" loci"):
         chrom, start, end, motif = locus_key
         manigbas_locus_id = f"{chrom}-{start}-{end}-{motif}"
 
         # Find TRExplorer match
-        trexplorer_locus_id, match_type = find_trexplorer_match(
-            chrom, start, end, motif, exact_lookup, interval_trees
+        trexplorer_locus_id, match_type = find_exact_or_best_jaccard_match(
+            interval_trees, chrom, start, end, motif, MIN_JACCARD_SIMILARITY
         )
 
         if trexplorer_locus_id is None:
@@ -311,7 +201,7 @@ def main():
     for trexplorer_locus_id, candidates in trexplorer_with_associations.items():
         if len(candidates) > 1:
             multi_match_association_count += 1
-            print(f"  WARNING: {len(candidates)} Manigbas loci fuzzy-match to TRExplorer locus {trexplorer_locus_id} - merging associations")
+            print(f"  WARNING: {len(candidates)} Manigbas loci match TRExplorer locus {trexplorer_locus_id} - merging associations")
 
         # Merge all associations from all matching Manigbas loci
         all_associations = []

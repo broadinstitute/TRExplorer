@@ -11,8 +11,8 @@ reads three of its supplementary tables, from Nature's 41586_2026_10438_MOESM3_E
   - Table S4: the sc-eTRs that are also associated with chromatin accessibility at a scATAC-seq peak within 10 kb of
     the TR (caQTLs)
 
-Each Tanudisastro locus is matched to the TRExplorer catalog by locus ID (exact) or by interval overlap and motif
-(fuzzy). Table S6 gives only start coordinates, so a Table S6 locus that's not in Table S1 is matched to the TRExplorer
+Each Tanudisastro locus is matched to the TRExplorer catalog by locus ID or the same interval and canonical motif
+(exact), or by interval overlap and motif (fuzzy). Table S6 gives only start coordinates, so a Table S6 locus that's not in Table S1 is matched to the TRExplorer
 locus with the same motif that contains its start, preferring the closest start. When several Tanudisastro loci match
 the same TRExplorer locus, the one with the smallest p-value is kept.
 
@@ -35,17 +35,22 @@ import gzip
 import json
 import math
 from pathlib import Path
-import re
+import sys
 
-import intervaltree
 import pandas as pd
 import tqdm
 
 from str_analysis.utils.canonical_repeat_unit import compute_canonical_motif
-from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
-from str_analysis.utils.misc_utils import parse_interval
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from trexplorer_catalog_matching import build_catalog_interval_trees, find_exact_or_best_jaccard_match, \
+    is_matching_motif  # noqa: E402
 
 DEFAULT_SUPPLEMENTARY_TABLES_DIR = Path(__file__).parent / "41586_2026_10438_MOESM3_ESM"
+
+# A Tanudisastro locus that isn't in the catalog with the same ID matches the overlapping catalog locus with the same
+# motif and the highest Jaccard similarity, if at least this
+MIN_JACCARD_SIMILARITY = 0.2
 
 
 def parse_args():
@@ -242,126 +247,6 @@ def build_lookup_entry(tanudisastro_locus_key, tanudisastro_locus, trexplorer_lo
     }
 
 
-def build_trexplorer_lookups(catalog_path):
-    """Builds the set of locus IDs and per-chromosome interval trees of the TRExplorer catalog.
-
-    Args:
-        catalog_path: Path to TRExplorer catalog JSON
-
-    Returns:
-        tuple: (locus_ids set, interval_trees dict)
-            - locus_ids: the catalog's locus IDs
-            - interval_trees: {chrom: IntervalTree}
-    """
-    locus_ids = set()
-    interval_trees = collections.defaultdict(intervaltree.IntervalTree)
-
-    locus_structure_regex = re.compile(r"^[(]([A-Z]+)[)][+*]")
-
-    print(f"Building lookup structures from TRExplorer catalog: {catalog_path}")
-    for record in tqdm.tqdm(get_variant_catalog_iterator(catalog_path, show_progress_bar=False),
-                            unit=" records", unit_scale=True):
-        locus_id = record["LocusId"]
-        reference_region = record["ReferenceRegion"]
-        if isinstance(reference_region, list):
-            reference_region = reference_region[0]
-
-        chrom, start_0based, end_1based = parse_interval(reference_region)
-        chrom = chrom.replace("chr", "")
-
-        # Extract motif from ReferenceMotif field, or parse from LocusStructure
-        if "ReferenceMotif" in record:
-            motif = record["ReferenceMotif"]
-        else:
-            match = locus_structure_regex.match(record["LocusStructure"])
-            if match:
-                motif = match.group(1)
-            else:
-                # Skip complex locus structures
-                continue
-
-        locus_ids.add(locus_id)
-
-        interval_trees[chrom].add(intervaltree.Interval(
-            start_0based, end_1based,
-            data={
-                "locus_id": locus_id,
-                "start_0based": start_0based,
-                "end_1based": end_1based,
-                "canonical_motif": compute_canonical_motif(motif),
-                "motif_length": len(motif),
-            }
-        ))
-
-    print(f"  Found {len(locus_ids):,d} loci")
-    print(f"  Built interval trees for {len(interval_trees):,d} chromosomes")
-
-    return locus_ids, interval_trees
-
-
-def find_trexplorer_match(chrom, start_0based, end_1based, motif, exact_lookup, interval_trees):
-    """Find matching TRExplorer locus for a Tanudisastro locus.
-
-    Args:
-        chrom: Chromosome (without 'chr' prefix)
-        start_0based: 0-based start coordinate
-        end_1based: 1-based end coordinate
-        motif: Repeat motif
-        exact_lookup: The TRExplorer locus IDs (a set, or a dict keyed by locus ID)
-        interval_trees: Dict of {chrom: IntervalTree}
-
-    Returns:
-        tuple: (trexplorer_locus_id, match_type) or (None, None)
-    """
-    tanudisastro_locus_id = f"{chrom}-{start_0based}-{end_1based}-{motif}"
-
-    # Exact match first (O(1))
-    if tanudisastro_locus_id in exact_lookup:
-        return tanudisastro_locus_id, "exact"
-
-    # Fuzzy match via interval tree
-    if chrom not in interval_trees:
-        return None, None
-
-    candidates = interval_trees[chrom].overlap(start_0based, end_1based)
-    tanudisastro_canonical = compute_canonical_motif(motif)
-
-    best_match = None
-    best_jaccard = 0
-
-    for interval in candidates:
-        data = interval.data
-        if not is_matching_motif(motif, tanudisastro_canonical, data):
-            continue
-
-        # Jaccard similarity
-        intersection = max(0, min(end_1based, data['end_1based']) - max(start_0based, data['start_0based']))
-        union = (end_1based - start_0based) + (data['end_1based'] - data['start_0based']) - intersection
-        jaccard = intersection / union if union > 0 else 0
-
-        if jaccard >= 0.2 and jaccard > best_jaccard:
-            best_jaccard = jaccard
-            best_match = data['locus_id']
-
-    if best_match:
-        return best_match, "fuzzy"
-    return None, None
-
-
-def is_matching_motif(motif, canonical_motif, trexplorer_interval_data):
-    """Returns whether a TRExplorer locus has the same motif as a Tanudisastro locus: the same canonical motif for
-    motifs up to 6 bp, and the same motif length for longer ones.
-
-    Args:
-        motif: The Tanudisastro locus's motif
-        canonical_motif: compute_canonical_motif(motif)
-        trexplorer_interval_data: the data of the TRExplorer locus's interval in the interval trees
-    """
-    if len(motif) <= 6:
-        return canonical_motif == trexplorer_interval_data["canonical_motif"]
-    return len(motif) == trexplorer_interval_data["motif_length"]
-
-
 def find_trexplorer_match_by_start_and_motif(chrom, start_0based, motif, interval_trees):
     """Finds the TRExplorer locus for a Table S6 locus, which has no end coordinate: the locus that contains its start
     coordinate, has the same motif (is_matching_motif), and has the closest start.
@@ -392,7 +277,8 @@ def find_trexplorer_match_by_start_and_motif(chrom, start_0based, motif, interva
 def main():
     args = parse_args()
 
-    locus_ids, interval_trees = build_trexplorer_lookups(args.catalog_path)
+    print(f"Building lookup structures from TRExplorer catalog: {args.catalog_path}")
+    interval_trees = build_catalog_interval_trees(args.catalog_path)
 
     print(f"\nReading supplementary tables from {args.supplementary_tables_dir}")
     s1 = parse_table_s1(read_supplementary_table(args.supplementary_tables_dir, "TableS1"))
@@ -415,8 +301,8 @@ def main():
             trexplorer_locus_id, match_type = find_trexplorer_match_by_start_and_motif(
                 chrom, start_0based, motif, interval_trees)
         else:
-            trexplorer_locus_id, match_type = find_trexplorer_match(
-                chrom, start_0based, end_1based, motif, locus_ids, interval_trees)
+            trexplorer_locus_id, match_type = find_exact_or_best_jaccard_match(
+                interval_trees, chrom, start_0based, end_1based, motif, MIN_JACCARD_SIMILARITY)
 
         if trexplorer_locus_id is None:
             stats["no match"] += 1

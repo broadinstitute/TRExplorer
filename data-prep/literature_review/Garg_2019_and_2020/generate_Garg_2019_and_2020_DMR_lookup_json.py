@@ -56,7 +56,9 @@ import argparse
 import collections
 import gzip
 import json
+from pathlib import Path
 import re
+import sys
 
 import intervaltree
 import openpyxl
@@ -64,7 +66,9 @@ import pandas as pd
 from liftover import get_lifter
 
 from str_analysis.utils.eh_catalog_utils import get_variant_catalog_iterator
-from str_analysis.utils.misc_utils import parse_interval
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from trexplorer_catalog_matching import parse_catalog_record  # noqa: E402
 
 AUTISM = "Garg2019_AutismDMRs"
 SCHIZOPHRENIA = "Garg2019_SchizophreniaDMRs"
@@ -357,14 +361,12 @@ def build_lookup(catalog_path, interval_trees_by_dataset):
     Returns:
         dict: {LocusId: {dataset: list of DMR dicts}}, with a dataset only if the locus matched at least one of its DMRs
     """
-    locus_structure_regex = re.compile(r"^[(]([A-Z]+)[)][+*]")
     lookup = {}
     for record in get_variant_catalog_iterator(catalog_path, show_progress_bar=True):
-        reference_region = record["ReferenceRegion"]
-        if isinstance(reference_region, list):
-            reference_region = reference_region[0]
-        chrom, start_0based, end_1based = parse_interval(reference_region)
-        chrom = chrom.replace("chr", "")
+        parsed_record = parse_catalog_record(record)
+        if parsed_record is None:
+            continue
+        locus_id, chrom, start_0based, end_1based, motif = parsed_record
 
         matched_dmrs_by_dataset = {}
         for dataset, interval_trees in interval_trees_by_dataset.items():
@@ -376,12 +378,11 @@ def build_lookup(catalog_path, interval_trees_by_dataset):
         if not matched_dmrs_by_dataset:
             continue
 
-        motif_match = locus_structure_regex.match(record["LocusStructure"])
-        if not motif_match or not does_repeat_contain_cpg_sites(motif_match.group(1)):
+        if not does_repeat_contain_cpg_sites(motif):
             continue
-        if record["LocusId"] in lookup:
-            raise ValueError(f"LocusId {record['LocusId']} appears more than once in {catalog_path}")
-        lookup[record["LocusId"]] = matched_dmrs_by_dataset
+        if locus_id in lookup:
+            raise ValueError(f"LocusId {locus_id} appears more than once in {catalog_path}")
+        lookup[locus_id] = matched_dmrs_by_dataset
     return lookup
 
 

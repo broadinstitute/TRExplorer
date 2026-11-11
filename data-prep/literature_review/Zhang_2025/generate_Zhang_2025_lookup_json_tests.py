@@ -6,17 +6,18 @@ from pathlib import Path
 import pandas as pd
 
 from generate_Zhang_2025_lookup_json import (
+    MIN_JACCARD_SIMILARITY,
     TEST_RESULT_NOT_ENOUGH_DATA,
     TEST_RESULT_NOT_SIGNIFICANT,
     TEST_RESULT_SIGNIFICANT,
     build_lookup_entry,
     classify_test_result,
-    collect_catalog_candidates,
-    find_trexplorer_match,
     merge_regression_results,
     pick_best_entry,
     read_zhang_strs,
 )
+# Importing the script above adds the parent directory, which holds this module, to sys.path
+from trexplorer_catalog_matching import build_catalog_interval_trees, find_exact_or_best_jaccard_match  # noqa: E402
 
 
 class Zhang2025LookupTests(unittest.TestCase):
@@ -51,22 +52,18 @@ class Zhang2025LookupTests(unittest.TestCase):
         strs = read_zhang_strs(pairs, probes)
         self.assertEqual(strs.values.tolist(), [[7, "Human_STR_7", "1", 100, 110, "CAG"]])
 
-    def test_find_trexplorer_match(self):
-        candidates = {"1": [
-            {"locus_id": "1-100-130-CAG", "start_0based": 100, "end_1based": 130, "canonical_motif": "AGC", "motif_length": 3},
-            {"locus_id": "1-100-130-A", "start_0based": 100, "end_1based": 130, "canonical_motif": "A", "motif_length": 1},
-        ]}
-        locus_ids = {c["locus_id"] for c in candidates["1"]}
-        self.assertEqual(find_trexplorer_match("1", 100, 130, "CAG", locus_ids, candidates), ("1-100-130-CAG", "exact"))
-        # Same interval with the motif starting at a different base: the same locus, so an exact match.
-        self.assertEqual(find_trexplorer_match("1", 100, 130, "AGC", locus_ids, candidates), ("1-100-130-CAG", "exact"))
-        # Rotated motif and slightly different interval: fuzzy match (Jaccard 27/30 = 0.9).
-        self.assertEqual(find_trexplorer_match("1", 103, 130, "GCA", locus_ids, candidates), ("1-100-130-CAG", "fuzzy"))
+    def test_matching_uses_the_0_2_jaccard_similarity_cutoff(self):
+        catalog = self.dir / "catalog.json"
+        catalog.write_text(json.dumps([
+            {"LocusId": "1-100-130-CAG", "ReferenceRegion": "chr1:100-130", "LocusStructure": "(CAG)*"},
+        ]))
+        catalog_interval_trees = build_catalog_interval_trees(str(catalog), show_progress_bar=False)
+
         # Jaccard 10/30 = 0.33 is above the 0.2 cutoff; 5/30 = 0.17 is below it.
-        self.assertEqual(find_trexplorer_match("1", 120, 130, "CAG", locus_ids, candidates), ("1-100-130-CAG", "fuzzy"))
-        self.assertEqual(find_trexplorer_match("1", 125, 130, "CAG", locus_ids, candidates), (None, None))
-        # Different motif.
-        self.assertEqual(find_trexplorer_match("1", 100, 130, "GT", locus_ids, candidates), (None, None))
+        self.assertEqual(find_exact_or_best_jaccard_match(
+            catalog_interval_trees, "1", 120, 130, "CAG", MIN_JACCARD_SIMILARITY), ("1-100-130-CAG", "fuzzy"))
+        self.assertEqual(find_exact_or_best_jaccard_match(
+            catalog_interval_trees, "1", 125, 130, "CAG", MIN_JACCARD_SIMILARITY), (None, None))
 
     def test_merge_regression_results(self):
         strs = pd.DataFrame({"zhang_locus_number": [7, 8], "motif": ["CAG", "A"]})
@@ -118,17 +115,6 @@ class Zhang2025LookupTests(unittest.TestCase):
         self.assertEqual(pick_best_entry([not_analyzed, weak_hstr1, strong_hstr2])["id"], "weak hSTR1")
         self.assertEqual(pick_best_entry([not_analyzed, strong_hstr2])["id"], "strong hSTR2")
         self.assertEqual(pick_best_entry([not_analyzed])["id"], "not analyzed")
-
-    def test_collect_catalog_candidates_keeps_only_overlapping_loci(self):
-        catalog = self.dir / "catalog.json"
-        catalog.write_text(json.dumps([
-            {"LocusId": "1-100-130-CAG", "ReferenceRegion": "chr1:100-130", "LocusStructure": "(CAG)*"},
-            {"LocusId": "1-5000-5010-A", "ReferenceRegion": "chr1:5000-5010", "LocusStructure": "(A)*"},
-            {"LocusId": "2-100-130-A", "ReferenceRegion": "chr2:100-130", "LocusStructure": "(A)*"},
-        ]))
-        locus_ids, candidates_by_chrom = collect_catalog_candidates(str(catalog), {"1": [(120, 140)]}, max_str_length=20)
-        self.assertEqual(locus_ids, {"1-100-130-CAG"})
-        self.assertEqual([c["canonical_motif"] for c in candidates_by_chrom["1"]], ["AGC"])
 
 
 if __name__ == "__main__":
