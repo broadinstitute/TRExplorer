@@ -26,6 +26,9 @@ help:
 #       trexplorer-proxy-sa@cmg-analysis.iam.gserviceaccount.com \
 #       --member=serviceAccount:trexplorer-proxy-sa@cmg-analysis.iam.gserviceaccount.com \
 #       --role=roles/iam.serviceAccountTokenCreator
+#
+# --cpu=1 because with 256MB of memory the function otherwise gets only 0.17 of a CPU, and
+# rewriting a single-file JSON export into a JSON array then took about 2 minutes for ~1M loci.
 deploy:
 	gcloud functions deploy query_db \
 		--runtime python310 \
@@ -35,6 +38,7 @@ deploy:
 		--entry-point query_db \
 		--region=us-central1 \
 		--memory 256MB \
+		--cpu=1 \
 		--timeout=540s \
 		--gen2
 
