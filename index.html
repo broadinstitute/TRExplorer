@@ -6603,11 +6603,11 @@ gtag('config', 'G-6R8FPBQRFH');
                     </div>
                 </div>
             </div>
-            <!-- ExpansionHunter options, shown only when the loci to export include some inside a pseudoautosomal region -->
+            <!-- ExpansionHunter options, shown only for an ExpansionHunter export -->
             <div id="export-expansion-hunter-options" style="display: none; margin-bottom: 1.2em; padding-bottom: 1em; border-bottom: 1px solid #eee;">
                 <div class="field" style="display: flex; align-items: center;">
                     <div class="ui checkbox">
-                        <input type="checkbox" id="export-set-pseudoautosomal-region-flag-checkbox">
+                        <input type="checkbox" id="export-set-pseudoautosomal-region-flag-checkbox" checked>
                         <label>Set IsInsidePseudoautosomalRegion flag</label>
                     </div>
                     <span class="export-column-help-icon" id="export-pseudoautosomal-region-flag-help-icon" data-html="Adds &quot;IsInsidePseudoautosomalRegion&quot;: true to the exported loci that lie inside a chrX pseudoautosomal region (PAR1 or PAR2). <a href='https://github.com/bw2/ExpansionHunter' target='_blank'>bw2/ExpansionHunter</a> then computes biallelic genotypes for these loci in both male and female samples (see its <a href='https://github.com/bw2/ExpansionHunter/blob/master/docs/04_VariantCatalogFiles.md' target='_blank'>catalog file docs</a>), while the original <a href='https://github.com/Illumina/ExpansionHunter' target='_blank'>Illumina/ExpansionHunter</a> ignores the field. This assumes that the reads were aligned to a reference genome whose chrY PARs are masked with Ns.">(?)</span>
@@ -9244,11 +9244,10 @@ gtag('config', 'G-6R8FPBQRFH');
             $('input[name="trgtCatalogType"][value="vc_and_isolated"]').prop('checked', true)
         }
 
-        // The IsInsidePseudoautosomalRegion checkbox starts unchecked, and stays hidden unless this is an ExpansionHunter
-        // export whose loci include some inside a pseudoautosomal region
-        $('#export-set-pseudoautosomal-region-flag-checkbox').prop('checked', false)
-        $('#export-expansion-hunter-options').hide()
-        $('#export-column-dialog').data('exportType', exportType)
+        // The IsInsidePseudoautosomalRegion checkbox is shown only for an ExpansionHunter export, and starts checked
+        const isExpansionHunterExport = exportType === 'expansion_hunter'
+        $('#export-set-pseudoautosomal-region-flag-checkbox').prop('checked', true)
+        $('#export-expansion-hunter-options').toggle(isExpansionHunterExport)
 
         if (showColumns) {
             // Get currently visible columns in the results table
@@ -9270,53 +9269,26 @@ gtag('config', 'G-6R8FPBQRFH');
         if (showTrgtOptions) {
             $('#export-trgt-options .ui.radio.checkbox').checkbox()
         }
+        if (isExpansionHunterExport) {
+            $('#export-expansion-hunter-options .ui.checkbox').checkbox()
+        }
 
         // Show the dialog. The help text popups are set up after it opens, because opening a modal the first time
         // clears popups set up on its contents.
-        // onHide clears the export type, so a count of PAR loci that returns after the dialog closed is ignored
         $('#export-column-dialog').modal({
             onApprove: () => startExportFromExportDialog(exportType),
-            onHide: () => { $('#export-column-dialog').removeData('exportType') },
         }).modal('show')
         initializeHelpTextPopups($('#export-column-checkboxes .export-column-help-icon'))
-        if (exportType === 'expansion_hunter') {
-            showPseudoautosomalRegionFlagCheckboxIfExportIncludesParLoci(window.lastSearchConditions)
+        if (isExpansionHunterExport) {
+            // hoverable, so that the mouse can move from the icon into the popup to click its links
+            $('#export-pseudoautosomal-region-flag-help-icon').popup({
+                on: 'hover', hoverable: true, position: 'right center', variation: 'wide', inline: true})
         }
     }
 
     // The conditions that an ExpansionHunter export adds to the search's: ExpansionHunter doesn't support loci with more
     // than 5 Ns in their flanks
     const EXPANSION_HUNTER_EXPORT_CONDITIONS = ['NsInFlanks<=5']
-
-    // Shows the ExpansionHunter export dialog's IsInsidePseudoautosomalRegion checkbox if the loci that the export would
-    // include (those that match searchConditions and EXPANSION_HUNTER_EXPORT_CONDITIONS) include any inside a
-    // pseudoautosomal region. The query that counts them is cheap: it reads only the chrX partition of the table, and
-    // BigQuery bills nothing for the NULL PseudoautosomalRegion values of the loci outside the PARs. The checkbox stays
-    // hidden if the query fails, or if by the time it returns the dialog was closed or a new search was run.
-    const showPseudoautosomalRegionFlagCheckboxIfExportIncludesParLoci = async (searchConditions) => {
-        const whereClause = buildWhereClause([...searchConditions, ...EXPANSION_HUNTER_EXPORT_CONDITIONS,
-            `chrom_index = ${CHROM_TO_CHROM_INDEX['X']}`, 'PseudoautosomalRegion IS NOT NULL'])
-        let numParLoci
-        try {
-            // The proxy needs a start index and page size for a query that isn't an export
-            numParLoci = (await queryBigQuery(`SELECT COUNT(*) AS n FROM ${COMPLETE_TABLE_ID} ${whereClause}`, 0, 1)).rows[0].n
-        } catch (error) {
-            console.error('Error counting the loci to export that are inside a pseudoautosomal region:', error)
-            return
-        }
-
-        const $dialog = $('#export-column-dialog')
-        if (numParLoci === 0 || $dialog.data('exportType') !== 'expansion_hunter'
-            || window.lastSearchConditions !== searchConditions) {
-            return
-        }
-        $('#export-expansion-hunter-options').show()
-        $('#export-expansion-hunter-options .ui.checkbox').checkbox()
-        // hoverable, so that the mouse can move from the icon into the popup to click its links
-        $('#export-pseudoautosomal-region-flag-help-icon').popup({
-            on: 'hover', hoverable: true, position: 'right center', variation: 'wide', inline: true})
-        $dialog.modal('refresh')
-    }
 
     // --- Custom Filter Logic ---
 
@@ -10140,7 +10112,7 @@ gtag('config', 'G-6R8FPBQRFH');
         // Read TRGT catalog type
         const trgtCatalogType = $('input[name="trgtCatalogType"]:checked').val() || 'simple'
 
-        // Only an ExpansionHunter export shows this checkbox, and the dialog unchecks it every time it opens
+        // Only an ExpansionHunter export shows this checkbox, and the dialog checks it every time it opens
         const setPseudoautosomalRegionFlag = $('#export-set-pseudoautosomal-region-flag-checkbox').is(':checked')
 
         performExport(exportType, selectedColumns, overlapHandling, trgtCatalogType, setPseudoautosomalRegionFlag)
